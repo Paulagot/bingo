@@ -36,7 +36,7 @@ import { EliminationDevPage } from './components/elimination/EliminationDevPage'
 import { EliminationAdminJoinPage } from './components/elimination/EliminationAdminJoinPage';
 import { Web3Provider } from './components/Web3Provider';
 import EventsDiscoveryPage from './pages/web3/events';
-import { ensureAppKitCreated } from './web3Init';
+
 import { useAuthStore } from './features/auth';
 
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -218,7 +218,7 @@ const needsWeb3Wrapper = (pathname: string) =>
   /^\/quiz\/(game|play|admin-join)\b/.test(pathname);
 
 export default function App() {
-  ensureAppKitCreated();
+
 
   const navigate = useNavigate();
   const location = useLocation();

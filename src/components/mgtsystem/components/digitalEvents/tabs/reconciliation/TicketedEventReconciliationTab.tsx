@@ -43,6 +43,32 @@ function getRoleLabel(role: string) {
   return role || 'Staff';
 }
 
+/**
+ * Walk-ins are tickets added by staff at the door during check-in.
+ * The backend may set saleType = 'walk_in' explicitly on the player object.
+ * If not present, we detect by playerId prefix convention ('walkin_').
+ * Stripe auto-confirmed rows (confirmedBy = 'webhook_auto') are advance sales.
+ */
+function getSaleTypeLabel(player: any): 'Walk-in' | 'Advance' {
+  if (player.saleType === 'walk_in')          return 'Walk-in';
+  if (player.saleType === 'advance')          return 'Advance';
+  if (typeof player.playerId === 'string' && player.playerId.startsWith('walkin_')) return 'Walk-in';
+  if (player.confirmedBy === 'webhook_auto')  return 'Advance';
+  return 'Advance';
+}
+
+function SaleTypePill({ type }: { type: 'Walk-in' | 'Advance' }) {
+  return type === 'Walk-in' ? (
+    <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200 shrink-0">
+      Walk-in
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600 border border-blue-100 shrink-0">
+      Advance
+    </span>
+  );
+}
+
 function StepBadge({ n, status }: { n: number; status: 'pending' | 'active' | 'done' }) {
   const base = 'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0';
   if (status === 'done')   return <div className={`${base} bg-green-100 text-green-700`}><CheckCircle2 className="h-5 w-5" /></div>;
@@ -136,24 +162,39 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
   const [loadError,      setLoadError]      = useState<string | null>(null);
 
   // ── Approval state ──────────────────────────────────────────────────────────
-  const [approvedBy,   setApprovedBy]   = useState('');
-  const [notes,        setNotes]        = useState('');
-  const [approving,    setApproving]    = useState(false);
-  const [approveError, setApproveError] = useState<string | null>(null);
-  const [approveOk,    setApproveOk]    = useState(false);
+  const [approvedBy,    setApprovedBy]   = useState('');
+  const [notes,         setNotes]        = useState('');
+  const [approving,     setApproving]    = useState(false);
+  const [approveError,  setApproveError] = useState<string | null>(null);
+  const [approveOk,     setApproveOk]    = useState(false);
 
   // ── Claimed payment actions ─────────────────────────────────────────────────
-  const [confirmingId,    setConfirmingId]    = useState<string | null>(null);
-  const [disputeTarget,   setDisputeTarget]   = useState<DisputeTarget | null>(null);
+  const [confirmingId,      setConfirmingId]      = useState<string | null>(null);
+  const [disputeTarget,     setDisputeTarget]     = useState<DisputeTarget | null>(null);
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
   const isApproved = !!reconciliation?.approvedAt;
   const sym        = meta?.currencySymbol ?? '€';
 
-  const claimedPayments  = paymentView?.onTheNight?.claimed  ?? [];
-  const disputedPayments = paymentView?.onTheNight?.disputed ?? [];
+  const claimedPayments  = paymentView?.onTheNight?.claimed        ?? [];
+  const disputedPayments = paymentView?.onTheNight?.disputed       ?? [];
   const confirmedGroups  = paymentView?.onTheNight?.confirmedGroups ?? [];
   const pendingClaimed   = claimedPayments.length;
+
+  // ── Walk-in vs advance counts — derived from confirmedGroups (paymentView)
+  // We intentionally do NOT rely on summary.tickets for this because that type
+  // only has { total, checkedIn, notCheckedIn }. The saleType breakdown lives
+  // in each player row inside confirmedGroups.
+  const { walkInCount, advanceCount } = useMemo(() => {
+    let walkIn = 0, advance = 0;
+    for (const group of confirmedGroups) {
+      for (const p of (group.players ?? [])) {
+        if (getSaleTypeLabel(p) === 'Walk-in') walkIn++;
+        else advance++;
+      }
+    }
+    return { walkInCount: walkIn, advanceCount: advance };
+  }, [confirmedGroups]);
 
   // ── Fetch ───────────────────────────────────────────────────────────────────
   const fetchState = useCallback(async () => {
@@ -271,7 +312,7 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
     }
   };
 
-  // ── Guard ───────────────────────────────────────────────────────────────────
+  // ── Guards ──────────────────────────────────────────────────────────────────
   if (room.status !== 'completed') {
     return (
       <div className="p-5">
@@ -393,6 +434,41 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
             </div>
           )}
 
+          {/* ── Ticket Sales Breakdown (advance vs walk-in) ──
+              Derived from confirmedGroups in paymentView — no extra fields needed
+              on the PaymentSummary type. Only shown when we have both types. */}
+          {(walkInCount > 0 || advanceCount > 0) && (
+            <div className="rounded-xl border border-gray-200 overflow-hidden mb-4">
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
+                Ticket Sales Breakdown
+              </div>
+              <div className="divide-y divide-gray-50 bg-white">
+                {advanceCount > 0 && (
+                  <div className="px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <SaleTypePill type="Advance" />
+                      <span className="text-sm font-medium text-gray-900">Advance sales</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {advanceCount} ticket{advanceCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+                {walkInCount > 0 && (
+                  <div className="px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <SaleTypePill type="Walk-in" />
+                      <span className="text-sm font-medium text-gray-900">Walk-in (added at door)</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {walkInCount} ticket{walkInCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* By payment method */}
           {summary && summary.byMethod.length > 0 && (
             <div className="rounded-xl border border-gray-200 overflow-hidden mb-4">
@@ -414,38 +490,71 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
             </div>
           )}
 
-          {/* ── Who collected what ── */}
+          {/* ── Who collected what ──
+              Each staff member's row now shows advance/walk-in counts as sub-badges,
+              and each individual player row shows a sale-type pill so it's clear
+              which entries were added at the door vs pre-sold. */}
           {confirmedGroups.length > 0 && (
             <div className="rounded-xl border border-green-100 overflow-hidden mb-4">
               <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-green-700" />
                 <span className="text-xs font-semibold text-green-800 uppercase">Collected by</span>
+                <span className="ml-auto flex items-center gap-1.5 text-[10px] text-green-700 font-medium">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-100 px-1.5 py-0.5">
+                    <span className="font-bold text-blue-600">A</span>dvance
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-200 px-1.5 py-0.5">
+                    <span className="font-bold text-amber-700">W</span>alk-in
+                  </span>
+                </span>
               </div>
               <div className="divide-y divide-gray-50 bg-white">
-                {confirmedGroups.map((group: any) => (
-                  <div key={group.confirmedById} className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-[rgba(21,127,133,0.12)] flex items-center justify-center text-xs font-bold text-[#157f85]">
-                          {group.confirmedByName.charAt(0).toUpperCase()}
+                {confirmedGroups.map((group: any) => {
+                  const groupWalkIn  = (group.players ?? []).filter((p: any) => getSaleTypeLabel(p) === 'Walk-in').length;
+                  const groupAdvance = (group.players ?? []).length - groupWalkIn;
+                  return (
+                    <div key={group.confirmedById} className="px-4 py-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-[rgba(21,127,133,0.12)] flex items-center justify-center text-xs font-bold text-[#157f85] shrink-0">
+                            {(group.confirmedByName ?? '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{group.confirmedByName}</div>
+                            <div className="text-xs text-gray-500 flex flex-wrap items-center gap-1.5 mt-0.5">
+                              {getRoleLabel(group.confirmedByRole)}
+                              {groupAdvance > 0 && (
+                                <span className="rounded-full bg-blue-50 border border-blue-100 px-1.5 text-[9px] font-bold text-blue-600">
+                                  {groupAdvance} advance
+                                </span>
+                              )}
+                              {groupWalkIn > 0 && (
+                                <span className="rounded-full bg-amber-100 border border-amber-200 px-1.5 text-[9px] font-bold text-amber-700">
+                                  {groupWalkIn} walk-in
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">{group.confirmedByName}</div>
-                          <div className="text-xs text-gray-500">{getRoleLabel(group.confirmedByRole)}</div>
-                        </div>
+                        <div className="text-sm font-bold text-[#157f85] shrink-0">{fmt(sym, group.totalAmount)}</div>
                       </div>
-                      <div className="text-sm font-bold text-[#157f85]">{fmt(sym, group.totalAmount)}</div>
+                      <div className="ml-9 space-y-1">
+                        {(group.players ?? []).map((p: any) => (
+                          <div key={p.playerId + p.paymentMethod} className="flex items-center justify-between gap-2 text-xs text-gray-500">
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <SaleTypePill type={getSaleTypeLabel(p)} />
+                              <span className="truncate">
+                                {p.playerName} · {p.methodLabel || methodLabel(p.paymentMethod)}
+                                {p.paymentReference ? ` · ${p.paymentReference}` : ''}
+                              </span>
+                            </span>
+                            <span className="font-medium text-gray-700 shrink-0">{fmt(sym, p.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="ml-9 space-y-0.5">
-                      {group.players.map((p: any) => (
-                        <div key={p.playerId + p.paymentMethod} className="flex items-center justify-between text-xs text-gray-500">
-                          <span>{p.playerName} · {p.methodLabel || methodLabel(p.paymentMethod)}{p.paymentReference ? ` · ${p.paymentReference}` : ''}</span>
-                          <span className="font-medium text-gray-700">{fmt(sym, p.amount)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

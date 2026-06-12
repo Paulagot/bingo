@@ -11,30 +11,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-
     <meta name="base:app_id" content="69a1865e991116aebf36caae" />
 
-    <!-- ✅ Solana RPC endpoint (environment-aware) -->
-<script>
-  (function() {
-    const rpcUrl = 'https://api.mainnet-beta.solana.com';
-
-    const rpcMeta = document.createElement('meta');
-    rpcMeta.setAttribute('name', 'solana:rpc');
-    rpcMeta.setAttribute('content', rpcUrl);
-    document.head.appendChild(rpcMeta);
-
-    console.log('🔗 [Solana RPC]', rpcUrl);
-  })();
-</script>
-   
+    <!-- ✅ Solana RPC is configured via customRpcUrls in web3Init.ts.
+         The solana:rpc meta tag has been removed from here because
+         Solflare's content script watches the DOM for that tag and
+         immediately opens ObjectMultiplex streams when it finds it —
+         before AppKit has initialized. This caused orphaned streams
+         and MaxListenersExceededWarning on every page load. -->
 
     <!--app-head-->
 
     <!-- Performance -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
 
   <body>

@@ -1,473 +1,565 @@
 // server/ticketedEvent/api/ticketedEventReconciliationRoutes.js
 //
 // Reconciliation endpoints for completed ticketed events.
-// Mounted at /api/ticketed-event/reconciliation
+// All routes require authenticateToken middleware.
 //
-// All routes require club authentication (authenticateToken).
-// No sockets — ticketed events are fully HTTP-based.
-//
-// Reuses the shared quiz_reconciliation + quiz_reconciliation_adjustments
-// tables and saveCompleteReconciliation / calculateStartingTotalsFromLedger
-// from quizReconciliationService so the audit view works without changes.
+// GET  /room/:roomId              — state (meta + reconciliation + adjustments + summary)
+// GET  /room/:roomId/payment-view — ledger view: confirmed groups + claimed + disputed
+// POST /room/:roomId/adjustments  — add adjustment row
+// PATCH /room/:roomId/adjustments/:id — update adjustment row
+// DELETE /room/:roomId/adjustments/:id — delete adjustment row
+// POST /room/:roomId/approve      — approve and lock reconciliation
+// POST /room/:roomId/dispute-payment — mark a claimed payment as disputed
 
 import express from 'express';
-import authenticateToken from '../../middleware/auth.js';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
-import {
-  getTicketedRoomMeta,
-  getReconciliationByRoomId,
-  getAdjustmentsByRoomId,
-  ensureDraftReconciliation,
-  addAdjustment,
-  updateAdjustment,
-  deleteAdjustment,
-  getPaymentSummary,
-} from './ticketedEventReconciliationService.js';
-import {
-  saveCompleteReconciliation,
-  calculateStartingTotalsFromLedger,
-} from '../../mgtsystem/services/quizReconciliationService.js';
+import { authenticateToken } from '../../middleware/auth.js';
 
 const router = express.Router();
-
-// All routes require auth
 router.use(authenticateToken);
 
-// ─── Helper: verify club owns this ticketed event room ────────────────────────
+const LEDGER_TABLE       = `${TABLE_PREFIX}quiz_payment_ledger`;
+const TICKETS_TABLE      = `${TABLE_PREFIX}quiz_tickets`;
+const ROOMS_TABLE        = `${TABLE_PREFIX}web2_quiz_rooms`;
+const RECON_TABLE        = `${TABLE_PREFIX}quiz_reconciliation`;
+const ADJUSTMENTS_TABLE  = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
+const CPM_TABLE          = `${TABLE_PREFIX}club_payment_methods`;
 
-async function verifyRoomOwnership(clubId, roomId) {
-  const [rows] = await connection.execute(
-    `SELECT room_id FROM ${TABLE_PREFIX}web2_quiz_rooms
-     WHERE room_id = ? AND club_id = ? AND game_type = 'ticketed_event' LIMIT 1`,
-    [roomId, clubId],
-  );
-  return rows.length > 0;
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function parseConfig(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try { return JSON.parse(raw); } catch { return {}; }
 }
 
-const sendError = (res, err) => {
-  console.error('[ticketedEventReconciliation] ❌', err);
-  const status = err?.statusCode || 500;
-  return res.status(status).json({ ok: false, error: err?.message || 'internal_error' });
-};
-
 // ─── GET /room/:roomId ────────────────────────────────────────────────────────
-// Returns current reconciliation state: header (may be null before first
-// approval), adjustments, and payment summary from the ledger.
+// Returns: { meta, reconciliation, adjustments, summary }
 
 router.get('/room/:roomId', async (req, res) => {
+  const { roomId } = req.params;
   try {
-    const clubId = req.club_id;
-    const { roomId } = req.params;
-    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
-    if (!roomId) return res.status(400).json({ ok: false, error: 'missing_room_id' });
+    // Room meta
+    const [[room]] = await connection.execute(
+      `SELECT room_id, club_id, config_json, host_id, status FROM ${ROOMS_TABLE} WHERE room_id = ?`,
+      [roomId]
+    );
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+    if (room.status !== 'completed') return res.status(400).json({ error: 'Room not yet completed' });
 
-    const owned = await verifyRoomOwnership(clubId, roomId);
-    if (!owned) return res.status(403).json({ ok: false, error: 'forbidden' });
+    const config = parseConfig(room.config_json);
+    const meta = {
+      clubId:         room.club_id,
+      currencySymbol: config.currencySymbol ?? '€',
+      currency:       config.currency        ?? 'EUR',
+      entryFee:       config.entryFee        ?? '0',
+      fundraisingMode: config.fundraisingMode ?? 'fixed_fee',
+      hostName:       config.hostName         ?? 'Host',
+    };
 
-    const meta          = await getTicketedRoomMeta(roomId);
-    const reconciliation = await getReconciliationByRoomId(roomId);
-    const adjustments   = await getAdjustmentsByRoomId(roomId);
-    const summary       = await getPaymentSummary(roomId);
+    // Reconciliation record (may not exist yet)
+    const [[recon]] = await connection.execute(
+      `SELECT * FROM ${RECON_TABLE} WHERE room_id = ? ORDER BY id DESC LIMIT 1`,
+      [roomId]
+    );
 
-    return res.json({
-      ok: true,
+    // Adjustments
+    const [adjustments] = await connection.execute(
+      `SELECT * FROM ${ADJUSTMENTS_TABLE} WHERE room_id = ? ORDER BY created_at ASC`,
+      [roomId]
+    );
+
+    // Summary from ledger — confirmed ticket payments only
+    const [[summaryRow]] = await connection.execute(
+      `SELECT
+         SUM(CASE WHEN ledger_type = 'entry_fee'     THEN amount ELSE 0 END) AS entry_fees,
+         SUM(CASE WHEN ledger_type = 'extra_purchase' THEN amount ELSE 0 END) AS extras,
+         SUM(amount) AS starting_total,
+         COUNT(DISTINCT player_id) AS confirmed_players
+       FROM ${LEDGER_TABLE}
+       WHERE room_id = ? AND status = 'confirmed'`,
+      [roomId]
+    );
+
+    // Ticket counts — total, checkedIn
+    const [[ticketCounts]] = await connection.execute(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(redemption_status = 'redeemed') AS checked_in,
+         SUM(redemption_status != 'redeemed') AS not_checked_in
+       FROM ${TICKETS_TABLE}
+       WHERE room_id = ? AND payment_status = 'payment_confirmed'`,
+      [roomId]
+    );
+
+    // By payment method breakdown
+    const [byMethod] = await connection.execute(
+      `SELECT payment_method AS method,
+              SUM(CASE WHEN ledger_type = 'entry_fee'     THEN amount ELSE 0 END) AS entry_fees,
+              SUM(CASE WHEN ledger_type = 'extra_purchase' THEN amount ELSE 0 END) AS extras,
+              SUM(amount) AS total
+       FROM ${LEDGER_TABLE}
+       WHERE room_id = ? AND status = 'confirmed'
+       GROUP BY payment_method
+       ORDER BY total DESC`,
+      [roomId]
+    );
+
+    const summary = {
+      entryFees:        Number(summaryRow?.entry_fees      ?? 0),
+      extras:           Number(summaryRow?.extras          ?? 0),
+      startingTotal:    Number(summaryRow?.starting_total  ?? 0),
+      confirmedPlayers: Number(summaryRow?.confirmed_players ?? 0),
+      byMethod: byMethod.map(r => ({
+        method:     r.method,
+        entryFees:  Number(r.entry_fees ?? 0),
+        extras:     Number(r.extras     ?? 0),
+        total:      Number(r.total      ?? 0),
+      })),
+      tickets: {
+        total:        Number(ticketCounts?.total        ?? 0),
+        checkedIn:    Number(ticketCounts?.checked_in   ?? 0),
+        notCheckedIn: Number(ticketCounts?.not_checked_in ?? 0),
+      },
+    };
+
+    res.json({
       meta,
-      reconciliation,   // null until first approval; has approvedAt once approved
-      adjustments,
+      reconciliation: recon
+        ? {
+            id:                String(recon.id),
+            roomId:            recon.room_id,
+            clubId:            recon.club_id,
+            startingEntryFees: Number(recon.starting_entry_fees ?? 0),
+            startingExtras:    Number(recon.starting_extras     ?? 0),
+            startingTotal:     Number(recon.starting_total      ?? 0),
+            adjustmentsNet:    Number(recon.adjustments_net     ?? 0),
+            finalTotal:        Number(recon.final_total         ?? 0),
+            approvedBy:        recon.approved_by   ?? null,
+            approvedAt:        recon.approved_at   ?? null,
+            notes:             recon.notes         ?? null,
+          }
+        : null,
+      adjustments: adjustments.map(a => ({
+        id:             String(a.id),
+        roomId:         a.room_id,
+        ts:             a.created_at,
+        adjustmentType: a.adjustment_type,
+        amount:         Number(a.amount ?? 0),
+        currency:       a.currency ?? meta.currency,
+        paymentMethod:  a.payment_method  ?? null,
+        reasonCode:     a.reason_code     ?? null,
+        note:           a.note            ?? null,
+        createdBy:      a.created_by      ?? null,
+        createdAt:      a.created_at,
+      })),
       summary,
     });
   } catch (err) {
-    return sendError(res, err);
+    console.error('[TicketedRecon] GET /room/:roomId error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /room/:roomId/payment-view ───────────────────────────────────────────
+// Returns the on-the-night view:
+//   confirmedGroups — all confirmed ledger rows, grouped by who confirmed them.
+//     Each player row includes saleType: 'walk_in' | 'advance' based on
+//     payment_reference = 'WALKIN' (set by the walk-in checkin endpoint).
+//   claimed  — rows still in 'claimed' status needing manual resolution
+//   disputed — rows marked disputed
+
+router.get('/room/:roomId/payment-view', async (req, res) => {
+  const { roomId } = req.params;
+  try {
+    // ── Confirmed rows — grouped by confirmer
+    // payment_reference is included in SELECT + GROUP BY so we can derive saleType.
+    // 'WALKIN' is set explicitly by POST /checkin/:roomId/walkin on every walk-in row.
+    const [confirmedRows] = await connection.execute(
+      `SELECT
+         l.player_id,
+         l.player_name,
+         l.ticket_id,
+         l.payment_method,
+         l.payment_reference,
+         COALESCE(l.confirmed_by,      'system')  AS confirmed_by_id,
+         COALESCE(l.confirmed_by_name, 'System')  AS confirmed_by_name,
+         COALESCE(l.confirmed_by_role, 'system')  AS confirmed_by_role,
+         cpm.method_label,
+         SUM(l.amount)                            AS total_amount
+       FROM ${LEDGER_TABLE} l
+       LEFT JOIN ${CPM_TABLE} cpm ON l.club_payment_method_id = cpm.id
+       WHERE l.room_id = ?
+         AND l.status  = 'confirmed'
+       GROUP BY
+         l.player_id,
+         l.player_name,
+         l.ticket_id,
+         l.payment_method,
+         l.payment_reference,
+         l.confirmed_by,
+         l.confirmed_by_name,
+         l.confirmed_by_role,
+         cpm.method_label
+       ORDER BY l.confirmed_by_name ASC, l.player_name ASC`,
+      [roomId]
+    );
+
+    // Group confirmed rows by confirmer
+    const confirmedGroupMap = new Map();
+    for (const row of confirmedRows) {
+      const id   = row.confirmed_by_id;
+      const name = row.confirmed_by_name;
+      const role = row.confirmed_by_role;
+
+      if (!confirmedGroupMap.has(id)) {
+        confirmedGroupMap.set(id, {
+          confirmedById:   id,
+          confirmedByName: name,
+          confirmedByRole: role,
+          totalAmount:     0,
+          players:         [],
+        });
+      }
+
+      const group = confirmedGroupMap.get(id);
+      const amt   = Number(row.total_amount || 0);
+      group.totalAmount += amt;
+
+      // saleType: walk-ins are identified by payment_reference = 'WALKIN'.
+      // The walk-in checkin endpoint always sets this value, making it a
+      // reliable signal that requires no frontend guesswork.
+      const saleType = row.payment_reference === 'WALKIN' ? 'walk_in' : 'advance';
+
+      group.players.push({
+        playerId:         row.player_id,
+        playerName:       row.player_name,
+        ticketId:         row.ticket_id         ?? null,
+        paymentMethod:    row.payment_method,
+        methodLabel:      row.method_label       ?? null,
+        paymentReference: row.payment_reference  ?? null,
+        amount:           amt,
+        status:           'confirmed',
+        saleType,           // ← 'walk_in' | 'advance'
+      });
+    }
+
+    const confirmedGroups = [...confirmedGroupMap.values()]
+      .sort((a, b) => b.totalAmount - a.totalAmount);
+
+    // ── Claimed rows — need manual confirm or dispute
+    const [claimedRows] = await connection.execute(
+      `SELECT
+         l.player_id,
+         l.player_name,
+         l.ticket_id,
+         l.payment_method,
+         l.payment_reference,
+         cpm.method_label,
+         SUM(l.amount) AS total_amount
+       FROM ${LEDGER_TABLE} l
+       LEFT JOIN ${CPM_TABLE} cpm ON l.club_payment_method_id = cpm.id
+       WHERE l.room_id = ?
+         AND l.status  = 'claimed'
+       GROUP BY
+         l.player_id, l.player_name, l.ticket_id,
+         l.payment_method, l.payment_reference, cpm.method_label
+       ORDER BY l.player_name ASC`,
+      [roomId]
+    );
+
+    const claimed = claimedRows.map(row => ({
+      playerId:         row.player_id,
+      playerName:       row.player_name,
+      ticketId:         row.ticket_id         ?? null,
+      paymentMethod:    row.payment_method,
+      methodLabel:      row.method_label       ?? null,
+      paymentReference: row.payment_reference  ?? null,
+      amount:           Number(row.total_amount || 0),
+    }));
+
+    // ── Disputed rows — info only
+    const [disputedRows] = await connection.execute(
+      `SELECT
+         l.player_id,
+         l.player_name,
+         l.ticket_id,
+         l.payment_method,
+         l.admin_notes,
+         SUM(l.amount) AS total_amount
+       FROM ${LEDGER_TABLE} l
+       WHERE l.room_id = ?
+         AND l.status  = 'disputed'
+       GROUP BY
+         l.player_id, l.player_name, l.ticket_id,
+         l.payment_method, l.admin_notes
+       ORDER BY l.player_name ASC`,
+      [roomId]
+    );
+
+    const disputed = disputedRows.map(row => ({
+      playerId:      row.player_id,
+      playerName:    row.player_name,
+      ticketId:      row.ticket_id ?? null,
+      paymentMethod: row.payment_method,
+      adminNotes:    row.admin_notes ?? null,
+      amount:        Number(row.total_amount || 0),
+    }));
+
+    const totalClaimed  = claimed.reduce((s, r) => s + r.amount, 0);
+    const totalDisputed = disputed.reduce((s, r) => s + r.amount, 0);
+
+    res.json({
+      ok: true,
+      onTheNight: {
+        confirmedGroups,
+        claimed,
+        disputed,
+        totalClaimed,
+        totalDisputed,
+      },
+    });
+  } catch (err) {
+    console.error('[TicketedRecon] GET /room/:roomId/payment-view error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // ─── POST /room/:roomId/adjustments ──────────────────────────────────────────
-// Add a manual adjustment. Creates a draft reconciliation row if one doesn't
-// exist yet (so adjustments have a reconciliation_id FK to reference).
 
 router.post('/room/:roomId/adjustments', async (req, res) => {
+  const { roomId } = req.params;
+  const { adjustmentType, amount, paymentMethod, reasonCode, note, createdBy } = req.body;
   try {
-    const clubId = req.club_id;
-    const { roomId } = req.params;
-    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
+    const [[room]] = await connection.execute(
+      `SELECT club_id, config_json FROM ${ROOMS_TABLE} WHERE room_id = ?`,
+      [roomId]
+    );
+    if (!room) return res.status(404).json({ error: 'Room not found' });
 
-    const owned = await verifyRoomOwnership(clubId, roomId);
-    if (!owned) return res.status(403).json({ ok: false, error: 'forbidden' });
+    const config   = parseConfig(room.config_json);
+    const currency = config.currency ?? 'EUR';
 
-    // Block if already approved
-    const existing = await getReconciliationByRoomId(roomId);
-    if (existing?.approvedAt) {
-      return res.status(409).json({ ok: false, error: 'reconciliation_already_approved' });
-    }
-
-    const meta = await getTicketedRoomMeta(roomId);
-    if (!meta) return res.status(404).json({ ok: false, error: 'room_not_found' });
-
-    // Ensure draft reconciliation row exists
-    const { id: reconciliationId } = await ensureDraftReconciliation(roomId, clubId);
-
-    const {
-      adjustmentType = 'received',
-      amount = 0,
-      paymentMethod = 'cash',
-      reasonCode = 'late_payment',
-      note = null,
-      createdBy,
-    } = req.body || {};
-
-    const insertId = await addAdjustment({
-      roomId, clubId, reconciliationId,
-      adjustmentType,
-      amount: parseFloat(amount) || 0,
-      currency: meta.currency || 'EUR',
-      paymentMethod,
-      reasonCode,
-      note: note?.trim() || null,
-      createdBy: createdBy || meta.hostName || 'Host',
-    });
-
-    // Return the new row so the frontend can add it to state
-    const [rows] = await connection.execute(
-      `SELECT id, room_id, ts, adjustment_type, amount, currency,
-              payment_method, reason_code, note, created_by, created_at
-       FROM ${TABLE_PREFIX}quiz_reconciliation_adjustments
-       WHERE id = ? LIMIT 1`,
-      [insertId],
+    const [result] = await connection.execute(
+      `INSERT INTO ${ADJUSTMENTS_TABLE}
+         (room_id, club_id, adjustment_type, amount, currency,
+          payment_method, reason_code, note, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [roomId, room.club_id, adjustmentType, amount, currency,
+       paymentMethod ?? null, reasonCode ?? null, note ?? null, createdBy ?? null]
     );
 
-    const row = rows[0];
-    return res.status(201).json({
-      ok: true,
+    const [[row]] = await connection.execute(
+      `SELECT * FROM ${ADJUSTMENTS_TABLE} WHERE id = ?`,
+      [result.insertId]
+    );
+
+    res.json({
       adjustment: {
-        id:             row.id.toString(),
+        id:             String(row.id),
         roomId:         row.room_id,
-        ts:             row.ts instanceof Date ? row.ts.toISOString() : String(row.ts),
+        ts:             row.created_at,
         adjustmentType: row.adjustment_type,
-        amount:         parseFloat(row.amount),
+        amount:         Number(row.amount ?? 0),
         currency:       row.currency,
-        paymentMethod:  row.payment_method,
-        reasonCode:     row.reason_code,
-        note:           row.note,
-        createdBy:      row.created_by,
-        createdAt:      row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+        paymentMethod:  row.payment_method  ?? null,
+        reasonCode:     row.reason_code     ?? null,
+        note:           row.note            ?? null,
+        createdBy:      row.created_by      ?? null,
+        createdAt:      row.created_at,
       },
     });
   } catch (err) {
-    return sendError(res, err);
+    console.error('[TicketedRecon] POST adjustments error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// ─── PATCH /room/:roomId/adjustments/:adjustmentId ───────────────────────────
-// Update one field on an existing adjustment (e.g. amount on blur, note on blur).
+// ─── PATCH /room/:roomId/adjustments/:id ─────────────────────────────────────
 
-router.patch('/room/:roomId/adjustments/:adjustmentId', async (req, res) => {
+router.patch('/room/:roomId/adjustments/:id', async (req, res) => {
+  const { roomId, id } = req.params;
+  const allowed = ['adjustment_type', 'amount', 'payment_method', 'reason_code', 'note'];
+  const updates = {};
+
+  const fieldMap = {
+    adjustmentType: 'adjustment_type',
+    paymentMethod:  'payment_method',
+    reasonCode:     'reason_code',
+    amount:         'amount',
+    note:           'note',
+  };
+
+  for (const [key, col] of Object.entries(fieldMap)) {
+    if (req.body[key] !== undefined) updates[col] = req.body[key];
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
   try {
-    const clubId = req.club_id;
-    const { roomId, adjustmentId } = req.params;
-    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
-
-    const owned = await verifyRoomOwnership(clubId, roomId);
-    if (!owned) return res.status(403).json({ ok: false, error: 'forbidden' });
-
-    const existing = await getReconciliationByRoomId(roomId);
-    if (existing?.approvedAt) {
-      return res.status(409).json({ ok: false, error: 'reconciliation_already_approved' });
-    }
-
-    const updated = await updateAdjustment(roomId, adjustmentId, req.body || {});
-    if (!updated) return res.status(404).json({ ok: false, error: 'adjustment_not_found' });
-
-    return res.json({ ok: true });
+    const setClauses = Object.keys(updates).map(col => `${col} = ?`).join(', ');
+    await connection.execute(
+      `UPDATE ${ADJUSTMENTS_TABLE} SET ${setClauses}, updated_at = NOW()
+       WHERE id = ? AND room_id = ?`,
+      [...Object.values(updates), id, roomId]
+    );
+    res.json({ ok: true });
   } catch (err) {
-    return sendError(res, err);
+    console.error('[TicketedRecon] PATCH adjustment error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// ─── DELETE /room/:roomId/adjustments/:adjustmentId ──────────────────────────
+// ─── DELETE /room/:roomId/adjustments/:id ────────────────────────────────────
 
-router.delete('/room/:roomId/adjustments/:adjustmentId', async (req, res) => {
+router.delete('/room/:roomId/adjustments/:id', async (req, res) => {
+  const { roomId, id } = req.params;
   try {
-    const clubId = req.club_id;
-    const { roomId, adjustmentId } = req.params;
-    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
-
-    const owned = await verifyRoomOwnership(clubId, roomId);
-    if (!owned) return res.status(403).json({ ok: false, error: 'forbidden' });
-
-    const existing = await getReconciliationByRoomId(roomId);
-    if (existing?.approvedAt) {
-      return res.status(409).json({ ok: false, error: 'reconciliation_already_approved' });
-    }
-
-    const deleted = await deleteAdjustment(roomId, adjustmentId);
-    if (!deleted) return res.status(404).json({ ok: false, error: 'adjustment_not_found' });
-
-    return res.json({ ok: true });
+    await connection.execute(
+      `DELETE FROM ${ADJUSTMENTS_TABLE} WHERE id = ? AND room_id = ?`,
+      [id, roomId]
+    );
+    res.json({ ok: true });
   } catch (err) {
-    return sendError(res, err);
+    console.error('[TicketedRecon] DELETE adjustment error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // ─── POST /room/:roomId/approve ───────────────────────────────────────────────
-// Finalise reconciliation:
-//   1. calculateStartingTotalsFromLedger — authoritative totals from DB
-//   2. Calculate adjustments net from current adjustment rows
-//   3. saveCompleteReconciliation — upserts header, replaces adjustments,
-//      stamps confirmed ledger rows with reconciliation_id
-//
-// No leaderboard or prize awards for ticketed events.
 
 router.post('/room/:roomId/approve', async (req, res) => {
+  const { roomId }   = req.params;
+  const { approvedBy, notes } = req.body;
+
+  if (!approvedBy?.trim()) {
+    return res.status(400).json({ error: 'approvedBy is required' });
+  }
+
   try {
-    const clubId = req.club_id;
-    const { roomId } = req.params;
-    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
-    if (!roomId) return res.status(400).json({ ok: false, error: 'missing_room_id' });
-
-    const owned = await verifyRoomOwnership(clubId, roomId);
-    if (!owned) return res.status(403).json({ ok: false, error: 'forbidden' });
-
-    // Block double-approval
-    const existing = await getReconciliationByRoomId(roomId);
-    if (existing?.approvedAt) {
-      return res.status(409).json({ ok: false, error: 'already_approved', approvedAt: existing.approvedAt });
+    // Check no outstanding claimed payments
+    const [[claimedCheck]] = await connection.execute(
+      `SELECT COUNT(*) AS cnt FROM ${LEDGER_TABLE}
+       WHERE room_id = ? AND status = 'claimed'`,
+      [roomId]
+    );
+    if (Number(claimedCheck.cnt) > 0) {
+      return res.status(400).json({
+        error: `${claimedCheck.cnt} claimed payment(s) must be resolved before approving`,
+      });
     }
 
-    const { approvedBy, notes } = req.body || {};
-    if (!approvedBy?.trim()) {
-      return res.status(400).json({ ok: false, error: 'approvedBy is required' });
-    }
+    // Recalculate totals fresh
+    const [[totals]] = await connection.execute(
+      `SELECT
+         SUM(CASE WHEN ledger_type = 'entry_fee'     THEN amount ELSE 0 END) AS entry_fees,
+         SUM(CASE WHEN ledger_type = 'extra_purchase' THEN amount ELSE 0 END) AS extras,
+         SUM(amount) AS starting_total
+       FROM ${LEDGER_TABLE}
+       WHERE room_id = ? AND status = 'confirmed'`,
+      [roomId]
+    );
 
-    const approvedAt = new Date().toISOString();
+    const [adjustmentRows] = await connection.execute(
+      `SELECT adjustment_type, reason_code, amount FROM ${ADJUSTMENTS_TABLE} WHERE room_id = ?`,
+      [roomId]
+    );
 
-    // 1. Authoritative starting totals from payment ledger
-    const startingTotals = await calculateStartingTotalsFromLedger(roomId);
-    console.log(`[ticketedEventRecon] 💰 Starting totals for ${roomId}:`, startingTotals);
-
-    // 2. Current adjustments from DB
-    const adjustments = await getAdjustmentsByRoomId(roomId);
-
-    // 3. Compute adjustments net
-    let adjustmentsNet = 0;
-    for (const adj of adjustments) {
-      const amt = Number(adj.amount || 0);
-      if (
-        adj.adjustmentType === 'received' ||
-        (adj.adjustmentType === 'cash_over_short' && adj.reasonCode === 'cash_over')
-      ) {
-        adjustmentsNet += amt;
-      } else {
-        adjustmentsNet -= amt;
+    let moneyIn = 0, moneyOut = 0;
+    for (const a of adjustmentRows) {
+      const amt = Number(a.amount || 0);
+      switch (a.adjustment_type) {
+        case 'received':     moneyIn  += amt; break;
+        case 'refund':
+        case 'fee':
+        case 'prize_payout': moneyOut += amt; break;
+        case 'cash_over_short':
+          if (a.reason_code === 'cash_over')  moneyIn  += amt;
+          else if (a.reason_code === 'cash_short') moneyOut += amt;
+          break;
       }
     }
 
-    const finalTotal = startingTotals.total + adjustmentsNet;
-
-    // 4. Map adjustments to the shape saveCompleteReconciliation expects
-    const adjustmentsPayload = adjustments.map(adj => ({
-      ts:         adj.ts,
-      type:       adj.adjustmentType,
-      amount:     adj.amount,
-      currency:   adj.currency || 'EUR',
-      method:     adj.paymentMethod || null,
-      reasonCode: adj.reasonCode || null,
-      payerId:    null,
-      note:       adj.note || null,
-      createdBy:  adj.createdBy || 'Host',
-      meta:       null,
-    }));
-
-    // 5. Save — reuses quiz reconciliation service (no leaderboard for events)
-    const result = await saveCompleteReconciliation({
-      roomId,
-      clubId,
-      startingEntryFees: startingTotals.entryFees,
-      startingExtras:    startingTotals.extras,
-      startingTotal:     startingTotals.total,
-      adjustmentsNet,
-      finalTotal,
-      approvedBy:        approvedBy.trim(),
-      approvedById:      req.user?.id || req.user?.member_id || null,
-      approvedAt,
-      notes:             notes?.trim() || null,
-      adjustments:       adjustmentsPayload,
-      finalLeaderboard:  null,   // ticketed events have no leaderboard
-      prizeAwards:       null,
-    });
-
-    // 6. Update reconciliation_status on the room row so the drawer refreshes
-    await connection.execute(
-      `UPDATE ${TABLE_PREFIX}web2_quiz_rooms
-       SET reconciliation_status = 'closed', updated_at = UTC_TIMESTAMP()
-       WHERE room_id = ?`,
-      [roomId],
+    const startingTotal  = Number(totals.starting_total  ?? 0);
+    const adjustmentsNet = moneyIn - moneyOut;
+    const finalTotal     = startingTotal + adjustmentsNet;
+    const [[room]]       = await connection.execute(
+      `SELECT club_id FROM ${ROOMS_TABLE} WHERE room_id = ?`, [roomId]
     );
 
-    console.log(`[ticketedEventRecon] ✅ Approved reconciliation for ${roomId} — total: ${finalTotal}`);
+    // Upsert reconciliation record
+    await connection.execute(
+      `INSERT INTO ${RECON_TABLE}
+         (room_id, club_id, starting_entry_fees, starting_extras, starting_total,
+          adjustments_net, final_total, approved_by, approved_at, notes,
+          created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+         starting_entry_fees = VALUES(starting_entry_fees),
+         starting_extras     = VALUES(starting_extras),
+         starting_total      = VALUES(starting_total),
+         adjustments_net     = VALUES(adjustments_net),
+         final_total         = VALUES(final_total),
+         approved_by         = VALUES(approved_by),
+         approved_at         = NOW(),
+         notes               = VALUES(notes),
+         updated_at          = NOW()`,
+      [
+        roomId, room.club_id,
+        Number(totals.entry_fees ?? 0),
+        Number(totals.extras     ?? 0),
+        startingTotal, adjustmentsNet, finalTotal,
+        approvedBy.trim(), notes?.trim() ?? null,
+      ]
+    );
 
-    return res.json({
+    // Stamp reconciliation_status on the room
+    await connection.execute(
+      `UPDATE ${ROOMS_TABLE} SET reconciliation_status = 'closed', updated_at = NOW()
+       WHERE room_id = ?`,
+      [roomId]
+    );
+
+    res.json({
       ok: true,
       data: {
         roomId,
-        reconciliationId: result.reconciliationId,
-        adjustmentCount:  result.adjustmentCount,
-        startingTotal:    startingTotals.total,
+        startingTotal,
         adjustmentsNet,
         finalTotal,
-        approvedAt,
-        approvedBy:       approvedBy.trim(),
+        approvedBy: approvedBy.trim(),
+        approvedAt: new Date().toISOString(),
       },
     });
   } catch (err) {
-    return sendError(res, err);
-  }
-});
-
-// ─── GET /room/:roomId/payment-view ──────────────────────────────────────────
-// Proxy to the shared reconciliation-view endpoint so the frontend only needs
-// one auth context. Returns onTheNight (confirmedGroups, claimed, disputed,
-// expected) and byMethod — same shape as quiz/elimination uses.
-
-router.get('/room/:roomId/payment-view', async (req, res) => {
-  try {
-    const clubId = req.club_id;
-    const { roomId } = req.params;
-    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
-
-    const owned = await verifyRoomOwnership(clubId, roomId);
-    if (!owned) return res.status(403).json({ ok: false, error: 'forbidden' });
-
-    // Reuse the existing quiz reconciliation view — works for ticketed events
-    // because all ticket payments write to quiz_payment_ledger.
-    const LEDGER  = `${TABLE_PREFIX}quiz_payment_ledger`;
-    const CPM     = `${TABLE_PREFIX}club_payment_methods`;
-
-    // ── On-the-night payments grouped by status ────────────────────────────
-    const [onNightRows] = await connection.execute(
-      `SELECT
-         pl.player_id,
-         pl.player_name,
-         pl.ticket_id,
-         pl.payment_method,
-         pl.status,
-         COALESCE(pl.confirmed_by, 'unconfirmed')  AS confirmed_by_id,
-         COALESCE(pl.confirmed_by_name, '')         AS confirmed_by_name,
-         COALESCE(pl.confirmed_by_role, '')         AS confirmed_by_role,
-         pl.payment_reference,
-         cpm.method_label,
-         SUM(pl.amount)                             AS total_amount
-       FROM ${LEDGER} pl
-       LEFT JOIN ${CPM} cpm ON pl.club_payment_method_id = cpm.id
-       WHERE pl.room_id = ?
-       GROUP BY
-         pl.player_id, pl.player_name, pl.ticket_id, pl.payment_method,
-         pl.status, pl.confirmed_by, pl.confirmed_by_name,
-         pl.confirmed_by_role, pl.payment_reference, cpm.method_label
-       ORDER BY pl.status ASC, pl.player_name ASC`,
-      [roomId],
-    );
-
-    const confirmedGroups = new Map();
-    const claimedPlayers  = [];
-    const disputedPlayers = [];
-
-    for (const row of onNightRows) {
-      const player = {
-        playerId:         row.player_id,
-        playerName:       row.player_name,
-        ticketId:         row.ticket_id || null,
-        paymentMethod:    row.payment_method,
-        methodLabel:      row.method_label || null,
-        paymentReference: row.payment_reference || null,
-        amount:           Number(row.total_amount || 0),
-        status:           row.status,
-      };
-
-      if (row.status === 'confirmed') {
-        // Only show manual confirmations in the breakdown (exclude webhook_auto / system)
-        const isAutoConfirmed = ['webhook_auto', 'system', 'system_zero_donation'].includes(row.confirmed_by_id);
-        const isManual = ['cash', 'card', 'card_tap', 'instant_payment', 'pay_admin'].includes(row.payment_method);
-
-        if (isManual && !isAutoConfirmed) {
-          const id   = row.confirmed_by_id;
-          const name = row.confirmed_by_name || 'Unknown';
-          const role = row.confirmed_by_role;
-
-          if (!confirmedGroups.has(id)) {
-            confirmedGroups.set(id, {
-              confirmedById:   id,
-              confirmedByName: name,
-              confirmedByRole: role,
-              totalAmount:     0,
-              players:         [],
-            });
-          }
-          const group = confirmedGroups.get(id);
-          group.totalAmount += player.amount;
-          group.players.push(player);
-        }
-
-      } else if (row.status === 'claimed') {
-        claimedPlayers.push(player);
-      } else if (row.status === 'disputed') {
-        disputedPlayers.push(player);
-      }
-    }
-
-    const confirmedGroupsArr = [...confirmedGroups.values()]
-      .sort((a, b) => b.totalAmount - a.totalAmount);
-
-    return res.json({
-      ok: true,
-      onTheNight: {
-        confirmedGroups: confirmedGroupsArr,
-        claimed:         claimedPlayers,
-        disputed:        disputedPlayers,
-        totalClaimed:    claimedPlayers.reduce((s, p) => s + p.amount, 0),
-        totalDisputed:   disputedPlayers.reduce((s, p) => s + p.amount, 0),
-      },
-    });
-  } catch (err) {
-    return sendError(res, err);
+    console.error('[TicketedRecon] POST approve error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // ─── POST /room/:roomId/dispute-payment ───────────────────────────────────────
-// Mark a claimed ledger row as disputed with a reason.
-// Only claimed rows can be disputed (Stripe/crypto are already confirmed).
 
 router.post('/room/:roomId/dispute-payment', async (req, res) => {
+  const { roomId }          = req.params;
+  const { playerId, reason } = req.body;
+
+  if (!playerId || !reason?.trim()) {
+    return res.status(400).json({ error: 'playerId and reason are required' });
+  }
+
   try {
-    const clubId = req.club_id;
-    const { roomId } = req.params;
-    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
-
-    const owned = await verifyRoomOwnership(clubId, roomId);
-    if (!owned) return res.status(403).json({ ok: false, error: 'forbidden' });
-
-    const { playerId, reason } = req.body || {};
-    if (!playerId) return res.status(400).json({ ok: false, error: 'playerId required' });
-
-    const LEDGER = `${TABLE_PREFIX}quiz_payment_ledger`;
-
-    const [result] = await connection.execute(
-      `UPDATE ${LEDGER}
-       SET status     = 'disputed',
-           admin_notes = ?,
-           updated_at  = UTC_TIMESTAMP()
-       WHERE room_id  = ?
-         AND player_id = ?
-         AND status   = 'claimed'`,
-      [reason?.trim() || null, roomId, playerId],
+    await connection.execute(
+      `UPDATE ${LEDGER_TABLE}
+       SET status = 'disputed', admin_notes = ?, updated_at = NOW()
+       WHERE room_id = ? AND player_id = ? AND status = 'claimed'`,
+      [reason.trim(), roomId, playerId]
     );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ ok: false, error: 'no_claimed_rows_found' });
-    }
-
-    return res.json({ ok: true, affectedRows: result.affectedRows });
+    res.json({ ok: true });
   } catch (err) {
-    return sendError(res, err);
+    console.error('[TicketedRecon] POST dispute-payment error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

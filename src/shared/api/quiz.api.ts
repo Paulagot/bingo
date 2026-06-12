@@ -80,6 +80,7 @@ export type Web2RoomListItem = {
   updated_at: string;
   ended_at?: string | null;
   participants_count?: number;
+  
 };
 
 export type GetWeb2RoomsListResponse = {

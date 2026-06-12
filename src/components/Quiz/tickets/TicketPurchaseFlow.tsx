@@ -1,8 +1,9 @@
 // src/components/Quiz/tickets/TicketPurchaseFlow.tsx
 // UPDATED: game-type aware copy, passes gameType + clubName through to ticket/confirmation
 // UPDATED: ticketed_event support — event info panel, hides player name, skips extras
+// UPDATED: lazy-load crypto steps so Solflare/wallet adapters don't initialise on page load
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 import { Loader2, AlertTriangle, HeartHandshake } from 'lucide-react';
@@ -26,12 +27,31 @@ import { ActionButtons } from '../shared/ActionButtons';
 
 import { TicketConfirmation } from './TicketConfirmation';
 import { TicketedEventInfoPanel } from './TicketedEventInfoPanel';
-import CryptoTicketDonationStep from './crypto/CryptoTicketDonationStep';
-import { Web3Provider } from '../../../components/Web3Provider';
-import CryptoFixedFeeStep from '../joinroom/crypto/CryptoFixedFeeStep';
+
+// ✅ Lazy-load crypto steps and Web3Provider so that Solflare's
+//    wallet adapter (and its registerWalletStandard listeners) are
+//    never imported unless the user actually selects crypto payment.
+//    Previously these were eager imports at the top of the file,
+//    which caused Solflare to register EventEmitter listeners the
+//    moment /tickets/buy/:roomId loaded — regardless of payment method.
+const CryptoTicketDonationStep = lazy(() => import('./crypto/CryptoTicketDonationStep'));
+const CryptoFixedFeeStep = lazy(() => import('../joinroom/crypto/CryptoFixedFeeStep'));
+const Web3Provider = lazy(() =>
+  import('../../../components/Web3Provider').then((m) => ({ default: m.Web3Provider }))
+);
 
 import type { RoomInfo, Ticket } from './types';
 import { getGameTypeMeta } from './gameTypeMeta';
+
+// ─── Crypto loading fallback ──────────────────────────────────────────────────
+const CryptoLoadingFallback: React.FC = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="text-center">
+      <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-3" />
+      <span className="text-gray-700">Loading crypto payment...</span>
+    </div>
+  </div>
+);
 
 type TicketStep =
   | 'loading'
@@ -485,8 +505,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         );
       }
 
-      // Attach game type and club name from roomInfo so confirmation
-      // screen and email have full context without an extra fetch
       setTicket({
         ...data.ticket,
         gameType: roomInfo?.gameType ?? 'quiz',
@@ -684,8 +702,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   const hostDisplayName =
     roomInfo?.clubName || roomInfo?.hostName || 'the host';
 
-  // For ticketed events use the event title if available, otherwise
-  // fall back to the club/host name with the game type buying label
   const eventDisplayName =
     isTicketedEvent && roomInfo?.eventDetails?.title
       ? roomInfo.eventDetails.title
@@ -722,7 +738,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               }}
               backLabel="Cancel"
               onContinue={() => {
-                // Ticketed events never have extras — go straight to payment
                 if (!isTicketedEvent && !isDonationRoom && availableExtras.length > 0) {
                   setStep('extras');
                   return;
@@ -740,7 +755,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
             />
           }
         >
-          {/* Event info panel — shown for ticketed events */}
           {isTicketedEvent && roomInfo.eventDetails && (
             <TicketedEventInfoPanel eventDetails={roomInfo.eventDetails} />
           )}
@@ -967,24 +981,26 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         selectedMethod &&
         roomInfo &&
         roomId && (
-          <CryptoTicketDonationStep
-            roomId={roomId}
-            purchaserName={playerDetails.purchaserName || ''}
-            purchaserEmail={playerDetails.purchaserEmail || ''}
-            playerName={resolvedPlayerName}
-            selectedMethod={selectedMethod}
-            includedDonationExtras={includedDonationExtras}
-            solanaCluster="mainnet"
-            onBack={() => setStep('payment-method')}
-            onComplete={(createdTicket) => {
-              setTicket({
-                ...createdTicket,
-                gameType: roomInfo.gameType ?? 'quiz',
-                clubName: roomInfo.clubName ?? null,
-              });
-              setStep('complete');
-            }}
-          />
+          <Suspense fallback={<CryptoLoadingFallback />}>
+            <CryptoTicketDonationStep
+              roomId={roomId}
+              purchaserName={playerDetails.purchaserName || ''}
+              purchaserEmail={playerDetails.purchaserEmail || ''}
+              playerName={resolvedPlayerName}
+              selectedMethod={selectedMethod}
+              includedDonationExtras={includedDonationExtras}
+              solanaCluster="mainnet"
+              onBack={() => setStep('payment-method')}
+              onComplete={(createdTicket) => {
+                setTicket({
+                  ...createdTicket,
+                  gameType: roomInfo.gameType ?? 'quiz',
+                  clubName: roomInfo.clubName ?? null,
+                });
+                setStep('complete');
+              }}
+            />
+          </Suspense>
         )}
 
       {/* ── Crypto fixed fee ── */}
@@ -992,60 +1008,62 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         selectedMethod &&
         roomInfo &&
         roomId && (
-          <Web3Provider force>
-            <CryptoFixedFeeStep
-              mode="ticket"
-              roomId={roomId}
-              purchaserName={playerDetails.purchaserName || ''}
-              purchaserEmail={playerDetails.purchaserEmail || ''}
-              playerName={resolvedPlayerName}
-              selectedMethod={selectedMethod}
-              totalFiatAmount={totalAmount}
-              entryFeeAmount={roomInfo.entryFee}
-              extrasAmount={extrasTotal}
-              selectedExtras={selectedExtras}
-              fiatCurrency={(() => {
-                const map: Record<string, string> = {
-                  '€': 'EUR',
-                  '£': 'GBP',
-                  '$': 'USD',
-                  '₦': 'NGN',
-                  'CA$': 'CAD',
-                };
-                return map[roomInfo.currencySymbol] || 'EUR';
-              })()}
-              currencySymbol={roomInfo.currencySymbol}
-              solanaCluster="mainnet"
-              onBack={() => setStep('payment-method')}
-              onSuccess={(result) => {
-                if (result.ticketId && result.joinToken) {
-                  setTicket({
-                    ticketId: result.ticketId,
-                    joinToken: result.joinToken,
-                    roomId,
-                    purchaserEmail: playerDetails.purchaserEmail || '',
-                    purchaserName: playerDetails.purchaserName || '',
-                    playerName: resolvedPlayerName,
-                    entryFee: roomInfo.entryFee,
-                    extrasTotal,
-                    totalAmount,
-                    currency: roomInfo.currencySymbol,
-                    extras: selectedExtras.map((extraId) => ({
-                      extraId,
-                      price: roomInfo.fundraisingPrices?.[extraId] ?? 0,
-                    })),
-                    paymentStatus: 'payment_confirmed',
-                    redemptionStatus: 'ready',
-                    paymentMethod: 'crypto',
-                    paymentReference: result.txHash,
-                    gameType: roomInfo.gameType ?? 'quiz',
-                    clubName: roomInfo.clubName ?? null,
-                  });
-                  setStep('complete');
-                }
-              }}
-            />
-          </Web3Provider>
+          <Suspense fallback={<CryptoLoadingFallback />}>
+            <Web3Provider force>
+              <CryptoFixedFeeStep
+                mode="ticket"
+                roomId={roomId}
+                purchaserName={playerDetails.purchaserName || ''}
+                purchaserEmail={playerDetails.purchaserEmail || ''}
+                playerName={resolvedPlayerName}
+                selectedMethod={selectedMethod}
+                totalFiatAmount={totalAmount}
+                entryFeeAmount={roomInfo.entryFee}
+                extrasAmount={extrasTotal}
+                selectedExtras={selectedExtras}
+                fiatCurrency={(() => {
+                  const map: Record<string, string> = {
+                    '€': 'EUR',
+                    '£': 'GBP',
+                    '$': 'USD',
+                    '₦': 'NGN',
+                    'CA$': 'CAD',
+                  };
+                  return map[roomInfo.currencySymbol] || 'EUR';
+                })()}
+                currencySymbol={roomInfo.currencySymbol}
+                solanaCluster="mainnet"
+                onBack={() => setStep('payment-method')}
+                onSuccess={(result) => {
+                  if (result.ticketId && result.joinToken) {
+                    setTicket({
+                      ticketId: result.ticketId,
+                      joinToken: result.joinToken,
+                      roomId,
+                      purchaserEmail: playerDetails.purchaserEmail || '',
+                      purchaserName: playerDetails.purchaserName || '',
+                      playerName: resolvedPlayerName,
+                      entryFee: roomInfo.entryFee,
+                      extrasTotal,
+                      totalAmount,
+                      currency: roomInfo.currencySymbol,
+                      extras: selectedExtras.map((extraId) => ({
+                        extraId,
+                        price: roomInfo.fundraisingPrices?.[extraId] ?? 0,
+                      })),
+                      paymentStatus: 'payment_confirmed',
+                      redemptionStatus: 'ready',
+                      paymentMethod: 'crypto',
+                      paymentReference: result.txHash,
+                      gameType: roomInfo.gameType ?? 'quiz',
+                      clubName: roomInfo.clubName ?? null,
+                    });
+                    setStep('complete');
+                  }
+                }}
+              />
+            </Web3Provider>
+          </Suspense>
         )}
 
       {/* ── Payment instructions — instant payment ── */}

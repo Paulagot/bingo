@@ -576,11 +576,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 })}
               </div>
             )}
-            {availablePaymentMethods.length > 0 && (
-              <p className="mt-2 text-xs" style={{ color: '#8a9bab' }}>
-                These will apply to your quiz / elimination game.
-              </p>
-            )}
+       
           </Section>
 
         </div>
@@ -588,7 +584,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderTop: '1px solid #dce1df', background: '#fbf8f2' }}>
-          <p className="text-xs" style={{ color: '#8a9bab' }}>Will be saved as draft</p>
+          {/* <p className="text-xs" style={{ color: '#8a9bab' }}>Will be saved as draft</p> */}
           <div className="flex items-center gap-3">
             <button type="button" onClick={onCancel} disabled={submitting}
               className="rounded-lg border px-4 py-2 text-sm font-semibold transition hover:bg-gray-50 disabled:opacity-40"

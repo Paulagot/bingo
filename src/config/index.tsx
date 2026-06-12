@@ -1,10 +1,5 @@
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana";
-import {
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
- 
-} from "@solana/wallet-adapter-wallets";
 
 import {
   sepolia,
@@ -36,7 +31,7 @@ const DATA_SUFFIX = Attribution.toDataSuffix({
   codes: ['bc_vpqki8ri'],
 });
 
-const DEBUG = false; // Set to false to disable debug logs
+const DEBUG = false;
 
 // ---------------------------------------------
 // 🔐 Project ID
@@ -48,32 +43,29 @@ if (!projectId || projectId.trim().length === 0) {
 }
 
 // ---------------------------------------------
-// 🧩 DApp Metadata (with proper mobile deep linking)
+// 🧩 DApp Metadata
 // ---------------------------------------------
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
-  url: typeof window !== 'undefined' 
-    ? window.location.origin 
+  url: typeof window !== 'undefined'
+    ? window.location.origin
     : "https://fundraisely-staging.up.railway.app",
   icons: [
-    typeof window !== 'undefined' 
-      ? `${window.location.origin}/fundraisely.png` 
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/fundraisely.png`
       : "https://fundraisely-staging.up.railway.app/fundraisely.png"
   ],
-  
-  // 🔥 CRITICAL for mobile deep linking
   redirect: {
-    native: typeof window !== 'undefined' 
-      ? window.location.origin 
+    native: typeof window !== 'undefined'
+      ? window.location.origin
       : "https://fundraisely-staging.up.railway.app",
-    universal: typeof window !== 'undefined' 
-      ? window.location.origin 
+    universal: typeof window !== 'undefined'
+      ? window.location.origin
       : "https://fundraisely-staging.up.railway.app",
   },
-  
-  verifyUrl: typeof window !== 'undefined' 
-    ? window.location.origin 
+  verifyUrl: typeof window !== 'undefined'
+    ? window.location.origin
     : "https://fundraisely-staging.up.railway.app",
 };
 
@@ -81,7 +73,6 @@ export const metadata = {
 // 🌐 Supported Networks
 // ---------------------------------------------
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
- 
   sepolia,
   baseSepolia,
   optimismSepolia,
@@ -98,7 +89,7 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   avalanche,
   sei,
   polygon,
-   solanaDevnet,
+  solanaDevnet,
   solana,
   solanaTestnet,
 ];
@@ -157,23 +148,31 @@ export const solanaRpcUrls = {
 };
 
 // ---------------------------------------------
-// 🛠️ Adapters
+// 🛠️ Adapters — instantiated at module level,
+//    matching the official Reown examples exactly.
+//
+// SolanaAdapter takes NO wallet arguments.
+// Passing PhantomWalletAdapter/SolflareWalletAdapter
+// via the `wallets` option causes those adapters to call
+// registerWalletStandard() on construction, which triggers
+// Solflare's browser extension to open ObjectMultiplex streams
+// immediately — before AppKit is ready — causing
+// MaxListenersExceededWarning in StrictMode.
+//
+// With no arguments, AppKit discovers injected wallets
+// (Phantom, Solflare, Backpack etc.) automatically via
+// the Wallet Standard events that the extensions fire
+// themselves. The wallets still appear in the modal.
 // ---------------------------------------------
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
   transports: evmTransports,
   ssr: true,
-   dataSuffix: DATA_SUFFIX,
+  dataSuffix: DATA_SUFFIX,
 });
 
-export const solanaWeb3JsAdapter = new SolanaAdapter({
-  registerWalletStandard: true,
-  wallets: [
-    new PhantomWalletAdapter(),
-    new SolflareWalletAdapter(),
-  ],
-});
+export const solanaAdapter = new SolanaAdapter();
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
@@ -181,5 +180,4 @@ export const wagmiConfig = wagmiAdapter.wagmiConfig;
 if (DEBUG) {
   console.log("🔧 [config] Loaded networks:", networks.map((n) => `${n.name} (${n.id})`));
   console.log("🔧 [config] Metadata URL:", metadata.url);
-  console.log("🔧 [config] Redirect config:", metadata.redirect);
 }
