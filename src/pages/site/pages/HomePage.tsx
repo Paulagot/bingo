@@ -68,7 +68,7 @@ const homeFaqs = [
         structuredData={compactStructuredData([
           webPageJsonLd(
             '/',
-            'More than a donation page. A platform for fundraising people actually take part in.',
+            'A Fundraising platform people actually take part in.',
             'FundRaisely helps clubs, schools, charities, nonprofits and community groups create campaigns, run events and fundraising games, track real-world payments and report clearly on what was raised.'
           ),
           faqJsonLd(homeFaqs),
@@ -77,7 +77,7 @@ const homeFaqs = [
 
       <Hero
         eyebrow="Fundraising platform"
-        title="More than a donation page. A platform for fundraising people actually take part in."
+        title="A Fundraising platform people actually take part in."
         description={`FundRaisely helps ${market.commonOrganisationExamples} turn fundraising ideas into ready-to-run campaigns, events and games - with payment tracking, reconciliation and reporting built in.`}
         primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{ label: 'Explore the platform', to: '/features' }}
@@ -247,6 +247,11 @@ const homeFaqs = [
             title: 'Committee-ready reports',
             description: 'Final totals, payment breakdowns, prizes, sponsors and campaign outcomes and impact statements can be used for committes and supporters.',
             imageKey: 'reportsScreenshot',
+          },
+             {
+            title: 'Exciting in game play and supporter journeys',
+            description: 'From Quizzes, to elimination, to puzzel challanges and more. Our in game play and supporter journeys are designed to be fun, social and exciting for supporters, while keeping the organiser in control of the event.',
+            imageKey: 'gamePlayScreenshot',
           },
         ]}
       />

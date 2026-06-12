@@ -566,20 +566,21 @@ export const featurePages: Record<string, TemplateContent> = {
         imageKey: "eventSetupOverviewPhotoshot",
         variant: "wide",
       },
-      {
-        title: "Configure event settings",
-        description:
-          "Configure the event details such as personalised quiz round and other customisations.",
-        imageKey: "eventPriceGoalScreenshot",
-        variant: "standard",
-      },
-      {
+          {
         title: "Link payment methods for ticketing and on the night payments",
         description:
           "Link payment methods for payments to activate ticketing then share the link so your supporters can buy tickets in advance, and link payment methods for on the night payments so you can track who has paid and who still owes money during the event.",
         imageKey: "eventPaymentMethodsScreenshot",
         variant: "standard",
       },
+      {
+        title: "Configure event settings",
+        description:
+          "Configure the event details such as the price and other customisations.",
+        imageKey: "eventPriceGoalScreenshot",
+        variant: "standard",
+      },
+  
         {
         title: "Launch the event and add admins to help on the night",
         description:
@@ -1439,7 +1440,7 @@ ticketing: feature({
         title: "Locked audit reconciliation",
         description:
           "Show the approved audit-ready reconciliation, including the approved totals and locked status once the event record has been signed off.",
-        imageKey: "reportReconciliationLockedScreenshot",
+        imageKey: "reportReconciliationScreenshot",
         variant: "standard",
       },
       {
@@ -1915,21 +1916,21 @@ featurePages['impact-reports'] = feature({
   screenshotSlots: [
     {
       title: 'Impact report export',
-      description: 'Show players, volunteers, tickets, scores, prizes and headline fundraising totals in one report.',
+      description: 'Show players, volunteers, tickets, scores, prizes and headline fundraising totals in one report, thats easy to export and share',
       imageKey: 'reportImpactExportScreenshot',
       variant: 'wide',
     },
     {
-      title: 'Report overview',
-      description: 'Show impact reporting alongside financial and audit-ready report options.',
-      imageKey: 'reportOverviewScreenshot',
-      variant: 'standard',
+      title: 'Impact report overview',
+      description: 'The impact report provides a comprehensive view of the fundraiser\'s outcomes and the people involved. Easy to share with supporters and committees.',
+      imageKey: 'impactReportScreenshot',
+      variant: 'wide',
     },
-    {
-      title: 'Campaign context',
-      description: 'Show how impact rolls back to the campaign goal or event record.',
-      imageKey: 'campaignPlanningScreenshot',
-    },
+    // {
+    //   title: 'Campaign context',
+    //   description: 'Show how impact rolls back to the campaign goal or event record.',
+    //   imageKey: 'campaignPlanningScreenshot',
+    // },
   ],
   faqs: [
     {

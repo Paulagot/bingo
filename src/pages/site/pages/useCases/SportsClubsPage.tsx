@@ -330,7 +330,7 @@ export default function SportsClubsPage() {
         description="FundRaisely helps sports clubs raise money at team level and club level with ready-to-run formats: quiz nights, elimination games, puzzle challenges, sponsored activities, ticketed events and digital campaign packs, all connected to payment tracking and after-event reports."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore event formats', to: '/event-formats' }}
-        image={images.communityQuizNight}
+          image={images.clubHero}
         status="Built for grassroots clubs, teams, coaches and committees"
         variant="standard"
       />

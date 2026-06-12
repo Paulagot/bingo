@@ -1956,3 +1956,24 @@ main {
     gap: 0.25rem;
   }
 }
+.pricing-beta-note {
+  max-width: 860px;
+  margin: 0 auto 2rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border, rgba(15, 23, 42, 0.12));
+  background: var(--surface, #fff);
+}
+
+.pricing-beta-note h3 {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.pricing-beta-note p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .pricing-beta-note {
+    padding: 1.25rem;
+  }
+}

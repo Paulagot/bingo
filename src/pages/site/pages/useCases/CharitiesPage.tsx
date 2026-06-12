@@ -356,7 +356,7 @@ export default function CharitiesPage() {
         description="FundRaisely helps charities run ready-to-use fundraising activities and keep the records that matter afterwards: payments, participation, sponsors, prizes, impact statements, financial summaries and past event history for trustees, funders and grant applications."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore event formats', to: '/event-formats' }}
-        image={images.reportOverviewScreenshot}
+        image={images.charitiesHero}
         status="Built for fundraising teams, trustees, volunteers and charity partners"
         variant="standard"
       />
