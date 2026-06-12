@@ -365,7 +365,7 @@ export default function CommunityGroupsPage() {
         description="FundRaisely helps residents associations, arts groups, local networks, community groups and cause partners raise money for their own projects or for causes they care about, using ready-to-run quizzes, games, ticketed events, puzzle challenges, sponsored activities and digital campaigns."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'See the case study event', to: caseStudyUrl }}
-        image={images.communityQuizNight}
+        image={images.communityHero}
         status="Built for local projects, shared goals, community events and cause partnerships"
         variant="standard"
       />

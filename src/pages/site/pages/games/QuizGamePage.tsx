@@ -439,7 +439,7 @@ export default function QuizGamePage() {
         description="FundRaisely gives clubs, charities, schools and community groups a ready-to-run digital quiz fundraiser with team or individual play, device-based joining, ticketing, payment tracking, admin helpers, host controls, screen-share gameplay, fundraising extras, sponsor shoutouts and after-event reports built into one event flow."
         primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{ label: 'Watch quiz demo', to: '#quiz-demo' }}
-        image={images.communityQuizNight}
+      image={images.quizHero}
         status="Self-hosted digital quiz event in a box"
         variant="standard"
       />

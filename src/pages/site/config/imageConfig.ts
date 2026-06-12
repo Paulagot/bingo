@@ -38,6 +38,8 @@ export type ImageKey =
   | "quizGameplayScreenshot"
   | "reportHeroScreenshot"
   | "reportsScreenshot"
+  | "reportReconciliationScreenshot"
+   | "gamePlayScreenshot"
   | "reportOverviewScreenshot"
   | "reportReconciliationLockedScreenshot"
   | "reportOutstandingPaymentsScreenshot"
@@ -46,7 +48,14 @@ export type ImageKey =
   | "sponsorFinderScreenshot"
     | "homePayment"
   | "homeFormats"
-  | "complianceScreenshot";
+  | "complianceScreenshot"
+  | "quizHero"
+  | "impactReportScreenshot"
+    | "clubHero"
+    | "schoolHero"
+    | "charitiesHero"
+     | "communityHero"
+
   
 
 export type SiteImage = {
@@ -73,7 +82,7 @@ export const images: Record<ImageKey, SiteImage> = {
   },
 
   communityQuizNight: {
-    src: photo("photo-1543269865-cbf427effbad"),
+    src: "images/screenshots/homehero.png",
     alt: "A group of people enjoying a community quiz night around a table",
   },
 
@@ -249,6 +258,15 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "Mobile view of FundRaisely payment tracking showing player payment status and organiser actions.",
   },
 
+  quizHero: {
+  src: "/images/screenshots/quizhero.png",
+  alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+},
+  clubHero: {
+  src: "/images/screenshots/clubhero.png",
+  alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+},
+
   quizGameplayScreenshot: {
     src: placeholder("Quiz gameplay screenshot"),
     alt: "Placeholder for a quiz gameplay screenshot",
@@ -257,6 +275,11 @@ export const images: Record<ImageKey, SiteImage> = {
   reportsScreenshot: {
     src: "/images/screenshots/reportsscreen.png",
     alt: "Fundraisely reports screen showing player payment status and organiser actions.",
+  },
+
+  gamePlayScreenshot: {
+    src: "/images/screenshots/gameplay.png",
+    alt: "FundRaisely in-game play screenshot showing players engaging with a quiz question on their phones.",
   },
 
   reportOverviewScreenshot: {
@@ -269,6 +292,11 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "FundRaisely approved audit-ready reconciliation showing approved totals and locked report status.",
   },
 
+    reportReconciliationScreenshot: {
+    src: "/images/screenshots/reports-reconciliation.png",
+    alt: "FundRaisely approved audit-ready reconciliation showing approved totals and locked report status.",
+  },
+
   reportOutstandingPaymentsScreenshot: {
     src: "/images/screenshots/reports-outstanding-payments.png",
     alt: "FundRaisely reports screen showing late payments, disputed items, written-off balances and adjustments.",
@@ -276,6 +304,11 @@ export const images: Record<ImageKey, SiteImage> = {
 
   reportImpactExportScreenshot: {
     src: "/images/screenshots/impacthero.png",
+    alt: "FundRaisely impact report showing players, volunteers, tickets sold and redeemed, scores, prizes and final downloadable report details.",
+  },
+
+  impactReportScreenshot: {
+    src: "/images/screenshots/impactreport.png",
     alt: "FundRaisely impact report showing players, volunteers, tickets sold and redeemed, scores, prizes and final downloadable report details.",
   },
 
@@ -298,4 +331,19 @@ export const images: Record<ImageKey, SiteImage> = {
     src: placeholder("Compliance prompt screenshot"),
     alt: "Placeholder for compliance guidance prompts",
   },
+
+  communityHero: {
+    src: "/images/screenshots/commhero.jpg",
+    alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+  },
+  
+  schoolHero: {
+    src: "/images/screenshots/schoolhero.png",
+    alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+  },
+  charitiesHero: {
+    src: "/images/screenshots/charitieshero.png",
+    alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+  },
+  
 };

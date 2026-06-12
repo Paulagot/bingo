@@ -8,7 +8,7 @@ export default function FeaturesIndexPage() {
       seoDescription="Explore FundRaisely features for campaigns, events, ticketing, payment reconciliation, financial reports, impact reports, CRM and AI prize finding."
       eyebrow="Features"
       h1="One fundraising system for campaigns, events, games, payments and reports"
-      intro="FundRaisely brings the practical parts of grassroots fundraising into one joined-up platform: campaign planning, event setup, ticketing, payment reconciliation, reporting, supporter records and prize-finding support."
+      intro="FundRaisely brings the practical parts of grassroots fundraising into one joined-up platform: campaign planning, event setup, ticketing, digital fundraising games, payment reconciliation, reporting, supporter records and prize-finding support."
       imageKey="dashboardOverviewScreenshot"
       cards={[
         {

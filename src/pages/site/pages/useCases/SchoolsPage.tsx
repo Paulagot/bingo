@@ -383,7 +383,7 @@ export default function SchoolsPage() {
         description="FundRaisely helps schools, PTAs and parent associations run family-friendly fundraisers people can actually take part in: child-focused quiz nights, family challenges, sponsored events, ticketed activities and digital campaigns, with payments and reports kept organised."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore event formats', to: '/event-formats' }}
-        image={images.communityQuizNight}
+        image={images.schoolHero}
         status="Built for busy PTA volunteers, school communities and family fundraisers"
         variant="standard"
       />
