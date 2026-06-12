@@ -79,6 +79,7 @@ router.post('/schedule', async (req, res) => {
   try {
     const clubId = req.club_id;
     if (!clubId) return res.status(401).json({ error: 'unauthorized' });
+    console.log('[eliminationMgmtRoutes] 📦 Schedule payload:', JSON.stringify(req.body, null, 2))
 
     const {
       roomId, hostId, hostName, scheduledAt, timeZone,
@@ -137,20 +138,21 @@ router.post('/schedule', async (req, res) => {
     };
 
     // ── 6. Schedule the room ─────────────────────────────────────────────────
-    const result = await scheduleEliminationRoom({
-      clubId,
-      roomId,
-      hostId,
-      hostName,
-      scheduledAt,
-      timeZone,
-      entryFee,
-      currency,
-      maxPlayers: cappedMaxPlayers,
-      prizeDescription,
-      prizeValue,
-      roomCaps,
-    });
+const result = await scheduleEliminationRoom({
+  clubId,
+  roomId,
+  hostId,
+  hostName,
+  scheduledAt,
+  timeZone,
+  entryFee,
+  currency,
+  maxPlayers: cappedMaxPlayers,
+  prizes,               // ← ADD THIS
+  prizeDescription,
+  prizeValue,
+  roomCaps,
+});
 
     // ── 7. Consume credit — only after successful DB insert ──────────────────
     const creditResult = await consumeCredit(clubId, 'elimination', ents.plan_code);
@@ -234,7 +236,7 @@ router.patch('/rooms/:roomId', async (req, res) => {
 
     const updated = await updateEliminationRoom({
       clubId, roomId, scheduledAt, timeZone, entryFee, currency,
-      maxPlayers, prizeDescription, prizeValue,
+      maxPlayers, prizes, prizeDescription, prizeValue,
     });
 
     return res.status(200).json({ room: updated });

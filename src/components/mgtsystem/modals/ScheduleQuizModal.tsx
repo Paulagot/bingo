@@ -1,4 +1,8 @@
 // src/components/mgtsystem/modals/ScheduleQuizModal.tsx
+//
+// Handles both scheduling (create) and editing a quiz room.
+// Pass `existingRoom` to enter edit mode — fields pre-fill, submit calls PATCH.
+// Without `existingRoom` the modal is in create mode — submit calls POST /create-room.
 
 import { useState, useEffect } from 'react';
 import {
@@ -14,12 +18,14 @@ import { useAuthStore } from '../../../features/auth';
 import { currencySymbol } from '../shared/CurrencySelect';
 import type { Prize, Web2FundraisingMode } from '@/components/Quiz/types/quiz';
 import type { Event } from '../types/event';
+import type { Web2RoomListItem as Room } from '../../../shared/api/quiz.api';
 import { utcToLocalInput, detectTimezone } from '../../../utils/dateUtils';
 
 interface Props {
   onClose: () => void;
   onSaved: (roomId?: string) => void;
   event: Event;
+  existingRoom?: Room | null; // if present = edit mode
 }
 
 const ordinal = (n: number) => {
@@ -42,7 +48,6 @@ function difficultyColour(d: string) {
   return { bg: '#f1f0ee', text: '#52636f' };
 }
 
-// ── Section wrapper ────────────────────────────────────────────────────────────
 const Section: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="rounded-xl p-5" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
     {children}
@@ -69,37 +74,68 @@ const inputCls = (err?: boolean) =>
     err ? 'border-[#e9574f] bg-red-50' : 'border-[#dce1df] bg-white hover:border-[#b8c6b0]'
   }`;
 
-export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
+export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoom }: Props) {
+  const isEditMode = !!existingRoom;
+
   const { hardReset, setupConfig, updateSetupConfig, toggleExtra, setExtraPrice } = useQuizSetupStore();
 
-  // Currency comes from the club's reporting_currency — stored as symbol in setupConfig
   const club            = useAuthStore((s: any) => s.club);
   const clubCurrencyISO = club?.reporting_currency ?? 'EUR';
   const clubCurrencySym = currencySymbol(clubCurrencyISO);
 
+  // ── Seed store on mount ────────────────────────────────────────────────────
   useEffect(() => {
-    hardReset({ flow: 'web2' });
-     const tz = event.time_zone || detectTimezone();
+    if (isEditMode && existingRoom) {
+      // Parse existing config — could be string or object depending on how the
+      // room was fetched (DB row vs hydrated memory room)
+      const cfg: any =
+        typeof existingRoom.config_json === 'string'
+          ? JSON.parse(existingRoom.config_json)
+          : (existingRoom.config_json ?? {});
 
-  // FIX: event.start_datetime is UTC from the DB (e.g. "2025-06-07T18:00:00.000Z").
-  // The quiz setup store uses eventDateTime to pre-fill the schedule display.
-  // We convert UTC → local so it shows "19:00" not "18:00" in the quiz setup UI.
-  // The fallback T19:00:00 is a reasonable default but had no timezone — now we
-  // build it properly from event_date + midnight local (T00:00 in local = some UTC).
-  const dt = event.start_datetime
-    ? utcToLocalInput(event.start_datetime, tz)   // "2025-06-07T19:00" (local)
-    : event.event_date
-    ? `${event.event_date}T19:00`                 // fallback: assume 7pm on that date
-    : null;
+      // Always reset first to clear any stale wizard state
+      hardReset({ flow: 'web2' });
 
-    // Seed currency from club — quiz config stores the symbol (e.g. '€')
-    updateSetupConfig({ currencySymbol: clubCurrencySym } as any);
+      // Seed every editable field from the stored config
+      updateSetupConfig({
+        fundraisingMode:    cfg.fundraisingMode    ?? 'fixed_fee',
+        entryFee:           cfg.entryFee           ?? '',
+        fundraisingOptions: cfg.fundraisingOptions ?? {},
+        fundraisingPrices:  cfg.fundraisingPrices  ?? {},
+        selectedTemplate:   cfg.selectedTemplate   ?? '',
+        roundDefinitions:   cfg.roundDefinitions   ?? [],
+        skipRoundConfiguration: true,
+        prizes:             cfg.prizes             ?? [],
+        currencySymbol:     clubCurrencySym,
+        // preserve time fields in case they're needed
+        eventDateTime:      cfg.eventDateTime      ?? null,
+        timeZone:           cfg.timeZone           ?? detectTimezone(),
+      } as any);
 
-    if (dt) {
-      updateSetupConfig({ timeZone: tz } as any);
-      useQuizSetupStore.setState(s => ({
-        setupConfig: { ...s.setupConfig, timeZone: tz, eventDateTime: dt } as any,
-      }));
+      // If a template was already selected, collapse the template picker
+      if (cfg.selectedTemplate) {
+        setTemplateOpen(false);
+      }
+
+    } else {
+      // Create mode — fresh reset, same as before
+      hardReset({ flow: 'web2' });
+
+      const tz = event.time_zone || detectTimezone();
+      const dt = event.start_datetime
+        ? utcToLocalInput(event.start_datetime, tz)
+        : event.event_date
+        ? `${event.event_date}T19:00`
+        : null;
+
+      updateSetupConfig({ currencySymbol: clubCurrencySym } as any);
+
+      if (dt) {
+        updateSetupConfig({ timeZone: tz } as any);
+        useQuizSetupStore.setState(s => ({
+          setupConfig: { ...s.setupConfig, timeZone: tz, eventDateTime: dt } as any,
+        }));
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -107,13 +143,27 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
   const [submitting, setSubmitting]             = useState(false);
   const [error, setError]                       = useState<string | null>(null);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
-  const [templateOpen, setTemplateOpen]         = useState(true);
+  const [templateOpen, setTemplateOpen]         = useState(!isEditMode);
   const [priceInputs, setPriceInputs]           = useState<Record<string, string>>({});
   const [entitlements, setEntitlements]         = useState<any>(null);
 
   useEffect(() => {
     quizApi.getEntitlements().then(setEntitlements).catch(() => setEntitlements(null));
   }, []);
+
+  // Seed price inputs from existing config so they render correctly
+  useEffect(() => {
+    if (isEditMode && setupConfig.fundraisingPrices) {
+      const initial: Record<string, string> = {};
+      for (const [key, val] of Object.entries(setupConfig.fundraisingPrices)) {
+        if (typeof val === 'number' && val > 0) {
+          initial[key] = String(val);
+        }
+      }
+      setPriceInputs(initial);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once after mount, store is already seeded by first useEffect
 
   const fundraisingMode: Web2FundraisingMode = (setupConfig.fundraisingMode as Web2FundraisingMode) ?? 'fixed_fee';
   const isDonation       = fundraisingMode === 'donation';
@@ -123,7 +173,6 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
   const opts             = setupConfig.fundraisingOptions ?? {};
   const prices           = setupConfig.fundraisingPrices  ?? {};
 
-  // Always use club currency symbol — ignore anything stored in setupConfig.currencySymbol
   const sym      = clubCurrencySym;
   const allExtras = Object.entries(fundraisingExtraDefinitions);
 
@@ -189,25 +238,58 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
     return null;
   };
 
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setError(null);
     const err = validate();
     if (err) { setError(err); return; }
     setSubmitting(true);
+
     try {
-      const state = useQuizSetupStore.getState();
-      const { generateRoomId, generateHostId } = await import('@/components/Quiz/utils/idUtils');
-      const roomId = state.roomId || generateRoomId();
-      const hostId = state.hostId || generateHostId();
-      useQuizSetupStore.getState().setRoomIds(roomId, hostId);
-      const data = await roomApi.createRoom({ config: state.setupConfig, roomId, hostId });
-      const finalRoomId = useQuizSetupStore.getState().roomId || data?.roomId;
-      onSaved(finalRoomId ?? undefined);
-      onClose();
+      if (isEditMode && existingRoom) {
+        // ── EDIT MODE: PATCH existing room ──────────────────────────────────
+        // Build updated config by merging new form values over the existing config
+        const existingCfg: any =
+          typeof existingRoom.config_json === 'string'
+            ? JSON.parse(existingRoom.config_json)
+            : (existingRoom.config_json ?? {});
+
+        const updatedConfig = {
+          ...existingCfg,
+          fundraisingMode:    setupConfig.fundraisingMode,
+          entryFee:           setupConfig.entryFee,
+          fundraisingOptions: setupConfig.fundraisingOptions,
+          fundraisingPrices:  setupConfig.fundraisingPrices,
+          selectedTemplate:   setupConfig.selectedTemplate,
+          roundDefinitions:   setupConfig.roundDefinitions,
+          prizes:             setupConfig.prizes,
+          currencySymbol:     clubCurrencySym,
+        };
+
+        await quizApi.updateWeb2Room(existingRoom.room_id, {
+          config_json: updatedConfig,
+        });
+
+        onSaved(existingRoom.room_id);
+        onClose();
+
+      } else {
+        // ── CREATE MODE: unchanged from original ────────────────────────────
+        const state = useQuizSetupStore.getState();
+        const { generateRoomId, generateHostId } = await import('@/components/Quiz/utils/idUtils');
+        const roomId = state.roomId || generateRoomId();
+        const hostId = state.hostId || generateHostId();
+        useQuizSetupStore.getState().setRoomIds(roomId, hostId);
+        const data = await roomApi.createRoom({ config: state.setupConfig, roomId, hostId });
+        const finalRoomId = useQuizSetupStore.getState().roomId || data?.roomId;
+        onSaved(finalRoomId ?? undefined);
+        onClose();
+      }
     } catch (e: any) {
       if (e?.message?.includes('402') || e?.message?.includes('no_credits')) setError('You have no credits remaining.');
       else if (e?.message?.includes('403')) setError('Your plan does not allow this configuration.');
-      else setError(e?.message || 'Failed to schedule quiz. Please try again.');
+      else if (e?.message?.includes('409')) setError('This room can no longer be edited (it may have started).');
+      else setError(e?.message || `Failed to ${isEditMode ? 'update' : 'schedule'} quiz. Please try again.`);
     } finally {
       setSubmitting(false);
     }
@@ -230,7 +312,9 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: '#102532' }}>Schedule Quiz Night</h2>
+              <h2 className="text-lg font-bold" style={{ color: '#102532' }}>
+                {isEditMode ? 'Edit Quiz Night' : 'Schedule Quiz Night'}
+              </h2>
               <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>{event.title}</p>
             </div>
           </div>
@@ -278,7 +362,7 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
             </div>
           </Section>
 
-          {/* ── 2. Entry Fee — currency shown but not editable ── */}
+          {/* ── 2. Entry Fee ── */}
           <Section>
             <SectionHeader
               icon={<DollarSign className="h-4 w-4" />}
@@ -578,7 +662,12 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
         <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderTop: '1px solid #dce1df', background: '#fbf8f2' }}>
           <p className="text-xs" style={{ color: '#8a9bab' }}>
-            {entitlements ? `${entitlements.game_credits_remaining ?? 0} credits remaining` : ''}
+            {/* Only show credits in create mode — editing doesn't consume credits */}
+            {!isEditMode && entitlements
+              ? `${entitlements.game_credits_remaining ?? 0} credits remaining`
+              : isEditMode
+              ? 'Editing will not use a credit'
+              : ''}
           </p>
           <div className="flex items-center gap-3">
             <button type="button" onClick={onClose} disabled={submitting}
@@ -590,8 +679,8 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
               className="inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
               style={{ background: '#157f85' }}>
               {submitting
-                ? <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />Scheduling…</>
-                : <><Sparkles className="h-3.5 w-3.5" />Schedule Quiz</>}
+                ? <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />{isEditMode ? 'Saving…' : 'Scheduling…'}</>
+                : <><Sparkles className="h-3.5 w-3.5" />{isEditMode ? 'Save Changes' : 'Schedule Quiz'}</>}
             </button>
           </div>
         </div>

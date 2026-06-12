@@ -40,7 +40,7 @@ export interface TicketedEventConfig {
   eventDateTime:   string | null;
   prizes:          TicketedEventPrize[];
   eventSponsors:   TicketedEventSponsor[];
-  roomCaps:        { maxPlayers: number; planCode?: string };
+ roomCaps: { maxPlayers: number; planCode?: string; venueCapacity?: number | null };
 }
 
 export interface TicketedEventRoomListItem {

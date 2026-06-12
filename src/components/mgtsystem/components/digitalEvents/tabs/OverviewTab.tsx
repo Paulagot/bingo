@@ -15,6 +15,7 @@ import {
   Target,
   CheckCircle,
   CircleDollarSign,
+  Tag,
 } from 'lucide-react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import type { RoomStats } from '../../../services/quizRoomServices';
@@ -177,8 +178,12 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
   const totalQuestions = rounds.reduce((sum: number, r: any) => sum + Number(r?.config?.questionsPerRound || 0), 0);
 
   // ── Elimination-specific ───────────────────────────────────────────────────
-  const elimPrizeDescription = config?.prizeDescription ?? null;
-  const elimPrizeValue       = Number(config?.prizeValue ?? 0);
+  // Read from prizes[0] first (new shape), fall back to legacy flat fields for
+  // old rooms that were saved before the prizes array was introduced.
+  const elimPrize            = config?.prizes?.[0] ?? null;
+  const elimPrizeDescription = elimPrize?.description ?? config?.prizeDescription ?? null;
+  const elimPrizeValue       = Number(elimPrize?.value ?? config?.prizeValue ?? 0);
+  const elimPrizeSponsor     = elimPrize?.sponsor ?? null;
 
   return (
     <div className="space-y-5 p-5">
@@ -298,9 +303,6 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
             <DetailRow icon={<Clock className="h-4 w-4" />} label="Schedule">
               {scheduled.compact}
             </DetailRow>
-            {/* <DetailRow icon={<User className="h-4 w-4" />} label="Host">
-              {config?.hostName || 'Unknown host'}
-            </DetailRow> */}
             <DetailRow icon={<MapPin className="h-4 w-4" />} label="Time zone">
               {config?.timeZone || room.time_zone || 'Europe/Dublin'}
             </DetailRow>
@@ -316,7 +318,6 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
           <SectionHeader
             icon={<Wallet className="h-4 w-4" />}
             title="Pricing and payments"
-            // subtitle="Currency set by club reporting currency."
           />
           <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
             <DetailRow
@@ -330,9 +331,6 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
             <DetailRow icon={<Users className="h-4 w-4" />} label="Maximum players">
               {maxPlayers > 0 ? maxPlayers : 'No maximum set'}
             </DetailRow>
-            {/* <DetailRow icon={<Sparkles className="h-4 w-4" />} label="Currency">
-              {sym}
-            </DetailRow> */}
           </div>
         </div>
       </div>
@@ -353,6 +351,11 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
               {elimPrizeValue > 0 && (
                 <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Estimated value">
                   {money(sym, elimPrizeValue)}
+                </DetailRow>
+              )}
+              {elimPrizeSponsor && (
+                <DetailRow icon={<Tag className="h-4 w-4" />} label="Sponsor">
+                  {elimPrizeSponsor}
                 </DetailRow>
               )}
             </div>
@@ -450,11 +453,6 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
           <DetailRow icon={<Sparkles className="h-4 w-4" />} label={isElimination ? 'Game type' : 'Template'}>
             {isElimination ? 'Elimination' : (config?.selectedTemplate || 'Custom quiz')}
           </DetailRow>
-          {/* {!isElimination && (
-            <DetailRow icon={<Layers className="h-4 w-4" />} label="Prize mode">
-              {titleCase(config?.prizeMode)}
-            </DetailRow>
-          )} */}
         </div>
       </div>
 

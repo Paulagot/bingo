@@ -8,6 +8,7 @@ import type { Web2RoomListItem as Room } from "../../../../shared/api/quiz.api";
 import type { RoomStats } from "../../services/quizRoomServices";
 import type { Event } from "../../types/event";
 import ReconciliationService from "../../services/QuizReconciliationService";
+import OverviewTabTicketedEvent from "./tabs/OverviewTabTicketedEvent";
 
 import OverviewTab from "./tabs/OverviewTab";
 import SetupTab from "./tabs/SetupTab";
@@ -75,6 +76,7 @@ interface Props {
   onPaymentMethodSuccess: () => void;
   onRefreshRoom?: () => Promise<void>;
   onEditQuiz?: () => void;
+  onEditTicketedEvent?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ export default function DigitalEventDrawer({
   onPaymentMethodSuccess,
   onRefreshRoom,
   onEditQuiz,
+  onEditTicketedEvent,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -146,8 +149,6 @@ export default function DigitalEventDrawer({
   }, [open, room?.room_id, room?.status, isCompleted, fetchAuditView]);
 
   // ── Initial tab selection ──────────────────────────────────────────────────
-  // Completed ticketed events: open to "reconciliation" if not yet approved,
-  // "impact" if already approved. All other rooms: existing behaviour.
   useEffect(() => {
     if (open) {
       if (room?.status === "completed" && isTicketedEvent) {
@@ -194,7 +195,6 @@ export default function DigitalEventDrawer({
     id: "tickets" as TabId,
     label: "Tickets",
     icon: <Ticket className="h-3.5 w-3.5" />,
-    // Ticketed events always show the tickets tab — it's their primary function
     disabled: isTicketedEvent
       ? false
       : (!hasLinkedPaymentMethods || !canUseTicketing),
@@ -214,17 +214,11 @@ export default function DigitalEventDrawer({
     disabledReason: "Not available for cancelled events",
   };
 
-  // reconciliation_status = 'closed' means the ticketed event reconciliation
-  // has been approved — only then do Impact / Report / Approval Totals have
-  // data to show (they all depend on fundraisely_quiz_reconciliation existing).
   const reconciliationClosed = (room as any).reconciliation_status === 'closed';
 
   // ── Tab sets ───────────────────────────────────────────────────────────────
   const tabs: Tab[] = isCompleted
     ? [
-        // Impact, Report, Approval Totals — always for quiz/elimination.
-        // For ticketed events, only shown after reconciliation is closed;
-        // before that those endpoints 404 (no quiz_reconciliation row yet).
         ...(!isTicketedEvent || reconciliationClosed
           ? [
               { id: "impact"   as TabId, label: "Impact",         icon: <Heart className="h-3.5 w-3.5" /> },
@@ -233,13 +227,10 @@ export default function DigitalEventDrawer({
             ]
           : []
         ),
-        // Reconciliation tab — ticketed events only
         ...(isTicketedEvent
           ? [{ id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> }]
           : []
         ),
-        // Payments tab for outstanding — quiz/elimination only (ticketed events
-        // don't use the late payments flow)
         ...(canUsePayments && outstandingCount > 0 && !isTicketedEvent
           ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" />, badge: outstandingCount }]
           : []),
@@ -249,8 +240,6 @@ export default function DigitalEventDrawer({
     : [
         { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> },
         { id: "setup" as TabId, label: "Setup", icon: <Settings className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled events" },
-        // Payments tab — show for quiz/elimination; for ticketed events it's
-        // less relevant pre-event but still useful for confirming ticket payments
         ...(canUsePayments || isTicketedEvent
           ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" /> }]
           : []),
@@ -343,17 +332,20 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "overview" && (
-            <OverviewTab room={room} config={config} stats={stats}
-              linkedEventTitle={linkedEventTitle} />
+            isTicketedEvent
+              ? <OverviewTabTicketedEvent room={room} config={config} stats={stats}
+                  linkedEventTitle={linkedEventTitle} />
+              : <OverviewTab room={room} config={config} stats={stats}
+                  linkedEventTitle={linkedEventTitle} />
           )}
 
           {activeTab === "setup" && (
-            // SetupTab only accepts: room, linkedEvent, onEditQuiz, onSaved
-            // Linking/unlinking is handled at the dashboard level, not here
             <SetupTab
               room={room}
               linkedEvent={linkedEvent}
+              isTicketedEvent={isTicketedEvent}
               onEditQuiz={onEditQuiz ?? (() => {})}
+              onEditTicketedEvent={onEditTicketedEvent ?? (() => {})}
               onSaved={onSaved}
             />
           )}

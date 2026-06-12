@@ -1,29 +1,33 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/SetupTab.tsx
+//
+// Setup tab for the digital event drawer.
+//
+// Quiz rooms:        shows personalised round editor (scheduled only)
+// Elimination rooms: shows Edit Game button → ScheduleEliminationModal
+// Ticketed events:   shows neither — no personalised questions, no edit modal
+//                    (ticketed event config is managed via ScheduleTicketedEventModal)
 
 import { useEffect, useRef, useState } from 'react';
-import {
-  Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Edit, Trophy,
-} from 'lucide-react';
+import { Settings, PlusCircle, Trash2, Save, AlertCircle, CheckCircle, Loader2, Edit3 } from 'lucide-react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import type { Event } from '../../../types/event';
-import {
-  quizPersonalisedRoundsService,
-  type PersonalisedRound,
-  type UpsertPersonalisedRoundPayload,
-} from '../../../services/QuizPersonalisedRoundsService';
+import { quizPersonalisedRoundsService } from '../../../services/QuizPersonalisedRoundsService';
 import ScheduleEliminationModal from '../../../modals/ScheduleEliminationModal';
 import type { EliminationRoomListItem } from '../../../services/EliminationMgmtService';
+import ScheduleTicketedEventModal from '../../../modals/ScheduleTicketedEventModal';
+import type { TicketedEventRoomListItem } from '../../../services/TicketedEventMgmtService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EditableQuestion = {
+interface EditableQuestion {
   id?: number;
   questionText: string;
   answers: [string, string, string, string];
   correctIndex: 0 | 1 | 2 | 3;
-};
+}
 
 const MAX_QUESTIONS = 6;
+
 const emptyQuestion = (): EditableQuestion => ({
   questionText: '', answers: ['', '', '', ''], correctIndex: 0,
 });
@@ -32,20 +36,29 @@ const emptyQuestion = (): EditableQuestion => ({
 
 interface Props {
   room: Room;
-  linkedEvent?: Event;          // full event — passed to elimination edit modal only
-  onEditQuiz: () => void;       // opens ScheduleQuizModal (quiz only)
-  onSaved?: () => void;         // called after elimination edit saved
+  linkedEvent?: Event;       // passed to elimination edit modal
+  isTicketedEvent?: boolean; // hides personalised questions section entirely
+  onEditQuiz: () => void;    // opens ScheduleQuizModal (quiz only)
+  onSaved?: () => void;      // called after elimination edit saved
+  onEditTicketedEvent?: () => void; // called after ticketed event edit saved
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function SetupTab({ room, linkedEvent, onEditQuiz, onSaved }: Props) {
+export default function SetupTab({
+  room,
+  linkedEvent,
+  isTicketedEvent = false,
+  onEditQuiz,
+  onSaved,
+  onEditTicketedEvent,
+}: Props) {
   const isScheduled   = room.status === 'scheduled';
   const isElimination = (room as any).game_type === 'elimination';
 
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // ── Personalised round state (quiz only) ───────────────────────────────────
+  // ── Personalised round state (quiz only — hidden for elimination & ticketed) ──
   const [roundLoading,  setRoundLoading]  = useState(false);
   const [roundSaving,   setRoundSaving]   = useState(false);
   const [roundDeleting, setRoundDeleting] = useState(false);
@@ -65,450 +78,394 @@ export default function SetupTab({ room, linkedEvent, onEditQuiz, onSaved }: Pro
   const hasUnsaved  = currentSnap !== originalSnap;
   const filledCount = questions.filter(q => q.questionText.trim()).length;
 
-  // ── Load personalised round (quiz only) ───────────────────────────────────
+  const resetRound = () => {
+    setRoundTitle('');
+    setPosition('last');
+    setIsEnabled(true);
+    const init = [emptyQuestion()];
+    setQuestions(init);
+    setHasExisting(false);
+    setRoundDetails(null);
+    setOriginalSnap(JSON.stringify({ roundTitle: '', position: 'last', isEnabled: true, questions: init }));
+  };
+
+  // ── Load personalised round — quiz only, not ticketed events ──────────────
   useEffect(() => {
-    if (!isScheduled || isElimination) return;
+    // Skip for elimination, ticketed events, and non-scheduled rooms
+    if (!isScheduled || isElimination || isTicketedEvent) return;
     (async () => {
-      setRoundLoading(true); setRoundError(null);
+      setRoundLoading(true);
+      setRoundError(null);
       try {
         const res = await quizPersonalisedRoundsService.getRound(room.room_id);
         if (!res.round) { resetRound(); return; }
-        const qs: EditableQuestion[] = (res.round.questions || []).map(q => ({
-          id: q.id, questionText: q.questionText, answers: q.answers, correctIndex: q.correctIndex,
+        const qs: EditableQuestion[] = (res.round.questions || []).map((q: any) => ({
+          id:           typeof q.id === 'number' ? q.id : undefined,
+          questionText: q.questionText,
+          answers:      q.answers,
+          correctIndex: q.correctIndex,
         }));
         const t = res.round.title || '';
-        const p = res.round.position;
-        const e = res.round.isEnabled;
+        const p = res.round.position as 'first' | 'last';
+        const e = res.round.isEnabled as boolean;
         const nextQs = qs.length ? qs : [emptyQuestion()];
-        setHasExisting(true); setRoundTitle(t); setPosition(p); setIsEnabled(e); setQuestions(nextQs);
-        setOriginalSnap(JSON.stringify({ roundTitle: t.trim(), position: p, isEnabled: e, questions: nextQs }));
-      } catch (e: any) { setRoundError(e.message || 'Failed to load'); }
-      finally { setRoundLoading(false); }
-    })();
-  }, [room.room_id, isScheduled, isElimination]);
-
-  // ── Scroll to new question ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!scrollToEnd) return;
-    const t = setTimeout(() => {
-      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      setScrollToEnd(false);
-    }, 80);
-    return () => clearTimeout(t);
-  }, [questions.length, scrollToEnd]);
-
-  // ── Personalised round helpers ─────────────────────────────────────────────
-  function resetRound() {
-    const qs = [emptyQuestion()];
-    setHasExisting(false); setRoundTitle(''); setPosition('last'); setIsEnabled(true); setQuestions(qs);
-    setOriginalSnap(JSON.stringify({ roundTitle: '', position: 'last', isEnabled: true, questions: qs }));
-  }
-
-  function setQuestionField(idx: number, patch: Partial<EditableQuestion>) {
-    setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, ...patch } : q));
-  }
-
-  function setAnswer(qIdx: number, aIdx: 0 | 1 | 2 | 3, value: string) {
-    setQuestions(prev => prev.map((q, i) => {
-      if (i !== qIdx) return q;
-      const next = [...q.answers] as [string, string, string, string];
-      next[aIdx] = value;
-      return { ...q, answers: next };
-    }));
-  }
-
-  function removeQuestion(idx: number) {
-    setQuestions(prev => {
-      const n = prev.filter((_, i) => i !== idx);
-      return n.length ? n : [emptyQuestion()];
-    });
-  }
-
-  function validate(): { ok: boolean; msg?: string } {
-    for (const [qi, q] of questions.entries()) {
-      if (!q.questionText.trim()) return { ok: false, msg: `Question ${qi + 1} text is required` };
-      for (const ai of [0, 1, 2, 3] as const) {
-        if (!q.answers[ai].trim()) return { ok: false, msg: `Question ${qi + 1}: answer ${ai + 1} is required` };
+        setRoundTitle(t);
+        setPosition(p);
+        setIsEnabled(e);
+        setQuestions(nextQs);
+        setHasExisting(true);
+        setRoundDetails(null);
+        setOriginalSnap(JSON.stringify({ roundTitle: t, position: p, isEnabled: e, questions: nextQs }));
+      } catch (e: any) {
+        setRoundError(e?.message || 'Failed to load personalised round');
+        resetRound();
+      } finally {
+        setRoundLoading(false);
       }
+    })();
+  }, [room.room_id, isScheduled, isElimination, isTicketedEvent]);
+
+  useEffect(() => {
+    if (scrollToEnd && endRef.current) {
+      endRef.current.scrollIntoView({ behavior: 'smooth' });
+      setScrollToEnd(false);
     }
-    return { ok: true };
-  }
+  }, [questions, scrollToEnd]);
 
-  function buildPayload(): UpsertPersonalisedRoundPayload {
-    return {
-      title: roundTitle.trim() || null,
-      position,
-      isEnabled,
-      questions: questions.map(q => ({
-        id: q.id ?? null,
-        questionText: q.questionText.trim(),
-        answers: q.answers.map(a => a.trim()) as [string, string, string, string],
-        correctIndex: q.correctIndex,
-      })),
-    };
-  }
+  const handleAddQuestion = () => {
+    if (!canAddMore) return;
+    setQuestions(prev => [...prev, emptyQuestion()]);
+    setScrollToEnd(true);
+  };
 
-  async function saveRound(): Promise<PersonalisedRound> {
-    const v = validate();
-    if (!v.ok) throw new Error(v.msg);
-    const res = await quizPersonalisedRoundsService.saveRound(room.room_id, buildPayload());
-    const savedQs: EditableQuestion[] = res.round.questions.map(q => ({
-      id: q.id, questionText: q.questionText, answers: q.answers, correctIndex: q.correctIndex,
-    }));
-    const t = res.round.title || ''; const p = res.round.position; const e = res.round.isEnabled;
-    setHasExisting(true); setRoundTitle(t); setPosition(p); setIsEnabled(e);
-    const nextQs = savedQs.length ? savedQs : [emptyQuestion()];
-    setQuestions(nextQs);
-    setOriginalSnap(JSON.stringify({ roundTitle: t.trim(), position: p, isEnabled: e, questions: nextQs }));
-    return res.round;
-  }
+  const handleRemoveQuestion = (i: number) => {
+    setQuestions(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
+  };
 
-  async function handleSaveRound() {
-    setRoundSaving(true); setRoundError(null); setRoundDetails(null);
-    try { await saveRound(); }
-    catch (e: any) {
-      setRoundError(e.message || 'Failed to save');
-      if (Array.isArray(e.details)) setRoundDetails(e.details);
-    }
-    finally { setRoundSaving(false); }
-  }
+  const updateQuestion = (i: number, patch: Partial<EditableQuestion>) => {
+    setQuestions(prev => prev.map((q, idx) => idx === i ? { ...q, ...patch } : q));
+  };
 
-  async function handleAddQuestion() {
-    if (!canAddMore || roundSaving || roundDeleting || roundLoading) return;
-    setRoundSaving(true); setRoundError(null);
+  const handleSave = async () => {
+    if (roundSaving) return;
+    setRoundSaving(true);
+    setRoundError(null);
     try {
-      const saved = await saveRound();
-      const savedQs: EditableQuestion[] = saved.questions.map(q => ({
-        id: q.id, questionText: q.questionText, answers: q.answers, correctIndex: q.correctIndex,
-      }));
-      setQuestions([...savedQs, emptyQuestion()]);
-      setScrollToEnd(true);
-    } catch (e: any) { setRoundError(e.message || 'Save current question first'); }
-    finally { setRoundSaving(false); }
+      const payload = {
+        title:     roundTitle.trim() || 'Personalised Round',
+        position,
+        isEnabled,
+        questions: questions
+          .filter(q => q.questionText.trim())
+          .map(q => ({
+            id:           typeof q.id === 'number' ? q.id : null,
+            questionText: q.questionText.trim(),
+            answers:      q.answers as string[],
+            correctIndex: q.correctIndex as number,
+          })),
+      };
+      if (payload.questions.length === 0) {
+        setRoundError('Add at least one question with text before saving.');
+        return;
+      }
+      await quizPersonalisedRoundsService.saveRound(room.room_id, payload);
+      setHasExisting(true);
+      setOriginalSnap(currentSnap);
+    } catch (e: any) {
+      setRoundError(e?.message || 'Failed to save round');
+    } finally {
+      setRoundSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!hasExisting || roundDeleting) return;
+    if (!window.confirm('Delete the personalised round? This cannot be undone.')) return;
+    setRoundDeleting(true);
+    setRoundError(null);
+    try {
+      await quizPersonalisedRoundsService.deleteRound(room.room_id);
+      resetRound();
+    } catch (e: any) {
+      setRoundError(e?.message || 'Failed to delete round');
+    } finally {
+      setRoundDeleting(false);
+    }
+  };
+
+  // ── Ticketed event — simple info card ─────────────────────────────────────
+   if (isTicketedEvent) {
+    return (
+      <div className="p-5 space-y-4">
+        <div className="rounded-xl border border-[#dce1df] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Settings className="h-4 w-4 text-[#52636f]" />
+            <h3 className="text-sm font-bold text-[#102532]">Ticketed Event Setup</h3>
+          </div>
+          {isScheduled ? (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
+              style={{ background: '#157f85' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}
+            >
+              <Edit3 className="h-4 w-4" /> Edit Event Settings
+            </button>
+          ) : (
+            <p className="text-sm text-[#8a9bab]">
+              Event settings can only be edited before the event starts.
+            </p>
+          )}
+        </div>
+ 
+        {showEditModal && (
+          <ScheduleTicketedEventModal
+            event={linkedEvent!}
+            existingRoom={room as unknown as TicketedEventRoomListItem}
+            onClose={() => setShowEditModal(false)}
+            onSaved={() => {
+              setShowEditModal(false);
+              onSaved?.();
+            }}
+          />
+        )}
+      </div>
+    );
   }
 
-  async function handleDeleteRound() {
-    if (!hasExisting || !window.confirm('Delete this personalised round?')) return;
-    setRoundDeleting(true); setRoundError(null);
-    try { await quizPersonalisedRoundsService.deleteRound(room.room_id); resetRound(); }
-    catch (e: any) { setRoundError(e.message || 'Failed to delete'); }
-    finally { setRoundDeleting(false); }
+  // ── Elimination — edit button only ─────────────────────────────────────────
+  if (isElimination) {
+    return (
+      <div className="p-5 space-y-4">
+        <div className="rounded-xl border border-[#dce1df] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Settings className="h-4 w-4 text-[#52636f]" />
+            <h3 className="text-sm font-bold text-[#102532]">Elimination Game Setup</h3>
+          </div>
+          {isScheduled ? (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
+              style={{ background: '#157f85' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}
+            >
+              <Edit3 className="h-4 w-4" /> Edit Game Settings
+            </button>
+          ) : (
+            <p className="text-sm text-[#8a9bab]">Game settings can only be edited before the event starts.</p>
+          )}
+        </div>
+
+        {showEditModal && (
+          <ScheduleEliminationModal
+            event={linkedEvent}
+            existingRoom={room as unknown as EliminationRoomListItem}
+            onClose={() => setShowEditModal(false)}
+            onSaved={() => {
+              setShowEditModal(false);
+              onSaved?.();
+            }}
+          />
+        )}
+      </div>
+    );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Quiz — personalised round editor ──────────────────────────────────────
   return (
-    <>
-      <div className="space-y-6 p-5">
+    <div className="p-5 space-y-4">
 
-        {/* ── Setup hero ── */}
-        {isElimination ? (
-          <section className={`rounded-2xl border p-5 ${
-            isScheduled
-              ? 'border-[rgba(233,87,79,0.2)] bg-gradient-to-r from-red-50 via-white to-orange-50'
-              : 'border-[#dce1df] bg-[#fbf8f2]'
-          }`}>
-            <div className="flex items-start gap-3">
-              <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-                isScheduled ? 'bg-[rgba(233,87,79,0.15)] text-[#c8423b]' : 'bg-[#dce1df] text-[#52636f]'
-              }`}>
-                <Trophy className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-base font-black text-[#102532]">Elimination setup</h3>
-                <p className="mt-1 text-sm text-[#52636f]">
-                  {isScheduled
-                    ? 'Update the entry fee and prize details.'
-                    : `This game is ${room.status}. Setup details are shown for reference only.`}
-                </p>
-                {isScheduled && (
-                  <button
-                    type="button"
-                    onClick={() => setShowEditModal(true)}
-                    className="mt-4 inline-flex w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(233,87,79,0.3)] bg-white px-4 py-3 text-left shadow-sm transition-colors hover:bg-[rgba(233,87,79,0.08)] sm:w-auto sm:min-w-[280px]"
-                  >
-                    <span>
-                      <span className="block text-sm font-bold text-red-950">Edit elimination details</span>
-                      <span className="mt-0.5 block text-xs text-[#52636f]">Entry fee · prize</span>
-                    </span>
-                    <Edit className="h-4 w-4 flex-shrink-0 text-[#c8423b]" />
-                  </button>
-                )}
-              </div>
+      {/* Edit quiz config button */}
+      {isScheduled && (
+        <div className="rounded-xl border border-[#dce1df] bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-[#102532]">Quiz Configuration</h3>
+              <p className="text-xs text-[#52636f] mt-0.5">Edit rounds, entry fee, and payment settings.</p>
             </div>
-          </section>
-        ) : isScheduled ? (
-          <section className="rounded-2xl border border-[rgba(21,127,133,0.2)] bg-gradient-to-r from-[rgba(21,127,133,0.06)] via-white to-purple-50 p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[rgba(21,127,133,0.15)] text-[#157f85]">
-                <Edit className="h-5 w-5" />
+            <button
+              onClick={onEditQuiz}
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+              style={{ background: 'rgba(21,127,133,0.1)', color: '#157f85' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(21,127,133,0.2)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(21,127,133,0.1)')}
+            >
+              <Edit3 className="h-3.5 w-3.5" /> Edit
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Personalised round — quiz + scheduled only */}
+      {isScheduled && !isElimination && !isTicketedEvent && (
+        <div className="rounded-xl border border-[#dce1df] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <PlusCircle className="h-4 w-4 text-[#52636f]" />
+            <h3 className="text-sm font-bold text-[#102532]">Personalised Questions</h3>
+            {hasExisting && (
+              <span className="ml-auto text-[10px] font-semibold rounded-full bg-[rgba(21,127,133,0.12)] text-[#157f85] px-2 py-0.5">
+                Saved
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-[#52636f] mb-4">
+            Add a custom round with questions specific to your group — team trivia, local knowledge, etc.
+          </p>
+
+          {roundLoading ? (
+            <div className="flex items-center gap-2 py-4 text-sm text-[#52636f]">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Round title */}
+              <div>
+                <label className="block text-xs font-semibold text-[#52636f] mb-1">Round title</label>
+                <input
+                  type="text"
+                  value={roundTitle}
+                  onChange={e => setRoundTitle(e.target.value)}
+                  placeholder="e.g. Team Trivia"
+                  className="w-full rounded-lg border border-[#dce1df] px-3 py-1.5 text-sm text-[#102532] focus:border-[#157f85] focus:outline-none focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
+                />
               </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-base font-black text-[#102532]">Quiz setup</h3>
-                <p className="mt-1 text-sm text-[#52636f]">
-                  Update the pricing, template, rounds, extras and prizes before the quiz starts.
-                </p>
-                <button
-                  type="button"
-                  onClick={onEditQuiz}
-                  className="mt-4 inline-flex w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(21,127,133,0.3)] bg-white px-4 py-3 text-left shadow-sm transition-colors hover:bg-[rgba(21,127,133,0.08)] sm:w-auto sm:min-w-[280px]"
-                >
-                  <span>
-                    <span className="block text-sm font-bold text-indigo-950">Edit quiz details</span>
-                    <span className="mt-0.5 block text-xs text-[#52636f]">Pricing · template · rounds · prizes</span>
-                  </span>
-                  <Edit className="h-4 w-4 flex-shrink-0 text-[#157f85]" />
+
+              {/* Position */}
+              <div>
+                <label className="block text-xs font-semibold text-[#52636f] mb-1">Position in quiz</label>
+                <div className="flex gap-2">
+                  {(['first', 'last'] as const).map(pos => (
+                    <button key={pos} onClick={() => setPosition(pos)}
+                      className="flex-1 rounded-lg border py-1.5 text-xs font-semibold transition"
+                      style={position === pos
+                        ? { background: '#157f85', color: '#fff', borderColor: '#157f85' }
+                        : { background: '#fafafa', color: '#52636f', borderColor: '#dce1df' }}>
+                      {pos === 'first' ? 'First round' : 'Last round'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Enabled toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#52636f]">Include in quiz</span>
+                <button onClick={() => setIsEnabled(p => !p)}
+                  className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${isEnabled ? 'bg-[#157f85]' : 'bg-gray-300'}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${isEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </button>
               </div>
-            </div>
-          </section>
-        ) : (
-          <section className="rounded-2xl border border-[#dce1df] bg-[#fbf8f2] p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#dce1df] text-[#52636f]">
-                <Edit className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-[#102532]">Setup</h3>
-                <p className="mt-1 text-sm text-[#52636f]">
-                  This event is {room.status}. Setup details are kept for reference - editing is only available while scheduled.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
 
-        {/* ── Personalised round — quiz only, scheduled only ── */}
-        {isScheduled && !isElimination && (
-          <section className="space-y-4">
-            <div className="rounded-2xl border border-[rgba(21,127,133,0.2)] bg-gradient-to-r from-emerald-50 via-white to-green-50 p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                    <Plus className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-[#102532]">Personalised round</h3>
-                    <p className="mt-1 text-sm text-[#52636f]">
-                      Add a custom round for club trivia, sponsor questions or local community questions.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs font-bold">
-                  <span className="rounded-full bg-white px-3 py-1 text-[#0e6268] shadow-sm ring-1 ring-[rgba(21,127,133,0.2)]">
-                    {questions.length}/{MAX_QUESTIONS} questions
-                  </span>
-                  <span className="rounded-full bg-white px-3 py-1 text-[#0e6268] shadow-sm ring-1 ring-[rgba(21,127,133,0.2)]">
-                    {filledCount} filled
-                  </span>
-                  {hasUnsaved && (
-                    <span className="rounded-full bg-[rgba(210,181,130,0.18)] px-3 py-1 text-[#8a6d2f]">Unsaved</span>
+              {/* Questions */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#52636f]">
+                    Questions ({filledCount}/{MAX_QUESTIONS})
+                  </label>
+                  {canAddMore && (
+                    <button onClick={handleAddQuestion}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#157f85] hover:text-[#0e6268]">
+                      <PlusCircle className="h-3.5 w-3.5" /> Add
+                    </button>
                   )}
                 </div>
-              </div>
-            </div>
 
-            {roundLoading ? (
-              <div className="flex items-center justify-center rounded-2xl border border-[#dce1df] bg-white py-10">
-                <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-                <span className="ml-2 text-sm text-[#52636f]">Loading personalised round…</span>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {roundError && (
-                  <div className="rounded-2xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#c8423b]" />
-                      <div>
-                        <p className="text-sm font-medium text-[#8b1c1c]">{roundError}</p>
-                        {roundDetails?.map((d, i) => (
-                          <p key={i} className="mt-1 text-sm text-[#c8423b]">• {d}</p>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Round settings */}
-                <div className="rounded-2xl border border-[#dce1df] bg-white p-4 shadow-sm">
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-sm font-black text-[#102532]">Round settings</h4>
-                      <p className="mt-0.5 text-xs text-[#52636f]">Choose where this round appears and whether it is active.</p>
-                    </div>
-                    {hasExisting && (
-                      <span className="rounded-full bg-[rgba(21,127,133,0.06)] px-3 py-1 text-xs font-bold text-emerald-700">Saved</span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div className="sm:col-span-1">
-                      <label className="mb-1 block text-xs font-semibold text-[#52636f]">
-                        Title <span className="text-[#8a9bab]">(optional)</span>
-                      </label>
+                {questions.map((q, i) => (
+                  <div key={i} className="rounded-lg border border-[#dce1df] bg-[#fbf8f2] p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-bold text-[#8a9bab] pt-1.5 shrink-0">Q{i + 1}</span>
                       <input
-                        value={roundTitle}
-                        onChange={e => setRoundTitle(e.target.value)}
-                        placeholder="e.g. Club Legends Round"
-                        className="w-full rounded-xl border border-[#dce1df] px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
+                        type="text"
+                        value={q.questionText}
+                        onChange={e => updateQuestion(i, { questionText: e.target.value })}
+                        placeholder="Question text…"
+                        className="flex-1 rounded border border-[#dce1df] bg-white px-2 py-1.5 text-xs text-[#102532] focus:border-[#157f85] focus:outline-none"
                       />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-[#52636f]">Position</label>
-                      <select
-                        value={position}
-                        onChange={e => setPosition(e.target.value === 'first' ? 'first' : 'last')}
-                        className="w-full rounded-xl border border-[#dce1df] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
-                      >
-                        <option value="first">First round</option>
-                        <option value="last">Last round</option>
-                      </select>
-                    </div>
-                    <div className="flex items-end">
-                      <label className="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-[#dce1df] bg-[#fbf8f2] px-3 py-2 text-sm font-medium text-[#52636f]">
-                        <input
-                          type="checkbox"
-                          checked={isEnabled}
-                          onChange={e => setIsEnabled(e.target.checked)}
-                          className="h-4 w-4 rounded border-[#dce1df] text-emerald-600 focus:ring-emerald-500"
-                        />
-                        Enabled in quiz
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Questions */}
-                <div className="space-y-4">
-                  {questions.map((q, qi) => (
-                    <div key={q.id ?? `new-${qi}`} className="rounded-2xl border border-[#dce1df] bg-white p-4 shadow-sm">
-                      <div className="mb-4 flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-black text-[#102532]">Question {qi + 1}</h4>
-                          <p className="mt-0.5 text-xs text-[#52636f]">Write the question, then mark the correct answer.</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeQuestion(qi)}
-                          className="rounded-xl p-2 text-[#8a9bab] transition-colors hover:bg-[rgba(233,87,79,0.08)] hover:text-[#c8423b]"
-                        >
-                          <Trash2 className="h-4 w-4" />
+                      {questions.length > 1 && (
+                        <button onClick={() => handleRemoveQuestion(i)}
+                          className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-[#52636f]">Question text</label>
-                        <textarea
-                          value={q.questionText}
-                          onChange={e => setQuestionField(qi, { questionText: e.target.value })}
-                          rows={2}
-                          placeholder="Type your question…"
-                          className="w-full rounded-xl border border-[#dce1df] px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
-                        />
-                      </div>
-                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {([0, 1, 2, 3] as const).map(ai => {
-                          const isCorrect = q.correctIndex === ai;
-                          return (
-                            <div key={ai} className={`rounded-2xl border p-3 transition-colors ${
-                              isCorrect ? 'border-emerald-300 bg-[rgba(21,127,133,0.06)]' : 'border-[#dce1df] bg-[#fbf8f2]'
-                            }`}>
-                              <div className="mb-2 flex items-center justify-between">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-[#52636f]">Answer {ai + 1}</span>
-                                {isCorrect && (
-                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-[#0e6268]">Correct</span>
-                                )}
-                              </div>
-                              <input
-                                value={q.answers[ai]}
-                                onChange={e => setAnswer(qi, ai, e.target.value)}
-                                placeholder={`Option ${ai + 1}`}
-                                className="w-full rounded-xl border border-[#dce1df] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
-                              />
-                              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-[#52636f]">
-                                <input
-                                  type="radio"
-                                  name={`correct_${qi}`}
-                                  checked={isCorrect}
-                                  onChange={() => setQuestionField(qi, { correctIndex: ai })}
-                                  className="h-4 w-4 border-[#dce1df] text-emerald-600 focus:ring-emerald-500"
-                                />
-                                Mark as correct
-                              </label>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      )}
                     </div>
-                  ))}
-                  <div ref={endRef} />
-                </div>
-
-                {/* Add question / max reached */}
-                <div className="rounded-2xl border border-dashed border-[#dce1df] bg-[#fbf8f2] p-4 text-center">
-                  {canAddMore ? (
-                    <>
-                      <p className="text-sm font-bold text-[#1e3040]">Add another personalised question?</p>
-                      <p className="mt-1 text-xs text-[#52636f]">
-                        Your current questions are saved first. You can add {MAX_QUESTIONS - questions.length} more.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleAddQuestion}
-                        disabled={!canAddMore || roundSaving || roundDeleting || roundLoading}
-                        className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#157f85] px-4 py-2 text-sm font-bold text-white hover:bg-[#0e6268] disabled:opacity-50"
-                      >
-                        {roundSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                        Save & add question
-                      </button>
-                    </>
-                  ) : (
-                    <p className="text-sm text-[#52636f]">Maximum of {MAX_QUESTIONS} questions reached.</p>
-                  )}
-                </div>
-
-                {/* Save / delete actions */}
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    {hasExisting && (
-                      <button
-                        type="button"
-                        onClick={handleDeleteRound}
-                        disabled={roundSaving || roundDeleting || roundLoading}
-                        className="inline-flex items-center gap-2 rounded-xl border border-[rgba(233,87,79,0.3)] bg-white px-4 py-2 text-sm font-bold text-[#c8423b] hover:bg-[rgba(233,87,79,0.08)] disabled:opacity-50"
-                      >
-                        {roundDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                        Delete round
-                      </button>
-                    )}
+                    <div className="grid grid-cols-2 gap-2 ml-5">
+                      {q.answers.map((ans, ai) => (
+                        <div key={ai} className="flex items-center gap-1.5">
+                          <input
+                            type="radio"
+                            name={`correct-${i}`}
+                            checked={q.correctIndex === ai}
+                            onChange={() => updateQuestion(i, { correctIndex: ai as 0 | 1 | 2 | 3 })}
+                            className="accent-[#157f85] shrink-0"
+                          />
+                          <input
+                            type="text"
+                            value={ans}
+                            onChange={e => {
+                              const next = [...q.answers] as [string, string, string, string];
+                              next[ai] = e.target.value;
+                              updateQuestion(i, { answers: next });
+                            }}
+                            placeholder={`Answer ${ai + 1}${q.correctIndex === ai ? ' (correct)' : ''}`}
+                            className="flex-1 rounded border border-[#dce1df] bg-white px-2 py-1 text-xs text-[#102532] focus:border-[#157f85] focus:outline-none min-w-0"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleSaveRound}
-                    disabled={roundSaving || roundDeleting || roundLoading}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#157f85] px-4 py-2 text-sm font-bold text-white hover:bg-[#0e6268] disabled:opacity-50"
-                  >
-                    {roundSaving
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-                      : <><CheckCircle2 className="h-4 w-4" /> Save personalised round</>}
-                  </button>
-                </div>
+                ))}
+                <div ref={endRef} />
               </div>
-            )}
-          </section>
-        )}
 
-      </div>
+              {/* Error / details */}
+              {roundError && (
+                <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  {roundError}
+                </div>
+              )}
+              {roundDetails && roundDetails.length > 0 && (
+                <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+                  <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {roundDetails.map((d, i) => <li key={i}>{d}</li>)}
+                  </ul>
+                </div>
+              )}
 
-      {/* ── Elimination edit modal ── */}
-      {showEditModal && isElimination && (
-        <ScheduleEliminationModal
-          event={linkedEvent}
-          existingRoom={room as unknown as EliminationRoomListItem}
-          onClose={() => setShowEditModal(false)}
-          onSaved={() => {
-            setShowEditModal(false);
-            onSaved?.();
-          }}
-        />
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSave}
+                  disabled={roundSaving || !hasUnsaved}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold text-white transition disabled:opacity-40"
+                  style={{ background: '#157f85' }}
+                  onMouseEnter={e => { if (!roundSaving && hasUnsaved) e.currentTarget.style.background = '#0e6268'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#157f85'; }}
+                >
+                  {roundSaving
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                    : <><Save className="h-4 w-4" /> {hasExisting ? 'Update round' : 'Save round'}</>}
+                </button>
+                {hasExisting && (
+                  <button onClick={handleDelete} disabled={roundDeleting}
+                    className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40 transition">
+                    {roundDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
-    </>
+
+      {/* Non-scheduled quiz */}
+      {!isScheduled && !isElimination && !isTicketedEvent && (
+        <div className="rounded-xl border border-dashed border-[#dce1df] bg-[#fbf8f2] p-6 text-center">
+          <p className="text-sm text-[#8a9bab]">Setup options are only available for scheduled events.</p>
+        </div>
+      )}
+    </div>
   );
 }

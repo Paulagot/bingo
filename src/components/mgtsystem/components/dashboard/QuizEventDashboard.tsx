@@ -110,6 +110,8 @@ export default function QuizEventDashboard() {
   const [scheduleQuizOpen, setScheduleQuizOpen]                   = useState(false);
   const [scheduleEliminationOpen, setScheduleEliminationOpen]     = useState(false);
   const [scheduleTicketedEventOpen, setScheduleTicketedEventOpen] = useState(false);
+ const [isEditingTicketedEvent, setIsEditingTicketedEvent] = useState(false);
+const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
 
   const [ents, setEnts]               = useState<any>(null);
   const [entsLoading, setEntsLoading] = useState(true);
@@ -342,17 +344,23 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
         pmResults.forEach(r => { pmMap[r.id] = r.hasLinked; });
         setPaymentMethodMap(pmMap);
 
-        const linkRes = await eventIntegrationsService.lookupLinks({
-          integration_type: 'quiz_web2',
-          external_refs: roomIds,
-        });
-        const leMap: Record<string, { eventId: string; eventTitle: string }> = {};
-        for (const l of linkRes.links || []) {
-          if (l.external_ref && l.event_id && l.event_title) {
-            leMap[l.external_ref] = { eventId: l.event_id, eventTitle: l.event_title };
-          }
-        }
-        setLinkedEventsMap(leMap);
+       const [quizLinks, eliminationLinks, ticketedLinks] = await Promise.all([
+  eventIntegrationsService.lookupLinks({ integration_type: 'quiz_web2',      external_refs: roomIds }),
+  eventIntegrationsService.lookupLinks({ integration_type: 'elimination',     external_refs: roomIds }),
+  eventIntegrationsService.lookupLinks({ integration_type: 'ticketed_event',  external_refs: roomIds }),
+]);
+
+const leMap: Record<string, { eventId: string; eventTitle: string }> = {};
+for (const l of [
+  ...(quizLinks.links       || []),
+  ...(eliminationLinks.links || []),
+  ...(ticketedLinks.links    || []),
+]) {
+  if (l.external_ref && l.event_id && l.event_title) {
+    leMap[l.external_ref] = { eventId: l.event_id, eventTitle: l.event_title };
+  }
+}
+setLinkedEventsMap(leMap);
       }
 
       return freshRowMap;
@@ -560,6 +568,22 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
   return (
     <div style={{ backgroundColor: '#f6f1e8' }}>
       <div className="container mx-auto max-w-7xl px-4 py-6 sm:py-8">
+              <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
+              style={{ background: '#ffffff', borderColor: '#f2c5c2', color: '#b42318' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#fff4f3'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; }}
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </button>
+
+               {/* ── Notifications ── */}
+        <div className="mb-6">
+          <NotificationsTicker />
+        </div>
 
         {/* ── Header ── */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -567,6 +591,7 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
             <h1 className="text-2xl font-bold" style={{ color: '#102532' }}>Events</h1>
             <p className="mt-1 text-sm font-semibold" style={{ color: '#52636f' }}>{clubName}</p>
           </div>
+          
           <div className="flex gap-2 flex-wrap">
             {featureAccess.quizPayments && (
               <button type="button" onClick={() => setManagePaymentsOpen(true)}
@@ -587,24 +612,11 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
               onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}>
               <PlusCircle className="h-4 w-4" /> Create Event
             </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
-              style={{ background: '#ffffff', borderColor: '#f2c5c2', color: '#b42318' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#fff4f3'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; }}
-            >
-              <LogOut className="h-4 w-4" />
-              Log out
-            </button>
+   
           </div>
         </div>
 
-        {/* ── Notifications ── */}
-        <div className="mb-6">
-          <NotificationsTicker />
-        </div>
+ 
 
         {/* ── Fundraising summary ── */}
 {!eventsLoading && events.length > 0 && (
@@ -937,10 +949,22 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
               : undefined;
             if (linkedEvent) {
               setPendingActivityEventId(linkedEvent.id);
+              setIsEditingQuiz(true);  
               setScheduleQuizOpen(true);
               setDrawerOpen(false);
             }
           }}
+          onEditTicketedEvent={() => {
+    const linkedEvent = drawerLinked?.eventId
+       ? events.find(e => e.id === drawerLinked.eventId)
+       : undefined;
+     if (linkedEvent) {
+       setPendingActivityEventId(linkedEvent.id);
+       setIsEditingTicketedEvent(true);
+       setScheduleTicketedEventOpen(true);
+       setDrawerOpen(false);
+     }
+   }}
         />
       )}
 
@@ -955,14 +979,20 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
         const pendingEvent = events.find(e => e.id === pendingActivityEventId);
         if (!pendingEvent) return null;
         return (
-          <ScheduleQuizModal
-            event={pendingEvent}
-            onClose={() => { setScheduleQuizOpen(false); setPendingActivityEventId(null); }}
-            onSaved={async (roomId) => {
-              setScheduleQuizOpen(false);
-              await handleActivitySaved(roomId, 'quiz');
-            }}
-          />
+        <ScheduleQuizModal
+  event={pendingEvent}
+  existingRoom={isEditingQuiz ? drawerRoom : null}   // ← add this
+  onClose={() => {
+    setScheduleQuizOpen(false);
+    setPendingActivityEventId(null);
+    setIsEditingQuiz(false);    // ← add this reset
+  }}
+  onSaved={async (roomId) => {
+    setScheduleQuizOpen(false);
+    setIsEditingQuiz(false);    // ← add this reset
+    await handleActivitySaved(roomId, 'quiz');
+  }}
+/>
         );
       })()}
 
@@ -982,19 +1012,26 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
       })()}
 
       {scheduleTicketedEventOpen && (() => {
-        const pendingEvent = events.find(e => e.id === pendingActivityEventId);
-        if (!pendingEvent) return null;
-        return (
-          <ScheduleTicketedEventModal
-            event={pendingEvent}
-            onClose={() => { setScheduleTicketedEventOpen(false); setPendingActivityEventId(null); }}
-            onSaved={async (roomId) => {
-              setScheduleTicketedEventOpen(false);
-              await handleActivitySaved(roomId, 'ticketed_event');
-            }}
-          />
-        );
-      })()}
+    const pendingEvent = events.find(e => e.id === pendingActivityEventId);
+     if (!pendingEvent) return null;
+     const roomToEdit = isEditingTicketedEvent ? drawerRoom : null;
+     return (
+       <ScheduleTicketedEventModal
+         event={pendingEvent}
+         existingRoom={roomToEdit as any}
+         onClose={() => {
+           setScheduleTicketedEventOpen(false);
+           setPendingActivityEventId(null);
+           setIsEditingTicketedEvent(false);
+         }}
+         onSaved={async (roomId) => {
+           setScheduleTicketedEventOpen(false);
+           setIsEditingTicketedEvent(false);
+           await handleActivitySaved(roomId, 'ticketed_event');
+         }}
+       />
+     );
+   })()}
     </div>
   );
 }

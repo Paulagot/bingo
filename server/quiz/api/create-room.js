@@ -150,24 +150,25 @@ async function insertWeb2RoomRecord({
       ? 'scheduled'
       : 'live';
 
-  const sql = `
-    INSERT INTO ${WEB2_ROOMS_TABLE}
-      (room_id, host_id, club_id, status, scheduled_at, time_zone, config_json, room_caps_json)
-    VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+  // AFTER
+const sql = `
+  INSERT INTO ${WEB2_ROOMS_TABLE}
+    (room_id, host_id, club_id, status, scheduled_at, time_zone, config_json, room_caps_json, game_type)
+  VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
 
-  const params = [
-    roomId,
-    hostId,
-    clubId,
-    status,
-    scheduledAt && !Number.isNaN(scheduledAt.getTime()) ? scheduledAt : null,
-    timeZone,
-    JSON.stringify(setupConfig ?? {}),
-    JSON.stringify(roomCaps ?? null),
-  ];
-
+const params = [
+  roomId,
+  hostId,
+  clubId,
+  status,
+  scheduledAt && !Number.isNaN(scheduledAt.getTime()) ? scheduledAt : null,
+  timeZone,
+  JSON.stringify(setupConfig ?? {}),
+  JSON.stringify(roomCaps ?? null),
+  'quiz',                              // ← hardcoded since this file only creates quiz rooms
+];
   await connection.execute(sql, params);
 
   return { status, scheduledAt, timeZone };

@@ -37,7 +37,7 @@ function toPositiveNumber(value) {
  * can write both config_json.prizes AND the flat DB columns in one go.
  */
 function normalisePrizes({ prizes, prizeDescription, prizeValue }) {
-  // New shape — prizes array sent from frontend
+  // New shape — prizes array sent from frontend (sponsor passes through as-is)
   if (Array.isArray(prizes) && prizes.length > 0) {
     const winner = prizes[0]; // elimination always has exactly one prize (place 1)
     return {
@@ -118,7 +118,7 @@ export async function scheduleEliminationRoom({
     paymentMode: 'web2',
     gameType:    'elimination',
     roomCaps:    roomCaps ?? { maxPlayers: max },
-    // prizes array — same shape as quiz config_json.prizes
+    // prizes array — same shape as quiz config_json.prizes (includes sponsor)
     prizes:      normalised.prizes,
   });
 
@@ -170,11 +170,12 @@ export async function listEliminationRooms({ clubId, status = 'all', time = 'all
 
   const orderBy = time === 'past' ? 'scheduled_at DESC' : 'scheduled_at ASC';
 
+  // NOTE: entry_fee, currency, max_players are NOT flat columns in this table.
+  // Those values live inside config_json — read them from there on the frontend.
   const [rows] = await connection.execute(
     `SELECT
        room_id, host_id, club_id, status, game_type,
        scheduled_at, time_zone, config_json,
-       entry_fee, currency, max_players,
        prize_description, prize_value,
        reconciliation_status,
        created_at, updated_at
@@ -228,7 +229,6 @@ export async function getEliminationRoom({ clubId, roomId }) {
 export async function updateEliminationRoom({
   clubId, roomId, scheduledAt, timeZone, entryFee, currency,
   maxPlayers,
-  // Accept both new prizes array and legacy flat fields
   prizes,
   prizeDescription: prizeDescriptionRaw,
   prizeValue:       prizeValueRaw,
@@ -240,6 +240,7 @@ export async function updateEliminationRoom({
   const sets   = [];
   const params = [];
 
+  // ── Scalar DB columns ──────────────────────────────────────────────────────
   if (scheduledAt !== undefined) {
     sets.push('scheduled_at = ?');
     params.push(toMysqlUtcDateTime(scheduledAt));
@@ -248,53 +249,75 @@ export async function updateEliminationRoom({
     sets.push('time_zone = ?');
     params.push(timeZone ?? null);
   }
+
+  // ── entry_fee / currency / max_players live in config_json only ───────────
+  // Collect them here; they get merged into config_json below.
+  let feeToMerge      = undefined;
+  let currencyToMerge = undefined;
+  let maxToMerge      = undefined;
+
   if (entryFee !== undefined) {
     const fee = toPositiveNumber(entryFee);
     if (fee === null) throw Object.assign(new Error('ENTRY_FEE_REQUIRED'), { statusCode: 400 });
-    sets.push('entry_fee = ?');
-    params.push(fee);
+    feeToMerge = fee;
   }
   if (currency !== undefined) {
-    sets.push('currency = ?');
-    params.push(currency);
+    currencyToMerge = currency;
   }
   if (maxPlayers !== undefined) {
     const max = toPositiveNumber(maxPlayers);
     if (max === null) throw Object.assign(new Error('MAX_PLAYERS_INVALID'), { statusCode: 400 });
-    sets.push('max_players = ?');
-    params.push(max);
+    maxToMerge = max;
   }
 
-  // Handle prizes — either new array shape or legacy flat fields
-  const hasPrizesPayload = prizes !== undefined || prizeDescriptionRaw !== undefined || prizeValueRaw !== undefined;
-  if (hasPrizesPayload) {
-    const normalised = normalisePrizes({
-      prizes,
-      prizeDescription: prizeDescriptionRaw,
-      prizeValue:       prizeValueRaw,
-    });
-    // Update the flat DB columns for backward compat
-    sets.push('prize_description = ?');
-    params.push(normalised.prizeDescription);
-    sets.push('prize_value = ?');
-    params.push(normalised.prizeValue);
-    // The prizes array is merged into config_json below via the configJson path
-    // — build an updated configJson if none was explicitly passed
-    if (configJson === undefined) {
-      // Fetch the current config so we can merge prizes into it
-      const current = await getEliminationRoom({ clubId, roomId });
-      if (current) {
-        const mergedConfig = {
-          ...(typeof current.config_json === 'object' ? current.config_json : {}),
-          prizes: normalised.prizes,
-        };
-        sets.push('config_json = ?');
-        params.push(JSON.stringify(mergedConfig));
+  // ── Prizes + config_json merge ─────────────────────────────────────────────
+  const hasPrizesPayload =
+    prizes !== undefined || prizeDescriptionRaw !== undefined || prizeValueRaw !== undefined;
+
+  const needsConfigMerge =
+    hasPrizesPayload ||
+    feeToMerge      !== undefined ||
+    currencyToMerge !== undefined ||
+    maxToMerge      !== undefined;
+
+  if (needsConfigMerge && configJson === undefined) {
+    // Fetch current row so we can merge into existing config_json
+    const current = await getEliminationRoom({ clubId, roomId });
+    if (current) {
+      const existingConfig =
+        typeof current.config_json === 'object' ? current.config_json : {};
+
+      let normalisedPrizes = existingConfig.prizes ?? [];
+
+      if (hasPrizesPayload) {
+        const normalised = normalisePrizes({
+          prizes,
+          prizeDescription: prizeDescriptionRaw,
+          prizeValue:       prizeValueRaw,
+        });
+        normalisedPrizes = normalised.prizes;
+
+        // Also update the flat DB columns for backward compat
+        sets.push('prize_description = ?');
+        params.push(normalised.prizeDescription);
+        sets.push('prize_value = ?');
+        params.push(normalised.prizeValue);
       }
+
+      const mergedConfig = {
+        ...existingConfig,
+        prizes: normalisedPrizes,
+        ...(feeToMerge      !== undefined && { entryFee:   feeToMerge }),
+        ...(currencyToMerge !== undefined && { currency:   currencyToMerge }),
+        ...(maxToMerge      !== undefined && { maxPlayers: maxToMerge }),
+      };
+
+      sets.push('config_json = ?');
+      params.push(JSON.stringify(mergedConfig));
     }
   }
 
-  // Explicit configJson override (used by other callers)
+  // ── Explicit configJson override (used by other callers) ──────────────────
   if (configJson !== undefined) {
     sets.push('config_json = ?');
     params.push(typeof configJson === 'string' ? configJson : JSON.stringify(configJson));
@@ -351,7 +374,7 @@ export async function cancelEliminationRoom({ clubId, roomId }) {
     const [rows] = await connection.execute(
       `SELECT status FROM ${TABLE}
        WHERE club_id = ? AND room_id = ? AND game_type = 'elimination' LIMIT 1`,
-      [clubId, rowId]
+      [clubId, roomId]  // ← fixed typo: was rowId
     );
     if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
     throw Object.assign(
