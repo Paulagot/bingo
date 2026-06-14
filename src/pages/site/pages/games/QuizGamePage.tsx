@@ -163,7 +163,7 @@ const workflowItems = [
   },
   {
     title: 'Fundraising extras at checkout',
-    text: 'Offer optional paid extras while supporters are joining or paying, so the extra fundraising is planned before the game starts.',
+    text: 'Offer optional paid extras while supporters are joining or paying, so the extra fundraising is planned before the game starts. this option is only available when you charge a fixed entry fee, extras are free when you use a donate-what-you-want setup.',
   },
   {
     title: 'Sponsor shoutouts',
@@ -176,6 +176,10 @@ const workflowItems = [
   {
     title: 'In-person, hybrid or online',
     text: 'Run the same digital quiz structure in a club room, school hall, pub, community space or online setting.',
+  },
+   {
+    title: 'Templates and personalisation',
+    text: 'Select from our range of quiz templates complete with quiz content and add a personalised round to keep the quiz relevant to the cause.',
   },
 ];
 
@@ -317,10 +321,7 @@ const extrasItems = [
     title: 'Works for teams or individuals',
     text: 'Extras can be planned around the way the quiz is being played, whether one person is competing alone or a team is playing from one device.',
   },
-  {
-    title: 'Format-specific options',
-    text: 'Different quiz formats can support different extras, such as clues, lifelines, second chances or restore points.',
-  },
+
   {
     title: 'Clearer reporting',
     text: 'Because extras are linked to the player, team and event, organisers can review what was purchased after the quiz.',
@@ -368,8 +369,8 @@ const processSteps = [
     text: 'Use a fixed fee, donate-what-you-want entry or another event-specific setup.',
   },
   {
-    title: 'Configure rounds, timing and questions',
-    text: 'Choose the quiz structure, round settings, timing and question flow so the host is not building everything manually.',
+    title: 'Select a quiz template.',
+    text: 'Choose from a range of pre-designed quiz templates to get started quickly. No preparing questions, rounds or scoring from scratch. Add a personalised round to keep the quiz relevant to the cause.',
   },
   {
     title: 'Add fundraising extras',
@@ -501,19 +502,13 @@ export default function QuizGamePage() {
         items={workflowItems}
       />
 
-      <FeatureGrid
-        eyebrow="Teams or individuals"
-        title="Run the quiz by connected device, team or player"
-        text="FundRaisely Quiz is digital, but it still works brilliantly for real-world rooms. A connected device can represent one individual player or one team, depending on how the organiser wants the fundraiser to run."
-        items={deviceItems}
-      />
-
-      <ScreenshotShowcase
+    
+      {/* <ScreenshotShowcase
         eyebrow="Product screens"
         title="The quiz event flow from setup to game night"
         text="The quiz page should show the practical screens that make this more than a game: setup, team or individual joining, ticketing, player entry, payment tracking, host controls, screen-share gameplay and reports."
         slots={screenshotSlots}
-      />
+      /> */}
 
       <SplitSection
         eyebrow="Host controls"
@@ -527,7 +522,7 @@ export default function QuizGamePage() {
           'Keep organiser controls separate from the public screen-share view',
           'Help a volunteer host feel prepared, even if they have never run a quiz before',
         ]}
-        image={images.quizGameplayScreenshot}
+        image={images.hostControlsScreenshot}
         reverse={false}
       />
 
@@ -550,7 +545,7 @@ export default function QuizGamePage() {
           'Keep the main host focused on running the quiz',
           'Reduce pressure on the organiser during busy check-in moments',
         ]}
-        image={images.paymentTrackingScreenshot}
+        image={images.eventaddadminScreenshot}
         reverse
       />
 
@@ -560,21 +555,21 @@ export default function QuizGamePage() {
         text="FundRaisely is not just the quiz questions. It gives organisers the practical event pieces around the game, so a small team can run a more polished fundraiser with less guesswork."
         items={eventBoxItems}
       />
-
-      <SplitSection
-        eyebrow="Screen-share view"
-        title="A clean display for the room, with organiser controls kept separate"
-        text="For in-person and hybrid events, the screen-share view gives the room a clear display while the organiser keeps the working controls private. Teams or individuals can play from their devices while the public display keeps everyone focused on the quiz."
-        bullets={[
-          'Useful for club rooms, school halls, pubs and community spaces',
-          'Works for teams playing from one device or individuals on their own devices',
-          'Keeps the public display cleaner than the organiser dashboard',
-          'Makes the event easier for players and spectators to follow',
-          'Supports a more polished night without needing a professional quiz host',
-        ]}
-        image={images.communityQuizNight}
-        reverse={false}
-      />
+<SplitSection
+  eyebrow="Game Play"
+  title="A fun and engaging quiz experience for players and spectators"
+  text="The in-game experience is designed to feel more exciting than a standard paper quiz. With animated transitions, timed questions, fundraising extras, live scoring and leaderboard moments, players stay involved from the first question to the final result."
+  bullets={[
+    'Animated question changes help keep the quiz moving and stop the night feeling flat',
+    'Timed rounds add pace, pressure and excitement for players',
+    'Engaging round types from multiple choice to picture rounds keep the quiz interesting for players',
+    'Fundraising extras like clues, freezes and point steals create fun twists during the game',
+    'Live scoring and leaderboard reveals keep teams watching right to the end',
+    'Review screens show answers clearly so players and spectators can follow what happened',
+  ]}
+  image={images.gamePlayScreenshot}
+  reverse={false}
+/>
 
       <FeatureGrid
         eyebrow="Fundraising extras"
@@ -588,12 +583,12 @@ export default function QuizGamePage() {
         title="Make the quiz more profitable without making it feel like another donation ask"
         text="A normal quiz night usually depends on the ticket price, a raffle or people putting cash in a bucket. FundRaisely extras create extra fundraising moments that are connected to the game itself and can be planned around team or individual play."
         bullets={[
-          'Offer clues, hints or extra time where enabled',
-          'Use lifelines or second chances for suitable quiz formats',
-          'Support restore points or other format-specific boosts',
+          'Built to boost fundraising without feeling like a donation ask',
+          'Charge extra for clues, feeeze out opponents, restores points and rob points from other teams',
           'Let supporters add extras while paying or joining',
-          'Use extras for individuals or teams, depending on the setup',
-          'Keep extras connected to the event record for easier follow-up',
+          'Guaranteed to create excitement and competition without slowing the game down',
+          'Creates a memorable quiz experiences thats unlike a normal quiz night, which helps with repeat events and future campaignsFormat-specific options',
+         
         ]}
         image={images.prizeTable}
         reverse
@@ -617,7 +612,7 @@ export default function QuizGamePage() {
           'Make sponsorship easier to explain when approaching businesses',
           'Keep sponsor details connected to the event record for follow-up',
         ]}
-        image={images.prizeTable}
+        image={images.sponsorHighlightScreenshot}
         reverse={false}
       />
 

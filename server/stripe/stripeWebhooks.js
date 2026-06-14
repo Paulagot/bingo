@@ -5,8 +5,10 @@
 //   2. ✅ Confirms campaign product orders on payment_intent.succeeded.
 //      confirmOrderByStripeIntent returns null if the intent isn't a campaign
 //      order, so all existing quiz/elimination flows are unaffected.
-//   3. ✅ NEW: Handles checkout.session.expired for campaign_product sessions —
+//   3. ✅ Handles checkout.session.expired for campaign_product sessions —
 //      cancels the order and order items so they don't sit as pending forever.
+//   4. ✅ NEW: Pre-registers Stripe walk-in player into in-memory elimination
+//      room via addPlayerWithId so the success page socket join works immediately.
 
 import Stripe from 'stripe';
 import { connection, TABLE_PREFIX } from '../config/database.js';
@@ -14,6 +16,7 @@ import { sendTicketConfirmationEmail, getTicketWithRoomConfig } from '../utils/t
 import { createExpectedPayment } from '../mgtsystem/services/quizPaymentLedgerService.js';
 import { deleteExpiredTicket } from './stripeExpiredTicketService.js';
 import { confirmOrderByStripeIntent } from '../campaigns/services/campaignOrderService.js';
+import { addPlayerWithId } from '../elimination/services/eliminationRoomManager.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -148,23 +151,11 @@ async function confirmWalkinLedger({
 
 // ─── Campaign order expired cleanup ──────────────────────────────────────────
 
-/**
- * Cancel a campaign product order and its items when the Stripe session expires.
- *
- * No ticket rows exist at this point — tickets are only created by
- * expandOrderIntoEntries after payment confirmation. So cleanup is purely
- * DB-level: mark the order cancelled and order items cancelled.
- *
- * Also cancels any campaign_entries that were speculatively created
- * (pending_payment status) in case the order went through claimPayment
- * before Stripe checkout was initiated.
- */
 async function cancelExpiredCampaignOrder(orderId, sessionId) {
   const T_ORDERS      = `${TABLE_PREFIX}campaign_product_orders`;
   const T_ORDER_ITEMS = `${TABLE_PREFIX}campaign_product_order_items`;
   const T_ENTRIES     = `${TABLE_PREFIX}campaign_entries`;
 
-  // Only cancel if still pending — don't touch confirmed or already-cancelled orders
   const [result] = await connection.execute(
     `UPDATE ${T_ORDERS}
      SET payment_status = 'cancelled',
@@ -176,12 +167,10 @@ async function cancelExpiredCampaignOrder(orderId, sessionId) {
   );
 
   if (result.affectedRows === 0) {
-    // Already confirmed or cancelled — nothing to do
     console.log(`[StripeWebhook] ℹ️ Campaign order ${orderId} not pending — skipping expiry cancel`);
     return { cancelled: false };
   }
 
-  // Cancel any pending entries (speculative expansion before payment)
   await connection.execute(
     `UPDATE ${T_ENTRIES}
      SET status = 'cancelled'
@@ -232,8 +221,6 @@ export async function stripeWebhookHandler(req, res) {
 
     // ─────────────────────────────────────────────────────────────────────────
     // payment_intent.succeeded — handles campaign product orders
-    // Fires for all successful payment intents, including campaign checkout.
-    // confirmOrderByStripeIntent returns null for non-campaign intents.
     // ─────────────────────────────────────────────────────────────────────────
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object;
@@ -299,24 +286,24 @@ export async function stripeWebhookHandler(req, res) {
                 : ticketRow.extras || [];
 
               await sendTicketConfirmationEmail({
-                eventTitle:    config?.eventTitle    || null,
-  eventLocation: config?.eventLocation || null,
+                eventTitle:     config?.eventTitle    || null,
+                eventLocation:  config?.eventLocation || null,
                 ticketId,
-                purchaserEmail:  ticketRow.purchaser_email,
-                purchaserName:   ticketRow.purchaser_name,
-                playerName:      ticketRow.player_name,
-                entryFee:        ticketRow.entry_fee,
-                extrasTotal:     ticketRow.extras_total,
-                totalAmount:     ticketRow.total_amount,
-                currency:        ticketRow.currency,
-                currencySymbol:  config?.currencySymbol || '€',
+                purchaserEmail: ticketRow.purchaser_email,
+                purchaserName:  ticketRow.purchaser_name,
+                playerName:     ticketRow.player_name,
+                entryFee:       ticketRow.entry_fee,
+                extrasTotal:    ticketRow.extras_total,
+                totalAmount:    ticketRow.total_amount,
+                currency:       ticketRow.currency,
+                currencySymbol: config?.currencySymbol || '€',
                 extras,
-                clubId:          ticketRow.club_id,
-                hostName:        config?.hostName,
-                eventDateTime:   config?.eventDateTime,
-                timeZone:        config?.timeZone,
-                gameType:        ticketRow.game_type || 'quiz',
-                clubName:        ticketRow.club_name || null,
+                clubId:         ticketRow.club_id,
+                hostName:       config?.hostName,
+                eventDateTime:  config?.eventDateTime,
+                timeZone:       config?.timeZone,
+                gameType:       ticketRow.game_type || 'quiz',
+                clubName:       ticketRow.club_name || null,
               });
 
               if (DEBUG) console.log('[StripeWebhook] ✅ Email sent to:', ticketRow.purchaser_email);
@@ -327,7 +314,7 @@ export async function stripeWebhookHandler(req, res) {
           }
         }
 
-      // ── Walk-in payment ──────────────────────────────────────────────────
+      // ── Walk-in payment (quiz) ───────────────────────────────────────────
       } else if (type === 'walkin_payment') {
         const {
           roomId, clubId, playerId, playerName, entryFee, currency,
@@ -362,6 +349,7 @@ export async function stripeWebhookHandler(req, res) {
 
         const reference = paymentIntentId || sessionId;
 
+        // ── Step 1: Write confirmed ledger entry ─────────────────────────
         await createExpectedPayment({
           roomId,
           clubId,
@@ -386,13 +374,35 @@ export async function stripeWebhookHandler(req, res) {
           roomId, playerId, playerName, entryFee,
         });
 
+        // ── Step 2: Pre-register player in the in-memory room ────────────
+        // This ensures that when the success page fires join_elimination_room
+        // with this playerId, the reconnect path in the socket handler finds
+        // the player immediately rather than returning "Player not found".
+        try {
+          addPlayerWithId(roomId, playerId, {
+            name:            playerName,
+            paid:            true,
+            paymentMethod:   'stripe',
+            paymentReference: reference,
+          });
+          console.log('[StripeWebhook] ✅ Player pre-registered in elimination room:', {
+            roomId, playerId, playerName,
+          });
+        } catch (roomErr) {
+          // Non-fatal — the room may not exist yet (race condition on very first
+          // join before the host has hydrated the room), or may already be full.
+          // The player will see the "contact host" fallback on the success page.
+          console.warn('[StripeWebhook] ⚠️ Could not pre-register player in room (non-fatal):', {
+            roomId, playerId, playerName, error: roomErr.message,
+          });
+        }
+
       } else {
         console.warn('[StripeWebhook] ⚠️ Unknown metadata type:', type, { sessionId });
       }
 
     // ─────────────────────────────────────────────────────────────────────────
     // checkout.session.expired
-    // Fired when the 30-minute session window closes without payment.
     // ─────────────────────────────────────────────────────────────────────────
     } else if (event.type === 'checkout.session.expired') {
       const session   = event.data.object;
@@ -414,7 +424,6 @@ export async function stripeWebhookHandler(req, res) {
           }
         }
 
-      // ── NEW: Campaign product session expired ────────────────────────────
       } else if (type === 'campaign_product') {
         const orderId = session?.metadata?.orderId;
 
@@ -436,6 +445,17 @@ export async function stripeWebhookHandler(req, res) {
           console.log('[StripeWebhook] ℹ️ Expired walkin_payment — no DB rows to clean up:', {
             sessionId,
             playerId: session?.metadata?.playerId,
+          });
+        }
+
+      } else if (type === 'elimination_walkin_payment') {
+        // Same as walkin_payment — ledger is only written on confirmation,
+        // so there is nothing to roll back on expiry.
+        if (DEBUG) {
+          console.log('[StripeWebhook] ℹ️ Expired elimination_walkin_payment — no DB rows to clean up:', {
+            sessionId,
+            playerId: session?.metadata?.playerId,
+            roomId:   session?.metadata?.roomId,
           });
         }
 

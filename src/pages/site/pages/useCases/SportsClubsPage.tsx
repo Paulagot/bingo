@@ -443,21 +443,22 @@ export default function SportsClubsPage() {
         reverse={false}
       />
 
-      <SplitSection
-        eyebrow="Digital door-to-door"
-        title="Turn traditional player sponsorship into a digital campaign pack"
-        text="Sports clubs already understand door-to-door sponsorship, player cards and family-led fundraising. FundRaisely can turn that familiar behaviour into a more organised digital flow, where players and parents share links and the club has clearer records of what came in."
-        bullets={[
-          'Give players or parents a fundraiser link to share',
-          'Use links for sponsored walks, runs, challenges or team targets',
-          'Reduce reliance on paper sponsor cards and loose cash',
-          'Track supporter activity against the campaign',
-          'Follow up on claimed, confirmed or outstanding payments',
-          'Connect team-level effort to a wider club fundraising goal',
-        ]}
-        image={images.paymentTrackingScreenshot}
-        reverse
-      />
+<SplitSection
+  eyebrow="Digital door-to-door"
+  title="Turn traditional player sponsorship into a digital campaign pack"
+  text="Sports clubs already understand door-to-door sponsorship, player cards and family-led fundraising. FundRaisely can turn that familiar behaviour into a more organised digital flow, where players and parents share links and the club has clearer records of what came in."
+  bullets={[
+    'Give players or parents a fundraiser link to share',
+    'Use links for sponsored walks, runs, challenges or team targets',
+    'Reduce reliance on paper sponsor cards and loose cash',
+    'Track supporter activity against the campaign',
+    'Follow up on claimed, confirmed or outstanding payments',
+    'Connect team-level effort to a wider club fundraising goal',
+  ]}
+  image={images.doorToDoorScreenshot}
+  imageVariant="mobile"
+  reverse
+/>
 
       <FeatureGrid
         eyebrow="Player-led campaigns"
