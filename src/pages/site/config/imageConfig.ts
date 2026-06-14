@@ -20,6 +20,7 @@ export type ImageKey =
   | "eventSetupOverviewPhotoshot"
   | "ticketingScreenshot"
   | "ticketingHeroScreenshot"
+   | "ticketEventHeroScreenshot"
   | "ticketPurchaseFlowScreenshot"
   | "ticketingPublicPageScreenshot"
   | "ticketingPaymentMethodsScreenshot"
@@ -46,16 +47,18 @@ export type ImageKey =
   | "reportImpactExportScreenshot"
   | "campaignPlanningScreenshot"
   | "sponsorFinderScreenshot"
-    | "homePayment"
+   | "sponsorHighlightScreenshot"
+  | "homePayment"
   | "homeFormats"
   | "complianceScreenshot"
   | "quizHero"
   | "impactReportScreenshot"
-    | "clubHero"
-    | "schoolHero"
-    | "charitiesHero"
-     | "communityHero"
-
+  | "clubHero"
+  | "schoolHero"
+  | "charitiesHero"
+  | "communityHero"
+  | "hostControlsScreenshot"
+  | "doorToDoorScreenshot";
   
 
 export type SiteImage = {
@@ -107,8 +110,8 @@ export const images: Record<ImageKey, SiteImage> = {
   },
 
   prizeTable: {
-    src: photo("photo-1513151233558-d860c5398176"),
-    alt: "A prize table prepared for a local fundraising event",
+  src: "/images/screenshots/quizextras.png",
+    alt: "FundRaisely dashboard flow showing an organiser opening an event, managing setup and launching the fundraiser.",
   },
 
   communityCelebration: {
@@ -166,6 +169,11 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "FundRaisely Event Manager screen showing payment methods selected for ticketing and on the night payment.",
   },
 
+  hostControlsScreenshot: {
+    src: "/images/screenshots/hostcontrols.png",
+    alt: "FundRaisely host controls view showing the quiz question, answer options, timer and player scores.",
+  },
+
   eventLaunchDashboardScreenshot: {
     src: "/images/screenshots/reports.png",
     alt: "FundRaisely Event Manager launch dashboard showing advance tickets, redeemed tickets, launch controls and admin helper access.",
@@ -187,7 +195,7 @@ export const images: Record<ImageKey, SiteImage> = {
   },
 
   ticketPurchaseFlowScreenshot: {
-    src: "/images/screenshots/ticketing-public-page.png",
+    src: "/images/screenshots/ticketpaymentflow.png",
     alt: "FundRaisely supporter ticket purchase flow for a fundraising event.",
   },
 
@@ -202,17 +210,22 @@ export const images: Record<ImageKey, SiteImage> = {
   },
 
   ticketingPaymentReferenceScreenshot: {
-    src: "/images/screenshots/ticketing-payment-reference.png",
+    src: "/images/screenshots/addticket.png",
     alt: "FundRaisely ticket payment instruction screen showing a unique payment reference code.",
   },
 
   ticketingSalesRedemptionsScreenshot: {
-    src: "/images/screenshots/ticketing-sales.png",
+    src: "/images/screenshots/ticketcheckin.png",
     alt: "FundRaisely organiser ticketing view showing tickets sold, payment status, confirmed tickets, redeemed tickets and report actions.",
   },
   ticketingInstantPaymentScreenshot: {
     src: "/images/screenshots/instantpayment.png",
     alt: "FundRaisely ticketing view showing instant payment reference for a ticket purchase.",
+  },
+
+  ticketEventHeroScreenshot: {
+    src: "/images/screenshots/ticketedeventhero.png",
+    alt: "FundRaisely ticketed event hero image showing a family enjoying a ticketed community event together.",
   },
     cashatdoorScreenshot: { 
       src: "/images/screenshots/cashatdoor.png",
@@ -327,6 +340,11 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "Placeholder for sponsor and prize finder tools",
   },
 
+  sponsorHighlightScreenshot: {
+    src: "/images/screenshots/sponsorshot.png",
+    alt: "Placeholder for sponsor and prize highlight tools",
+  },
+
   complianceScreenshot: {
     src: placeholder("Compliance prompt screenshot"),
     alt: "Placeholder for compliance guidance prompts",
@@ -344,6 +362,10 @@ export const images: Record<ImageKey, SiteImage> = {
   charitiesHero: {
     src: "/images/screenshots/charitieshero.png",
     alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+  },
+  doorToDoorScreenshot: {
+    src: "/images/screenshots/door-to-door.png",
+    alt: "FundRaisely door-to-door fundraising screenshot showing a volunteer recording cash donations collected in person.",
   },
   
 };

@@ -38,8 +38,8 @@ const SESSION_HOST_ID         = 'elim_host_id';
 const SESSION_PLAYER_NAME     = 'elim_player_name';
 const SESSION_IS_HOST         = 'elim_is_host';
 const SESSION_ONCHAIN_ROOM_ID = 'elim_onchain_room_id';
-const SESSION_PAYMENT_MODE    = 'elim_payment_mode'; // 'web3' | 'web2' — persists across refresh
-const SESSION_RECONCILING     = 'elim_reconciling';  // 'true' while host is reconciling
+const SESSION_PAYMENT_MODE    = 'elim_payment_mode';
+const SESSION_RECONCILING     = 'elim_reconciling';
 
 const clearEliminationSession = () => {
   [
@@ -49,10 +49,6 @@ const clearEliminationSession = () => {
   ].forEach(k => sessionStorage.removeItem(k));
 };
 
-// ─── Web3 detection ───────────────────────────────────────────────────────────
-// Web3 rooms use smart contracts. Web2 rooms that accept "crypto" as a payment
-// method are NOT web3 — they use no smart contracts.
-// We only redirect to /web3/elimination for true web3 rooms (paymentMode === 'web3').
 function isWeb3Room(room: any): boolean {
   const mode = room?.paymentMode ?? sessionStorage.getItem(SESSION_PAYMENT_MODE) ?? '';
   return mode === 'web3';
@@ -120,8 +116,6 @@ export const EliminationGamePage: React.FC = () => {
     }
   }, [state.view, roundTimer.secondsRemaining]);
 
-  // Persist paymentMode to sessionStorage whenever the room updates
-  // so we can detect web3 correctly even after a page refresh
   useEffect(() => {
     const mode = (state.room as any)?.paymentMode;
     if (mode) sessionStorage.setItem(SESSION_PAYMENT_MODE, mode);
@@ -130,8 +124,6 @@ export const EliminationGamePage: React.FC = () => {
   // ── Navigation helpers ────────────────────────────────────────────────────
 
   const getExitRoute = useCallback(() => {
-    // web3 rooms (smart contract) → web3 dashboard
-    // web2 rooms (including those that accept crypto as payment) → home
     return isWeb3Room(state.room) ? '/web3/elimination' : '/';
   }, [state.room]);
 
@@ -144,7 +136,7 @@ export const EliminationGamePage: React.FC = () => {
     navigate(exitRoute, { replace: true });
   }, [getExitRoute, onRoomEnded, navigate]);
 
-  // Host enters reconciliation — keeps session alive for refresh survival
+  // Host enters reconciliation manually — triggered by button in winner view
   const handleEnterReconciliation = useCallback(() => {
     sessionStorage.setItem(SESSION_RECONCILING, 'true');
     onEnterReconciliation();
@@ -156,7 +148,6 @@ export const EliminationGamePage: React.FC = () => {
       const room: EliminationRoom = data.roomSnapshot ?? data;
       setRoom(room);
       setWaitingPlayers(room.players ?? []);
-      // Persist payment mode on every room state update
       const mode = (room as any).paymentMode;
       if (mode) sessionStorage.setItem(SESSION_PAYMENT_MODE, mode);
 
@@ -225,21 +216,33 @@ export const EliminationGamePage: React.FC = () => {
       onWinnerDeclared(data);
     }, [onWinnerDeclared]),
 
-    // PLAYERS_DISMISSED: players/admins leave, host stays to reconcile
+    // ── PLAYERS_DISMISSED ─────────────────────────────────────────────────
+    // This is now a 10-minute safety-net from the server — not the primary
+    // navigation trigger. By the time it fires, most clients will have already
+    // left via the winner/game_over auto-close, and the host will have clicked
+    // "Start Reconciliation" manually. We only act on it if the client is
+    // somehow still on a post-game view (winner / game_over) — which means
+    // the user left their screen open for 10 full minutes without interacting.
     onPlayersDismissed: useCallback(() => {
+      const view = state.view; // capture current view at time of event
       if (isHost) {
-        handleEnterReconciliation();
+        // Host hasn't clicked reconciliation yet after 10 minutes — push them
+        if (view === 'winner' || view === 'waiting' || view === 'round_results') {
+          handleEnterReconciliation();
+        }
       } else {
-        handleCleanupAndNavigate();
+        // Player is still on winner/game_over after 10 minutes — send them home
+        if (view === 'winner' || view === 'game_over' || view === 'eliminated') {
+          handleCleanupAndNavigate();
+        }
+        // If they've already navigated (lobby/waiting) — do nothing
       }
-    }, [isHost, handleEnterReconciliation, handleCleanupAndNavigate]),
+    }, [isHost, state.view, handleEnterReconciliation, handleCleanupAndNavigate]),
 
     onReconciliationApproved: useCallback(() => {
-      // The panel handles its own approved state.
-      // onComplete on the panel calls handleCleanupAndNavigate.
+      // Panel handles its own approved state; onComplete calls handleCleanupAndNavigate
     }, []),
 
-    // ROOM_ENDED: edge cases (cancelled, manual end, etc.)
     onRoomEnded: useCallback(() => {
       handleCleanupAndNavigate();
     }, [handleCleanupAndNavigate]),
@@ -283,7 +286,6 @@ export const EliminationGamePage: React.FC = () => {
           setRoomId(initialRoomId!);
           emitHostJoin(initialRoomId!, initialHostId!);
 
-          // Restore reconciliation view if host was mid-reconciliation
           if (sessionStorage.getItem(SESSION_RECONCILING) === 'true') {
             onEnterReconciliation();
           }
@@ -519,7 +521,8 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-    if (state.view === 'game_over') {
+  // ── Game over — eliminated player sees winner announcement + feedback ──────
+  if (state.view === 'game_over') {
     return withDashboard(
       <EliminationEliminatedView
         playerName={localPlayerName}
@@ -536,7 +539,11 @@ export const EliminationGamePage: React.FC = () => {
       />
     );
   }
- if (state.view === 'winner' && state.winner) {
+
+  // ── Winner view — surviving players + host ────────────────────────────────
+  // Host sees a "Start Reconciliation" button instead of "Return to lobby".
+  // Players see auto-close after feedback is dismissed.
+  if (state.view === 'winner' && state.winner) {
     return withDashboard(
       <EliminationWinnerView
         winnerId={state.winner.winnerId}
@@ -544,7 +551,8 @@ export const EliminationGamePage: React.FC = () => {
         finalStandings={state.winner.finalStandings}
         players={waitingPlayers}
         localPlayerId={localPlayerId ?? ''}
-        onClose={handleReset}
+        onClose={isHost ? undefined : handleReset}
+        onStartReconciliation={isHost ? handleEnterReconciliation : undefined}
         isHost={isHost}
         hostId={sessionStorage.getItem(SESSION_HOST_ID) ?? undefined}
         roomId={roomId ?? undefined}
@@ -555,7 +563,7 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // ── Reconciliation (host only, after game ends) ───────────────────────────
+  // ── Reconciliation (host only, after clicking "Start Reconciliation") ─────
   if (state.view === 'reconciliation') {
     return withDashboard(
       <EliminationReconciliationPanel

@@ -2,9 +2,11 @@
 
 import {
   addPlayer,
+   addPlayerWithId,
   findPlayerBySocket,
   getRoomSnapshot,
   getRoom,
+  markReconciliationApproved,
 } from '../services/eliminationRoomManager.js';
 import { startGame } from '../services/eliminationGameService.js';
 import { recordSubmission, recordStartPress } from '../services/eliminationRoundService.js';
@@ -31,14 +33,14 @@ import {
    deleteAdjustmentEntry,
    approveEliminationReconciliation,
  } from '../services/eliminationStatsService.js';
- import { markReconciliationApproved } from '../services/eliminationRoomManager.js';
+
 import { refreshReconciliationStartingTotal } from '../services/eliminationStatsService.js';
 
 // ── STATUS TRANSITION: open → live ───────────────────────────────────────────
 // Imported here so the socket layer can write to DB without going through
 // the HTTP route. Non-fatal — a DB failure never blocks the game from starting.
 import { markEliminationRoomAsLive } from '../api/eliminationMgmtService.js';
-
+const DEBUG = false; // set to true to see socket debug logs in server console
 
 const getAllPlayers = (roomId) =>
   Object.values(getRoom(roomId)?.players ?? {}).map((p) => ({
@@ -92,7 +94,7 @@ const verifyWeb3JoinTx = async (txSignature, room) => {
       console.warn('[Elimination] Could not extract wallet from tx:', e.message);
     }
 
-    console.log(`[Elimination] Web3 join tx verified: ${txSignature} wallet: ${walletAddress}`);
+    if (DEBUG) console.log(`[Elimination] Web3 join tx verified: ${txSignature} wallet: ${walletAddress}`);
     return { valid: true, walletAddress };
 
   } catch (err) {
@@ -137,7 +139,7 @@ const writeLedgerEntry = async (room, player) => {
       confirmedByRole:      isConfirmed ? 'admin' : null,
     });
 
-    console.log(`[Elimination] Ledger entry written — room: ${room.roomId} player: ${player.playerId} status: ${status}`);
+    if (DEBUG) console.log(`[Elimination] Ledger entry written — room: ${room.roomId} player: ${player.playerId} status: ${status}`);
   } catch (err) {
     console.error('[Elimination] Ledger write failed (non-fatal):', err.message);
   }
@@ -212,7 +214,7 @@ export const registerEliminationSockets = (io) => {
 
         socket.emit('elimination_reconciliation_ledger_updated', { ok: true, insertId, roomId });
 
-        console.log(
+        if (DEBUG) console.log(
           `[Elimination] Reconciliation ledger entry added — room: ${roomId} type: ${adjustmentType} amount: ${amount}`
         );
       } catch (err) {
@@ -241,7 +243,7 @@ export const registerEliminationSockets = (io) => {
         const result = await deleteAdjustmentEntry(adjustmentId, roomId);
         socket.emit('elimination_reconciliation_ledger_updated', { ok: result.ok, deleted: adjustmentId, roomId });
 
-        console.log(`[Elimination] Reconciliation ledger entry deleted — room: ${roomId} id: ${adjustmentId}`);
+        if (DEBUG) console.log(`[Elimination] Reconciliation ledger entry deleted — room: ${roomId} id: ${adjustmentId}`);
       } catch (err) {
         console.error('[Elimination] elimination_delete_reconciliation_ledger_item error:', err);
         socket.emit(SERVER_EVENTS.ERROR, { message: 'Failed to delete adjustment' });
@@ -284,7 +286,7 @@ export const registerEliminationSockets = (io) => {
           finalTotal:      result.finalTotal,
         });
 
-        console.log(`[Elimination] ✅ Reconciliation approved via socket — room: ${roomId} by: ${approvedBy}`);
+        if (DEBUG) console.log(`[Elimination] ✅ Reconciliation approved via socket — room: ${roomId} by: ${approvedBy}`);
       } catch (err) {
         console.error('[Elimination] elimination_approve_reconciliation error:', err);
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message || 'Failed to approve reconciliation' });
@@ -317,14 +319,14 @@ export const registerEliminationSockets = (io) => {
     socket.on('host_join_elimination_room', ({ roomId, hostId }) => {
       if (!rateCheck(socket, 'host_join_elimination_room')) return;
       try {
-        console.log('🎮 [Elimination] host_join_elimination_room:', { roomId, hostId });
+        if (DEBUG) console.log('🎮 [Elimination] host_join_elimination_room:', { roomId, hostId });
         const room = getRoom(roomId);
         if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
         if (room.hostId !== hostId) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Invalid host credentials' });
 
         room.hostSocketId = socket.id;
         socket.join(roomId);
-        console.log('🎮 [Elimination] Host joined socket room:', { roomId, hostId, socketId: socket.id });
+        if (DEBUG) console.log('🎮 [Elimination] Host joined socket room:', { roomId, hostId, socketId: socket.id });
 
         socket.emit(SERVER_EVENTS.ROOM_STATE, getRoomSnapshot(roomId));
         socket.emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
@@ -351,7 +353,7 @@ export const registerEliminationSockets = (io) => {
 
         socket.join(roomId);
 
-        console.log(`[Elimination] Admin joined: ${name} (${adminId}) room: ${roomId}`);
+        if (DEBUG) console.log(`[Elimination] Admin joined: ${name} (${adminId}) room: ${roomId}`);
 
         socket.emit(SERVER_EVENTS.ROOM_STATE, getRoomSnapshot(roomId));
         socket.emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
@@ -380,7 +382,7 @@ export const registerEliminationSockets = (io) => {
           });
         }
 
-        console.log(`[Elimination] Admin added: ${admin.name} (${admin.id}) room: ${roomId}`);
+        if (DEBUG) console.log(`[Elimination] Admin added: ${admin.name} (${admin.id}) room: ${roomId}`);
 
         io.to(roomId).emit('elimination_admin_list_updated', { admins: room.admins });
       } catch (err) {
@@ -428,7 +430,7 @@ export const registerEliminationSockets = (io) => {
           refundTxHash: room.refundTxHash ?? null,
         });
 
-        console.log(`[Elimination] Notified players of cancellation for room ${roomId}`);
+        if (DEBUG) console.log(`[Elimination] Notified players of cancellation for room ${roomId}`);
       } catch (err) {
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
       }
@@ -497,7 +499,7 @@ export const registerEliminationSockets = (io) => {
       if (!rateCheck(socket, 'join_elimination_room')) return;
       try {
         const name_safe = sanitiseName(name);
-        console.log('🎮 [Elimination] join_elimination_room:', {
+        if (DEBUG) console.log('🎮 [Elimination] join_elimination_room:', {
           roomId,
           playerId,
           name: name_safe,
@@ -509,12 +511,74 @@ export const registerEliminationSockets = (io) => {
         });
 
         // ── Reconnect flow ────────────────────────────────────────────────────
-        if (playerId) {
+        // A playerId is present when:
+        //   (a) a returning player reconnects mid-game, OR
+        //   (b) a Stripe walk-in arrives at the success page — their playerId
+        //       was stored in Stripe metadata and is passed on the success URL.
+        //
+        // Case (b) has a timing race: the success page socket join can fire
+        // BEFORE the webhook calls addPlayerWithId (especially on localhost
+        // where the webhook goes to staging but the socket is local).
+        //
+        // Solution: if reconnectPlayer says "Player not found" and the join
+        // payload has paid:true + paymentMethod:'stripe', we trust the payment
+        // (it was confirmed in the DB by the webhook) and add the player now.
+          if (playerId) {
+          if (DEBUG) console.log('[JoinRoom] 🔍 playerId present — attempting reconnect:', { roomId, playerId, paid, paymentMethod });
+ 
           const result = reconnectPlayer(roomId, playerId, socket.id);
-          if (!result.success) {
+          if (DEBUG) console.log('[JoinRoom] reconnectPlayer result:', { success: result.success, error: result.error });
+ 
+          if (!result.success && result.error === 'Player not found in this room') {
+ 
+            if (paid && paymentMethod === 'stripe') {
+              if (DEBUG) console.log('[JoinRoom] 💳 Stripe walk-in — adding player directly:', { roomId, playerId, name: name_safe });
+ 
+              try {
+                addPlayerWithId(roomId, playerId, {
+                  name:             sanitiseName(name),
+                  paid:             true,
+                  paymentMethod:    'stripe',
+                  paymentReference: paymentReference ?? null,
+                });
+                if (DEBUG) console.log('[JoinRoom] ✅ addPlayerWithId succeeded');
+              } catch (addErr) {
+                console.error('[JoinRoom] ❌ addPlayerWithId failed:', addErr.message);
+                return socket.emit(SERVER_EVENTS.ERROR, {
+                  message: addErr.message ?? 'Could not join room — please contact the host.',
+                });
+              }
+ 
+              const retryResult = reconnectPlayer(roomId, playerId, socket.id);
+              if (DEBUG) console.log('[JoinRoom] retryResult:', { success: retryResult.success, error: retryResult.error });
+ 
+              if (!retryResult.success) {
+                return socket.emit(SERVER_EVENTS.ERROR, { message: retryResult.error });
+              }
+ 
+              socket.join(roomId);
+              if (DEBUG) console.log('[JoinRoom] ✅ Socket joined room, emitting ROOM_STATE with yourPlayerId:', playerId);
+ 
+              socket.emit(SERVER_EVENTS.ROOM_STATE, {
+                ...retryResult.snapshot,
+                yourPlayerId: playerId,
+              });
+              emitToRoom(roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
+              return;
+            }
+ 
+            console.warn('[JoinRoom] ⚠️ Player not found and not a Stripe payment — rejecting');
             return socket.emit(SERVER_EVENTS.ERROR, { message: result.error });
           }
+ 
+          if (!result.success) {
+            console.warn('[JoinRoom] ⚠️ reconnectPlayer failed:', result.error);
+            return socket.emit(SERVER_EVENTS.ERROR, { message: result.error });
+          }
+ 
           socket.join(roomId);
+          if (DEBUG) console.log('[JoinRoom] ✅ Reconnect succeeded, emitting ROOM_STATE with yourPlayerId:', playerId);
+ 
           socket.emit(SERVER_EVENTS.ROOM_STATE, {
             ...result.snapshot,
             yourPlayerId: playerId,
@@ -522,7 +586,6 @@ export const registerEliminationSockets = (io) => {
           emitToRoom(roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
           return;
         }
-
         // ── Validate room ─────────────────────────────────────────────────────
         const { valid, error } = validateJoin(roomId);
         if (!valid) return socket.emit(SERVER_EVENTS.ERROR, { message: error });
@@ -540,14 +603,14 @@ export const registerEliminationSockets = (io) => {
           }
 
           if (txSignature === 'already-joined') {
-            console.log(`[Elimination] already-joined bypass for room ${roomId}`);
+            if (DEBUG) console.log(`[Elimination] already-joined bypass for room ${roomId}`);
           } else {
             const { valid: txValid, error: txError, walletAddress } = await verifyWeb3JoinTx(txSignature, room);
             if (!txValid) {
               return socket.emit(SERVER_EVENTS.ERROR, { message: txError });
             }
             verifiedWalletAddress = walletAddress;
-            console.log(`[Elimination] Web3 payment verified for room ${roomId} wallet: ${walletAddress}`);
+            if (DEBUG) console.log(`[Elimination] Web3 payment verified for room ${roomId} wallet: ${walletAddress}`);
           }
         }
 
@@ -634,9 +697,9 @@ if (room.paymentMode === 'web2' && room.clubId) {
             .then(({ redeemTicket }) =>
               redeemTicket({ joinToken, playerId: player.playerId })
             )
-            .then(() =>
-              console.log(`[Elimination] Ticket redeemed for player: ${player.playerId}`)
-            )
+         .then(() => {
+  if (DEBUG) console.log(`[Elimination] Ticket redeemed for player: ${player.playerId}`);
+})
             .catch((err) =>
               console.error('[Elimination] Ticket redemption failed (non-fatal):', err.message)
             );
@@ -761,7 +824,7 @@ if (room.paymentMode === 'web2' && room.clubId) {
         if (player) player.eliminated = true;
  
         io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
-        console.log(`[Elimination] Player eliminated: ${playerId} in room ${roomId}`);
+        if (DEBUG) console.log(`[Elimination] Player eliminated: ${playerId} in room ${roomId}`);
       } catch (err) {
         console.error('[Elimination] eliminate_player error:', err);
       }
@@ -781,7 +844,7 @@ if (room.paymentMode === 'web2' && room.clubId) {
         if (player) player.eliminated = false;
  
         io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
-        console.log(`[Elimination] Player restored: ${playerId} in room ${roomId}`);
+        if (DEBUG) console.log(`[Elimination] Player restored: ${playerId} in room ${roomId}`);
       } catch (err) {
         console.error('[Elimination] restore_player error:', err);
       }
@@ -824,7 +887,7 @@ if (room.paymentMode === 'web2' && room.clubId) {
         // Broadcast updated player list to everyone in the room
         io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
  
-        console.log(`[Elimination] Host added player "${player.name}" to room ${roomId}`);
+        if (DEBUG) console.log(`[Elimination] Host added player "${player.name}" to room ${roomId}`);
       } catch (err) {
         console.error(`[Elimination] host_add_player error in room ${roomId}:`, err.message);
         socket.emit('host_add_player_error', { message: err.message });

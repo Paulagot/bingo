@@ -23,7 +23,10 @@ interface Props {
   finalStandings: RoundResult[];
   players: EliminationPlayer[];
   localPlayerId: string;
+  /** Called when a non-host player closes the winner screen */
   onClose?: () => void;
+  /** Called when the host clicks "Start Reconciliation" — web2 only */
+  onStartReconciliation?: () => void;
   autoCloseSeconds?: number;
   // ── web3 ──
   isHost?: boolean;
@@ -89,7 +92,7 @@ const PrizeInfo: React.FC<{
 // ── Main component ─────────────────────────────────────────────────────────────
 export const EliminationWinnerView: React.FC<Props> = ({
   winnerId, winnerName, finalStandings, players, localPlayerId,
-  onClose, autoCloseSeconds = 120,
+  onClose, onStartReconciliation, autoCloseSeconds = 120,
   isHost = false, hostId, roomId, roomData,
   prizeSponsor, clubId,
 }) => {
@@ -101,10 +104,15 @@ export const EliminationWinnerView: React.FC<Props> = ({
   const playerMap  = Object.fromEntries(players.map(p => [p.playerId, p]));
   const isWeb3Room = roomData?.paymentMode === 'web3';
 
-  // Auto-close pauses while feedback is open (non-host players only)
-  // Hosts on web3 rooms don't auto-close — they need to finalize first
-  const showFeedback  = !isHost && !!roomId && !feedbackDone;
-  const shouldAutoClose = !!onClose && !(isHost && isWeb3Room) && !showFeedback;
+  // ── Who sees feedback ─────────────────────────────────────────────────────
+  // Everyone (including the host on web2) gets a feedback modal.
+  // It renders once the winner screen is shown and pauses any auto-close.
+  const showFeedback = !!roomId && !feedbackDone;
+
+  // ── Auto-close (non-host players only) ───────────────────────────────────
+  // The host never auto-closes — they must click "Start Reconciliation".
+  // Auto-close is also paused while the feedback modal is open.
+  const shouldAutoClose = !!onClose && !isHost && !showFeedback;
 
   useEffect(() => {
     if (!shouldAutoClose) return;
@@ -160,7 +168,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </Web3Provider>
       )}
 
-      {/* ── Feedback modal — non-host players, pauses auto-close countdown ── */}
+      {/* ── Feedback modal — everyone sees this, pauses countdowns ── */}
       {showFeedback && (
         <FeedbackModal
           roomId={roomId!}
@@ -199,8 +207,45 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Auto-close CTA — shown after feedback is dismissed */}
-      {onClose && shouldAutoClose && feedbackDone && (
+      {/* ── Host footer: Start Reconciliation (web2) or Return to lobby (web3 after finalize) ── */}
+      {isHost && !isWeb3Room && feedbackDone && (
+        <div style={s.closeFoot}>
+          <button
+            onClick={onStartReconciliation}
+            style={{ ...s.closeBtn, ...s.reconcileBtn, fontFamily: FONT_BODY }}
+          >
+            Start Reconciliation
+          </button>
+          <p style={s.hostHint}>Review payments and approve the final count</p>
+        </div>
+      )}
+
+      {/* Show the reconciliation button even before feedback is done,
+          but only after a short delay so the host sees the winner screen first.
+          We use a subtle secondary style so it doesn't distract from the winner reveal. */}
+      {isHost && !isWeb3Room && !feedbackDone && (
+        <div style={s.closeFoot}>
+          <button
+            onClick={onStartReconciliation}
+            style={{ ...s.closeBtn, ...s.reconcileBtnSecondary, fontFamily: FONT_BODY }}
+          >
+            Skip to Reconciliation
+          </button>
+          <p style={s.hostHint}>You can also wait for the feedback form to complete first</p>
+        </div>
+      )}
+
+      {/* Host web3 — manual close after finalize */}
+      {isHost && isWeb3Room && finalized && (
+        <div style={s.closeFoot}>
+          <button onClick={onClose} style={{ ...s.closeBtn, fontFamily: FONT_BODY }}>
+            Return to lobby
+          </button>
+        </div>
+      )}
+
+      {/* ── Non-host player footer: auto-close after feedback ── */}
+      {!isHost && onClose && feedbackDone && (
         <div style={s.closeFoot}>
           <button onClick={onClose} style={{ ...s.closeBtn, fontFamily: FONT_BODY }}>
             Return to lobby
@@ -211,15 +256,6 @@ export const EliminationWinnerView: React.FC<Props> = ({
               {countdown}s
             </span>
           </div>
-        </div>
-      )}
-
-      {/* Host on web3 — manual close after finalize */}
-      {onClose && isHost && isWeb3Room && finalized && (
-        <div style={s.closeFoot}>
-          <button onClick={onClose} style={{ ...s.closeBtn, fontFamily: FONT_BODY }}>
-            Return to lobby
-          </button>
         </div>
       )}
     </div>
@@ -263,7 +299,10 @@ const s: Record<string, React.CSSProperties> = {
   rowName: { flex: 1, fontSize: '15px', fontWeight: 600, display: 'flex', alignItems: 'center' },
   youTag: { marginLeft: '8px', fontSize: '10px', color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: '3px', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" },
   rowScore: { fontSize: '13px', color: 'rgba(255,255,255,0.4)' },
-  closeFoot: { marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%', maxWidth: '340px' },
+  closeFoot: { marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%', maxWidth: '340px', paddingBottom: '24px' },
   closeBtn: { width: '100%', padding: '16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '15px', fontWeight: 600, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' },
+  reconcileBtn: { background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.5)', color: '#a5b4fc' },
+  reconcileBtnSecondary: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)', fontSize: '13px', padding: '12px', letterSpacing: '0.04em' },
+  hostHint: { fontSize: '12px', color: 'rgba(255,255,255,0.25)', textAlign: 'center' as const, margin: 0, fontFamily: "'Inter', system-ui, sans-serif" },
   autoClose: { fontSize: '13px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' },
 };

@@ -1,11 +1,4 @@
 // src/components/Elimination/join/EliminationJoinSuccessPage.tsx
-//
-// Stripe redirects here after a successful card payment:
-//   /elimination/join-success/:roomId?playerId=...&session_id=...
-//
-// The playerId was generated server-side when the Stripe session was created,
-// and is embedded in the success_url. The webhook already wrote the confirmed
-// ledger entry. This page just does the socket join with paid: true.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
@@ -16,11 +9,12 @@ const SESSION_ROOM_ID     = 'elim_room_id';
 const SESSION_PLAYER_ID   = 'elim_player_id';
 const SESSION_PLAYER_NAME = 'elim_player_name';
 const SESSION_IS_HOST     = 'elim_is_host';
+const DEBUG = false;
 
 export const EliminationJoinSuccessPage: React.FC = () => {
-  const { roomId }          = useParams<{ roomId: string }>();
-  const [searchParams]      = useSearchParams();
-  const navigate            = useNavigate();
+  const { roomId }     = useParams<{ roomId: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate       = useNavigate();
 
   const playerId  = searchParams.get('playerId') ?? '';
   const sessionId = searchParams.get('session_id') ?? '';
@@ -29,30 +23,36 @@ export const EliminationJoinSuccessPage: React.FC = () => {
   const [error, setError]   = useState('');
   const hasEmitted          = useRef(false);
 
-  // Read player name from sessionStorage (stored before redirect)
   const playerName = roomId
     ? sessionStorage.getItem(`elim-stripe-name:${roomId}`) ?? ''
     : '';
 
-  useEffect(() => {
-    if (!roomId || !playerId || hasEmitted.current) return;
+  if (DEBUG) console.log('[JoinSuccess] 🟡 Page mounted:', { roomId, playerId, sessionId, playerName });
 
-    if (!playerName) {
-      setError('Could not recover your name. Please try joining again.');
-      setStatus('error');
+  useEffect(() => {
+    if (DEBUG) console.log('[JoinSuccess] 🔵 useEffect fired:', { roomId, playerId, hasEmitted: hasEmitted.current });
+
+    if (!roomId || !playerId || hasEmitted.current) {
+      console.warn('[JoinSuccess] ⚠️ Bailing early:', { roomId, playerId, hasEmitted: hasEmitted.current });
       return;
     }
 
     hasEmitted.current = true;
 
     const socket = getSocket();
+    if (DEBUG) console.log('[JoinSuccess] 🔌 Socket state:', { connected: socket.connected, id: socket.id });
 
     const handleRoomState = (data: any) => {
-      const room: EliminationRoom = data.roomSnapshot ?? data;
+      if (DEBUG) console.log('[JoinSuccess] ✅ elimination_room_state received:', {
+        yourPlayerId: data.yourPlayerId,
+        yourName: data.yourName,
+        roomId: data.roomId ?? data.roomSnapshot?.roomId,
+      });
+
+      const room: EliminationRoom    = data.roomSnapshot ?? data;
       const assignedPlayerId: string = data.yourPlayerId ?? playerId;
       const assignedName: string     = data.yourName     ?? playerName;
 
-      // Clean up the temporary stripe name key
       if (roomId) sessionStorage.removeItem(`elim-stripe-name:${roomId}`);
 
       sessionStorage.setItem(SESSION_ROOM_ID,     room.roomId);
@@ -60,40 +60,59 @@ export const EliminationJoinSuccessPage: React.FC = () => {
       sessionStorage.setItem(SESSION_PLAYER_NAME, assignedName);
       sessionStorage.setItem(SESSION_IS_HOST,     'false');
 
+      if (DEBUG) console.log('[JoinSuccess] 🚀 Navigating to /elimination');
       navigate('/elimination', { replace: true });
     };
 
     const handleError = (data: { message: string }) => {
+      console.error('[JoinSuccess] ❌ elimination_error received:', data.message);
       setError(data.message || 'Failed to join room after payment.');
       setStatus('error');
     };
 
-    socket.on('elimination_room_state', handleRoomState);
-    socket.on('elimination_error', handleError);
+    const doJoin = () => {
+      if (DEBUG) console.log('[JoinSuccess] 📡 Registering listeners and emitting join:', {
+        roomId, playerId, playerName: playerName || 'Player', sessionId,
+      });
 
-    // Emit join with paid: true — Stripe webhook has already written the ledger
-    emitJoinRoom(
-      roomId,
-      playerName,
-      playerId,   // pass as playerId so server treats this as a reconnect/known player
-      undefined,
-      undefined,
-      {
-        paid:            true,
-        paymentClaimed:  false,
-        payAtDoor:       false,
-        paymentMethod:   'stripe',
-        paymentReference: sessionId,
-      }
-    );
+      socket.on('elimination_room_state', handleRoomState);
+      socket.on('elimination_error',      handleError);
+
+      emitJoinRoom(
+        roomId,
+        playerName || 'Player',
+        playerId,
+        undefined,
+        undefined,
+        {
+          paid:             true,
+          paymentClaimed:   false,
+          payAtDoor:        false,
+          paymentMethod:    'stripe',
+          paymentReference: sessionId,
+        }
+      );
+
+      if (DEBUG) console.log('[JoinSuccess] 📤 emitJoinRoom called');
+    };
+
+    if (socket.connected) {
+      if (DEBUG) console.log('[JoinSuccess] ✅ Socket already connected — joining immediately');
+      doJoin();
+    } else {
+      if (DEBUG) console.log('[JoinSuccess] ⏳ Socket not connected — waiting for connect event');
+      socket.once('connect', () => {
+        if (DEBUG) console.log('[JoinSuccess] 🔌 Socket connected — now joining');
+        doJoin();
+      });
+    }
 
     return () => {
+      if (DEBUG) console.log('[JoinSuccess] 🧹 Cleanup: removing listeners');
       socket.off('elimination_room_state', handleRoomState);
-      socket.off('elimination_error', handleError);
+      socket.off('elimination_error',      handleError);
     };
   }, [roomId, playerId, playerName, sessionId, navigate]);
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (status === 'error') {
     return (

@@ -25,6 +25,7 @@ export const eventFormatNavItems: NavItem[] = [
   { label: 'All event formats', to: '/event-formats' },
   { label: 'Quiz fundraisers', to: '/event-formats/quiz' },
   { label: 'Elimination games', to: '/event-formats/elimination' },
+  { label: 'Ticket events', to: '/event-formats/ticketed-events' },
   // { label: 'Puzzle challenges', to: '/event-formats/puzzle-challenges' },
   // { label: 'Escape room fundraisers', to: '/event-formats/escape-room' },
   // { label: 'Treasure hunts', to: '/event-formats/treasure-hunt' },
