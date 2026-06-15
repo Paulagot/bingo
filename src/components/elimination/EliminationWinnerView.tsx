@@ -17,39 +17,51 @@ interface Web3RoomData {
   onChainRoomId: string;
 }
 
+interface PrizeInfo {
+  sponsor?: string;
+  description?: string;
+}
+
 interface Props {
   winnerId: string;
   winnerName: string;
   finalStandings: RoundResult[];
   players: EliminationPlayer[];
   localPlayerId: string;
-  /** Called when a non-host player closes the winner screen */
   onClose?: () => void;
-  /** Called when the host clicks "Start Reconciliation" — web2 only */
   onStartReconciliation?: () => void;
   autoCloseSeconds?: number;
-  // ── web3 ──
   isHost?: boolean;
   hostId?: string;
   roomId?: string;
   roomData?: Web3RoomData | null;
-  // ── web2 prize sponsor ──
   prizeSponsor?: string | null;
-  // ── feedback ──
+  prizeDescription?: string | null;
   clubId?: number;
 }
 
+// ── Sponsor banner ────────────────────────────────────────────────────────────
+const SponsorBanner: React.FC<{ sponsor: string; description?: string | null }> = ({
+  sponsor, description,
+}) => (
+  <div style={sp.wrap}>
+    <div style={sp.eyebrow}>Prize Sponsor</div>
+    <div style={sp.name}>{sponsor}</div>
+    {description && <div style={sp.description}>{description}</div>}
+  </div>
+);
+
 // ── Prize breakdown card (web3 rooms only) ────────────────────────────────────
-const PrizeInfo: React.FC<{
+const PrizeInfoCard: React.FC<{
   roomData: Web3RoomData;
   totalPlayers: number;
   isWinner: boolean;
   finalized?: boolean;
 }> = ({ roomData, totalPlayers, isWinner, finalized = false }) => {
-  const tokenConfig  = getTokenByMint(roomData.feeMint);
-  const decimals     = tokenConfig?.decimals ?? 6;
-  const tokenSymbol  = tokenConfig?.code ?? 'tokens';
-  const totalPool    = (totalPlayers * roomData.entryFee) / Math.pow(10, decimals);
+  const tokenConfig = getTokenByMint(roomData.feeMint);
+  const decimals    = tokenConfig?.decimals ?? 6;
+  const tokenSymbol = tokenConfig?.code ?? 'tokens';
+  const totalPool   = (totalPlayers * roomData.entryFee) / Math.pow(10, decimals);
   const fmt = (n: number) => n.toFixed(4);
   const rows: [string, number][] = [
     ['Winner', totalPool * 0.30], ['Host',    totalPool * 0.20],
@@ -94,7 +106,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
   winnerId, winnerName, finalStandings, players, localPlayerId,
   onClose, onStartReconciliation, autoCloseSeconds = 120,
   isHost = false, hostId, roomId, roomData,
-  prizeSponsor, clubId,
+  prizeSponsor, prizeDescription, clubId,
 }) => {
   const [countdown, setCountdown]       = useState(autoCloseSeconds);
   const [finalized, setFinalized]       = useState(false);
@@ -104,14 +116,8 @@ export const EliminationWinnerView: React.FC<Props> = ({
   const playerMap  = Object.fromEntries(players.map(p => [p.playerId, p]));
   const isWeb3Room = roomData?.paymentMode === 'web3';
 
-  // ── Who sees feedback ─────────────────────────────────────────────────────
-  // Everyone (including the host on web2) gets a feedback modal.
-  // It renders once the winner screen is shown and pauses any auto-close.
-  const showFeedback = !!roomId && !feedbackDone;
-
-  // ── Auto-close (non-host players only) ───────────────────────────────────
-  // The host never auto-closes — they must click "Start Reconciliation".
-  // Auto-close is also paused while the feedback modal is open.
+  // Host never sees the feedback form
+  const showFeedback    = !isHost && !!roomId && !feedbackDone;
   const shouldAutoClose = !!onClose && !isHost && !showFeedback;
 
   useEffect(() => {
@@ -125,7 +131,6 @@ export const EliminationWinnerView: React.FC<Props> = ({
     return () => clearInterval(interval);
   }, [shouldAutoClose, onClose]);
 
-  // Reset countdown when feedback closes so the player has the full time left
   const handleFeedbackClose = () => {
     setFeedbackDone(true);
     setCountdown(autoCloseSeconds);
@@ -145,16 +150,14 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </p>
       )}
 
-      {/* ── Web2 sponsor ── */}
-      {!isWeb3Room && prizeSponsor && (
-        <div style={s.sponsorBadge}>
-          Sponsored by <span style={s.sponsorName}>{prizeSponsor}</span>
-        </div>
+      {/* ── Sponsor banner — shown to everyone ── */}
+      {prizeSponsor && (
+        <SponsorBanner sponsor={prizeSponsor} description={prizeDescription} />
       )}
 
       {/* ── Web3 prize pool info ── */}
       {isWeb3Room && roomData && (
-        <PrizeInfo roomData={roomData} totalPlayers={players.length} isWinner={isWinner} finalized={finalized} />
+        <PrizeInfoCard roomData={roomData} totalPlayers={players.length} isWinner={isWinner} finalized={finalized} />
       )}
 
       {/* ── Web3 finalize section — host only ── */}
@@ -168,7 +171,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </Web3Provider>
       )}
 
-      {/* ── Feedback modal — everyone sees this, pauses countdowns ── */}
+      {/* ── Feedback modal — non-host players only ── */}
       {showFeedback && (
         <FeedbackModal
           roomId={roomId!}
@@ -207,31 +210,20 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── Host footer: Start Reconciliation (web2) or Return to lobby (web3 after finalize) ── */}
+      {/* ── Host footer: Start Reconciliation (web2) ── */}
       {isHost && !isWeb3Room && feedbackDone && (
         <div style={s.closeFoot}>
-          <button
-            onClick={onStartReconciliation}
-            style={{ ...s.closeBtn, ...s.reconcileBtn, fontFamily: FONT_BODY }}
-          >
+          <button onClick={onStartReconciliation} style={{ ...s.closeBtn, ...s.reconcileBtn, fontFamily: FONT_BODY }}>
             Start Reconciliation
           </button>
           <p style={s.hostHint}>Review payments and approve the final count</p>
         </div>
       )}
-
-      {/* Show the reconciliation button even before feedback is done,
-          but only after a short delay so the host sees the winner screen first.
-          We use a subtle secondary style so it doesn't distract from the winner reveal. */}
       {isHost && !isWeb3Room && !feedbackDone && (
         <div style={s.closeFoot}>
-          <button
-            onClick={onStartReconciliation}
-            style={{ ...s.closeBtn, ...s.reconcileBtnSecondary, fontFamily: FONT_BODY }}
-          >
-            Skip to Reconciliation
+          <button onClick={onStartReconciliation} style={{ ...s.closeBtn, ...s.reconcileBtnSecondary, fontFamily: FONT_BODY }}>
+            Start Reconciliation
           </button>
-          <p style={s.hostHint}>You can also wait for the feedback form to complete first</p>
         </div>
       )}
 
@@ -244,7 +236,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ── Non-host player footer: auto-close after feedback ── */}
+      {/* ── Non-host player footer ── */}
       {!isHost && onClose && feedbackDone && (
         <div style={s.closeFoot}>
           <button onClick={onClose} style={{ ...s.closeBtn, fontFamily: FONT_BODY }}>
@@ -262,16 +254,56 @@ export const EliminationWinnerView: React.FC<Props> = ({
   );
 };
 
+// ── Sponsor banner styles ─────────────────────────────────────────────────────
+const sp: Record<string, React.CSSProperties> = {
+  wrap: {
+    width: '100%',
+    maxWidth: '340px',
+    background: 'linear-gradient(135deg, rgba(255,215,0,0.08) 0%, rgba(255,165,0,0.04) 100%)',
+    border: '1px solid rgba(255,215,0,0.35)',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    marginBottom: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+    boxShadow: '0 0 24px rgba(255,215,0,0.08)',
+  },
+  eyebrow: {
+    fontSize: '10px',
+    letterSpacing: '0.2em',
+    color: 'rgba(255,215,0,0.55)',
+    textTransform: 'uppercase' as const,
+    fontFamily: "'Inter', system-ui, sans-serif",
+  },
+  name: {
+    fontSize: '22px',
+    fontWeight: 700,
+    color: '#ffd700',
+    fontFamily: "'Bebas Neue', Impact, sans-serif",
+    letterSpacing: '0.06em',
+    textAlign: 'center' as const,
+  },
+  description: {
+    fontSize: '12px',
+    color: 'rgba(255,255,255,0.45)',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    textAlign: 'center' as const,
+    marginTop: '2px',
+  },
+};
+
 // ── Prize card styles ─────────────────────────────────────────────────────────
 const p: Record<string, React.CSSProperties> = {
   card: { width: '100%', maxWidth: '340px', background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.18)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' },
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  headerLabel: { fontSize: '11px', letterSpacing: '0.16em', color: 'rgba(255,215,0,0.65)', textTransform: 'uppercase', fontFamily: "'Inter', system-ui, sans-serif" },
+  headerLabel: { fontSize: '11px', letterSpacing: '0.16em', color: 'rgba(255,215,0,0.65)', textTransform: 'uppercase' as const, fontFamily: "'Inter', system-ui, sans-serif" },
   pill: { fontSize: '10px', padding: '2px 8px', borderRadius: '99px', background: 'rgba(0,210,120,0.12)', border: '1px solid rgba(0,210,120,0.3)', color: 'rgba(0,210,120,0.85)', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.04em' },
   spotlight: { display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255,215,0,0.06)', border: '1px solid rgba(255,215,0,0.1)', borderRadius: '8px', padding: '12px', gap: '2px' },
-  spotlightEyebrow: { fontSize: '10px', letterSpacing: '0.14em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontFamily: "'Inter', system-ui, sans-serif" },
+  spotlightEyebrow: { fontSize: '10px', letterSpacing: '0.14em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' as const, fontFamily: "'Inter', system-ui, sans-serif" },
   spotlightAmount: { fontSize: '28px', fontWeight: 700, color: GOLD, fontFamily: "'Barlow Condensed', 'Bebas Neue', sans-serif", letterSpacing: '0.04em', lineHeight: 1.1 },
-  spotlightSub: { fontSize: '11px', color: 'rgba(255,255,255,0.25)', fontFamily: "'Inter', system-ui, sans-serif", textAlign: 'center' },
+  spotlightSub: { fontSize: '11px', color: 'rgba(255,255,255,0.25)', fontFamily: "'Inter', system-ui, sans-serif", textAlign: 'center' as const },
   breakdown: { display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' },
   row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', system-ui, sans-serif", fontSize: '12px' },
   rowLabel: { color: 'rgba(255,255,255,0.4)' },
@@ -285,14 +317,12 @@ const p: Record<string, React.CSSProperties> = {
 const s: Record<string, React.CSSProperties> = {
   page: { minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 24px 24px', color: '#ffffff', overflowY: 'auto' },
   crown: { fontSize: '52px', color: GOLD, lineHeight: 1, marginBottom: '16px', filter: `drop-shadow(0 0 24px ${GOLD}99)` },
-  eyebrow: { fontSize: '13px', letterSpacing: '0.18em', color: `${GOLD}99`, textTransform: 'uppercase', marginBottom: '8px', fontFamily: "'Inter', system-ui, sans-serif" },
-  name: { fontSize: '56px', letterSpacing: '0.04em', margin: '0 0 12px', textAlign: 'center', color: '#ffffff', lineHeight: 1, textTransform: 'uppercase' },
-  badge: { padding: '5px 16px', borderRadius: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)', color: GOLD, fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: "'Inter', system-ui, sans-serif", marginBottom: '16px' },
-  congrats: { fontSize: '15px', color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginBottom: '8px' },
-  sponsorBadge: { fontSize: '12px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.06em', marginBottom: '20px', padding: '6px 14px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' },
-  sponsorName: { color: 'rgba(255,255,255,0.65)', fontWeight: 600 },
+  eyebrow: { fontSize: '13px', letterSpacing: '0.18em', color: `${GOLD}99`, textTransform: 'uppercase' as const, marginBottom: '8px', fontFamily: "'Inter', system-ui, sans-serif" },
+  name: { fontSize: '56px', letterSpacing: '0.04em', margin: '0 0 12px', textAlign: 'center' as const, color: '#ffffff', lineHeight: 1, textTransform: 'uppercase' as const },
+  badge: { padding: '5px 16px', borderRadius: '4px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)', color: GOLD, fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase' as const, fontFamily: "'Inter', system-ui, sans-serif", marginBottom: '16px' },
+  congrats: { fontSize: '15px', color: 'rgba(255,255,255,0.5)', textAlign: 'center' as const, marginBottom: '8px' },
   standings: { width: '100%', maxWidth: '340px', marginTop: '8px' },
-  standingsLabel: { fontSize: '11px', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: '8px' },
+  standingsLabel: { fontSize: '11px', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase' as const, marginBottom: '8px' },
   list: { display: 'flex', flexDirection: 'column', gap: '3px' },
   row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid' },
   rank: { minWidth: '32px' },
@@ -300,9 +330,9 @@ const s: Record<string, React.CSSProperties> = {
   youTag: { marginLeft: '8px', fontSize: '10px', color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: '3px', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" },
   rowScore: { fontSize: '13px', color: 'rgba(255,255,255,0.4)' },
   closeFoot: { marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%', maxWidth: '340px', paddingBottom: '24px' },
-  closeBtn: { width: '100%', padding: '16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '15px', fontWeight: 600, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' },
+  closeBtn: { width: '100%', padding: '16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '15px', fontWeight: 600, letterSpacing: '0.06em', cursor: 'pointer', textTransform: 'uppercase' as const },
   reconcileBtn: { background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.5)', color: '#a5b4fc' },
   reconcileBtnSecondary: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)', fontSize: '13px', padding: '12px', letterSpacing: '0.04em' },
   hostHint: { fontSize: '12px', color: 'rgba(255,255,255,0.25)', textAlign: 'center' as const, margin: 0, fontFamily: "'Inter', system-ui, sans-serif" },
-  autoClose: { fontSize: '13px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' },
+  autoClose: { fontSize: '13px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' as const },
 };
