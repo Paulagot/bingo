@@ -12,6 +12,7 @@ import { canJoinAsWalkIn } from '../mgtsystem/services/quizCapacityService.js';
 import { getRoomConfig } from '../mgtsystem/services/quizTicketService.js';
 import { getReadyStripeForClub } from './stripeTicketCheckoutService.js';
 import { currencyFromSymbol } from '../utils/currencyUtils.js';
+import { getRoom } from '../elimination/services/eliminationRoomManager.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -102,18 +103,16 @@ export async function createWalkinStripeSession({
   const session = await stripe.checkout.sessions.create(
     {
       mode: 'payment',
-      expires_after: { minutes: CHECKOUT_EXPIRY_MINUTES }, // ✅ NEW
+    // ✅ NEW
       line_items: [
         {
           quantity: 1,
           price_data: {
             currency: currency.toLowerCase(),
             unit_amount: totalAmountCents,
-            product_data: {
-              name: isDonationRoom
-                ? `Quiz Donation — ${config.hostName || roomId}`
-                : `Quiz Entry — ${config.hostName || roomId}`,
-            },
+         product_data: {
+  name: `Quiz Entry — ${config.hostName || roomId}`,
+},
           },
         },
       ],
@@ -150,5 +149,90 @@ export async function createWalkinStripeSession({
     });
   }
 
+  return { url: session.url, playerId };
+}
+
+/**
+ * Create a Stripe Checkout session for an elimination room walk-in.
+ *
+ * Unlike the quiz version this reads room config from the in-memory
+ * eliminationRoomManager (already hydrated via /hydrate endpoint) rather than
+ * from the DB, so there is no separate getRoomConfig call needed.
+ *
+ * The webhook handler picks up `type: 'elimination_walkin_payment'` and writes
+ * the confirmed ledger entry — see stripeWebhooks.js patch.
+ *
+ * @param {{ roomId, playerName, appOrigin }} opts
+ * @returns {{ url: string, playerId: string }}
+ */
+export async function createEliminationWalkinStripeSession({
+  roomId,
+  playerName,
+  appOrigin,
+}) {
+  // 1) Load room from memory
+  const room = getRoom(roomId);
+  if (!room) throw new Error('Room not found');
+  if (!room.clubId) throw new Error('stripe_not_available_for_this_room');
+  if (!room.entryFee || room.entryFee <= 0) throw new Error('invalid_checkout_amount');
+ 
+  const currency = room.currency ?? 'EUR';
+  const totalAmountCents = Math.round(room.entryFee * 100);
+ 
+  if (!Number.isFinite(totalAmountCents) || totalAmountCents <= 0) {
+    throw new Error('invalid_checkout_amount');
+  }
+ 
+  // 2) Stripe Connect readiness check
+  const stripeConn = await getReadyStripeForClub(room.clubId);
+  if (!stripeConn) throw new Error('stripe_not_ready_or_disabled');
+ 
+  // 3) Generate a stable playerId — embedded in the success URL so the
+  //    return page can do the socket join without needing sessionStorage
+  const playerId = nanoid();
+ 
+  const origin = appOrigin || process.env.APP_URL || 'http://localhost:5173';
+ 
+  // 4) Create Stripe session
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: 'payment',
+     
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: currency.toLowerCase(),
+            unit_amount: totalAmountCents,
+            product_data: {
+              name: `Elimination Entry — ${room.hostName || roomId}`,
+            },
+          },
+        },
+      ],
+      success_url: `${origin}/elimination/join-success/${roomId}?playerId=${playerId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${origin}/elimination/join/${roomId}?cancelled=true`,
+      metadata: {
+        type:                 'elimination_walkin_payment',
+        roomId,
+        clubId:               room.clubId,
+        playerId,
+        playerName,
+        entryFee:             String(room.entryFee),
+        currency,
+        clubPaymentMethodId:  String(stripeConn.clubPaymentMethodId),
+      },
+    },
+    { stripeAccount: stripeConn.accountId }
+  );
+ 
+  console.log('[EliminationWalkinCheckout] ✅ Stripe session created', {
+    roomId,
+    playerId,
+    sessionId: session.id,
+    entryFee: room.entryFee,
+    currency,
+  });
+ 
   return { url: session.url, playerId };
 }

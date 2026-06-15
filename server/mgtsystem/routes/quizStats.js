@@ -1,8 +1,10 @@
 // server/mgtsystem/routes/quizStats.js
 import express from 'express';
-import { getRoomStats, getBatchRoomStats } from '../services/quizStatsService.js';
+import { getRoomStats, getBatchRoomStats, getRoomIncomeTimeSeries } from '../services/quizStatsService.js';
 
 const router = express.Router();
+
+const debug = false;
 
 /**
  * GET /api/quiz/web2/rooms/:roomId/stats
@@ -20,11 +22,11 @@ router.get('/rooms/:roomId/stats', async (req, res) => {
       });
     }
     
-    console.log(`📊 Fetching stats for room: ${roomId}`);
+    if (debug) console.log(`📊 Fetching stats for room: ${roomId}`);
     
     const stats = await getRoomStats(roomId);
     
-    console.log(`✅ Stats for room ${roomId}:`, stats);
+    if (debug) console.log(`✅ Stats for room ${roomId}:`, stats);
     
     res.json({
       ok: true,
@@ -57,11 +59,11 @@ router.post('/rooms/batch-stats', async (req, res) => {
       });
     }
     
-    console.log(`📊 Fetching batch stats for ${roomIds.length} rooms`);
+    if (debug) console.log(`📊 Fetching batch stats for ${roomIds.length} rooms`);
     
     const statsMap = await getBatchRoomStats(roomIds);
     
-    console.log(`✅ Retrieved batch stats for ${Object.keys(statsMap).length} rooms`);
+    if (debug) console.log(`✅ Retrieved batch stats for ${Object.keys(statsMap).length} rooms`);
     
     res.json({
       ok: true,
@@ -75,6 +77,21 @@ router.post('/rooms/batch-stats', async (req, res) => {
       error: 'Failed to fetch batch stats',
       message: error.message
     });
+  }
+});
+
+// Add to quizStats.js router
+router.post('/rooms/income-series', async (req, res) => {
+  try {
+    const { roomIds } = req.body;
+    if (!roomIds || !Array.isArray(roomIds)) {
+      return res.status(400).json({ ok: false, error: 'roomIds array is required' });
+    }
+    const series = await getRoomIncomeTimeSeries(roomIds);
+    res.json({ ok: true, series });
+  } catch (error) {
+    console.error('Error fetching income series:', error);
+    res.status(500).json({ ok: false, error: 'Failed to fetch income series' });
   }
 });
 

@@ -1,43 +1,55 @@
 User-agent: *
 
-# ALLOW — Public pages
+# ALLOW — Public marketing pages
 Allow: /
-Allow: /whats-new
+Allow: /demo
+Allow: /pricing
+Allow: /how-it-works
+Allow: /about
+Allow: /contact
+Allow: /features
+Allow: /features/
+Allow: /event-formats
+Allow: /event-formats/
+Allow: /use-cases
+Allow: /use-cases/
 Allow: /blog
+Allow: /resources
+Allow: /resources/
 
-# Web3 hub + Impact Campaign
+# ALLOW — Public Web3 pages
 Allow: /web3
 Allow: /web3/
-Allow: /web3/how-it-works
 Allow: /web3/features
 Allow: /web3/partners
-Allow: /web3/testimonials
-Allow: /web3/impact-campaign
-Allow: /web3/impact-campaign/join
-Allow: /web3/impact-campaign/leaderboard
+Allow: /web3/events
+Allow: /web3/host
+Allow: /web3/causes
 Allow: /web3/elimination
 Allow: /web3/quiz
 
-# Quiz marketing pages
-Allow: /quiz/demo
-Allow: /quiz/how-it-works
-Allow: /quiz/features
-Allow: /quiz/use-cases
-Allow: /quiz/use-cases/
-Allow: /quiz/use-cases/charities
-Allow: /quiz/use-cases/clubs
-Allow: /quiz/use-cases/schools
+# ALLOW — Public campaign pages
+Allow: /campaigns/clubs-league
 
-# BLOCK — Private / thin / system routes
+# BLOCK — Old, private, app and system routes
+Disallow: /old/
 Disallow: /search
 Disallow: /game/
 Disallow: /quiz/
+Disallow: /tickets/
+Disallow: /elimination/
+Disallow: /challenges/
+Disallow: /join/
+Disallow: /mini-app/
 Disallow: /BingoBlitz
 Disallow: /admin/
 Disallow: /dashboard/
 Disallow: /user/
 Disallow: /login
 Disallow: /signup
+Disallow: /auth
+Disallow: /reset-password
+Disallow: /forgot-password
 Disallow: /payment/
 Disallow: /checkout/
 Disallow: /api/

@@ -1,8 +1,9 @@
 // src/components/Web3Provider.tsx
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChainConfig } from '../types/chainConfig';
+import { wagmiConfig } from '../config';
 
-// ─── Context ─────────────────────────────────────────────────────────────────
+// ─── Context ──────────────────────────────────────────────────────────────────
 interface Web3ChainContextValue {
   chainConfig: ChainConfig;
 }
@@ -11,26 +12,21 @@ const Web3ChainContext = createContext<Web3ChainContextValue>({
   chainConfig: {},
 });
 
-// ← arrow function fixes Vite Fast Refresh incompatibility
 export const useWeb3ChainConfig = (): ChainConfig =>
   useContext(Web3ChainContext).chainConfig;
 
-// ─── Mounted guard ────────────────────────────────────────────────────────────
 const Web3ProviderMountedContext = createContext(false);
 
-// ─── Provider props ───────────────────────────────────────────────────────────
 interface Web3ProviderProps {
   children: React.ReactNode;
   force?: boolean;
   roomConfig?: ChainConfig;
 }
 
-// ─── Module-level cache ───────────────────────────────────────────────────────
 let initializationPromise: Promise<any> | null = null;
 let isInitialized = false;
 let cachedProviders: any | null = null;
 
-// ─── Loading fallback ─────────────────────────────────────────────────────────
 const Web3LoadingFallback: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
     <div className="text-center">
@@ -40,7 +36,6 @@ const Web3LoadingFallback: React.FC = () => (
   </div>
 );
 
-// ─── Main component ───────────────────────────────────────────────────────────
 export const Web3Provider: React.FC<Web3ProviderProps> = ({
   children,
   force = false,
@@ -85,17 +80,22 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({
 
     initializationPromise = (async () => {
       try {
-        const [wagmiModule, queryModule, appKitModule, configModule] = await Promise.all([
+        // ✅ initAppKit() must be called before any AppKit hooks or
+        //    providers are mounted. It uses dynamic imports internally
+        //    so config.ts (and SolanaAdapter) only loads here, not on
+        //    every page of the app.
+        const { initAppKit } = await import('../web3Init');
+        await initAppKit();
+
+        const [wagmiModule, queryModule, appKitModule] = await Promise.all([
           import('wagmi'),
           import('@tanstack/react-query'),
           import('@reown/appkit/react'),
-          import('../config'),
         ]);
 
         const { WagmiProvider } = wagmiModule;
         const { QueryClient, QueryClientProvider } = queryModule;
         const { AppKitProvider } = appKitModule;
-        const { wagmiAdapter } = configModule;
 
         const queryClient = new QueryClient({
           defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
@@ -106,7 +106,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({
           WagmiProvider,
           QueryClientProvider,
           queryClient,
-          wagmiConfig: wagmiAdapter.wagmiConfig,
+          wagmiConfig,
         };
 
         cachedProviders = result;
@@ -128,7 +128,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({
     return () => clearTimeout(timeoutRef.current);
   }, [needsWeb3, alreadyMounted]);
 
-  // ── Already mounted above — just update chainConfig context, skip providers ──
   if (alreadyMounted) {
     return (
       <Web3ChainContext.Provider value={{ chainConfig: roomConfig }}>
@@ -137,7 +136,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({
     );
   }
 
-  // ── Not a web3 page ───────────────────────────────────────────────────────
   if (!needsWeb3) {
     return (
       <Web3ChainContext.Provider value={{ chainConfig: roomConfig }}>
@@ -168,14 +166,14 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({
 
   if (!providers) return <Web3LoadingFallback />;
 
-  const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
+  const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig: wc } = providers;
 
   return (
     <Web3ChainContext.Provider value={{ chainConfig: roomConfig }}>
       <Web3ProviderMountedContext.Provider value={true}>
         <AppKitProvider>
           <QueryClientProvider client={queryClient}>
-            <WagmiProvider config={wagmiConfig}>
+            <WagmiProvider config={wc}>
               {children}
             </WagmiProvider>
           </QueryClientProvider>

@@ -12,6 +12,9 @@ import {
   Search,
   ReceiptText,
   Ban,
+  Ticket,
+  Moon,
+  Info,
 } from 'lucide-react';
 
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
@@ -25,12 +28,14 @@ import QuizLatePaymentsService, {
   type UnpaidPlayerRow,
 } from '../../../services/QuizLatePaymentsService';
 
+import { useCurrency } from '../../../hooks/useCurrency';
+
 type PaymentMethod_ = PaymentMethod;
 
 interface Props {
   room: Room;
   config?: any;
-  onPaymentMethodSuccess: () => void;
+  onPaymentMethodSuccess: () => void;  // reserved — selection moved to CreateEventForm
   confirmedBy: string;
   confirmedByName?: string;
 }
@@ -122,30 +127,27 @@ function getMethodIcon(method: PaymentMethod_) {
 
 function statusPillClass(status: string) {
   const trimmed = status.trim();
-  if (trimmed === 'disputed') return 'border-red-200 bg-red-50 text-red-700';
-  if (trimmed === 'claimed') return 'border-amber-200 bg-amber-50 text-amber-700';
-  if (trimmed === 'expected') return 'border-slate-200 bg-slate-50 text-slate-700';
-  return 'border-gray-200 bg-gray-50 text-gray-700';
+  if (trimmed === 'disputed') return 'border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] text-[#c8423b]';
+  if (trimmed === 'claimed') return 'border-[rgba(210,181,130,0.5)] bg-[rgba(210,181,130,0.1)] text-[#8a6d2f]';
+  if (trimmed === 'expected') return 'border-[#dce1df] bg-[#fbf8f2] text-[#52636f]';
+  return 'border-[#dce1df] bg-[#fbf8f2] text-[#52636f]';
 }
 
 export default function PaymentsTab({
   room,
   config,
-  onPaymentMethodSuccess,
+  onPaymentMethodSuccess: _onPaymentMethodSuccess,
   confirmedBy,
   confirmedByName,
 }: Props) {
-  const isCompleted = room.status === 'completed';
-  const currency = config?.currencySymbol || config?.currency || '€';
-  const fmt = (value: unknown) => `${currency}${Number(value || 0).toFixed(2)}`;
+const isCompleted = room.status === 'completed';
+const { sym, fmt } = useCurrency(config);
 
-  // ── Payment methods ──────────────────────────────────────────────────────
+  // ── Payment methods (read-only display) ─────────────────────────────────
   const [pmLoading, setPmLoading] = useState(false);
-  const [pmSaving, setPmSaving] = useState(false);
   const [pmError, setPmError] = useState<string | null>(null);
-  const [available, setAvailable] = useState<PaymentMethod_[]>([]);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [originalIds, setOriginalIds] = useState<number[]>([]);
+  const [ticketMethods, setTicketMethods]   = useState<PaymentMethod_[]>([]);
+  const [onnightMethods, setOnnightMethods] = useState<PaymentMethod_[]>([]);
 
   useEffect(() => {
     loadPaymentMethods();
@@ -161,18 +163,15 @@ export default function PaymentsTab({
         room.room_id
       );
 
-      const enabled = response.available_methods.filter(
-        (method) => method.is_enabled
-      );
+      const available = response.available_methods.filter(m => m.is_enabled);
+      const byId = new Map(available.map(m => [m.id, m]));
 
-      const enabledIds = new Set(enabled.map((method) => method.id));
-      const linked = response.linked_method_ids.filter((id) =>
-        enabledIds.has(id)
-      );
+      // Backward compat: fall back to linked_method_ids if split fields absent
+      const ticketIds  = response.ticket_method_ids  ?? response.linked_method_ids ?? [];
+      const onnightIds = response.onnight_method_ids ?? response.linked_method_ids ?? [];
 
-      setAvailable(enabled);
-      setSelectedIds(linked);
-      setOriginalIds(linked);
+      setTicketMethods(ticketIds.map(id => byId.get(id)).filter(Boolean) as PaymentMethod_[]);
+      setOnnightMethods(onnightIds.map(id => byId.get(id)).filter(Boolean) as PaymentMethod_[]);
     } catch (error: any) {
       setPmError(error.message || 'Failed to load payment methods');
     } finally {
@@ -180,60 +179,16 @@ export default function PaymentsTab({
     }
   };
 
+  // linkedAvailableMethods: used by the late payments section to populate the method dropdown.
+  // For on-night context: use onnightMethods (these are the methods available at the door).
   const linkedAvailableMethods = useMemo(() => {
-    const selectedIdSet = new Set(selectedIds);
-
-    return available
-      .filter((method) => selectedIdSet.has(method.id))
-      .sort((a, b) => {
-        const orderA = Number(a.display_order || 0);
-        const orderB = Number(b.display_order || 0);
-
-        if (orderA !== orderB) return orderA - orderB;
-
-        return String(a.method_label || '').localeCompare(
-          String(b.method_label || '')
-        );
-      });
-  }, [available, selectedIds]);
-
-  const handleToggle = (id: number) => {
-    if (isCompleted) return;
-
-    setSelectedIds((previous) =>
-      previous.includes(id)
-        ? previous.filter((existingId) => existingId !== id)
-        : [...previous, id]
-    );
-  };
-
-  const handleSavePayments = async () => {
-    if (isCompleted) return;
-
-    setPmSaving(true);
-    setPmError(null);
-
-    try {
-      await quizPaymentMethodsService.updateLinkedPaymentMethods(
-        room.room_id,
-        selectedIds
-      );
-
-      setOriginalIds(selectedIds);
-      onPaymentMethodSuccess();
-    } catch (error: any) {
-      setPmError(error.message || 'Failed to save');
-    } finally {
-      setPmSaving(false);
-    }
-  };
-
-  const hasPaymentChanges = useMemo(() => {
-    const selected = [...selectedIds].sort((a, b) => a - b);
-    const original = [...originalIds].sort((a, b) => a - b);
-
-    return JSON.stringify(selected) !== JSON.stringify(original);
-  }, [selectedIds, originalIds]);
+    return [...onnightMethods].sort((a, b) => {
+      const orderA = Number(a.display_order || 0);
+      const orderB = Number(b.display_order || 0);
+      if (orderA !== orderB) return orderA - orderB;
+      return String(a.method_label || '').localeCompare(String(b.method_label || ''));
+    });
+  }, [onnightMethods]);
 
   // ── Late payments ────────────────────────────────────────────────────────
   const [players, setPlayers] = useState<UnpaidPlayerRow[]>([]);
@@ -467,16 +422,16 @@ export default function PaymentsTab({
 
     return (
       <section className="space-y-4">
-        <div className="rounded-2xl border border-orange-100 bg-gradient-to-r from-orange-50 via-white to-amber-50 p-5">
+        <div className="rounded-2xl border border-[rgba(210,181,130,0.3)] bg-gradient-to-r from-orange-50 via-white to-amber-50 p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-100 text-[#8a6d2f]">
               <ReceiptText className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="text-base font-black text-gray-950">
+              <h3 className="text-base font-black text-[#102532]">
                 Resolve outstanding payments
               </h3>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-sm text-[#52636f]">
                 Each unpaid player can be marked as paid late or written off. Late payments show the amount fields so you can handle partial or different amounts.
               </p>
             </div>
@@ -484,48 +439,48 @@ export default function PaymentsTab({
         </div>
 
         {lateError && !selectedPlayer && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] p-4 text-sm text-[#c8423b]">
             {lateError}
           </div>
         )}
 
         {lateLoading ? (
-          <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-10 text-sm text-gray-500">
-            <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+          <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#dce1df] bg-white py-10 text-sm text-[#52636f]">
+            <Loader2 className="h-5 w-5 animate-spin text-[#157f85]" />
             Loading outstanding payments…
           </div>
         ) : players.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-green-200 bg-green-50 p-8 text-center">
+          <div className="rounded-2xl border border-dashed border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)] p-8 text-center">
             <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-500" />
             <p className="text-sm font-semibold text-green-900">
               No outstanding payments
             </p>
-            <p className="mx-auto mt-2 max-w-sm text-xs text-green-700">
+            <p className="mx-auto mt-2 max-w-sm text-xs text-[#157f85]">
               All player payments for this completed quiz are resolved.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-orange-100 bg-orange-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">Players to resolve</p>
+              <div className="rounded-xl border border-[rgba(210,181,130,0.3)] bg-[rgba(210,181,130,0.1)] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#8a6d2f]">Players to resolve</p>
                 <p className="mt-1 text-xl font-black text-orange-950">{players.length}</p>
               </div>
-              <div className="rounded-xl border border-orange-100 bg-white p-3 sm:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Outstanding total</p>
-                <p className="mt-1 text-xl font-black text-gray-950">
+              <div className="rounded-xl border border-[rgba(210,181,130,0.3)] bg-white p-3 sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">Outstanding total</p>
+                <p className="mt-1 text-xl font-black text-[#102532]">
                   {fmt(players.reduce((sum, player) => sum + Number(player.totalOutstanding || 0), 0))}
                 </p>
               </div>
             </div>
 
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a9bab]" />
               <input
                 value={lateSearch}
                 onChange={(event) => setLateSearch(event.target.value)}
                 placeholder="Search outstanding players…"
-                className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-[#dce1df] bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#157f85] focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
               />
             </div>
 
@@ -537,13 +492,13 @@ export default function PaymentsTab({
                     key={player.playerId}
                     className={`rounded-2xl border bg-white p-4 transition-all ${
                       active
-                        ? 'border-indigo-300 shadow-sm ring-2 ring-indigo-100'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-indigo-300 shadow-sm ring-2 ring-[rgba(21,127,133,0.2)]'
+                        : 'border-[#dce1df] hover:border-[#dce1df]'
                     }`}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-gray-950">
+                        <p className="truncate text-sm font-bold text-[#102532]">
                           {player.playerName || player.playerId}
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1">
@@ -563,10 +518,10 @@ export default function PaymentsTab({
 
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <div className="sm:text-right">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#52636f]">
                             Outstanding
                           </p>
-                          <p className="text-lg font-black text-gray-950">
+                          <p className="text-lg font-black text-[#102532]">
                             {fmt(player.totalOutstanding)}
                           </p>
                         </div>
@@ -576,7 +531,7 @@ export default function PaymentsTab({
                             type="button"
                             onClick={() => chooseWriteOff(player)}
                             disabled={lateSaving}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] px-3 py-2 text-xs font-bold text-[#c8423b] hover:bg-[rgba(233,87,79,0.15)] disabled:opacity-50"
                           >
                             <Ban className="h-3.5 w-3.5" />
                             Write off
@@ -585,7 +540,7 @@ export default function PaymentsTab({
                             type="button"
                             onClick={() => chooseLatePayment(player)}
                             disabled={lateSaving}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#157f85] px-3 py-2 text-xs font-bold text-white hover:bg-[#0e6268] disabled:opacity-50"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             Accept late payment
@@ -598,16 +553,16 @@ export default function PaymentsTab({
               })}
 
               {filteredPlayers.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
+                <div className="rounded-2xl border border-dashed border-[#dce1df] bg-[#fbf8f2] p-6 text-center text-sm text-[#52636f]">
                   No matching outstanding payments.
                 </div>
               )}
             </div>
 
             {selectedPlayer && resolutionMode === 'write_off' && writeOffConfirm && (
-              <div className="space-y-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+              <div className="space-y-4 rounded-2xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] p-4">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#c8423b]" />
                   <div>
                     <p className="text-sm font-black text-red-950">
                       Write off {selectedPlayer.playerName || 'this player'}’s outstanding payment?
@@ -619,13 +574,13 @@ export default function PaymentsTab({
                 </div>
 
                 {lateError && (
-                  <div className="rounded-xl border border-red-200 bg-white p-3 text-sm text-red-700">
+                  <div className="rounded-xl border border-[rgba(233,87,79,0.3)] bg-white p-3 text-sm text-[#c8423b]">
                     {lateError}
                   </div>
                 )}
 
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-red-900">
+                  <label className="mb-1 block text-xs font-semibold text-[#8b1c1c]">
                     Optional note
                   </label>
                   <textarea
@@ -633,7 +588,7 @@ export default function PaymentsTab({
                     onChange={(event) => setAdminNotes(event.target.value)}
                     disabled={lateSaving}
                     rows={2}
-                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    className="w-full rounded-xl border border-[rgba(233,87,79,0.3)] bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                     placeholder="e.g. Player did not pay after follow-up"
                   />
                 </div>
@@ -647,7 +602,7 @@ export default function PaymentsTab({
                       setSelectedId('');
                     }}
                     disabled={lateSaving}
-                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    className="rounded-xl border border-[#dce1df] bg-white px-4 py-2 text-sm font-bold text-[#52636f] hover:bg-[#fbf8f2] disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -655,7 +610,7 @@ export default function PaymentsTab({
                     type="button"
                     onClick={handleWriteOff}
                     disabled={!canWriteOff}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e9574f] px-4 py-2 text-sm font-bold text-white hover:bg-[#c8423b] disabled:opacity-50"
                   >
                     {savingAction === 'write_off' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     Confirm write-off
@@ -665,23 +620,23 @@ export default function PaymentsTab({
             )}
 
             {selectedPlayer && resolutionMode === 'paid_late' && (
-              <div className="space-y-4 rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm">
+              <div className="space-y-4 rounded-2xl border border-[rgba(21,127,133,0.3)] bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-sm font-black text-gray-950">
+                    <p className="text-sm font-black text-[#102532]">
                       Accept late payment
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="mt-0.5 text-xs text-[#52636f]">
                       {selectedPlayer.playerName || selectedPlayer.playerId}
                     </p>
                   </div>
-                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                  <span className="rounded-full bg-[rgba(21,127,133,0.08)] px-3 py-1 text-xs font-bold text-[#157f85]">
                     Expected {fmt(originalTotal)}
                   </span>
                 </div>
 
                 {lateError && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <div className="rounded-xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] p-3 text-sm text-[#c8423b]">
                     {lateError}
                   </div>
                 )}
@@ -701,14 +656,14 @@ export default function PaymentsTab({
                       expected: selectedPlayer.extrasOutstanding,
                     },
                   ].map(({ label, value, onChange, expected }) => (
-                    <div key={label} className="rounded-xl bg-gray-50 px-3 py-2.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    <div key={label} className="rounded-xl bg-[#fbf8f2] px-3 py-2.5">
+                      <label className="text-[11px] font-semibold uppercase tracking-wide text-[#52636f]">
                         {label}
                       </label>
 
                       <div className="mt-1 flex items-center gap-1">
-                        <span className="text-sm font-bold text-gray-500">
-                          {currency}
+                        <span className="text-sm font-bold text-[#52636f]">
+                          {sym}
                         </span>
 
                         <input
@@ -721,11 +676,11 @@ export default function PaymentsTab({
                           }
                           inputMode="decimal"
                           disabled={lateSaving}
-                          className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm font-bold text-gray-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                          className="w-full rounded-lg border border-[#dce1df] bg-white px-2 py-1.5 text-sm font-bold text-[#102532] outline-none focus:border-[#157f85] focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
                         />
                       </div>
 
-                      <p className="mt-0.5 text-[10px] text-gray-500">
+                      <p className="mt-0.5 text-[10px] text-[#52636f]">
                         Expected {fmt(expected)}
                       </p>
                     </div>
@@ -735,33 +690,33 @@ export default function PaymentsTab({
                 <div
                   className={`rounded-xl border p-3 ${
                     diff < 0
-                      ? 'border-amber-200 bg-amber-50'
+                      ? 'border-[rgba(210,181,130,0.5)] bg-[rgba(210,181,130,0.1)]'
                       : diff > 0
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-gray-200 bg-gray-50'
+                        ? 'border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)]'
+                        : 'border-[#dce1df] bg-[#fbf8f2]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">
                         Received total
                       </p>
-                      <p className="mt-1 text-xl font-black text-gray-900">
+                      <p className="mt-1 text-xl font-black text-[#102532]">
                         {fmt(receivedTotal)}
                       </p>
                     </div>
 
                     <div className="text-right">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">
                         Difference
                       </p>
                       <p
                         className={`mt-1 text-sm font-bold ${
                           diff < 0
-                            ? 'text-amber-700'
+                            ? 'text-[#8a6d2f]'
                             : diff > 0
-                              ? 'text-green-700'
-                              : 'text-gray-700'
+                              ? 'text-[#157f85]'
+                              : 'text-[#52636f]'
                         }`}
                       >
                         {diff === 0 ? 'No change' : `${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))}`}
@@ -772,7 +727,7 @@ export default function PaymentsTab({
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-gray-700">
+                    <label className="mb-1 block text-xs font-semibold text-[#52636f]">
                       Payment method
                     </label>
 
@@ -782,7 +737,7 @@ export default function PaymentsTab({
                         handleLatePaymentMethodChange(event.target.value)
                       }
                       disabled={lateSaving || linkedAvailableMethods.length === 0}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-gray-100 disabled:text-gray-500"
+                      className="w-full rounded-xl border border-[#dce1df] px-3 py-2 text-sm outline-none focus:border-[#157f85] focus:ring-2 focus:ring-[rgba(21,127,133,0.2)] disabled:bg-[#f1f0ee] disabled:text-[#52636f]"
                     >
                       {linkedAvailableMethods.length === 0 ? (
                         <option value="">
@@ -801,14 +756,14 @@ export default function PaymentsTab({
                     </select>
 
                     {linkedAvailableMethods.length === 0 && (
-                      <p className="mt-1 text-xs text-red-600">
+                      <p className="mt-1 text-xs text-[#c8423b]">
                         No payment methods are linked to this quiz. Link a payment method before resolving outstanding payments.
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-gray-700">
+                    <label className="mb-1 block text-xs font-semibold text-[#52636f]">
                       Payment reference
                     </label>
 
@@ -817,13 +772,13 @@ export default function PaymentsTab({
                       onChange={(event) => setPayRef(event.target.value)}
                       placeholder="Optional"
                       disabled={lateSaving}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-[#dce1df] px-3 py-2 text-sm outline-none focus:border-[#157f85] focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700">
+                  <label className="mb-1 block text-xs font-semibold text-[#52636f]">
                     Notes
                   </label>
 
@@ -832,7 +787,7 @@ export default function PaymentsTab({
                     onChange={(event) => setAdminNotes(event.target.value)}
                     disabled={lateSaving}
                     rows={2}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border border-[#dce1df] px-3 py-2 text-sm outline-none focus:border-[#157f85] focus:ring-2 focus:ring-[rgba(21,127,133,0.2)]"
                     placeholder="e.g. Payment received after event ended"
                   />
                 </div>
@@ -845,7 +800,7 @@ export default function PaymentsTab({
                       setSelectedId('');
                     }}
                     disabled={lateSaving}
-                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    className="rounded-xl border border-[#dce1df] bg-white px-4 py-2 text-sm font-bold text-[#52636f] hover:bg-[#fbf8f2] disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -855,7 +810,7 @@ export default function PaymentsTab({
                     disabled={!canMarkLatePaid}
                     className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white ${
                       canMarkLatePaid
-                        ? 'bg-indigo-600 hover:bg-indigo-700'
+                        ? 'bg-[#157f85] hover:bg-[#0e6268]'
                         : 'cursor-not-allowed bg-gray-300'
                     }`}
                   >
@@ -876,18 +831,18 @@ export default function PaymentsTab({
   return (
     <div className="space-y-6 p-5">
       {isCompleted && (
-        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+        <div className="rounded-2xl border border-[#dce1df] bg-[#fbf8f2] p-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-200">
-              <Lock className="h-5 w-5 text-gray-500" />
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#dce1df]">
+              <Lock className="h-5 w-5 text-[#52636f]" />
             </div>
 
             <div>
-              <p className="text-sm font-bold text-gray-900">
+              <p className="text-sm font-bold text-[#102532]">
                 Payment options are locked
               </p>
 
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-[#52636f]">
                 This quiz is completed, so checkout options can no longer be changed. Use this tab only to close unresolved payments.
               </p>
             </div>
@@ -895,157 +850,106 @@ export default function PaymentsTab({
         </div>
       )}
 
+      {/* ── Payment methods: read-only display ── */}
       {!isCompleted && (
-        <section className="space-y-4">
-          <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-green-50 p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                <CreditCard className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-gray-950">
-                  Payment options for this quiz
-                </h3>
-                <p className="mt-1 text-sm text-gray-600">
-                  Select the payment methods players can choose at checkout. Unselected methods will not appear on the ticket page.
-                </p>
-              </div>
+      <section className="space-y-4">
+        <div className="rounded-2xl border border-[rgba(21,127,133,0.2)] bg-gradient-to-r from-emerald-50 via-white to-green-50 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-black text-[#102532]">Payment methods</h3>
+              <p className="mt-1 text-sm text-[#52636f]">
+                Configured in the event settings.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg border border-[rgba(21,127,133,0.3)] bg-white px-3 py-1.5 text-xs font-semibold text-[#157f85]">
+              <Info className="h-3.5 w-3.5" />
+              Edit in event settings
             </div>
           </div>
+        </div>
 
-          {pmLoading && (
-            <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-10 text-sm text-gray-500">
-              <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-              Loading payment methods…
-            </div>
-          )}
+        {pmLoading && (
+          <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#dce1df] bg-white py-8 text-sm text-[#52636f]">
+            <Loader2 className="h-5 w-5 animate-spin text-[#157f85]" />
+            Loading…
+          </div>
+        )}
 
-          {pmError && (
-            <div className="flex gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
-              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
-              <p className="text-sm text-red-800">{pmError}</p>
-            </div>
-          )}
+        {pmError && (
+          <div className="flex gap-3 rounded-2xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#c8423b]" />
+            <p className="text-sm text-red-800">{pmError}</p>
+          </div>
+        )}
 
-          {!pmLoading && available.length === 0 && (
-            <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-700" />
-              <div>
-                <p className="text-sm font-semibold text-amber-900">
-                  No active payment methods
-                </p>
-                <p className="mt-1 text-xs text-amber-800">
-                  Add payment methods via the Payment Methods button on the dashboard first.
-                </p>
+        {!pmLoading && !pmError && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Tickets column */}
+            <div className="rounded-2xl border border-[#dce1df] bg-white p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-[#157f85]" />
+                <p className="text-sm font-bold text-[#102532]">Tickets (online)</p>
               </div>
+              {ticketMethods.length === 0 ? (
+                <p className="text-xs text-[#8a9bab]">No ticket payment methods configured.</p>
+              ) : (
+                ticketMethods.map(method => (
+                  <div key={method.id} className="flex items-center gap-2.5 rounded-xl border border-[#f1f0ee] bg-[#fbf8f2] px-3 py-2.5">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#52636f]">
+                      {getMethodIcon(method)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-[#102532] truncate">{method.method_label}</p>
+                      {getSubtitle(method) && (
+                        <p className="text-[10px] text-[#8a9bab] truncate">{getSubtitle(method)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
 
-          {!pmLoading && available.length > 0 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3">
-                {available.map((method) => {
-                  const isSelected = selectedIds.includes(method.id);
-
-                  return (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => handleToggle(method.id)}
-                      className={`w-full rounded-2xl border p-4 text-left transition-all ${
-                        isSelected
-                          ? 'border-emerald-300 bg-emerald-50 shadow-sm ring-2 ring-emerald-100'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-                            isSelected
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          {isSelected ? (
-                            <CheckCircle2 className="h-5 w-5" />
-                          ) : (
-                            getMethodIcon(method)
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-bold text-gray-950">
-                              {method.method_label}
-                            </p>
-
-                            {isSelected && (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                                Selected
-                              </span>
-                            )}
-                          </div>
-
-                          {getSubtitle(method) && (
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {getSubtitle(method)}
-                            </p>
-                          )}
-
-                          {method.player_instructions && (
-                            <p className="mt-1 text-xs text-gray-600">
-                              {method.player_instructions}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+            {/* On the Night column */}
+            <div className="rounded-2xl border border-[#dce1df] bg-white p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4 text-[#157f85]" />
+                <p className="text-sm font-bold text-[#102532]">On the Night</p>
               </div>
-
-              <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4">
-                <p className="text-xs font-medium text-gray-500">
-                  {selectedIds.length === 0
-                    ? 'No methods selected'
-                    : `${selectedIds.length} method${
-                        selectedIds.length === 1 ? '' : 's'
-                      } selected`}
-                </p>
-
-                <button
-                  type="button"
-                  onClick={handleSavePayments}
-                  disabled={pmSaving || !hasPaymentChanges || pmLoading}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  {pmSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving…
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      Save payment options
-                    </>
-                  )}
-                </button>
-              </div>
+              {onnightMethods.length === 0 ? (
+                <p className="text-xs text-[#8a9bab]">No on-the-night payment methods configured.</p>
+              ) : (
+                onnightMethods.map(method => (
+                  <div key={method.id} className="flex items-center gap-2.5 rounded-xl border border-[#f1f0ee] bg-[#fbf8f2] px-3 py-2.5">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#52636f]">
+                      {getMethodIcon(method)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-[#102532] truncate">{method.method_label}</p>
+                      {getSubtitle(method) && (
+                        <p className="text-[10px] text-[#8a9bab] truncate">{getSubtitle(method)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
-        </section>
+          </div>
+        )}
+      </section>
       )}
 
       {renderOutstandingPayments()}
 
       {!isCompleted && (
         <section>
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-            <p className="text-sm font-bold text-gray-800">
+          <div className="rounded-2xl border border-dashed border-[#dce1df] bg-[#fbf8f2] p-6 text-center">
+            <p className="text-sm font-bold text-[#1e3040]">
               Outstanding payments appear after the quiz is completed.
             </p>
-            <p className="mx-auto mt-2 max-w-sm text-xs text-gray-500">
+            <p className="mx-auto mt-2 max-w-sm text-xs text-[#52636f]">
               Once the event is complete, unpaid players will appear here with row-level actions for late payment or write-off.
             </p>
           </div>

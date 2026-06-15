@@ -1,5 +1,9 @@
 // server/utils/ticketEmail.js
+// UPDATED: game_type aware — supports 'quiz', 'elimination', and 'ticketed_event'
+// Ticketed events are routed to their own email module (ticketedEventEmail.js)
+
 import { sendEmailSafe } from './mailer.js';
+import { sendTicketedEventConfirmationEmail } from './ticketedEventEmail.js';
 import { connection, TABLE_PREFIX } from '../config/database.js';
 
 const CLUBS_TABLE = `${TABLE_PREFIX}clubs`;
@@ -39,7 +43,9 @@ function formatAmount(amount, currencySymbol) {
 function buildExtrasHtml(extras, currencySymbol) {
   if (!extras || extras.length === 0) return '';
 
-  const rows = extras.map(e => `
+  const rows = extras
+    .map(
+      (e) => `
     <tr>
       <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;color:#555;">
         ${e.extraId?.replace(/_/g, ' ') || 'Extra'}
@@ -48,7 +54,9 @@ function buildExtrasHtml(extras, currencySymbol) {
         ${formatAmount(e.price, currencySymbol)}
       </td>
     </tr>
-  `).join('');
+  `
+    )
+    .join('');
 
   return `
     <div style="margin:20px 0;">
@@ -59,20 +67,79 @@ function buildExtrasHtml(extras, currencySymbol) {
     </div>
   `;
 }
+
+// ─── Game-type helpers ────────────────────────────────────────────────────────
+
+function getGameTypeMeta(gameType, roomId, ticketId, appUrl) {
+  const statusUrl = `${appUrl}/tickets/status/${ticketId}`;
+
+  switch (gameType) {
+    case 'elimination':
+      return {
+        label:          'Elimination Game',
+        emoji:          '🏆',
+        headerSubtitle: 'Your elimination ticket is confirmed',
+        subjectLabel:   'elimination game',
+        buttonText:     'View My Ticket & Join Game',
+        joinUrl:        statusUrl,
+        eventLabel:     'Game date',
+        completedLabel: 'elimination game',
+      };
+
+    case 'quiz':
+    default:
+      return {
+        label:          'Quiz Night',
+        emoji:          '🎟️',
+        headerSubtitle: 'Your quiz ticket is confirmed',
+        subjectLabel:   'quiz',
+        buttonText:     'View My Ticket & Join Quiz',
+        joinUrl:        statusUrl,
+        eventLabel:     'Quiz date',
+        completedLabel: 'quiz',
+      };
+  }
+}
+
+// ─── getTicketWithRoomConfig ──────────────────────────────────────────────────
+
 export async function getTicketWithRoomConfig(ticketId) {
-  const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
-  const ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
+  const TICKETS_TABLE     = `${TABLE_PREFIX}quiz_tickets`;
+  const ROOMS_TABLE       = `${TABLE_PREFIX}web2_quiz_rooms`;
+  const CLUBS_TABLE_LOCAL = `${TABLE_PREFIX}clubs`;
 
   const [rows] = await connection.execute(
-    `SELECT t.*, r.config_json 
+    `SELECT
+       t.*,
+       r.config_json,
+       r.game_type,
+       c.name AS club_name
      FROM ${TICKETS_TABLE} t
-     LEFT JOIN ${ROOMS_TABLE} r 
+     LEFT JOIN ${ROOMS_TABLE} r
        ON r.room_id COLLATE utf8mb4_0900_ai_ci = t.room_id COLLATE utf8mb4_0900_ai_ci
+     LEFT JOIN ${CLUBS_TABLE_LOCAL} c
+       ON c.id COLLATE utf8mb4_0900_ai_ci = t.club_id COLLATE utf8mb4_0900_ai_ci
      WHERE t.ticket_id = ? LIMIT 1`,
     [ticketId]
   );
-  return rows?.[0] || null;
+
+  const row = rows?.[0] || null;
+
+  // ── DIAGNOSTIC — remove once game_type routing is confirmed working ────────
+  console.log('[getTicketWithRoomConfig] ticketId:', ticketId);
+  console.log('[getTicketWithRoomConfig] row found:', !!row);
+  if (row) {
+    console.log('[getTicketWithRoomConfig] room_id on ticket:', row.room_id);
+    console.log('[getTicketWithRoomConfig] game_type from JOIN:', row.game_type);
+    console.log('[getTicketWithRoomConfig] club_name from JOIN:', row.club_name);
+    console.log('[getTicketWithRoomConfig] config_json present:', !!row.config_json);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  return row;
 }
+
+// ─── sendTicketConfirmationEmail ──────────────────────────────────────────────
 
 export async function sendTicketConfirmationEmail({
   ticketId,
@@ -89,15 +156,59 @@ export async function sendTicketConfirmationEmail({
   hostName,
   eventDateTime,
   timeZone,
+  gameType      = 'quiz',
+  clubName:       clubNameParam = null,
+  eventTitle     = null,
+  eventLocation  = null,
 }) {
+  // ── DIAGNOSTIC — remove once confirmed working ────────────────────────────
+  console.log('[sendTicketConfirmationEmail] ─────────────────────────────────');
+  console.log('[sendTicketConfirmationEmail] ticketId:', ticketId);
+  console.log('[sendTicketConfirmationEmail] gameType param:', gameType);
+  console.log('[sendTicketConfirmationEmail] clubNameParam:', clubNameParam);
+  console.log('[sendTicketConfirmationEmail] eventTitle:', eventTitle);
+  console.log('[sendTicketConfirmationEmail] eventLocation:', eventLocation);
+  console.log('[sendTicketConfirmationEmail] purchaserEmail:', purchaserEmail);
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // ── Ticketed events get their own dedicated email ─────────────────────────
+  if (gameType === 'ticketed_event') {
+    console.log('[sendTicketConfirmationEmail] ✅ Routing to ticketed event email');
+    const clubName = clubNameParam || (await getClubName(clubId));
+    return sendTicketedEventConfirmationEmail({
+      ticketId,
+      purchaserEmail,
+      purchaserName,
+      playerName,
+      entryFee,
+      extrasTotal,
+      totalAmount,
+      currency,
+      currencySymbol,
+      clubName,
+      eventTitle,
+      eventLocation,
+      eventDateTime,
+      timeZone,
+    });
+  }
+
+  console.log('[sendTicketConfirmationEmail] ➡️  Routing to quiz/elimination email, gameType:', gameType);
+
+  // ── Quiz / elimination email (original flow) ──────────────────────────────
   const appUrl = process.env.APP_URL || 'https://fundraisely.ie';
-  const joinLink = `${appUrl}/tickets/status/${ticketId}`;
-  const clubName = await getClubName(clubId);
-  const displayName = clubName || hostName || 'the quiz host';
-  const formattedDate = eventDateTime ? formatDateTime(eventDateTime, timeZone) : null;
+
+  const clubName    = clubNameParam || (await getClubName(clubId));
+  const displayName = clubName || hostName || 'your host';
+
+  const meta = getGameTypeMeta(gameType, null, ticketId, appUrl);
+
+  const formattedDate = eventDateTime
+    ? formatDateTime(eventDateTime, timeZone)
+    : null;
 
   const extrasHtml = buildExtrasHtml(extras, currencySymbol);
-  const symbol = currencySymbol || '€';
+  const symbol     = currencySymbol || '€';
 
   const html = `
     <!DOCTYPE html>
@@ -108,12 +219,27 @@ export async function sendTicketConfirmationEmail({
     </head>
     <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
       <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        
+
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:32px 24px;text-align:center;">
-          <div style="font-size:40px;margin-bottom:8px;">🎟️</div>
+          <div style="font-size:40px;margin-bottom:8px;">${meta.emoji}</div>
           <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;">You're in!</h1>
-          <p style="color:#c7d2fe;margin:8px 0 0;font-size:15px;">Your quiz ticket is confirmed</p>
+          <p style="color:#c7d2fe;margin:8px 0 0;font-size:15px;">${meta.headerSubtitle}</p>
+        </div>
+
+        <!-- Club / Event banner -->
+        <div style="background:#f0f4ff;border-bottom:1px solid #e0e7ff;padding:16px 24px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:20px;">🏢</span>
+            <div>
+              <div style="font-size:12px;color:#6366f1;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">
+                ${meta.label}
+              </div>
+              <div style="font-size:16px;font-weight:700;color:#1e1b4b;">
+                ${displayName}
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Body -->
@@ -123,24 +249,27 @@ export async function sendTicketConfirmationEmail({
             Hi <strong>${purchaserName}</strong>,
           </p>
           <p style="color:#555;font-size:15px;line-height:1.6;">
-            Thanks for purchasing a ticket for the quiz hosted by <strong>${displayName}</strong>.
+            Thanks for purchasing a ticket for the ${meta.completedLabel} hosted by
+            <strong>${displayName}</strong>.
             ${playerName && playerName !== purchaserName ? `You'll be playing as <strong>${playerName}</strong>.` : ''}
           </p>
 
           ${formattedDate ? `
-          <!-- Event date -->
           <div style="background:#f0f4ff;border-radius:8px;padding:14px 16px;margin:20px 0;display:flex;align-items:center;gap:10px;">
             <span style="font-size:20px;">📅</span>
-            <span style="color:#3730a3;font-weight:600;font-size:15px;">${formattedDate}</span>
+            <div>
+              <div style="font-size:11px;color:#6366f1;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:2px;">
+                ${meta.eventLabel}
+              </div>
+              <span style="color:#3730a3;font-weight:600;font-size:15px;">${formattedDate}</span>
+            </div>
           </div>` : ''}
 
-          <!-- Ticket ID -->
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin:20px 0;">
             <p style="margin:0 0 4px;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">Ticket ID</p>
             <p style="margin:0;color:#111;font-size:16px;font-weight:700;font-family:monospace;">${ticketId}</p>
           </div>
 
-          <!-- Payment breakdown -->
           <div style="margin:20px 0;">
             <p style="font-weight:600;color:#333;margin-bottom:8px;">Payment summary:</p>
             <table style="width:100%;border-collapse:collapse;">
@@ -150,27 +279,34 @@ export async function sendTicketConfirmationEmail({
                   ${formatAmount(entryFee, symbol)}
                 </td>
               </tr>
-              ${extrasHtml ? '' : ''}
             </table>
           </div>
 
           ${extrasHtml}
 
-          <!-- Total -->
           <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;margin:20px 0;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-weight:700;color:#166534;font-size:16px;">Total paid</span>
             <span style="font-weight:700;color:#166534;font-size:20px;">${formatAmount(totalAmount, symbol)}</span>
           </div>
 
-          <!-- Join button -->
+          <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
+            <p style="font-weight:600;color:#333;margin:0 0 10px;">What happens next</p>
+            <ol style="margin:0;padding-left:20px;color:#555;font-size:14px;line-height:1.8;">
+              <li>The host confirms your payment</li>
+              <li>Your ticket becomes ready to use</li>
+              <li>Use your ticket link on the night</li>
+              <li>Check your ticket status anytime using the button below</li>
+            </ol>
+          </div>
+
           <div style="text-align:center;margin:28px 0 8px;">
-            <a href="${joinLink}" 
+            <a href="${meta.joinUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;">
-              View My Ticket &amp; Join Quiz
+              ${meta.buttonText}
             </a>
           </div>
           <p style="text-align:center;color:#888;font-size:12px;">
-            Or paste this link: <a href="${joinLink}" style="color:#4f46e5;">${joinLink}</a>
+            Or paste this link: <a href="${meta.joinUrl}" style="color:#4f46e5;">${meta.joinUrl}</a>
           </p>
 
         </div>
@@ -188,8 +324,8 @@ export async function sendTicketConfirmationEmail({
   `;
 
   return sendEmailSafe({
-    to: purchaserEmail,
-    subject: `🎟️ Your quiz ticket is confirmed — ${displayName}`,
+    to:      purchaserEmail,
+    subject: `${meta.emoji} Your ${meta.subjectLabel} ticket is confirmed — ${displayName}`,
     html,
   });
 }

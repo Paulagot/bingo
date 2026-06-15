@@ -24,11 +24,9 @@ import {
   ELIMINATION_SCHEDULE,
   ROUND_7_TARGET_FINALISTS,
 } from '../utils/eliminationConstants.js';
+import { saveEliminationGameStats } from './eliminationStatsService.js';
 
 // ─── Wait for full web3 finalize workflow completion ──────────────────────────
-// We do NOT end the room when payout is merely "settled".
-// We only end it when the host has finished the full finalize flow:
-// finalize_game -> finalize-confirm -> close_room attempt -> finalize-complete
 const waitForFinalizeWorkflowComplete = async (roomId) => {
   const MAX_WAIT_MS = 15 * 60 * 1000;
   const POLL_INTERVAL_MS = 5000;
@@ -39,13 +37,8 @@ const waitForFinalizeWorkflowComplete = async (roomId) => {
     waited += POLL_INTERVAL_MS;
 
     const room = getRoom(roomId);
-
-    // Room already removed elsewhere — nothing left to wait for
     if (!room) return true;
-
-    if (room.finalizeWorkflowComplete) {
-      return true;
-    }
+    if (room.finalizeWorkflowComplete) return true;
 
     if (waited % 60000 === 0) {
       console.log(
@@ -60,11 +53,34 @@ const waitForFinalizeWorkflowComplete = async (roomId) => {
   return false;
 };
 
+// ─── Wait for host reconciliation to be approved ──────────────────────────────
+const waitForReconciliationOrTimeout = async (roomId) => {
+  const MAX_WAIT_MS = 3 * 60 * 60 * 1000; // 3 hours
+  const POLL_INTERVAL_MS = 10_000;
+  let waited = 0;
+
+  while (waited < MAX_WAIT_MS) {
+    await delay(POLL_INTERVAL_MS);
+    waited += POLL_INTERVAL_MS;
+
+    const room = getRoom(roomId);
+    if (!room) return;
+
+    if (room.reconciliationApproved) {
+      console.log(`[Elimination] Reconciliation approved for room ${roomId} — cleaning up`);
+      deleteRoom(roomId);
+      return;
+    }
+  }
+
+  console.warn(
+    `[Elimination] Room ${roomId} reconciliation not approved after 3 hours — forcing cleanup`
+  );
+  deleteRoom(roomId);
+};
+
 /**
  * Start the game for a room.
- *
- * All round thresholds (safe rounds, finalist round, final round) are derived
- * from GAME_RULES.TOTAL_ROUNDS — no magic numbers here.
  */
 export const startGame = async (roomId, emit) => {
   const buildRoundSequence = () => {
@@ -80,15 +96,16 @@ export const startGame = async (roomId, emit) => {
   const room = startRoom(roomId, []);
   if (!room) throw new Error('Failed to start room');
 
-  // Reset any stale finalize flags just in case
-room.settled = false;
-room.finalizeWorkflowComplete = false;
-room.finalizeTxSignature = null;
-room.settledAt = null;
-room.finalizeCompletedAt = null;
-room.closeAttempted = false;
-room.closeSucceeded = false;
-room.closeTxHash = null;
+  room.settled = false;
+  room.finalizeWorkflowComplete = false;
+  room.finalizeTxSignature = null;
+  room.settledAt = null;
+  room.finalizeCompletedAt = null;
+  room.closeAttempted = false;
+  room.closeSucceeded = false;
+  room.closeTxHash = null;
+  room.pendingReconciliation = false;
+  room.reconciliationApproved = false;
 
   const finalistRound = GAME_RULES.TOTAL_ROUNDS - 1;
 
@@ -221,9 +238,7 @@ room.closeTxHash = null;
     if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
       const activePlayers = getActivePlayers(roomId);
       const currentRoom = getRoom(roomId);
-      if (!currentRoom) {
-        throw new Error(`Room ${roomId} missing at final round`);
-      }
+      if (!currentRoom) throw new Error(`Room ${roomId} missing at final round`);
 
       const roundStateRef = currentRoom.rounds[roundId];
 
@@ -235,7 +250,6 @@ room.closeTxHash = null;
 
       const winner = currentRoom.players[winnerId];
 
-      // Winner is known now, but for web3 rooms the room is NOT truly ended yet.
       emit(SERVER_EVENTS.WINNER_DECLARED, {
         winnerId,
         winnerName: winner?.name ?? 'Unknown',
@@ -247,20 +261,52 @@ room.closeTxHash = null;
       const isWeb3Room = roomAfterWin?.paymentMode === 'web3';
 
       if (isWeb3Room) {
-        // Wait for the host to finish the full finalize workflow before ending the room
         await delay(5000);
         await waitForFinalizeWorkflowComplete(roomId);
-      } else {
-        // Web2 behaviour unchanged
-        await delay(62000);
+      }
+      // Web2: do NOT delay here — the client drives timing via the winner view.
+      // PLAYERS_DISMISSED is sent after a long grace period as a safety net only.
+
+      // ── Save stats to DB (fire-and-forget, non-fatal) ────────────────────
+      const roomForStats = getRoom(roomId);
+      if (roomForStats) {
+        saveEliminationGameStats(roomForStats, winnerId).catch((err) =>
+          console.error('[Elimination] saveEliminationGameStats unhandled error:', err.message)
+        );
       }
 
+      // ── Mark room as ended in memory ─────────────────────────────────────
       endRoom(roomId, winnerId);
 
-      emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
+      // ── Set reconciliation flags ──────────────────────────────────────────
+      const roomForRec = getRoom(roomId);
+      if (roomForRec) {
+        roomForRec.pendingReconciliation = true;
+        roomForRec.reconciliationApproved = false;
+      }
 
-      await delay(3000);
-      deleteRoom(roomId);
+      // ── PLAYERS_DISMISSED: safety-net only ───────────────────────────────
+      // The client drives navigation — players leave via the winner/game_over
+      // auto-close, and the host clicks "Start Reconciliation" manually.
+      // This event fires after 10 minutes as a fallback for clients that are
+      // still connected but somehow haven't navigated away on their own.
+      // It does NOT fire immediately — do not reduce this delay.
+      delay(10 * 60 * 1000).then(() => {
+        const stillAlive = getRoom(roomId);
+        if (stillAlive) {
+          console.log(`[Elimination] Safety-net PLAYERS_DISMISSED firing for room ${roomId}`);
+          emit(SERVER_EVENTS.PLAYERS_DISMISSED, {
+            roomId,
+            reason: 'game_complete',
+            hostShouldReconcile: !!(roomForRec?.clubId),
+          });
+        }
+      });
+
+      // ── Wait for reconciliation (non-blocking — runs in background) ───────
+      waitForReconciliationOrTimeout(roomId).catch((err) =>
+        console.error('[Elimination] waitForReconciliationOrTimeout error:', err.message)
+      );
 
       return;
     }

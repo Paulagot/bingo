@@ -73,7 +73,7 @@ export async function createTicketAndStripeSession({
   const roomData = await getRoomConfig(roomId);
   if (!roomData) throw new Error('Room not found or not available for ticket purchase');
 
-  const { clubId, config } = roomData;
+  const { clubId, config, gameType } = roomData;
 
   // 2) Stripe readiness
   const stripeConn = await getReadyStripeForClub(clubId);
@@ -225,16 +225,20 @@ export async function createTicketAndStripeSession({
   const session = await stripe.checkout.sessions.create(
     {
       mode: 'payment',
-      expires_after: { minutes: CHECKOUT_EXPIRY_MINUTES }, // ✅ NEW
+      // ✅ NEW
       line_items: [
         {
           quantity: 1,
           price_data: {
             currency: currency.toLowerCase(),
             unit_amount: totalAmountCents,
-            product_data: {
-              name: isDonationRoom ? `Quiz Donation Ticket` : `Quiz Ticket`,
-            },
+           
+             product_data: {
+  name: isDonationRoom
+    ? `${roomData.gameType === 'elimination' ? 'Elimination' : 'Quiz'} Donation Ticket`
+    : `${roomData.gameType === 'elimination' ? 'Elimination' : 'Quiz'} Ticket`,
+},
+            
           },
         },
       ],

@@ -312,31 +312,23 @@ export async function getAdjustmentTotals(roomId) {
   return totals;
 }
 
-export async function replaceAdjustments(roomId, clubId, adjustments) {
+export async function replaceAdjustments(roomId, clubId, adjustments, reconciliationId) {
   await connection.execute(`DELETE FROM ${ADJUSTMENTS_TABLE} WHERE room_id = ?`, [roomId]);
-
   if (!adjustments || adjustments.length === 0) return true;
 
   const sql = `
     INSERT INTO ${ADJUSTMENTS_TABLE} (
-      room_id, club_id, ts, adjustment_type, amount, currency,
+      room_id, club_id, reconciliation_id, ts, adjustment_type, amount, currency,
       payment_method, reason_code, payer_id, note, created_by,
       prize_award_id, prize_metadata
     ) VALUES ?
   `;
 
   const values = adjustments.map(adj => [
-    roomId,
-    clubId,
-    new Date(adj.ts),
-    adj.type,
-    adj.amount,
-    adj.currency || 'EUR',
-    adj.method    || null,
-    adj.reasonCode || null,
-    adj.payerId   || null,
-    adj.note      || null,
-    adj.createdBy,
+    roomId, clubId, reconciliationId || null,
+    new Date(adj.ts), adj.type, adj.amount, adj.currency || 'EUR',
+    adj.method || null, adj.reasonCode || null, adj.payerId || null,
+    adj.note || null, adj.createdBy,
     adj.meta?.prizeAwardId || null,
     adj.meta ? JSON.stringify(adj.meta) : null,
   ]);
@@ -425,7 +417,7 @@ export async function saveCompleteReconciliation(reconciliationData) {
       prizeAwards,
     });
 
-  await replaceAdjustments(roomId, clubId, adjustments);
+  await replaceAdjustments(roomId, clubId, adjustments, reconciliationId);
 
     // Stamp confirmed payment ledger rows
     await stampReconciliationOnLedger(

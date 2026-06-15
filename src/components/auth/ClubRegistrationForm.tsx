@@ -1,692 +1,442 @@
 // client/src/components/auth/ClubRegistrationForm.tsx
 import React, { useState, useCallback } from 'react';
 import {
-  Users,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  CheckCircle,
-  AlertCircle,
-  Sparkles
+  Users, User, Mail, Lock, Eye, EyeOff,
+  CheckCircle, AlertCircle, DollarSign,
 } from 'lucide-react';
 import { useAuth, useAuthUI } from '@/features/auth';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import CurrencySelect from '../mgtsystem/shared/CurrencySelect';
+import { currencyISO } from '@/services/currency';
 
 interface ClubRegisterFormProps {
   onSwitchToLogin?: () => void;
 }
 
-/* -----------------------------------------------------------
-   FIXED INPUT FIELD (TS Strict + exactOptionalPropertyTypes)
------------------------------------------------------------- */
+// ── InputField ────────────────────────────────────────────────────────────────
 interface InputFieldProps {
-  label: string;
-  name: string;
-  type?: string;
-  icon: any;
-  placeholder: string;
-  autoComplete?: string | undefined;
-  showToggle?: boolean | undefined;
-  showPassword?: boolean | undefined;
-  onToggleShow?: (() => void) | undefined;
-  value: string;
+  label: string; name: string; type?: string; icon: React.ElementType;
+  placeholder: string; autoComplete?: string; showToggle?: boolean;
+  showPassword?: boolean; onToggleShow?: () => void; value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onBlur: () => void;
-  error?: string | undefined;
-  touched?: boolean | undefined;
-  disabled?: boolean | undefined;
+  onBlur: () => void; error?: string; touched?: boolean; disabled?: boolean;
 }
 
-const InputField = React.memo(
-  ({
-    label,
-    name,
-    type = 'text',
-    icon: Icon,
-    placeholder,
-    autoComplete,
-    showToggle = false,
-    showPassword: isPasswordVisible = false,
-    onToggleShow,
-    value,
-    onChange,
-    onBlur,
-    error,
-    touched,
-    disabled
-  }: InputFieldProps) => (
-    <div>
-      <label
-        htmlFor={name}
-        className="block text-sm font-bold text-indigo-900 mb-2"
-      >
-        {label} <span className="text-red-500">*</span>
-      </label>
+const inputBase = (hasError?: boolean) =>
+  `w-full rounded-lg border pl-10 pr-4 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-[#157f85] focus:border-transparent hover:border-[#b8c6b0] disabled:opacity-50 disabled:cursor-not-allowed text-[#102532] placeholder:text-[#8a9bab] bg-white ${
+    hasError ? 'border-[#e9574f] bg-red-50' : 'border-[#dce1df]'
+  }`;
 
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <Icon className="h-5 w-5 text-indigo-800/40" />
-        </div>
-
-        <input
-          type={showToggle ? (isPasswordVisible ? 'text' : 'password') : type}
-          id={name}
-          name={name}
-          autoComplete={autoComplete}
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          placeholder={placeholder}
-          disabled={disabled}
-          className={`w-full rounded-xl border ${
-            error && touched ? 'border-red-300' : 'border-gray-200'
-          } bg-white pl-12 ${showToggle ? 'pr-12' : 'pr-4'} py-3 text-indigo-900 placeholder:text-indigo-800/40 shadow-sm transition-all duration-300
-          focus:outline-none focus:ring-2 ${
-            error && touched
-              ? 'focus:border-red-500 focus:ring-red-500/20'
-              : 'focus:border-indigo-500 focus:ring-indigo-500/20'
-          } hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed`}
-        />
-
-        {showToggle && onToggleShow && (
-          <button
-            type="button"
-            onClick={onToggleShow}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-800/60 hover:text-indigo-900 transition-colors"
-            tabIndex={-1}
-          >
-            {isPasswordVisible ? (
-              <EyeOff className="h-5 w-5" />
-            ) : (
-              <Eye className="h-5 w-5" />
-            )}
-          </button>
-        )}
+const InputField = React.memo(({
+  label, name, type = 'text', icon: Icon, placeholder, autoComplete,
+  showToggle = false, showPassword: isPasswordVisible = false,
+  onToggleShow, value, onChange, onBlur, error, touched, disabled,
+}: InputFieldProps) => (
+  <div>
+    <label htmlFor={name} className="block text-sm font-semibold mb-1.5" style={{ color: '#102532' }}>
+      {label} <span style={{ color: '#e9574f' }}>*</span>
+    </label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Icon className="h-4 w-4" style={{ color: '#8a9bab' }} />
       </div>
-
-      {error && touched && (
-        <p className="mt-2 flex items-center text-sm text-red-600">
-          <AlertCircle className="mr-1.5 h-4 w-4" />
-          {error}
-        </p>
+      <input
+        type={showToggle ? (isPasswordVisible ? 'text' : 'password') : type}
+        id={name} name={name} autoComplete={autoComplete}
+        value={value} onChange={onChange} onBlur={onBlur}
+        placeholder={placeholder} disabled={disabled}
+        className={`${inputBase(!!(error && touched))} ${showToggle ? 'pr-10' : ''}`}
+      />
+      {showToggle && onToggleShow && (
+        <button type="button" onClick={onToggleShow}
+          className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+          style={{ color: '#8a9bab' }} tabIndex={-1}>
+          {isPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
       )}
     </div>
-  )
-);
+    {error && touched && (
+      <p className="mt-1.5 flex items-center gap-1 text-xs" style={{ color: '#e9574f' }}>
+        <AlertCircle className="h-3 w-3 flex-shrink-0" />{error}
+      </p>
+    )}
+  </div>
+));
 
-/* -----------------------------------------------------------
-   FIXED GDPR CHECKBOX
------------------------------------------------------------- */
+// ── GDPRCheckbox ──────────────────────────────────────────────────────────────
 interface GDPRCheckboxProps {
-  id: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  required?: boolean | undefined;
-  error?: string | undefined;
-  children: React.ReactNode;
+  id: string; checked: boolean; onChange: (checked: boolean) => void;
+  required?: boolean; error?: string; children: React.ReactNode;
 }
 
-const GDPRCheckbox = React.memo(
-  ({ id, checked, onChange, required, error, children }: GDPRCheckboxProps) => (
-    <div className="space-y-1">
-      <div className="flex items-start space-x-3">
-        <div className="flex h-5 items-center pt-0.5">
-          <input
-            id={id}
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => onChange(e.target.checked)}
-            className={`h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 ${
-              error ? 'border-red-300' : ''
-            }`}
-          />
-        </div>
-
-        <label
-          htmlFor={id}
-          className={`text-sm leading-relaxed ${
-            error ? 'text-red-600' : 'text-indigo-800/70'
-          }`}
-        >
-          {children}
-          {required && <span className="ml-1 text-red-500">*</span>}
-        </label>
+const GDPRCheckbox = React.memo(({ id, checked, onChange, required, error, children }: GDPRCheckboxProps) => (
+  <div className="space-y-1">
+    <div className="flex items-start gap-3">
+      <div className="flex h-5 items-center pt-0.5 flex-shrink-0">
+        <input id={id} type="checkbox" checked={checked}
+          onChange={e => onChange(e.target.checked)}
+          className={`h-4 w-4 rounded transition ${error ? 'border-red-300' : 'border-[#dce1df]'}`}
+          style={{ accentColor: '#157f85' }} />
       </div>
-
-      {error && (
-        <p className="ml-7 flex items-center text-sm text-red-600">
-          <AlertCircle className="mr-1.5 h-4 w-4" />
-          {error}
-        </p>
-      )}
+      <label htmlFor={id} className="text-sm leading-relaxed"
+        style={{ color: error ? '#dc2626' : '#52636f' }}>
+        {children}
+        {required && <span className="ml-1" style={{ color: '#e9574f' }}>*</span>}
+      </label>
     </div>
-  )
+    {error && (
+      <p className="ml-7 flex items-center gap-1 text-xs" style={{ color: '#e9574f' }}>
+        <AlertCircle className="h-3 w-3" />{error}
+      </p>
+    )}
+  </div>
+));
+
+// ── SuccessOverlay ────────────────────────────────────────────────────────────
+const SuccessOverlay = ({ visible }: { visible: boolean }) => {
+  if (!visible) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(16,37,50,0.55)', backdropFilter: 'blur(2px)' }}>
+      <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-8 shadow-2xl text-center"
+        style={{ border: '1px solid #dce1df' }}>
+        <div className="inline-flex h-16 w-16 items-center justify-center rounded-full mb-4"
+          style={{ background: '#157f85' }}>
+          <CheckCircle className="h-8 w-8 text-white" />
+        </div>
+        <h3 className="text-xl font-bold mb-2" style={{ color: '#102532' }}>You're all set! 🎉</h3>
+        <p className="text-sm mb-6" style={{ color: '#52636f' }}>
+          Your club account has been created. Redirecting you to login…
+        </p>
+        <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: '#f1f0ee' }}>
+          <div className="h-1.5 rounded-full" style={{ background: '#157f85', animation: 'drainBar 2.5s linear forwards' }} />
+        </div>
+        <style>{`@keyframes drainBar { from { width: 100%; } to { width: 0%; } }`}</style>
+      </div>
+    </div>
+  );
+};
+
+// ── Section wrapper ───────────────────────────────────────────────────────────
+const Section: React.FC<{ title: string; children: React.ReactNode; first?: boolean }> = ({ title, children, first }) => (
+  <div className={`space-y-4 ${first ? '' : 'border-t pt-5'}`} style={{ borderColor: '#f1f0ee' }}>
+    <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: '#8a9bab' }}>{title}</h3>
+    {children}
+  </div>
 );
 
-/* -----------------------------------------------------------
-   MAIN COMPONENT
------------------------------------------------------------- */
-export default function ClubRegisterForm({
-  onSwitchToLogin
-}: ClubRegisterFormProps) {
+// ── Main component ────────────────────────────────────────────────────────────
+interface RegisterPayload {
+  clubName: string; personName: string; email: string; password: string;
+  reportingCurrency: string; gdprConsent: boolean;
+  privacyPolicyAccepted: boolean; marketingConsent: boolean;
+}
+
+export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormProps) {
   const { register } = useAuth();
-  const {
-    isLoading,
-    error,
-    successMessage,
-    clearError,
-    clearSuccessMessage
-  } = useAuthUI();
+  const { isLoading, error, successMessage, clearError, clearSuccessMessage } = useAuthUI();
   const location = useLocation();
-  const navigate = useNavigate();
+  const detectedCurrency = currencyISO();
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    clubName: '', personName: '', email: '', password: '', confirmPassword: '',
   });
-
-  const [gdprConsent, setGdprConsent] = useState(false);
+  const [reportingCurrency, setReportingCurrency] = useState<string>(detectedCurrency);
+  const [gdprConsent,           setGdprConsent]           = useState(false);
   const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [marketingConsent,      setMarketingConsent]      = useState(false);
+  const [showPassword,          setShowPassword]          = useState(false);
+  const [showConfirmPassword,   setShowConfirmPassword]   = useState(false);
+  const [errors,  setErrors]  = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  /* ---------- INPUT HANDLER ---------- */
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, value } = e.target;
-      setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => { const c = { ...prev }; delete c[name]; return c; });
+    if (error) clearError();
+    if (successMessage) clearSuccessMessage();
+  }, [errors, error, clearError, successMessage, clearSuccessMessage]);
 
-      if (errors[name]) {
-        setErrors((prev) => {
-          const copy = { ...prev };
-          delete copy[name];
-          return copy;
-        });
-      }
+  const handleGdprConsentChange = useCallback((checked: boolean) => {
+    setGdprConsent(checked);
+    if (errors.gdprConsent) setErrors(prev => { const c = { ...prev }; delete c.gdprConsent; return c; });
+  }, [errors.gdprConsent]);
 
-      if (error) clearError();
-      if (successMessage) clearSuccessMessage();
-    },
-    [errors, error, clearError, successMessage, clearSuccessMessage]
-  );
+  const handlePrivacyPolicyChange = useCallback((checked: boolean) => {
+    setPrivacyPolicyAccepted(checked);
+    if (errors.privacyPolicy) setErrors(prev => { const c = { ...prev }; delete c.privacyPolicy; return c; });
+  }, [errors.privacyPolicy]);
 
-  /* ---------- CONSENT HANDLERS ---------- */
-  const handleGdprConsentChange = useCallback(
-    (checked: boolean) => {
-      setGdprConsent(checked);
-      if (errors.gdprConsent) {
-        setErrors((prev) => {
-          const copy = { ...prev };
-          delete copy.gdprConsent;
-          return copy;
-        });
-      }
-    },
-    [errors.gdprConsent]
-  );
-
-  const handlePrivacyPolicyChange = useCallback(
-    (checked: boolean) => {
-      setPrivacyPolicyAccepted(checked);
-      if (errors.privacyPolicy) {
-        setErrors((prev) => {
-          const copy = { ...prev };
-          delete copy.privacyPolicy;
-          return copy;
-        });
-      }
-    },
-    [errors.privacyPolicy]
-  );
-
-  /* ---------- VALIDATION ---------- */
-  const validateField = useCallback(
-    (field: string, currentFormData = formData) => {
-      const out: Record<string, string> = {};
-
-      switch (field) {
-        case 'name':
-          if (!currentFormData.name.trim())
-            out.name = 'Club name is required';
-          else if (currentFormData.name.trim().length < 2)
-            out.name = 'Club name must be at least 2 characters';
-          break;
-
-        case 'email':
-          if (!currentFormData.email)
-            out.email = 'Email is required';
-          else if (
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentFormData.email)
-          )
-            out.email = 'Please enter a valid email address';
-          break;
-
-        case 'password':
-          if (!currentFormData.password)
-            out.password = 'Password is required';
-          else if (currentFormData.password.length < 8)
-            out.password = 'Password must be at least 8 characters';
-          else if (
-            !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(
-              currentFormData.password
-            )
-          )
-            out.password =
-              'Password must contain uppercase, lowercase, and number';
-          break;
-
-        case 'confirmPassword':
-          if (!currentFormData.confirmPassword)
-            out.confirmPassword = 'Please confirm your password';
-          else if (
-            currentFormData.password !== currentFormData.confirmPassword
-          )
-            out.confirmPassword = 'Passwords do not match';
-          break;
-      }
-      return out;
-    },
-    [formData]
-  );
+  const validateField = useCallback((field: string, data = formData): Record<string, string> => {
+    const out: Record<string, string> = {};
+    switch (field) {
+      case 'clubName':
+        if (!data.clubName.trim()) out.clubName = 'Club name is required';
+        else if (data.clubName.trim().length < 2) out.clubName = 'Club name must be at least 2 characters';
+        break;
+      case 'personName':
+        if (!data.personName.trim()) out.personName = 'Your name is required';
+        else if (data.personName.trim().length < 2) out.personName = 'Name must be at least 2 characters';
+        break;
+      case 'email':
+        if (!data.email) out.email = 'Email is required';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) out.email = 'Please enter a valid email address';
+        break;
+      case 'password':
+        if (!data.password) out.password = 'Password is required';
+        else if (data.password.length < 8) out.password = 'Password must be at least 8 characters';
+        else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(data.password)) out.password = 'Password must contain uppercase, lowercase, and a number';
+        break;
+      case 'confirmPassword':
+        if (!data.confirmPassword) out.confirmPassword = 'Please confirm your password';
+        else if (data.password !== data.confirmPassword) out.confirmPassword = 'Passwords do not match';
+        break;
+    }
+    return out;
+  }, [formData]);
 
   const createBlurHandler = (field: string) => () => {
-    setTouched((prev) => ({ ...prev, [field]: true }));
-    const fieldErrors = validateField(field, formData);
-    setErrors((prev) => ({ ...prev, ...fieldErrors }));
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(prev => ({ ...prev, ...validateField(field, formData) }));
   };
 
-  const isFormValid = () => {
-    const hasAll =
-      formData.name.trim() &&
-      formData.email.trim() &&
-      formData.password &&
-      formData.confirmPassword;
-
-    const passwordsMatch =
-      formData.password === formData.confirmPassword;
-
-    const passwordValid =
-      formData.password.length >= 8 &&
-      /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password);
-
-    const emailValid =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
-
-    const consents = gdprConsent && privacyPolicyAccepted;
-
-    return (
-      hasAll && passwordsMatch && passwordValid && emailValid && consents
-    );
-  };
-
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const allErrors: Record<string, string> = {};
-
-    ['name', 'email', 'password', 'confirmPassword'].forEach((field) =>
-      Object.assign(allErrors, validateField(field))
-    );
-
-    if (!gdprConsent)
-      allErrors.gdprConsent = 'You must consent to data processing';
-
-    if (!privacyPolicyAccepted)
-      allErrors.privacyPolicy =
-        'You must accept the privacy policy';
-
+    ['clubName', 'personName', 'email', 'password', 'confirmPassword'].forEach(f => Object.assign(allErrors, validateField(f)));
+    if (!gdprConsent) allErrors.gdprConsent = 'You must consent to data processing';
+    if (!privacyPolicyAccepted) allErrors.privacyPolicy = 'You must accept the privacy policy';
     setErrors(allErrors);
     return Object.keys(allErrors).length === 0;
   };
 
-  /* ---------- SUBMIT ---------- */
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const isFormValid = (): boolean => {
+    const { clubName, personName, email, password, confirmPassword } = formData;
+    return Boolean(
+      clubName.trim() && personName.trim() && email.trim() && password && confirmPassword &&
+      password === confirmPassword && password.length >= 8 &&
+      /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password) &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+      gdprConsent && privacyPolicyAccepted
+    );
+  };
+
+  const getPasswordStrength = (): number => {
+    let s = 0;
+    if (formData.password.length >= 8)           s++;
+    if (/[a-z]/.test(formData.password))         s++;
+    if (/[A-Z]/.test(formData.password))         s++;
+    if (/\d/.test(formData.password))            s++;
+    if (/[^A-Za-z0-9]/.test(formData.password)) s++;
+    return s;
+  };
+
+  const strengthMeta = () => {
+    const s = getPasswordStrength();
+    if (s < 2) return { text: 'Weak',   color: '#e9574f', bar: '#e9574f' };
+    if (s < 4) return { text: 'Medium', color: '#d97706', bar: '#f59e0b' };
+    return       { text: 'Strong', color: '#16a34a', bar: '#22c55e' };
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isLoading || !validateForm()) return;
-
     try {
-      const result = await register({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        gdprConsent,
-        privacyPolicyAccepted,
-        marketingConsent
-      });
-
+      const payload: RegisterPayload = {
+        clubName: formData.clubName.trim(), personName: formData.personName.trim(),
+        email: formData.email.trim(), password: formData.password,
+        reportingCurrency, gdprConsent, privacyPolicyAccepted, marketingConsent,
+      };
+      const result = await register(payload);
       if (result.success) {
-        const params = new URLSearchParams(location.search);
-        const returnTo =
-          params.get('returnTo') || '/quiz/eventdashboard';
-
-        setTimeout(
-          () =>
-            navigate(
-              `/auth?mode=login&returnTo=${encodeURIComponent(returnTo)}`,
-              { replace: true }
-            ),
-          2000
-        );
+        setShowSuccess(true);
+        const params   = new URLSearchParams(location.search);
+        const returnTo = params.get('returnTo') || '/quiz/eventdashboard';
+        setTimeout(() => { window.location.href = `/auth?mode=login&returnTo=${encodeURIComponent(returnTo)}`; }, 2500);
       }
     } catch (err) {
       console.error('Registration failed:', err);
     }
   };
 
-  /* ---------- PASSWORD STRENGTH ---------- */
-  const getPasswordStrength = () => {
-    let score = 0;
-    if (formData.password.length >= 8) score++;
-    if (/[a-z]/.test(formData.password)) score++;
-    if (/[A-Z]/.test(formData.password)) score++;
-    if (/\d/.test(formData.password)) score++;
-    if (/[^A-Za-z0-9]/.test(formData.password)) score++;
-    return score;
-  };
-
-  const getPasswordStrengthText = () => {
-    const s = getPasswordStrength();
-    if (s < 2) return { text: 'Weak', color: 'text-red-600' };
-    if (s < 4) return { text: 'Medium', color: 'text-yellow-600' };
-    return { text: 'Strong', color: 'text-green-600' };
-  };
-
-  /* ---------- RENDER ---------- */
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-      <div className="w-full max-w-xl">
-        <div className="relative bg-white rounded-2xl p-8 md:p-10 shadow-lg border border-gray-100">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-40 rounded-2xl" />
+    <>
+      <SuccessOverlay visible={showSuccess} />
 
-          <div className="relative z-10">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-indigo-700 text-sm font-medium mb-4">
-                <Sparkles className="h-4 w-4" /> Fundraising Platform
-              </span>
+      <div className="flex min-h-screen items-center justify-center p-4"
+        style={{ background: '#f6f1e8' }}>
+        <div className="w-full max-w-xl">
 
-              <div className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg mb-4">
-                <Users className="h-8 w-8 text-white" />
-              </div>
-
-              <h2 className="text-3xl font-bold text-indigo-900 mb-3">
-                Join FundRaisely
-              </h2>
-
-              <p className="text-indigo-800/70 leading-relaxed">
-                Register your club, community group or charity and
-                start fundraising today AND be added to waitlist for our
-                founding partners program!
-              </p>
+          {/* Brand mark */}
+          <div className="text-center mb-6">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl shadow-sm mb-3"
+              style={{ background: '#157f85' }}>
+              <Users className="h-6 w-6 text-white" />
             </div>
+            <h1 className="text-2xl font-bold mb-1" style={{ color: '#102532' }}>Join Fundraisely</h1>
+            <p className="text-sm" style={{ color: '#52636f' }}>
+              Register your club and start fundraising today
+            </p>
+          </div>
 
-            {/* Success */}
-            {successMessage && (
-              <div className="mb-6 rounded-2xl border border-gray-100 bg-gradient-to-br from-green-50 to-teal-50 p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-teal-500 shadow-lg flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="pt-1">
-                    <p className="text-sm text-indigo-900 font-medium">
-                      {successMessage}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+          {/* Card */}
+          <div className="rounded-xl shadow-sm p-8" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
 
             {/* Error */}
             {error && (
-              <div className="mb-6 rounded-2xl border border-gray-100 bg-gradient-to-br from-orange-50 to-red-50 p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-red-500 shadow-lg flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="pt-1">
-                    <p className="text-sm text-indigo-900 font-medium">
-                      {error}
-                    </p>
-                  </div>
-                </div>
+              <div className="mb-5 flex items-start gap-3 rounded-lg border px-4 py-3"
+                style={{ background: '#fef2f2', borderColor: '#fca5a5' }}>
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-500" />
+                <p className="text-sm" style={{ color: '#dc2626' }}>{error}</p>
               </div>
             )}
 
-            {/* FORM */}
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-              <InputField
-                label="Club Name"
-                name="name"
-                icon={Users}
-                placeholder="e.g., Greenfield Community Club"
-                autoComplete="organization"
-                value={formData.name}
-                onChange={handleInputChange}
-                onBlur={createBlurHandler('name')}
-                error={errors.name}
-                touched={touched.name}
-                disabled={isLoading}
-              />
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
 
-              <InputField
-                label="Email Address"
-                name="email"
-                type="email"
-                icon={Mail}
-                placeholder="club@example.com"
-                autoComplete="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                onBlur={createBlurHandler('email')}
-                error={errors.email}
-                touched={touched.email}
-                disabled={isLoading}
-              />
+              {/* ── About your club ── */}
+              <Section title="About your club" first>
+                <InputField label="Club / Organisation Name" name="clubName" icon={Users}
+                  placeholder="e.g. Greenfield Community Club" autoComplete="organization"
+                  value={formData.clubName} onChange={handleInputChange}
+                  onBlur={createBlurHandler('clubName')} error={errors.clubName}
+                  touched={touched.clubName} disabled={isLoading} />
 
-              {/* Password */}
-              <div>
-                <InputField
-                  label="Password"
-                  name="password"
-                  icon={Lock}
-                  placeholder="Create a strong password"
-                  autoComplete="new-password"
-                  showToggle={true}
-                  showPassword={showPassword}
-                  onToggleShow={() => setShowPassword((v) => !v)}
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  onBlur={createBlurHandler('password')}
-                  error={errors.password}
-                  touched={touched.password}
-                  disabled={isLoading}
-                />
-
-                {formData.password && (
-                  <div className="mt-3">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <span className="text-xs text-indigo-800/70">
-                        Password strength:
-                      </span>
-                      <span
-                        className={`text-xs font-bold ${
-                          getPasswordStrengthText().color
-                        }`}
-                      >
-                        {getPasswordStrengthText().text}
-                      </span>
-                    </div>
-
-                    <div className="h-1.5 w-full rounded-full bg-gray-200">
-                      <div
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          getPasswordStrength() < 2
-                            ? 'bg-red-500'
-                            : getPasswordStrength() < 4
-                            ? 'bg-yellow-500'
-                            : 'bg-green-500'
-                        }`}
-                        style={{
-                          width: `${(getPasswordStrength() / 5) * 100}%`
-                        }}
-                      ></div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5" style={{ color: '#102532' }}>
+                    Reporting Currency <span style={{ color: '#e9574f' }}>*</span>
+                  </label>
+                  <div className="relative">
+                   
+                    <div className="pl-9">
+                      <CurrencySelect id="reporting-currency" value={reportingCurrency}
+                        onChange={setReportingCurrency} disabled={isLoading} />
                     </div>
                   </div>
-                )}
-              </div>
+                  <p className="mt-1.5 text-xs" style={{ color: '#8a9bab' }}>
+                    Pre-selected based on your region — changeable any time in settings.
+                  </p>
+                </div>
+              </Section>
 
-              {/* Confirm Password */}
-              <InputField
-                label="Confirm Password"
-                name="confirmPassword"
-                icon={Lock}
-                placeholder="Confirm your password"
-                autoComplete="new-password"
-                showToggle={true}
-                showPassword={showConfirmPassword}
-                onToggleShow={() =>
-                  setShowConfirmPassword((v) => !v)
-                }
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                onBlur={createBlurHandler('confirmPassword')}
-                error={errors.confirmPassword}
-                touched={touched.confirmPassword}
-                disabled={isLoading}
-              />
+              {/* ── Your account ── */}
+              <Section title="Your account">
+                <InputField label="Your Full Name" name="personName" icon={User}
+                  placeholder="e.g. Jane Smith" autoComplete="name"
+                  value={formData.personName} onChange={handleInputChange}
+                  onBlur={createBlurHandler('personName')} error={errors.personName}
+                  touched={touched.personName} disabled={isLoading} />
 
-              {/* Privacy & Consent */}
-              <div className="space-y-4 border-t border-gray-200 pt-5">
-                <h3 className="text-sm font-bold text-indigo-900">
-                  Privacy & Consent
-                </h3>
+                <InputField label="Email Address" name="email" type="email" icon={Mail}
+                  placeholder="you@example.com" autoComplete="email"
+                  value={formData.email} onChange={handleInputChange}
+                  onBlur={createBlurHandler('email')} error={errors.email}
+                  touched={touched.email} disabled={isLoading} />
 
-                <GDPRCheckbox
-                  id="gdpr-consent"
-                  checked={gdprConsent}
-                  onChange={handleGdprConsentChange}
-                  required={true}
-                  error={errors.gdprConsent}
-                >
-                  I consent to the processing of my personal data (name,
-                  email, and club information) for the purpose of
-                  creating and managing my FundRaisely account.
+                {/* Password + strength */}
+                <div>
+                  <InputField label="Password" name="password" icon={Lock}
+                    placeholder="Create a strong password" autoComplete="new-password"
+                    showToggle showPassword={showPassword}
+                    onToggleShow={() => setShowPassword(v => !v)}
+                    value={formData.password} onChange={handleInputChange}
+                    onBlur={createBlurHandler('password')} error={errors.password}
+                    touched={touched.password} disabled={isLoading} />
+                  {formData.password && (
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs" style={{ color: '#8a9bab' }}>Strength:</span>
+                        <span className="text-xs font-semibold" style={{ color: strengthMeta().color }}>
+                          {strengthMeta().text}
+                        </span>
+                      </div>
+                      <div className="h-1 w-full rounded-full" style={{ background: '#f1f0ee' }}>
+                        <div className="h-1 rounded-full transition-all duration-300"
+                          style={{ width: `${(getPasswordStrength() / 5) * 100}%`, background: strengthMeta().bar }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <InputField label="Confirm Password" name="confirmPassword" icon={Lock}
+                  placeholder="Confirm your password" autoComplete="new-password"
+                  showToggle showPassword={showConfirmPassword}
+                  onToggleShow={() => setShowConfirmPassword(v => !v)}
+                  value={formData.confirmPassword} onChange={handleInputChange}
+                  onBlur={createBlurHandler('confirmPassword')} error={errors.confirmPassword}
+                  touched={touched.confirmPassword} disabled={isLoading} />
+              </Section>
+
+              {/* ── Privacy & Consent ── */}
+              <Section title="Privacy & Consent">
+                <GDPRCheckbox id="gdpr-consent" checked={gdprConsent}
+                  onChange={handleGdprConsentChange} required error={errors.gdprConsent}>
+                  I consent to the processing of my personal data (name, email, and club
+                  information) for the purpose of creating and managing my Fundraisely account.
                 </GDPRCheckbox>
-
-                <GDPRCheckbox
-                  id="privacy-policy"
-                  checked={privacyPolicyAccepted}
-                  onChange={handlePrivacyPolicyChange}
-                  required={true}
-                  error={errors.privacyPolicy}
-                >
+                <GDPRCheckbox id="privacy-policy" checked={privacyPolicyAccepted}
+                  onChange={handlePrivacyPolicyChange} required error={errors.privacyPolicy}>
                   I have read and agree to the{' '}
-                  <a
-                    href="/privacy-policy"
-                    target="_blank"
-                    className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
-                  >
-                    Privacy Policy
-                  </a>{' '}
+                  <a href="/privacy-policy" target="_blank" className="font-semibold transition-colors hover:opacity-80"
+                    style={{ color: '#157f85' }}>Privacy Policy</a>{' '}
                   and{' '}
-                  <a
-                    href="/terms"
-                    target="_blank"
-                    className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
-                  >
-                    Terms of Service
-                  </a>
-                  .
+                  <a href="/terms" target="_blank" className="font-semibold transition-colors hover:opacity-80"
+                    style={{ color: '#157f85' }}>Terms of Service</a>.
                 </GDPRCheckbox>
-
-                <GDPRCheckbox
-                  id="marketing-consent"
-                  checked={marketingConsent}
-                  onChange={setMarketingConsent}
-                >
-                  I would like to receive updates about new features,
-                  fundraising tips, and promotional content via email.
-                  You can unsubscribe at any time.
+                <GDPRCheckbox id="marketing-consent" checked={marketingConsent}
+                  onChange={setMarketingConsent}>
+                  I'd like to receive updates about new features, fundraising tips, and
+                  promotional content via email. You can unsubscribe at any time.
                 </GDPRCheckbox>
-              </div>
+              </Section>
 
               {/* Submit */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isLoading || !isFormValid()}
-                  className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 w-full justify-center"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      <span>Creating Account...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Create Club Account</span>
-                      <CheckCircle className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
-                    </>
-                  )}
-                </button>
-              </div>
+              <button type="submit" disabled={isLoading || !isFormValid()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: '#157f85' }}>
+                {isLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Creating Account…
+                  </>
+                ) : (
+                  <><CheckCircle className="h-4 w-4" /> Create Club Account</>
+                )}
+              </button>
             </form>
 
-            {/* BENEFITS BOX */}
-            <div className="mt-6 rounded-xl border border-gray-200 bg-gradient-to-br from-green-50 to-teal-50 opacity-80 p-5">
-              <h3 className="text-sm font-bold text-indigo-900 mb-3">
-                What you get:
-              </h3>
-
-              <ul className="space-y-2 text-sm text-indigo-800/70">
-                <li className="flex items-center">
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-600 flex-shrink-0" />
-                  3 free quiz event credits to get started
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-600 flex-shrink-0" />
-                  Full selection of quiz templates or create your own
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-600 flex-shrink-0" />
-                  20 connected players/teams per event
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-600 flex-shrink-0" />
-                  Reconcile payments with ease and download audit-ready
-                  reports
-                </li>
+            {/* What you get */}
+            <div className="mt-6 rounded-xl p-4" style={{ background: '#f6f1e8', border: '1px solid #dce1df' }}>
+              <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#8a9bab' }}>What you get</h3>
+              <ul className="space-y-2">
+                {[
+                  '1 free credit for each activity type to get you started',
+                  'easy-to-use tools to manage ticket sales, check-ins and live scores',
+                  '20 connected players/teams per event',
+                  'Reconcile payments and download audit-ready reports',
+                  'Event Impact Dashboard to showcase your fundraising success',
+                ].map(item => (
+                  <li key={item} className="flex items-center gap-2 text-sm" style={{ color: '#52636f' }}>
+                    <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-600" />
+                    {item}
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Login Switch */}
             {onSwitchToLogin && (
-              <div className="mt-6 text-center">
-                <p className="text-indigo-800/70 text-sm">
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={onSwitchToLogin}
-                    className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors duration-300"
-                  >
-                    Sign in here
-                  </button>
-                </p>
-              </div>
+              <p className="mt-5 text-center text-sm" style={{ color: '#52636f' }}>
+                Already have an account?{' '}
+                <button type="button" onClick={onSwitchToLogin}
+                  className="font-semibold transition-colors hover:opacity-80"
+                  style={{ color: '#157f85' }}>
+                  Sign in here
+                </button>
+              </p>
             )}
           </div>
-
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/0 to-white/5 opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
         </div>
       </div>
-    </div>
+    </>
   );
 }

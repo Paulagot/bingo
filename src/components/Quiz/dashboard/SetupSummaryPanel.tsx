@@ -96,7 +96,8 @@ const SetupSummaryPanel: React.FC = () => {
   // }, [config]);
 
   // ✅ Early return AFTER all hooks are declared
-  if (!config || !config.hostName) {
+  if (!config || !config.roomId) {
+
     return (
       <div className="bg-gray-50 rounded-xl p-8 shadow-md">
         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">

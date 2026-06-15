@@ -41,7 +41,13 @@ export const ROUND_TYPE = {
 // Everything else derives from it automatically.
 export const GAME_RULES = {
   MIN_PLAYERS: 2,
+ 
+  // MAX_PLAYERS is the hard ceiling for web3 rooms only.
+  // Web2 rooms (scheduled via the management system) get their maxPlayers
+  // from plan entitlements — this value is never used for web2 games.
+  // Do NOT lower this to match a plan tier — it would break web3 rooms.
   MAX_PLAYERS: 200,
+ 
   TOTAL_ROUNDS: 8,              // ← change to 10 for a 10-round game
   FIRST_ELIMINATING_ROUND: 3,  // rounds 1 & 2 are always safe
 };
@@ -115,6 +121,7 @@ export const CLIENT_EVENTS = {
   SUBMIT_ANSWER: 'submit_round_answer',
   SUBMIT_START_PRESS: 'submit_time_estimation_start',  // ← time estimation START press
   RECONNECT_PLAYER: 'reconnect_elimination_player',
+
 };
 
 // ─── Socket Events: Server → Client ──────────────────────────────────────────
@@ -132,6 +139,8 @@ export const SERVER_EVENTS = {
   WINNER_DECLARED: 'elimination_winner_declared',
   ROOM_ENDED: 'elimination_room_ended',
   ERROR: 'elimination_error',
+   PLAYERS_DISMISSED:           'elimination_players_dismissed',
+   RECONCILIATION_APPROVED:     'elimination_reconciliation_approved'
 };
 
 // ─── Round Pool ───────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createRoom } from './services/eliminationApi';
-import { emitJoinRoom } from './services/eliminationSocket';
+import { emitHostJoin, emitJoinRoom } from './services/eliminationSocket';
 
 interface Props {
   onJoined: (roomId: string, playerId: string, name: string, isHost: boolean) => void;
@@ -41,6 +41,19 @@ export const EliminationLobbyPage: React.FC<Props> = ({ onJoined }) => {
     emitJoinRoom(roomCode.trim(), name.trim());
     // onJoined will be called when socket confirms via room_state
   };
+
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const roomId = params.get('roomId');
+  const hostId = params.get('hostId');
+  const mode   = params.get('mode');
+
+  if (roomId && hostId && mode === 'host') {
+    // Room already hydrated into socket server — just join it
+    emitHostJoin(roomId, hostId);
+    onJoined(roomId, hostId, 'Host', true);
+  }
+}, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6" style={styles.page}>

@@ -1469,7 +1469,7 @@ const PaymentReconciliationPanel: React.FC = () => {
         <div className={isLocked ? 'opacity-40' : ''}>
           <StepHeader
             stepNum={4}
-            title="Download & Complete"
+            title="Complete"
             status={step4Status}
             isLocked={isLocked}
           />

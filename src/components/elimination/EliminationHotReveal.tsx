@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ActiveRound, RoundResult } from './types/elimination';
 import { getRoundColour } from './utils/designTokens';
 import { formatScore, roundTypeLabel } from './utils/eliminationHelpers';
@@ -15,72 +15,90 @@ export const EliminationHostReveal: React.FC<Props> = ({
   activeRound, results, players, onContinue, autoAdvanceMs = 10000,
 }) => {
   const [countdown, setCountdown] = useState(Math.ceil(autoAdvanceMs / 1000));
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible]     = useState(false);
+
+  // Keep a stable ref to onContinue so the interval never needs to restart
+  // when the parent re-renders and passes a new function reference.
+  // This is the fix for "Cannot update a component while rendering a different component".
+  const onContinueRef = useRef(onContinue);
+  useEffect(() => {
+    onContinueRef.current = onContinue;
+  }, [onContinue]);
 
   const roundNumber = activeRound?.roundNumber ?? 0;
-  const rc = getRoundColour(roundNumber);
-  const playerMap = Object.fromEntries(players.map((p: any) => [p.playerId, p]));
+  const rc          = getRoundColour(roundNumber);
+  const playerMap   = Object.fromEntries(players.map((p: any) => [p.playerId, p]));
 
+  // Fade in
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 60);
     return () => clearTimeout(t);
   }, []);
 
+  // Auto-advance — empty dep array so interval is created exactly once.
+  // Uses onContinueRef so it always calls the latest version of onContinue.
   useEffect(() => {
     const interval = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1) { clearInterval(interval); onContinue(); return 0; }
-        return prev - 1;
+        const next = prev - 1;
+        if (next <= 0) {
+          clearInterval(interval);
+          // Schedule the callback outside the setState updater to avoid
+          // the "setState during render" warning.
+          setTimeout(() => onContinueRef.current(), 0);
+          return 0;
+        }
+        return next;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [onContinue]);
+  }, []); // ← no deps — interval created once, uses ref for callback
 
   const getCorrectAnswer = (reveal: any): string => {
     if (!reveal) return '—';
     switch (reveal.roundType) {
-      case 'true_centre': return `Centre: (${(reveal.trueCentre?.x * 100).toFixed(0)}%, ${(reveal.trueCentre?.y * 100).toFixed(0)}%)`;
-      case 'midpoint_split': return `Midpoint: (${(reveal.actualMidpoint?.x * 100).toFixed(0)}%, ${(reveal.actualMidpoint?.y * 100).toFixed(0)}%)`;
-      case 'stop_the_bar': return `Target: ${(reveal.targetPosition * 100).toFixed(1)}%`;
-      case 'draw_angle': return `${reveal.targetAngle}°`;
-      case 'quick_count': return `${reveal.actualCount} dots`;
-      case 'flash_maths': return `= ${reveal.actualSum}`;
-      case 'line_length': return `${(reveal.targetLength * 100).toFixed(0)}% length`;
-      case 'balance_point': return `${(reveal.centreOfMass * 100).toFixed(1)}% along beam`;
-      case 'flash_grid': return `${reveal.flashCells?.length} cells`;
-      case 'pattern_align': return `At (${(reveal.targetX * 100).toFixed(0)}%, ${(reveal.targetY * 100).toFixed(0)}%) · ${reveal.targetRotation}°`;
-      case 'sequence_gap': return `Missing: ${reveal.actualValue}`;
-      case 'colour_count': return `${reveal.actualCount} ${reveal.targetLabel} shapes`;
+      case 'true_centre':     return `Centre: (${(reveal.trueCentre?.x * 100).toFixed(0)}%, ${(reveal.trueCentre?.y * 100).toFixed(0)}%)`;
+      case 'midpoint_split':  return `Midpoint: (${(reveal.actualMidpoint?.x * 100).toFixed(0)}%, ${(reveal.actualMidpoint?.y * 100).toFixed(0)}%)`;
+      case 'stop_the_bar':    return `Target: ${(reveal.targetPosition * 100).toFixed(1)}%`;
+      case 'draw_angle':      return `${reveal.targetAngle}°`;
+      case 'quick_count':     return `${reveal.actualCount} dots`;
+      case 'flash_maths':     return `= ${reveal.actualSum}`;
+      case 'line_length':     return `${(reveal.targetLength * 100).toFixed(0)}% length`;
+      case 'balance_point':   return `${(reveal.centreOfMass * 100).toFixed(1)}% along beam`;
+      case 'flash_grid':      return `${reveal.flashCells?.length} cells`;
+      case 'pattern_align':   return `At (${(reveal.targetX * 100).toFixed(0)}%, ${(reveal.targetY * 100).toFixed(0)}%) · ${reveal.targetRotation}°`;
+      case 'sequence_gap':    return `Missing: ${reveal.actualValue}`;
+      case 'colour_count':    return `${reveal.actualCount} ${reveal.targetLabel} shapes`;
       case 'time_estimation': return `${((reveal.targetTimeMs ?? 0) / 1000).toFixed(1)}s`;
       case 'character_count': return `${reveal.actualCount}× '${reveal.targetCharacter}'`;
-      case 'reaction_tap': return reveal.earlyTap ? 'Early tap penalty' : `Target at (${(reveal.targetPosition?.x * 100).toFixed(0)}%, ${(reveal.targetPosition?.y * 100).toFixed(0)}%)`;
+      case 'reaction_tap':    return reveal.earlyTap ? 'Early tap penalty' : `Target at (${(reveal.targetPosition?.x * 100).toFixed(0)}%, ${(reveal.targetPosition?.y * 100).toFixed(0)}%)`;
       case 'moving_target_tap': return `Target at (${(reveal.targetPosition?.x * 100).toFixed(0)}%, ${(reveal.targetPosition?.y * 100).toFixed(0)}%)`;
-      case 'path_trace': return `Completion: ${((reveal.completionRatio ?? 0) * 100).toFixed(0)}% avg`;
-      default: return '—';
+      case 'path_trace':      return `Completion: ${((reveal.completionRatio ?? 0) * 100).toFixed(0)}% avg`;
+      default:                return '—';
     }
   };
 
   const getPlayerAnswer = (reveal: any): string => {
     if (!reveal) return 'No answer';
     switch (reveal.roundType) {
-      case 'true_centre': return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '—';
-      case 'midpoint_split': return reveal.playerMarker ? `(${(reveal.playerMarker.x * 100).toFixed(0)}%, ${(reveal.playerMarker.y * 100).toFixed(0)}%)` : '—';
-      case 'stop_the_bar': return reveal.playerStopPosition != null ? `${(reveal.playerStopPosition * 100).toFixed(1)}%` : '—';
-      case 'draw_angle': return reveal.playerAngle != null ? `${reveal.playerAngle}°` : '—';
-      case 'quick_count': return reveal.playerGuess != null ? String(reveal.playerGuess) : '—';
-      case 'flash_maths': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
-      case 'line_length': return reveal.playerLength != null ? `${(reveal.playerLength * 100).toFixed(0)}%` : '—';
-      case 'balance_point': return reveal.playerX != null ? `${(reveal.playerX * 100).toFixed(1)}%` : '—';
-      case 'flash_grid': return reveal.playerTaps ? `${reveal.playerTaps.length} tapped` : '—';
-      case 'pattern_align': return reveal.playerX != null ? `(${(reveal.playerX * 100).toFixed(0)}%, ${(reveal.playerY * 100).toFixed(0)}%) · ${reveal.playerRotation?.toFixed(0)}°` : '—';
-      case 'sequence_gap': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
-      case 'colour_count': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
+      case 'true_centre':     return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '—';
+      case 'midpoint_split':  return reveal.playerMarker ? `(${(reveal.playerMarker.x * 100).toFixed(0)}%, ${(reveal.playerMarker.y * 100).toFixed(0)}%)` : '—';
+      case 'stop_the_bar':    return reveal.playerStopPosition != null ? `${(reveal.playerStopPosition * 100).toFixed(1)}%` : '—';
+      case 'draw_angle':      return reveal.playerAngle != null ? `${reveal.playerAngle}°` : '—';
+      case 'quick_count':     return reveal.playerGuess != null ? String(reveal.playerGuess) : '—';
+      case 'flash_maths':     return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
+      case 'line_length':     return reveal.playerLength != null ? `${(reveal.playerLength * 100).toFixed(0)}%` : '—';
+      case 'balance_point':   return reveal.playerX != null ? `${(reveal.playerX * 100).toFixed(1)}%` : '—';
+      case 'flash_grid':      return reveal.playerTaps ? `${reveal.playerTaps.length} tapped` : '—';
+      case 'pattern_align':   return reveal.playerX != null ? `(${(reveal.playerX * 100).toFixed(0)}%, ${(reveal.playerY * 100).toFixed(0)}%) · ${reveal.playerRotation?.toFixed(0)}°` : '—';
+      case 'sequence_gap':    return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
+      case 'colour_count':    return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
       case 'time_estimation': return reveal.playerTimeMs != null ? `${(reveal.playerTimeMs / 1000).toFixed(1)}s` : '—';
       case 'character_count': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
-      case 'reaction_tap': return reveal.reactionMs != null && !isNaN(reveal.reactionMs) ? `${Math.max(0, Math.round(reveal.reactionMs))}ms` : reveal.earlyTap ? 'Early tap' : '—';
+      case 'reaction_tap':    return reveal.reactionMs != null && !isNaN(reveal.reactionMs) ? `${Math.max(0, Math.round(reveal.reactionMs))}ms` : reveal.earlyTap ? 'Early tap' : '—';
       case 'moving_target_tap': return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '—';
-      case 'path_trace': return reveal.completionRatio != null ? `${(reveal.completionRatio * 100).toFixed(0)}% complete` : '—';
-      default: return '—';
+      case 'path_trace':      return reveal.completionRatio != null ? `${(reveal.completionRatio * 100).toFixed(0)}% complete` : '—';
+      default:                return '—';
     }
   };
 
@@ -97,7 +115,6 @@ export const EliminationHostReveal: React.FC<Props> = ({
       transition: 'opacity 0.3s',
       overflowY: 'auto',
     }}>
-      {/* Centred content column */}
       <div style={{
         width: '100%',
         maxWidth: '680px',
@@ -149,19 +166,15 @@ export const EliminationHostReveal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Player results list — scrollable */}
+        {/* Player results list */}
         <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '0 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
+          flex: 1, overflowY: 'auto', padding: '0 20px',
+          display: 'flex', flexDirection: 'column', gap: '4px',
         }}>
           {results.map((r, i) => {
-            const name = playerMap[r.playerId]?.name ?? '—';
-            const answer = getPlayerAnswer(r.revealData);
-            const errorPct = r.revealData?.errorDistance != null
+            const name      = playerMap[r.playerId]?.name ?? '—';
+            const answer    = getPlayerAnswer(r.revealData);
+            const errorPct  = r.revealData?.errorDistance != null
               ? `${(r.revealData.errorDistance * 100).toFixed(1)}% off`
               : r.didSubmit ? '' : 'No answer';
 
@@ -216,10 +229,7 @@ export const EliminationHostReveal: React.FC<Props> = ({
         {/* Footer */}
         <div style={{
           padding: '16px 20px 0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
         }}>
           <button onClick={onContinue} style={{
             width: '100%', padding: '14px',

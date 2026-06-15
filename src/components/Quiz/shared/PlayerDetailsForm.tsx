@@ -20,6 +20,12 @@ interface PlayerDetailsFormProps {
   isDonationRoom?: boolean;
   /** When true: shows a two-column layout on desktop to avoid scrolling */
   wideLayout?: boolean;
+  /**
+   * When true: hides the player name field — ticketed events don't have a
+   * game leaderboard so a display name is irrelevant. playerName will be
+   * auto-filled from purchaserName before the ticket is created.
+   */
+  isTicketedEvent?: boolean;
 }
 
 const InputWithIcon: React.FC<{
@@ -72,6 +78,7 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
   entryFee = 0,
   isDonationRoom = false,
   wideLayout = false,
+  isTicketedEvent = false,
 }) => {
   const [touched, setTouched] = useState(false);
 
@@ -84,45 +91,6 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
     const email = formData.purchaserEmail?.trim() || '';
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }, [formData.purchaserEmail, mode]);
-
-  const fields = (
-    <div className="space-y-4">
-      {mode === 'ticket' && (
-        <>
-          <InputWithIcon
-            label="Full name"
-            required
-            icon={<User className="h-full w-full" />}
-            value={formData.purchaserName ?? ''}
-            placeholder="John Doe"
-            onChange={(v) => updateField('purchaserName', v)}
-          />
-          <InputWithIcon
-            label="Email"
-            required
-            icon={<Mail className="h-full w-full" />}
-            value={formData.purchaserEmail ?? ''}
-            placeholder="john@example.com"
-            type="email"
-            onChange={(v) => {
-              updateField('purchaserEmail', v);
-              setTouched(true);
-            }}
-            error={touched && !emailOk ? 'Please enter a valid email.' : undefined}
-          />
-        </>
-      )}
-      <InputWithIcon
-        label="Player name"
-        required
-        icon={<GamepadIcon className="h-full w-full" />}
-        value={formData.playerName ?? ''}
-        placeholder="The Quiz Master"
-        onChange={(v) => updateField('playerName', v)}
-        helper={mode === 'ticket' ? 'This shows on the leaderboard' : undefined}
-      />
-    </div>
-  );
 
   const summary = !isDonationRoom ? (
     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -143,11 +111,11 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
     </div>
   ) : null;
 
+  // ── Wide two-column layout (ticket mode, desktop) ─────────────────────────
   if (wideLayout && mode === 'ticket') {
-    // Desktop two-column: summary + fields side by side — no scroll needed
     return (
       <div className="space-y-4">
-        <div className="sm:grid sm:grid-cols-2 sm:gap-6">
+        <div className={`sm:grid sm:gap-6 ${isTicketedEvent ? 'sm:grid-cols-1 max-w-md' : 'sm:grid-cols-2'}`}>
           <div className="space-y-4">
             {summary}
             <InputWithIcon
@@ -172,46 +140,95 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
               error={touched && !emailOk ? 'Please enter a valid email.' : undefined}
             />
           </div>
-          <div className="mt-4 sm:mt-0 space-y-4">
-            <InputWithIcon
-              label="Player name"
-              required
-              icon={<GamepadIcon className="h-full w-full" />}
-              value={formData.playerName ?? ''}
-              placeholder="The Quiz Master"
-              onChange={(v) => updateField('playerName', v)}
-              helper="This shows on the leaderboard"
-            />
-          </div>
+
+          {/* Player name column — hidden for ticketed events */}
+          {!isTicketedEvent && (
+            <div className="mt-4 sm:mt-0 space-y-4">
+              <InputWithIcon
+                label="Player name"
+                required
+                icon={<GamepadIcon className="h-full w-full" />}
+                value={formData.playerName ?? ''}
+                placeholder="The Quiz Master"
+                onChange={(v) => updateField('playerName', v)}
+                helper="This shows on the leaderboard"
+              />
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
+  // ── Single-column layout ──────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       {summary}
-      {fields}
+      <div className="space-y-4">
+        {mode === 'ticket' && (
+          <>
+            <InputWithIcon
+              label="Full name"
+              required
+              icon={<User className="h-full w-full" />}
+              value={formData.purchaserName ?? ''}
+              placeholder="John Doe"
+              onChange={(v) => updateField('purchaserName', v)}
+            />
+            <InputWithIcon
+              label="Email"
+              required
+              icon={<Mail className="h-full w-full" />}
+              value={formData.purchaserEmail ?? ''}
+              placeholder="john@example.com"
+              type="email"
+              onChange={(v) => {
+                updateField('purchaserEmail', v);
+                setTouched(true);
+              }}
+              error={touched && !emailOk ? 'Please enter a valid email.' : undefined}
+            />
+          </>
+        )}
+
+        {/* Player name — hidden for ticketed events */}
+        {!isTicketedEvent && (
+          <InputWithIcon
+            label="Player name"
+            required
+            icon={<GamepadIcon className="h-full w-full" />}
+            value={formData.playerName ?? ''}
+            placeholder="The Quiz Master"
+            onChange={(v) => updateField('playerName', v)}
+            helper={mode === 'ticket' ? 'This shows on the leaderboard' : undefined}
+          />
+        )}
+      </div>
     </div>
   );
 };
 
 export const usePlayerDetailsValidation = (
   formData: PlayerDetailsFormData,
-  mode: 'ticket' | 'join'
+  mode: 'ticket' | 'join',
+  isTicketedEvent = false,
 ): boolean => {
   return useMemo(() => {
-    const playerNameValid = (formData.playerName?.trim() || '') !== '';
-
-    if (mode === 'join') return playerNameValid;
+    if (mode === 'join') {
+      return (formData.playerName?.trim() || '') !== '';
+    }
 
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
       formData.purchaserEmail?.trim() || ''
     );
-    return (
-      (formData.purchaserName?.trim() || '') !== '' &&
-      emailValid &&
-      playerNameValid
-    );
-  }, [formData, mode]);
+    const nameValid = (formData.purchaserName?.trim() || '') !== '';
+
+    // Ticketed events don't require a player name
+    if (isTicketedEvent) {
+      return nameValid && emailValid;
+    }
+
+    const playerNameValid = (formData.playerName?.trim() || '') !== '';
+    return nameValid && emailValid && playerNameValid;
+  }, [formData, mode, isTicketedEvent]);
 };

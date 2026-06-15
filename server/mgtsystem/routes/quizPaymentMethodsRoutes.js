@@ -16,7 +16,8 @@ router.get('/quiz-rooms/:roomId/available-payment-methods', async (req, res) => 
 
     console.log('[quiz-available-payment-methods] GET request for roomId:', roomId);
 
-    const data = await svc.getAvailablePaymentMethodsForRoom({ roomId });
+    const context = req.query.context || 'onnight';
+    const data = await svc.getAvailablePaymentMethodsForRoom({ roomId, context });
     
     console.log('[quiz-available-payment-methods] Returning:', data);
     res.json(data);
@@ -87,21 +88,21 @@ router.post('/quiz-rooms/:roomId/payment-methods', authenticateToken, async (req
     const { roomId } = req.params;
     const clubId = req.club_id;
     const userId = req.user_id;
-    const { payment_method_ids } = req.body || {};
+    const { ticketMethodIds = [], onnightMethodIds = [] } = req.body || {};
 
     console.log(`[quiz-payment-methods] POST request for roomId: ${roomId}, clubId: ${clubId}`);
-    // console.log(`[quiz-payment-methods] Payment method IDs:`, payment_method_ids);
 
-    if (!Array.isArray(payment_method_ids)) {
+    if (!Array.isArray(ticketMethodIds) || !Array.isArray(onnightMethodIds)) {
       return res.status(400).json({ 
-        error: 'payment_method_ids must be an array' 
+        error: 'ticketMethodIds and onnightMethodIds must be arrays' 
       });
     }
 
     const result = await svc.updateLinkedPaymentMethods({ 
       roomId, 
       clubId, 
-      paymentMethodIds: payment_method_ids,
+      ticketMethodIds,
+      onnightMethodIds,
       userId 
     });
 

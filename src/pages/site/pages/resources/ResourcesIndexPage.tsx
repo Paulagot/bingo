@@ -1,0 +1,2 @@
+import GenericMarketingPage from '../GenericMarketingPage';
+export default function ResourcesIndexPage() { return <GenericMarketingPage path="/resources" seoTitle="Fundraising Resources" seoDescription="Resources and guides for clubs, schools, charities and community fundraising organisers." eyebrow="Resources" h1="Resources for better community fundraising" intro="A content hub for fundraising ideas, guides, examples and practical organiser advice." imageKey="communityCelebration" />; }

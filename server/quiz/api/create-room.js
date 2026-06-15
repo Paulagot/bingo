@@ -13,6 +13,8 @@ import authenticateToken from '../../middleware/auth.js';
 import jwt from 'jsonwebtoken';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 
+const debug = false;
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
@@ -148,24 +150,25 @@ async function insertWeb2RoomRecord({
       ? 'scheduled'
       : 'live';
 
-  const sql = `
-    INSERT INTO ${WEB2_ROOMS_TABLE}
-      (room_id, host_id, club_id, status, scheduled_at, time_zone, config_json, room_caps_json)
-    VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+  // AFTER
+const sql = `
+  INSERT INTO ${WEB2_ROOMS_TABLE}
+    (room_id, host_id, club_id, status, scheduled_at, time_zone, config_json, room_caps_json, game_type)
+  VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
 
-  const params = [
-    roomId,
-    hostId,
-    clubId,
-    status,
-    scheduledAt && !Number.isNaN(scheduledAt.getTime()) ? scheduledAt : null,
-    timeZone,
-    JSON.stringify(setupConfig ?? {}),
-    JSON.stringify(roomCaps ?? null),
-  ];
-
+const params = [
+  roomId,
+  hostId,
+  clubId,
+  status,
+  scheduledAt && !Number.isNaN(scheduledAt.getTime()) ? scheduledAt : null,
+  timeZone,
+  JSON.stringify(setupConfig ?? {}),
+  JSON.stringify(roomCaps ?? null),
+  'quiz',                              // ← hardcoded since this file only creates quiz rooms
+];
   await connection.execute(sql, params);
 
   return { status, scheduledAt, timeZone };
@@ -176,26 +179,26 @@ const router = express.Router();
 
 // VERSION IDENTIFIER - If you see this in logs, new code is running
 const ROUTER_VERSION = 'v2.0.0-enhanced-error-handling';
-console.log(`[Router] 🆕 Quiz API Router loaded - Version: ${ROUTER_VERSION}`);
-console.log(`[Router] 🆕 Timestamp: ${new Date().toISOString()}`);
+if (debug) if (debug) console.log(`[Router] 🆕 Quiz API Router loaded - Version: ${ROUTER_VERSION}`);
+if (debug) if (debug) console.log(`[Router] 🆕 Timestamp: ${new Date().toISOString()}`);
 
 // Add middleware to log ALL requests to this router
 // router.use((req, res, next) => {
-//   console.log('========================================');
-//   console.log('[Router] 📍 Request reached quiz API router');
-//   console.log(`[Router] 📍 Version: ${ROUTER_VERSION}`);
-//   console.log('[Router] 📍 Path:', req.path);
-//   console.log('[Router] 📍 Method:', req.method);
-//   console.log('[Router] 📍 URL:', req.url);
-//   console.log('[Router] 📍 Original URL:', req.originalUrl);
-//   console.log('========================================');
+//   if (debug) console.log('========================================');
+//   if (debug) console.log('[Router] 📍 Request reached quiz API router');
+//   if (debug) console.log(`[Router] 📍 Version: ${ROUTER_VERSION}`);
+//   if (debug) console.log('[Router] 📍 Path:', req.path);
+//   if (debug) console.log('[Router] 📍 Method:', req.method);
+//   if (debug) console.log('[Router] 📍 URL:', req.url);
+//   if (debug) console.log('[Router] 📍 Original URL:', req.originalUrl);
+//   if (debug) console.log('========================================');
 //   next();
 // });
 
 // Test endpoint to verify router is working
 router.get('/test', (req, res) => {
-  console.log('[Router] ✅ Test endpoint hit');
-  console.log(`[Router] ✅ Router version: ${ROUTER_VERSION}`);
+  if (debug) console.log('[Router] ✅ Test endpoint hit');
+  if (debug) console.log(`[Router] ✅ Router version: ${ROUTER_VERSION}`);
   res.status(200).json({ 
     message: 'Router is working', 
     version: ROUTER_VERSION,
@@ -325,18 +328,18 @@ const validateWeb3Proof = ({ chain, contractAddress, deploymentTxHash }) => {
  */
 router.post('/create-web3-room', async (req, res) => {
   // IMMEDIATE logging - before anything else
-  console.log('========================================');
-  console.log('[API] 🚀 ROUTE HANDLER CALLED - /create-web3-room');
-  console.log('[API] 🕐 Timestamp:', new Date().toISOString());
-  console.log('[API] 📍 Request received at handler');
-  console.log('[API] 📍 Response object exists:', !!res);
-  console.log('[API] 📍 Response methods:', {
+  if (debug) console.log('========================================');
+  if (debug) console.log('[API] 🚀 ROUTE HANDLER CALLED - /create-web3-room');
+  if (debug) console.log('[API] 🕐 Timestamp:', new Date().toISOString());
+  if (debug) console.log('[API] 📍 Request received at handler');
+  if (debug) console.log('[API] 📍 Response object exists:', !!res);
+  if (debug) console.log('[API] 📍 Response methods:', {
     hasEnd: typeof res.end === 'function',
     hasSend: typeof res.send === 'function',
     hasJson: typeof res.json === 'function',
     hasStatus: typeof res.status === 'function'
   });
-  console.log('========================================');
+  if (debug) console.log('========================================');
   
   // Ensure response object is valid
   if (!res || typeof res.end !== 'function') {
@@ -353,7 +356,7 @@ router.post('/create-web3-room', async (req, res) => {
         res.status(500);
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 'Request timeout' }));
-        console.log('[API] ✅ Timeout response sent');
+        if (debug) console.log('[API] ✅ Timeout response sent');
       } catch (err) {
         console.error('[API] ❌ Failed to send timeout response:', err);
         console.error('[API] ❌ Timeout error stack:', err?.stack);
@@ -365,10 +368,10 @@ router.post('/create-web3-room', async (req, res) => {
 
   // Helper function to send error response - use res.json() for Express compatibility
   const sendErrorResponse = (status, errorData) => {
-    console.log(`[API] 🔴 sendErrorResponse called: status=${status}`);
-    console.log(`[API] 🔴 Headers sent: ${res.headersSent}`);
-    console.log(`[API] 🔴 Response finished: ${res.finished}`);
-    console.log(`[API] 🔴 Error data:`, JSON.stringify(errorData, null, 2));
+    if (debug) console.log(`[API] 🔴 sendErrorResponse called: status=${status}`);
+    if (debug) console.log(`[API] 🔴 Headers sent: ${res.headersSent}`);
+    if (debug) console.log(`[API] 🔴 Response finished: ${res.finished}`);
+    if (debug) console.log(`[API] 🔴 Error data:`, JSON.stringify(errorData, null, 2));
     
     if (res.headersSent || res.finished) {
       console.error('[API] ❌ Cannot send error response - response already sent/finished');
@@ -378,14 +381,14 @@ router.post('/create-web3-room', async (req, res) => {
     
     try {
       clearTimeout(timeout);
-      console.log(`[API] 🔴 Setting status to ${status}`);
+      if (debug) console.log(`[API] 🔴 Setting status to ${status}`);
       
       // Use res.json() instead of res.end() for better Express compatibility
       res.status(status).json(errorData);
       
-      console.log(`[API] ✅ Sent error response (${status}) using res.json()`);
-      console.log(`[API] ✅ Response sent, headersSent: ${res.headersSent}`);
-      console.log(`[API] ✅ Response finished: ${res.finished}`);
+      if (debug) console.log(`[API] ✅ Sent error response (${status}) using res.json()`);
+      if (debug) console.log(`[API] ✅ Response sent, headersSent: ${res.headersSent}`);
+      if (debug) console.log(`[API] ✅ Response finished: ${res.finished}`);
       return true;
     } catch (sendErr) {
       console.error('[API] ❌ Failed to send error response with res.json():', sendErr);
@@ -396,12 +399,12 @@ router.post('/create-web3-room', async (req, res) => {
       // Fallback to res.end() if res.json() fails
       try {
         if (!res.headersSent && !res.finished) {
-          console.log('[API] 🔴 Trying res.end() as fallback');
+          if (debug) console.log('[API] 🔴 Trying res.end() as fallback');
           res.status(status);
           res.setHeader('Content-Type', 'application/json');
           const jsonString = JSON.stringify(errorData);
           res.end(jsonString);
-          console.log('[API] ✅ Sent error response using res.end() fallback');
+          if (debug) console.log('[API] ✅ Sent error response using res.end() fallback');
           return true;
         }
       } catch (fallbackErr) {
@@ -414,34 +417,34 @@ router.post('/create-web3-room', async (req, res) => {
 
   // Wrap EVERYTHING in try-catch to catch any synchronous errors
   try {
-    console.log('[API] 📥 Entering main try block');
-    console.log('--------------------------------------');
-    console.log('[API] 🔗 Received Web3 room creation request');
-    console.log('[API] 📋 Request method:', req.method);
-    console.log('[API] 📋 Request path:', req.path);
-    console.log('[API] 📋 Request headers:', {
+    if (debug) console.log('[API] 📥 Entering main try block');
+    if (debug) console.log('--------------------------------------');
+    if (debug) console.log('[API] 🔗 Received Web3 room creation request');
+    if (debug) console.log('[API] 📋 Request method:', req.method);
+    if (debug) console.log('[API] 📋 Request path:', req.path);
+    if (debug) console.log('[API] 📋 Request headers:', {
       'content-type': req.headers['content-type'],
       'content-length': req.headers['content-length'],
     });
-    console.log('[API] 📋 Request body exists:', !!req.body);
-    console.log('[API] 📋 Request body type:', typeof req.body);
+    if (debug) console.log('[API] 📋 Request body exists:', !!req.body);
+    if (debug) console.log('[API] 📋 Request body type:', typeof req.body);
     
     // Log request body structure (sanitized - don't log full content if too large)
     if (req.body) {
       const bodyKeys = Object.keys(req.body);
-      console.log('[API] 📋 Request body keys:', bodyKeys);
-      console.log('[API] 📋 Request body has config:', !!req.body.config);
-      console.log('[API] 📋 Request body has roomId:', !!req.body.roomId);
-      console.log('[API] 📋 Request body has hostId:', !!req.body.hostId);
+      if (debug) console.log('[API] 📋 Request body keys:', bodyKeys);
+      if (debug) console.log('[API] 📋 Request body has config:', !!req.body.config);
+      if (debug) console.log('[API] 📋 Request body has roomId:', !!req.body.roomId);
+      if (debug) console.log('[API] 📋 Request body has hostId:', !!req.body.hostId);
       
       if (req.body.config) {
         const configKeys = Object.keys(req.body.config);
-        console.log('[API] 📋 Config keys:', configKeys);
-        console.log('[API] 📋 Config has roundDefinitions:', !!req.body.config.roundDefinitions);
-        console.log('[API] 📋 Config roundDefinitions type:', typeof req.body.config.roundDefinitions);
-        console.log('[API] 📋 Config roundDefinitions is array:', Array.isArray(req.body.config.roundDefinitions));
+        if (debug) console.log('[API] 📋 Config keys:', configKeys);
+        if (debug) console.log('[API] 📋 Config has roundDefinitions:', !!req.body.config.roundDefinitions);
+        if (debug) console.log('[API] 📋 Config roundDefinitions type:', typeof req.body.config.roundDefinitions);
+        if (debug) console.log('[API] 📋 Config roundDefinitions is array:', Array.isArray(req.body.config.roundDefinitions));
         if (Array.isArray(req.body.config.roundDefinitions)) {
-          console.log('[API] 📋 Config roundDefinitions length:', req.body.config.roundDefinitions.length);
+          if (debug) console.log('[API] 📋 Config roundDefinitions length:', req.body.config.roundDefinitions.length);
         }
       }
     }
@@ -466,23 +469,23 @@ router.post('/create-web3-room', async (req, res) => {
     // =============================================
 // 🔍 NETWORK DIAGNOSTIC LOGGING (add after destructuring req.body)
 // =============================================
-console.log('========================================');
-console.log('[API] 🌐 NETWORK FIELDS DIAGNOSTIC');
-console.log('[API] 🌐 Timestamp:', new Date().toISOString());
-console.log('[API] 🌐 web3Chain:', setupConfig?.web3Chain);
-console.log('[API] 🌐 web3ChainConfirmed:', setupConfig?.web3ChainConfirmed);
-console.log('[API] 🌐 evmNetwork:', setupConfig?.evmNetwork);
-console.log('[API] 🌐 solanaCluster:', setupConfig?.solanaCluster);
-console.log('[API] 🌐 stellarNetwork:', setupConfig?.stellarNetwork);
-console.log('[API] 🌐 hostWallet:', setupConfig?.hostWallet);
-console.log('[API] 🌐 hostWalletConfirmed:', setupConfig?.hostWalletConfirmed);
-console.log('[API] 🌐 roomContractAddress:', setupConfig?.roomContractAddress);
-console.log('[API] 🌐 deploymentTxHash:', setupConfig?.deploymentTxHash);
-console.log('[API] 🌐 entryFee:', setupConfig?.entryFee);
-console.log('[API] 🌐 web3Currency:', setupConfig?.web3Currency);
-console.log('[API] 🌐 isWeb3Room:', setupConfig?.isWeb3Room);
-console.log('[API] 🌐 paymentMethod:', setupConfig?.paymentMethod);
-console.log('========================================');
+if (debug) console.log('========================================');
+if (debug) console.log('[API] 🌐 NETWORK FIELDS DIAGNOSTIC');
+if (debug) console.log('[API] 🌐 Timestamp:', new Date().toISOString());
+if (debug) console.log('[API] 🌐 web3Chain:', setupConfig?.web3Chain);
+if (debug) console.log('[API] 🌐 web3ChainConfirmed:', setupConfig?.web3ChainConfirmed);
+if (debug) console.log('[API] 🌐 evmNetwork:', setupConfig?.evmNetwork);
+if (debug) console.log('[API] 🌐 solanaCluster:', setupConfig?.solanaCluster);
+if (debug) console.log('[API] 🌐 stellarNetwork:', setupConfig?.stellarNetwork);
+if (debug) console.log('[API] 🌐 hostWallet:', setupConfig?.hostWallet);
+if (debug) console.log('[API] 🌐 hostWalletConfirmed:', setupConfig?.hostWalletConfirmed);
+if (debug) console.log('[API] 🌐 roomContractAddress:', setupConfig?.roomContractAddress);
+if (debug) console.log('[API] 🌐 deploymentTxHash:', setupConfig?.deploymentTxHash);
+if (debug) console.log('[API] 🌐 entryFee:', setupConfig?.entryFee);
+if (debug) console.log('[API] 🌐 web3Currency:', setupConfig?.web3Currency);
+if (debug) console.log('[API] 🌐 isWeb3Room:', setupConfig?.isWeb3Room);
+if (debug) console.log('[API] 🌐 paymentMethod:', setupConfig?.paymentMethod);
+if (debug) console.log('========================================');
 
     // Basic validation
     if (!roomId || !hostId) {
@@ -549,7 +552,7 @@ if (chain.toLowerCase() === 'solana') {
   setupConfig.solanaCluster =
     setupConfig.solanaCluster === 'devnet' ? 'devnet' : 'mainnet';
 
-  console.log('[API] 📋 Solana network configuration:', {
+  if (debug) console.log('[API] 📋 Solana network configuration:', {
     solanaCluster: setupConfig.solanaCluster,
     web3Chain: chain
   });
@@ -588,7 +591,7 @@ if (chain.toLowerCase() === 'solana') {
     
  if (setupConfig.web3Chain === 'evm') {
   setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
-  console.log('[API] ⛓️ EVM NETWORK RESOLUTION - evmNetwork:', setupConfig.evmNetwork);
+  if (debug) console.log('[API] ⛓️ EVM NETWORK RESOLUTION - evmNetwork:', setupConfig.evmNetwork);
 }
 
 if (setupConfig.web3Chain === 'solana') {
@@ -596,17 +599,17 @@ if (setupConfig.web3Chain === 'solana') {
     setupConfig.solanaCluster === 'devnet' ? 'devnet' : 'mainnet';
 }
 
-    console.log('[API] 🔄 Starting room creation process...');
-    console.log('[API] 📋 Web3 chain:', chain);
-    console.log('[API] 📋 Contract address:', contractAddress);
-    console.log('[API] 📋 Deployment tx hash:', deploymentTxHash);
+    if (debug) console.log('[API] 🔄 Starting room creation process...');
+    if (debug) console.log('[API] 📋 Web3 chain:', chain);
+    if (debug) console.log('[API] 📋 Contract address:', contractAddress);
+    if (debug) console.log('[API] 📋 Deployment tx hash:', deploymentTxHash);
     
     // Log charity wallet information (if available) for debugging
     if (setupConfig.web3CharityAddress) {
-      console.log('[API] 📋 Charity address from config:', setupConfig.web3CharityAddress);
-      console.log('[API] ℹ️ Note: This is for prize distribution. Room creation uses GlobalConfig charity wallet.');
+      if (debug) console.log('[API] 📋 Charity address from config:', setupConfig.web3CharityAddress);
+      if (debug) console.log('[API] ℹ️ Note: This is for prize distribution. Room creation uses GlobalConfig charity wallet.');
     } else {
-      console.log('[API] 📋 No charity address in config (expected for Solana - uses GlobalConfig)');
+      if (debug) console.log('[API] 📋 No charity address in config (expected for Solana - uses GlobalConfig)');
     }
     
     // ✅ Ensure roundDefinitions exists - this is critical for room creation
@@ -642,8 +645,8 @@ if (setupConfig.web3Chain === 'solana') {
     }
     
     const requestedRounds = setupConfig.roundDefinitions.length;
-    console.log(`[API] 📊 Requested rounds: ${requestedRounds}`);
-    console.log(`[API] 📋 roundDefinitions validated successfully`);
+    if (debug) console.log(`[API] 📊 Requested rounds: ${requestedRounds}`);
+    if (debug) console.log(`[API] 📋 roundDefinitions validated successfully`);
 
     // Force Web3 configuration with generous limits
     setupConfig.roomCaps = {
@@ -653,16 +656,16 @@ if (setupConfig.web3Chain === 'solana') {
       extrasAllowed: '*',
     };
 
-    console.log('[API] 🎯 Calling createQuizRoom...');
-    console.log('[API] 📋 Room ID:', roomId);
-    console.log('[API] 📋 Host ID:', hostId);
-    console.log('[API] 📋 Chain:', chain);
-    console.log('[API] 📋 Contract address:', contractAddress);
-    console.log('[API] 📋 SetupConfig validated, proceeding with room creation');
+    if (debug) console.log('[API] 🎯 Calling createQuizRoom...');
+    if (debug) console.log('[API] 📋 Room ID:', roomId);
+    if (debug) console.log('[API] 📋 Host ID:', hostId);
+    if (debug) console.log('[API] 📋 Chain:', chain);
+    if (debug) console.log('[API] 📋 Contract address:', contractAddress);
+    if (debug) console.log('[API] 📋 SetupConfig validated, proceeding with room creation');
     
     let created = false;
     try {
-      console.log('[API] 📤 Calling createQuizRoom with:', {
+      if (debug) console.log('[API] 📤 Calling createQuizRoom with:', {
         roomId,
         hostId,
         hasConfig: !!setupConfig,
@@ -675,7 +678,7 @@ if (setupConfig.web3Chain === 'solana') {
       });
       
       created = createQuizRoom(roomId, hostId, setupConfig);
-      console.log('[API] ✅ createQuizRoom returned:', created);
+      if (debug) console.log('[API] ✅ createQuizRoom returned:', created);
     } catch (roomErr) {
       console.error('========================================');
       console.error('[API] ❌❌❌ ERROR IN createQuizRoom');
@@ -746,11 +749,11 @@ if (setupConfig.web3Chain === 'solana') {
       });
     }
 
-    // console.log('[API] ✅ Successfully created Web3 room in memory');
-    // console.log(`[API] 🆔 Room ID: ${roomId}`);
-    // console.log(`[API] 👤 Host ID: ${hostId}`);
-    // console.log(`[API] 📍 Contract: ${contractAddress}`);
-    // console.log('--------------------------------------');
+    // if (debug) console.log('[API] ✅ Successfully created Web3 room in memory');
+    // if (debug) console.log(`[API] 🆔 Room ID: ${roomId}`);
+    // if (debug) console.log(`[API] 👤 Host ID: ${hostId}`);
+    // if (debug) console.log(`[API] 📍 Contract: ${contractAddress}`);
+    // if (debug) console.log('--------------------------------------');
 
     // Return both field names for backward compatibility
     const responseData = {
@@ -763,8 +766,8 @@ if (setupConfig.web3Chain === 'solana') {
       verified: true,
     };
 
-    console.log('[API] 📤 Sending success response to client');
-    console.log('[API] 📤 Response data:', JSON.stringify(responseData, null, 2));
+    if (debug) console.log('[API] 📤 Sending success response to client');
+    if (debug) console.log('[API] 📤 Response data:', JSON.stringify(responseData, null, 2));
     
     clearTimeout(timeout);
     
@@ -778,7 +781,7 @@ if (setupConfig.web3Chain === 'solana') {
     try {
       // Use res.json() for Express compatibility
       res.status(200).json(responseData);
-      console.log('[API] ✅ Success response sent successfully using res.json()');
+      if (debug) console.log('[API] ✅ Success response sent successfully using res.json()');
     } catch (sendErr) {
       console.error('[API] ❌ Failed to send success response:', sendErr);
       console.error('[API] ❌ Send error name:', sendErr?.name);
@@ -837,8 +840,8 @@ if (setupConfig.web3Chain === 'solana') {
       })
     };
     
-    console.log('[API] 🔴 Attempting to send error response via sendErrorResponse');
-    console.log('[API] 🔴 Error response object:', JSON.stringify(errorResponse, null, 2));
+    if (debug) console.log('[API] 🔴 Attempting to send error response via sendErrorResponse');
+    if (debug) console.log('[API] 🔴 Error response object:', JSON.stringify(errorResponse, null, 2));
     
     const sent = sendErrorResponse(500, errorResponse);
     
@@ -847,12 +850,12 @@ if (setupConfig.web3Chain === 'solana') {
       console.error('[API] ❌❌ sendErrorResponse returned false, trying res.send()');
       try {
         if (!res.headersSent && !res.finished) {
-          console.log('[API] 🔴 Attempting res.send() error response');
+          if (debug) console.log('[API] 🔴 Attempting res.send() error response');
           clearTimeout(timeout);
           const plainText = 'Internal server error: ' + (err?.message || 'Unknown error');
           res.status(500).send(plainText);
-          console.log('[API] ✅ Plain text error response sent via res.send()');
-          console.log('[API] ✅ Plain text length:', plainText.length);
+          if (debug) console.log('[API] ✅ Plain text error response sent via res.send()');
+          if (debug) console.log('[API] ✅ Plain text length:', plainText.length);
         } else {
           console.error('[API] ❌❌ Cannot send plain text - headersSent:', res.headersSent, 'finished:', res.finished);
         }
@@ -863,13 +866,13 @@ if (setupConfig.web3Chain === 'solana') {
         console.error('[API] ❌❌❌ Final error stack:', finalErr?.stack);
       }
     } else {
-      console.log('[API] ✅ Error response sent successfully via sendErrorResponse');
+      if (debug) console.log('[API] ✅ Error response sent successfully via sendErrorResponse');
     }
   } finally {
-    console.log('[API] 🏁 Route handler finished');
-    console.log('[API] 🏁 Headers sent:', res.headersSent);
-    console.log('[API] 🏁 Response finished:', res.finished);
-    console.log('[API] 🏁 Status code:', res.statusCode);
+    if (debug) console.log('[API] 🏁 Route handler finished');
+    if (debug) console.log('[API] 🏁 Headers sent:', res.headersSent);
+    if (debug) console.log('[API] 🏁 Response finished:', res.finished);
+    if (debug) console.log('[API] 🏁 Status code:', res.statusCode);
   }
 });
 
@@ -879,9 +882,9 @@ router.get('/rooms/:roomId/info', async (req, res) => {
   try {
     const { roomId } = req.params;
 
-    console.log('========================================');
-    console.log('[API] 🔍 Getting room info for:', roomId);
-    console.log('[API] 📍 Timestamp:', new Date().toISOString());
+    if (debug) console.log('========================================');
+    if (debug) console.log('[API] 🔍 Getting room info for:', roomId);
+    if (debug) console.log('[API] 📍 Timestamp:', new Date().toISOString());
 
     if (!roomId) {
       console.error('[API] ❌ No roomId provided');
@@ -892,7 +895,7 @@ router.get('/rooms/:roomId/info', async (req, res) => {
     const { getQuizRoom } = await import('../quizRoomManager.js');
     const memoryRoom = getQuizRoom(roomId);
 
-    console.log('[API] 📊 Memory room found:', !!memoryRoom);
+    if (debug) console.log('[API] 📊 Memory room found:', !!memoryRoom);
 
     if (memoryRoom) {
       const cfg = memoryRoom.config || {};
@@ -916,18 +919,18 @@ router.get('/rooms/:roomId/info', async (req, res) => {
   solanaCluster: isWeb3 ? (cfg.solanaCluster ?? null) : null,
       };
 
-      console.log('[API] ✅ Returning MEMORY room info:', {
+      if (debug) console.log('[API] ✅ Returning MEMORY room info:', {
         ...roomInfo,
         paymentMethod: cfg.paymentMethod,
         isWeb3RoomFlag: cfg.isWeb3Room,
       });
-      console.log('========================================');
+      if (debug) console.log('========================================');
 
       return res.status(200).json(roomInfo);
     }
 
     // 2) Not in memory → check DB for web2 launched rooms
-    console.log('[API] ⏭️ Not found in memory, checking database...');
+    if (debug) console.log('[API] ⏭️ Not found in memory, checking database...');
 
     const sql = `
       SELECT room_id, config_json
@@ -939,11 +942,11 @@ router.get('/rooms/:roomId/info', async (req, res) => {
     const [rows] = await connection.execute(sql, [roomId]);
     const row = rows?.[0];
 
-    console.log('[API] 📊 Database rows found:', rows?.length || 0);
+    if (debug) console.log('[API] 📊 Database rows found:', rows?.length || 0);
 
     if (!row) {
       console.warn('[API] ⚠️ Room not found in memory OR database');
-      console.log('========================================');
+      if (debug) console.log('========================================');
       return res.status(404).json({ error: 'room_not_found' });
     }
 
@@ -969,8 +972,8 @@ router.get('/rooms/:roomId/info', async (req, res) => {
   solanaCluster: isWeb3 ? (cfg.solanaCluster ?? null) : null,
     };
 
-    console.log('[API] ✅ Returning DB room info:', roomInfo);
-    console.log('========================================');
+    if (debug) console.log('[API] ✅ Returning DB room info:', roomInfo);
+    if (debug) console.log('========================================');
 
     return res.status(200).json(roomInfo);
   } catch (err) {
@@ -994,7 +997,7 @@ router.get('/rooms/:roomId/info', async (req, res) => {
 // This MUST be before authenticateToken middleware to support Web3 flow
 router.get('/me/entitlements', async (req, res) => {
   try {
-    console.log('[API] 📥 Received entitlements request');
+    if (debug) console.log('[API] 📥 Received entitlements request');
     
     // Optionally authenticate if token is present (matches main branch auth logic)
     let clubId = req.club_id;
@@ -1014,20 +1017,20 @@ router.get('/me/entitlements', async (req, res) => {
           if (Array.isArray(rows) && rows.length > 0) {
             req.user = rows[0];
             clubId = req.user.club_id;
-            console.log(`[API] ✅ Authenticated via token, club_id: ${clubId}`);
+            if (debug) console.log(`[API] ✅ Authenticated via token, club_id: ${clubId}`);
           }
         } catch (authError) {
           // Token invalid/expired - continue without auth (for Web3 flow)
-          console.log('[API] ⚠️ Token present but invalid, continuing without authentication');
+          if (debug) console.log('[API] ⚠️ Token present but invalid, continuing without authentication');
         }
       }
     }
     
-    console.log('[API] 📋 Final club_id:', clubId);
+    if (debug) console.log('[API] 📋 Final club_id:', clubId);
     
     // For Web3 rooms (no token) or unauthenticated users, return generous default entitlements
     if (!clubId) {
-      console.log('[API] ⚠️ No club_id found, returning Web3 default entitlements');
+      if (debug) console.log('[API] ⚠️ No club_id found, returning Web3 default entitlements');
       const web3DefaultEntitlements = {
         plan_id: null,
         plan_code: 'WEB3_DEFAULT',
@@ -1042,19 +1045,20 @@ router.get('/me/entitlements', async (req, res) => {
       res.status(200);
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(web3DefaultEntitlements));
-      console.log('[API] ✅ Sent Web3 default entitlements');
+      if (debug) console.log('[API] ✅ Sent Web3 default entitlements');
       return;
     }
     
-    console.log(`[API] 👤 Resolved club ID: "${clubId}" - fetching actual entitlements`);
+    if (debug) console.log(`[API] 👤 Resolved club ID: "${clubId}" - fetching actual entitlements`);
     
     try {
-      const ents = await resolveEntitlements({ userId: clubId });
-      res.status(200);
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify(ents));
-      console.log('[API] ✅ Sent entitlements for club:', clubId, 'plan:', ents.plan_code);
-      return;
+ const scope = req.query.scope ?? 'quiz';
+const ents = await resolveEntitlements({ userId: clubId, scope });
+res.status(200);
+res.setHeader('Content-Type', 'application/json');
+res.end(JSON.stringify(ents));
+if (debug) console.log('[API] ✅ Sent entitlements for club:', clubId, 'plan:', ents.plan_code, 'scope:', scope);
+return;
     } catch (entError) {
       console.error('[API] ❌ resolveEntitlements error:', entError);
       console.error('[API] ❌ Error stack:', entError.stack);
@@ -1075,7 +1079,7 @@ router.get('/me/entitlements', async (req, res) => {
         res.status(200);
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(web3DefaultEntitlements));
-        console.log('[API] ✅ Sent fallback entitlements due to database error');
+        if (debug) console.log('[API] ✅ Sent fallback entitlements due to database error');
         return;
       }
     }
@@ -1100,7 +1104,7 @@ router.get('/me/entitlements', async (req, res) => {
       res.status(200);
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(web3DefaultEntitlements));
-      console.log('[API] ✅ Sent error fallback entitlements');
+      if (debug) console.log('[API] ✅ Sent error fallback entitlements');
     } else {
       console.error('[API] ❌ Cannot send response - headers already sent');
     }
@@ -1113,14 +1117,14 @@ router.get('/me/entitlements', async (req, res) => {
 router.use(authenticateToken);
 
 router.use((req, res, next) => {
-  console.log('========================================');
-  console.log('[Router] 📍 Auth-protected route hit');
-  console.log('[Router] 📍 Method:', req.method);
-  console.log('[Router] 📍 Path:', req.path);
-  console.log('[Router] 📍 URL:', req.url);
-  console.log('[Router] 📍 Original URL:', req.originalUrl);
-  console.log('[Router] 📍 Club ID:', req.club_id);
-  console.log('========================================');
+  if (debug) console.log('========================================');
+  if (debug) console.log('[Router] 📍 Auth-protected route hit');
+  if (debug) console.log('[Router] 📍 Method:', req.method);
+  if (debug) console.log('[Router] 📍 Path:', req.path);
+  if (debug) console.log('[Router] 📍 URL:', req.url);
+  if (debug) console.log('[Router] 📍 Original URL:', req.originalUrl);
+  if (debug) console.log('[Router] 📍 Club ID:', req.club_id);
+  if (debug) console.log('========================================');
   next();
 });
 
@@ -1128,9 +1132,9 @@ router.use((req, res, next) => {
 router.post('/create-room', async (req, res) => {
   let { config: setupConfig, roomId, hostId } = req.body;
 
-  console.log('--------------------------------------');
-  console.log('[API] 🟢 Received create-room request');
-  console.log(`[API] 🆔 Using provided roomId=${roomId} hostId=${hostId}`);
+  if (debug) console.log('--------------------------------------');
+  if (debug) console.log('[API] 🟢 Received create-room request');
+  if (debug) console.log(`[API] 🆔 Using provided roomId=${roomId} hostId=${hostId}`);
 
   if (!roomId || !hostId) {
     console.error('[API] ❌ Missing roomId or hostId in request');
@@ -1138,12 +1142,12 @@ router.post('/create-room', async (req, res) => {
   }
 
   try {
-    console.log('[API] 🌐 Using WEB2 path (entitlements & credits enforced)');
+    if (debug) console.log('[API] 🌐 Using WEB2 path (entitlements & credits enforced)');
 
     const clubId = req.club_id;
-    console.log(`[API] 👤 Resolved club ID: "${clubId}"`);
+    if (debug) console.log(`[API] 👤 Resolved club ID: "${clubId}"`);
 
-    const ents = await resolveEntitlements({ userId: clubId });
+const ents = await resolveEntitlements({ userId: clubId, scope: 'quiz' });
 
     const templateId =
       setupConfig?.templateId ||
@@ -1167,7 +1171,7 @@ router.post('/create-room', async (req, res) => {
     const requestedRounds = (setupConfig?.roundDefinitions || []).length;
     const roundTypes = (setupConfig?.roundDefinitions || []).map((r) => r.roundType);
 
-    console.log(
+    if (debug) console.log(
       `[API] 🎯 User "${clubId}" requests ${requestedPlayers} players, ${requestedRounds} rounds (${roundTypes.join(
         ', '
       )})`
@@ -1242,11 +1246,15 @@ router.post('/create-room', async (req, res) => {
 
     await applyPersonalisedRoundIfAny({ roomId, clubId });
 
-    const okCredit = await consumeCredit(clubId);
-    if (!okCredit) {
-      removeQuizRoom(roomId);
-      return res.status(402).json({ error: 'no_credits' });
-    }
+   const creditResult = await consumeCredit(clubId, 'quiz', ents.plan_code);
+if (!creditResult.ok) {
+  removeQuizRoom(roomId);
+  return res.status(402).json({
+    error: 'no_credits',
+    message: creditResult.message,
+    upgradeUrl: creditResult.upgradeUrl,
+  });
+}
 
     try {
       await insertWeb2RoomRecord({
@@ -1256,15 +1264,15 @@ router.post('/create-room', async (req, res) => {
         setupConfig,
         roomCaps,
       });
-      console.log(`[API] 💾 Saved WEB2 room config to DB: roomId=${roomId}`);
+      if (debug) console.log(`[API] 💾 Saved WEB2 room config to DB: roomId=${roomId}`);
     } catch (dbErr) {
       console.error('[API] ❌ Failed saving WEB2 room to DB:', dbErr);
       removeQuizRoom(roomId);
       return res.status(500).json({ error: 'db_save_failed' });
     }
 
-    console.log(`[API] ✅ Successfully created WEB2 room ${roomId}`);
-    console.log('--------------------------------------');
+    if (debug) console.log(`[API] ✅ Successfully created WEB2 room ${roomId}`);
+    if (debug) console.log('--------------------------------------');
     return res.status(200).json({ roomId, hostId, roomCaps });
   } catch (err) {
     console.error('[API] ❌ Exception creating WEB2 room:', err);
@@ -1400,29 +1408,29 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
 // ✅ REPLACE your entire hydrate route with this
 
 router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) => {
-  console.log('========================================');
-  console.log('[API] 🎯 HYDRATE ENDPOINT HIT!');
-  console.log('[API] 🎯 Timestamp:', new Date().toISOString());
-  console.log('[API] 🎯 Room ID from params:', req.params.roomId);
-  console.log('[API] 🎯 Club ID from auth:', req.club_id);
-  console.log('========================================');
+  if (debug) console.log('========================================');
+  if (debug) console.log('[API] 🎯 HYDRATE ENDPOINT HIT!');
+  if (debug) console.log('[API] 🎯 Timestamp:', new Date().toISOString());
+  if (debug) console.log('[API] 🎯 Room ID from params:', req.params.roomId);
+  if (debug) console.log('[API] 🎯 Club ID from auth:', req.club_id);
+  if (debug) console.log('========================================');
 
   try {
     const { roomId } = req.params;
     const clubId = req.club_id;
 
     if (!roomId) {
-      console.log('[API] ❌ No roomId in params');
+      if (debug) console.log('[API] ❌ No roomId in params');
       return res.status(400).json({ error: 'roomId_required' });
     }
 
     if (!clubId) {
-      console.log('[API] ❌ No clubId from auth (authenticateToken failed?)');
+      if (debug) console.log('[API] ❌ No clubId from auth (authenticateToken failed?)');
       return res.status(401).json({ error: 'unauthorized' });
     }
 
-    console.log('[API] 🔄 Hydrating room from DB:', roomId);
-    console.log('[API] 📋 SQL query params:', { roomId, clubId });
+    if (debug) console.log('[API] 🔄 Hydrating room from DB:', roomId);
+    if (debug) console.log('[API] 📋 SQL query params:', { roomId, clubId });
 
     // 1) Load from database
     const sql = `
@@ -1442,18 +1450,18 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
       LIMIT 1
     `;
 
-    console.log('[API] 🔍 Executing SQL query...');
+    if (debug) console.log('[API] 🔍 Executing SQL query...');
     const [rows] = await connection.execute(sql, [roomId, clubId]);
-    console.log('[API] 📊 SQL query returned rows:', rows?.length || 0);
+    if (debug) console.log('[API] 📊 SQL query returned rows:', rows?.length || 0);
 
     const row = rows?.[0];
 
     if (!row) {
-      console.log('[API] ❌ No room found in DB for roomId:', roomId, 'clubId:', clubId);
+      if (debug) console.log('[API] ❌ No room found in DB for roomId:', roomId, 'clubId:', clubId);
       return res.status(404).json({ error: 'room_not_found' });
     }
 
-    console.log('[API] ✅ Found room in DB:', {
+    if (debug) console.log('[API] ✅ Found room in DB:', {
       room_id: row.room_id,
       host_id: row.host_id,
       club_id: row.club_id,
@@ -1462,7 +1470,7 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     });
 
     // 2) Parse config_json
-    console.log('[API] 📦 Parsing config_json...');
+    if (debug) console.log('[API] 📦 Parsing config_json...');
     const dbConfig =
       typeof row.config_json === 'string'
         ? JSON.parse(row.config_json)
@@ -1473,15 +1481,15 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     dbConfig.hostId = row.host_id;
     dbConfig.roomId = row.room_id;
 
-    console.log('[API] ✅ Config parsed, keys:', Object.keys(dbConfig || {}));
+    if (debug) console.log('[API] ✅ Config parsed, keys:', Object.keys(dbConfig || {}));
 
     // 3) Check if room already exists in memory
-    console.log('[API] 🔍 Checking if room already exists in memory...');
+    if (debug) console.log('[API] 🔍 Checking if room already exists in memory...');
     const { getQuizRoom } = await import('../quizRoomManager.js');
     const existingRoom = getQuizRoom(row.room_id);
 
     if (existingRoom) {
-      console.log('[API] ✅ Room already exists in memory, skipping creation');
+      if (debug) console.log('[API] ✅ Room already exists in memory, skipping creation');
 
       // ✅ Apply personalised round AFTER we know room exists in memory
       try {
@@ -1498,7 +1506,7 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
         clubId: row.club_id,
       };
 
-      console.log('[API] ✅ Sending success response (already existed)');
+      if (debug) console.log('[API] ✅ Sending success response (already existed)');
       return res.status(200).json({
         roomId: row.room_id,
         hostId: row.host_id,
@@ -1511,9 +1519,9 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     }
 
     // 4) Create room in memory
-    console.log('[API] 🏗️ Room not in memory, creating it now...');
-    console.log('[API] 🏗️ Calling createQuizRoom...');
-    console.log('[API] 🏗️ Params:', {
+    if (debug) console.log('[API] 🏗️ Room not in memory, creating it now...');
+    if (debug) console.log('[API] 🏗️ Calling createQuizRoom...');
+    if (debug) console.log('[API] 🏗️ Params:', {
       roomId: row.room_id,
       hostId: row.host_id,
       hasConfig: !!dbConfig,
@@ -1521,7 +1529,7 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     });
 
     const created = createQuizRoom(row.room_id, row.host_id, dbConfig);
-    console.log('[API] 📊 createQuizRoom returned:', created);
+    if (debug) console.log('[API] 📊 createQuizRoom returned:', created);
 
     if (!created) {
       console.error('[API] ❌ createQuizRoom returned false - failed to create');
@@ -1548,8 +1556,8 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
       clubId: row.club_id,
     };
 
-    console.log('[API] ✅ Room successfully hydrated into memory:', roomId);
-    console.log('[API] ✅ Sending success response to client');
+    if (debug) console.log('[API] ✅ Room successfully hydrated into memory:', roomId);
+    if (debug) console.log('[API] ✅ Sending success response to client');
 
     return res.status(200).json({
       roomId: row.room_id,
@@ -1612,7 +1620,7 @@ router.post('/web2/rooms/:roomId/operator-token', authenticateToken, async (req,
 const origin = `${protocol}://${req.headers.host}`;
 const operatorUrl = `${origin}/quiz/operate/${roomId}?token=${token}`;
 
-    console.log(`[API] 🎤 Operator token generated for room ${roomId} by club ${clubId}`);
+    if (debug) console.log(`[API] 🎤 Operator token generated for room ${roomId} by club ${clubId}`);
 
     return res.status(200).json({ token, operatorUrl });
 

@@ -33,7 +33,7 @@ import { updateOperatorSocketId } from '../quizRoomManager.js';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 
 import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
-const debug = false;
+const debug =  true;
 console.log('[BOOT] hostHandlers loaded from:', import.meta.url);
 console.log('[BOOT] saveImpactCampaignEvent typeof:', typeof saveImpactCampaignEvent);
  const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';

@@ -436,7 +436,8 @@ export type GameView =
   | 'round_results'
   | 'eliminated'
   | 'game_over'
-  | 'winner';
+  | 'winner'
+  | 'reconciliation';
 
 export interface EliminationGameState {
   room: EliminationRoom | null;
@@ -497,3 +498,9 @@ export interface WinnerPayload {
   finalStandings: RoundResult[];
   roomSnapshot: EliminationRoom;
 }
+
+export interface PlayersDismissedPayload {
+     roomId: string;
+     reason: string;
+     hostShouldReconcile: boolean;
+   }

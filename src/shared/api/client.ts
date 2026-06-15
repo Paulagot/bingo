@@ -32,15 +32,15 @@ export class ApiClient {
   private readonly debug: boolean;
   private readonly getAuthToken: () => string | null;
 
-  constructor(config: ApiClientConfig = {}) {
-    this.baseURL = config.baseURL || stripTrailingSlash(import.meta.env.VITE_QUIZ_API_URL?.trim() || '');
-    this.managementBaseURL =
-      config.managementBaseURL ||
-      import.meta.env.VITE_MGMT_API_URL ||
-      'https://mgtsystem-production.up.railway.app/api';
-    this.debug = config.debug ?? false;
-    this.getAuthToken = config.getAuthToken || (() => localStorage.getItem('auth_token'));
-  }
+constructor(config: ApiClientConfig = {}) {
+  this.baseURL = config.baseURL || stripTrailingSlash(import.meta.env.VITE_QUIZ_API_URL?.trim() || '');
+  this.managementBaseURL =
+    config.managementBaseURL ||
+    import.meta.env.VITE_MGMT_API_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001') + '/api';
+  this.debug = config.debug ?? false;
+  this.getAuthToken = config.getAuthToken || (() => localStorage.getItem('auth_token'));
+}
 
   private getAuthHeaders(): Record<string, string> {
     const token = this.getAuthToken();
