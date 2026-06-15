@@ -6,7 +6,7 @@ export const siteBrand = {
   logoSrc: null as string | null,
   logoAlt: 'FundRaisely',
   loginUrl: '/login',
-  defaultShareImage: '/images/social/fundraisely-og-placeholder.jpg',
+  defaultShareImage: '/images/logos/fundraisely-logo.svg',
 };
 
 export const socialLinks = [
