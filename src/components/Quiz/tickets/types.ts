@@ -1,5 +1,6 @@
 // src/components/Quiz/tickets/types.ts
-// UPDATED: ticketed_event game type + EventDetails for ticket purchase page
+
+import type { TicketTypeOption } from './TicketTypeSelector';
 
 export interface EventDetails {
   eventId:       string;
@@ -15,102 +16,104 @@ export interface EventDetails {
 }
 
 export interface RoomInfo {
-  roomId: string;
-  clubId: string;
-  status: 'scheduled' | 'live' | 'completed' | 'cancelled';
-  hostName: string;
-  entryFee: number;
-  currencySymbol: string;
+  roomId:             string;
+  clubId:             string;
+  status:             'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
+  hostName:           string;
+  entryFee:           number;
+  currencySymbol:     string;
   fundraisingOptions: Record<string, boolean>;
-  fundraisingPrices: Record<string, number>;
-  eventDateTime?: string;
-  timeZone?: string;
-  fundraisingMode?: 'fixed_fee' | 'donation';
-  // ── Game type ─────────────────────────────────────────────────────────────
-  gameType?: 'quiz' | 'elimination' | 'ticketed_event';
-  clubName?: string | null;
-  // ── Event details — populated for ticketed_event rooms only ──────────────
-  eventDetails?: EventDetails | null;
+  fundraisingPrices:  Record<string, number>;
+  eventDateTime?:     string;
+  timeZone?:          string;
+  fundraisingMode?:   'fixed_fee' | 'donation';
+  gameType?:          'quiz' | 'elimination' | 'ticketed_event';
+  clubName?:          string | null;
+  eventDetails?:      EventDetails | null;
+  // ── Ticket types — present for ticketed_event rooms only ─────────────────
+  ticketTypes?:       TicketTypeOption[];
 }
 
 export interface ClubPaymentMethod {
-  id: number;
-  methodLabel: string;
-  methodCategory: 'instant_payment' | 'card' | 'stripe' | 'crypto' | 'other';
-  providerName: string | null;
+  id:                 number;
+  methodLabel:        string;
+  methodCategory:     'instant_payment' | 'card' | 'stripe' | 'crypto' | 'other';
+  providerName:       string | null;
   playerInstructions: string | null;
-  isEnabled?: boolean;
+  isEnabled?:         boolean;
   methodConfig: {
-    // Revolut
-    link?: string;
-    qrCodeUrl?: string;
-    // Bank Transfer
-    accountName?: string;
-    iban?: string;
-    bic?: string;
-    sortCode?: string;
+    link?:          string;
+    qrCodeUrl?:     string;
+    accountName?:   string;
+    iban?:          string;
+    bic?:           string;
+    sortCode?:      string;
     accountNumber?: string;
   };
 }
 
 export interface PurchaseFormData {
-  purchaserName: string;
+  purchaserName:  string;
   purchaserEmail: string;
   purchaserPhone: string;
-  playerName: string;
+  playerName:     string;
   selectedExtras: string[];
 }
 
 export interface Ticket {
-  ticketId: string;
-  joinToken: string;
-  roomId: string;
-  purchaserName: string;
-  purchaserEmail: string;
-  playerName: string;
-  entryFee: number;
-  extrasTotal: number;
-  totalAmount: number;
-  currency: string;
-  extras: Array<{ extraId: string; price: number }>;
-  paymentStatus: 'payment_claimed' | 'payment_confirmed' | 'refunded';
+  ticketId:         string;
+  joinToken:        string;
+  roomId:           string;
+  purchaserName:    string;
+  purchaserEmail:   string;
+  playerName:       string;
+  entryFee:         number;
+  extrasTotal:      number;
+  totalAmount:      number;
+  currency:         string;
+  extras:           Array<{ extraId: string; price: number }>;
+  paymentStatus:    'payment_claimed' | 'payment_confirmed' | 'refunded';
   redemptionStatus: 'unredeemed' | 'blocked' | 'ready' | 'redeemed' | 'expired';
-  paymentMethod: string;
+  paymentMethod:    string;
   paymentReference: string;
   fundraisingMode?: 'fixed_fee' | 'donation';
-  donationAmount?: number | null;
-  // ── Game type ─────────────────────────────────────────────────────────────
-  gameType?: 'quiz' | 'elimination' | 'ticketed_event';
-  clubName?: string | null;
+  donationAmount?:  number | null;
+  gameType?:        'quiz' | 'elimination' | 'ticketed_event';
+  clubName?:        string | null;
+  // ── Ticket type ───────────────────────────────────────────────────────────
+  ticketTypeId?:    string | null;
+  ticketTypeName?:  string | null;
 }
 
 // TicketStatus is the shape returned by GET /api/quiz/tickets/:ticketId/status
 export interface TicketStatus {
-  ticketId: string;
-  roomId: string;
-  purchaserName: string;
-  playerName: string;
-  entryFee: number;
-  extrasTotal: number;
-  totalAmount: number;
-  currency: string;
-  extras: Array<{ extraId: string; price: number }>;
-  paymentStatus: 'payment_claimed' | 'payment_confirmed' | 'refunded';
+  ticketId:         string;
+  roomId:           string;
+  purchaserName:    string;
+  playerName:       string;
+  entryFee:         number;
+  extrasTotal:      number;
+  totalAmount:      number;
+  currency:         string;
+  extras:           Array<{ extraId: string; price: number }>;
+  paymentStatus:    'payment_claimed' | 'payment_confirmed' | 'refunded';
   redemptionStatus: 'blocked' | 'ready' | 'redeemed' | 'expired';
-  paymentMethod: string;
+  paymentMethod:    string;
   paymentReference: string;
-  confirmedAt: string | null;
-  redeemedAt: string | null;
-  joinToken: string;
-  canJoinNow?: boolean;
-  joinOpensAt?: string | null;
-  scheduledAt?: string | null;
-  roomStatus?: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled' | null;
+  confirmedAt:      string | null;
+  redeemedAt:       string | null;
+  joinToken:        string;
+  canJoinNow?:      boolean;
+  joinOpensAt?:     string | null;
+  scheduledAt?:     string | null;
+  roomStatus?:      'scheduled' | 'open' | 'live' | 'completed' | 'cancelled' | null;
   joinWindowMinutes?: number;
-  // ── Game type ─────────────────────────────────────────────────────────────
-  gameType?: 'quiz' | 'elimination' | 'ticketed_event';
-  clubName?: string | null;
-  hostName?: string | null;
+  gameType?:        'quiz' | 'elimination' | 'ticketed_event';
+  clubName?:        string | null;
+  hostName?:        string | null;
+  // ── Ticket type ───────────────────────────────────────────────────────────
+  ticketTypeId?:    string | null;
+  ticketTypeName?:  string | null;
 }
 
 export type PurchaseStep =

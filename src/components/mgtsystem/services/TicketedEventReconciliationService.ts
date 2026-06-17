@@ -1,11 +1,7 @@
 // src/components/mgtsystem/services/TicketedEventReconciliationService.ts
-//
-// HTTP service for ticketed event reconciliation.
-// All calls go to /api/ticketed-event/reconciliation (auth-gated).
+// UPDATED: PaymentSummary now includes byTicketType breakdown.
 
 import BaseService from './BaseService';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type AdjustmentType =
   | 'received'
@@ -23,80 +19,85 @@ export type ReasonCode =
   | 'refund' | 'prize_award_delivered' | 'cash_over' | 'cash_short' | 'other';
 
 export interface TicketedEventAdjustment {
-  id: string;
-  roomId: string;
-  ts: string;
+  id:             string;
+  roomId:         string;
+  ts:             string;
   adjustmentType: AdjustmentType;
-  amount: number;
-  currency: string;
-  paymentMethod: PaymentMethod | null;
-  reasonCode: ReasonCode | null;
-  note: string | null;
-  createdBy: string;
-  createdAt: string;
+  amount:         number;
+  currency:       string;
+  paymentMethod:  PaymentMethod | null;
+  reasonCode:     ReasonCode | null;
+  note:           string | null;
+  createdBy:      string;
+  createdAt:      string;
 }
 
 export interface TicketedEventReconciliation {
-  id: string;
-  roomId: string;
-  clubId: string;
+  id:                string;
+  roomId:            string;
+  clubId:            string;
   startingEntryFees: number;
-  startingExtras: number;
-  startingTotal: number;
-  adjustmentsNet: number;
-  finalTotal: number;
-  approvedBy: string | null;
-  approvedAt: string | null;
-  notes: string | null;
+  startingExtras:    number;
+  startingTotal:     number;
+  adjustmentsNet:    number;
+  finalTotal:        number;
+  approvedBy:        string | null;
+  approvedAt:        string | null;
+  notes:             string | null;
+}
+
+export interface TicketTypeBreakdown {
+  ticketTypeId:   string;
+  ticketTypeName: string;
+  ticketCount:    number;
+  entryFees:      number;
+  total:          number;
 }
 
 export interface PaymentSummary {
-  entryFees: number;
-  extras: number;
-  startingTotal: number;
+  entryFees:        number;
+  extras:           number;
+  startingTotal:    number;
   confirmedPlayers: number;
-  byMethod: { method: string; entryFees: number; extras: number; total: number }[];
-  tickets: { total: number; checkedIn: number; notCheckedIn: number };
+  byMethod:         { method: string; entryFees: number; extras: number; total: number }[];
+  byTicketType:     TicketTypeBreakdown[];  // ← new
+  tickets:          { total: number; checkedIn: number; notCheckedIn: number };
 }
 
 export interface RoomMeta {
-  clubId: string;
-  currencySymbol: string;
-  currency: string;
-  entryFee: string;
+  clubId:          string;
+  currencySymbol:  string;
+  currency:        string;
+  entryFee:        string;
   fundraisingMode: string;
-  hostName: string;
+  hostName:        string;
 }
 
 export interface ReconciliationState {
-  meta: RoomMeta | null;
+  meta:           RoomMeta | null;
   reconciliation: TicketedEventReconciliation | null;
-  adjustments: TicketedEventAdjustment[];
-  summary: PaymentSummary;
+  adjustments:    TicketedEventAdjustment[];
+  summary:        PaymentSummary;
 }
-
-// ─── Service ──────────────────────────────────────────────────────────────────
 
 class TicketedEventReconciliationService extends BaseService {
   private readonly base = '/ticketed-event/reconciliation';
 
-  // Load all reconciliation data for a room
   async getState(roomId: string): Promise<ReconciliationState> {
     return this.request<ReconciliationState>(
       `${this.base}/room/${encodeURIComponent(roomId)}`,
     );
   }
 
-  // Add a new adjustment row
   async addAdjustment(
     roomId: string,
     payload: {
       adjustmentType: AdjustmentType;
-      amount: number;
-      paymentMethod: PaymentMethod;
-      reasonCode: ReasonCode;
-      note?: string | null;
-      createdBy?: string;
+      amount:         number;
+      paymentMethod:  PaymentMethod;
+      reasonCode:     ReasonCode;
+      note?:          string | null;
+      createdBy?:     string;
     },
   ): Promise<{ ok: boolean; adjustment: TicketedEventAdjustment }> {
     return this.request(
@@ -105,7 +106,6 @@ class TicketedEventReconciliationService extends BaseService {
     );
   }
 
-  // Patch one field on an existing adjustment (called on blur)
   async updateAdjustment(
     roomId: string,
     adjustmentId: string,
@@ -120,7 +120,6 @@ class TicketedEventReconciliationService extends BaseService {
     );
   }
 
-  // Delete an adjustment
   async deleteAdjustment(
     roomId: string,
     adjustmentId: string,
@@ -131,19 +130,18 @@ class TicketedEventReconciliationService extends BaseService {
     );
   }
 
-  // Approve reconciliation — calculates totals on the server
   async approve(
     roomId: string,
     payload: { approvedBy: string; notes?: string | null },
   ): Promise<{
     ok: boolean;
     data: {
-      roomId: string;
-      finalTotal: number;
+      roomId:        string;
+      finalTotal:    number;
       adjustmentsNet: number;
       startingTotal: number;
-      approvedAt: string;
-      approvedBy: string;
+      approvedAt:    string;
+      approvedBy:    string;
     };
   }> {
     return this.request(
@@ -152,7 +150,6 @@ class TicketedEventReconciliationService extends BaseService {
     );
   }
 
-  // Fetch on-the-night payment view: confirmed groups + claimed + disputed
   async getPaymentView(roomId: string): Promise<{
     ok: boolean;
     onTheNight: {
@@ -170,6 +167,7 @@ class TicketedEventReconciliationService extends BaseService {
           paymentReference: string | null;
           amount:           number;
           status:           string;
+          saleType:         'walk_in' | 'advance';
         }[];
       }[];
       claimed: {
@@ -197,7 +195,6 @@ class TicketedEventReconciliationService extends BaseService {
     );
   }
 
-  // Confirm a claimed payment — reuses checkin route
   async confirmPayment(
     roomId: string,
     ticketId: string,
@@ -222,7 +219,6 @@ class TicketedEventReconciliationService extends BaseService {
     return res.json();
   }
 
-  // Dispute a claimed payment
   async disputePayment(
     roomId: string,
     playerId: string,

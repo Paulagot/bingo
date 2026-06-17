@@ -1,6 +1,6 @@
 // server/seoMap.js
 
-const DEFAULT_IMAGE_PATH = '/social/fundraisely-og.jpg';
+const DEFAULT_IMAGE_PATH = 'git /social/fundraisely-og.jpg';
 
 const ABS = (hostOrigin, path) =>
   `${hostOrigin}${path.startsWith('/') ? path : `/${path}`}`;

@@ -1,10 +1,6 @@
 // server/ticketedEvent/api/ticketedEventMgmtRoutes.js
 //
-// Auth-gated management routes for ticketed (non-digital) events.
-// Mounted at /api/ticketed-event/mgmt
-//
-// Entitlement scope: 'ticketed_event'
-// Free plan: 1 lifetime. Paid plans: counts toward monthly activity cap.
+// UPDATED: ticketTypes passed through on POST /schedule and PATCH /rooms/:roomId
 
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,7 +23,6 @@ const router = express.Router();
 
 console.log('[ticketedEventMgmtRoutes] ✅ Router loaded');
 
-// ── All routes require authentication ─────────────────────────────────────────
 router.use(authenticateToken);
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
@@ -75,23 +70,22 @@ router.post('/schedule', async (req, res) => {
       fundraisingMode,
       currency,
       currencySymbol,
+      ticketTypes,      // ← new
       prizes,
       eventSponsors,
       venueCapacity,
-       eventTitle,    // ← new
-  eventLocation,
+      eventTitle,
+      eventLocation,
     } = req.body;
 
     const roomId = providedRoomId || uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
 
-    console.log(`[ticketedEventMgmtRoutes] 📅 Schedule ticketed event — club: ${clubId} room: ${roomId}`);
+    console.log(`[ticketedEventMgmtRoutes] 📅 Schedule ticketed event — club: ${clubId} room: ${roomId} ticket types: ${Array.isArray(ticketTypes) ? ticketTypes.length : 0}`);
 
-    // ── Resolve entitlements ────────────────────────────────────────────────
     const ents = await resolveEntitlements({ userId: clubId, scope: 'ticketed_event' });
 
     console.log(`[ticketedEventMgmtRoutes] 🔑 Entitlements — plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
 
-    // ── Check credits ───────────────────────────────────────────────────────
     if ((ents.game_credits_remaining ?? 0) <= 0) {
       return res.status(402).json({
         error: 'no_credits',
@@ -102,32 +96,32 @@ router.post('/schedule', async (req, res) => {
       });
     }
 
-    // ── Ticketed events host sets capacity ──────────────────────────────────
- const venueMax = Number.isFinite(Number(venueCapacity)) && Number(venueCapacity) > 0
-  ? Math.round(Number(venueCapacity))
-  : null;
+    const venueMax = Number.isFinite(Number(venueCapacity)) && Number(venueCapacity) > 0
+      ? Math.round(Number(venueCapacity))
+      : null;
 
-if (!venueMax) {
-  return res.status(400).json({ error: 'venue_capacity_required' });
-}
+    if (!venueMax) {
+      return res.status(400).json({ error: 'venue_capacity_required' });
+    }
 
-const roomCaps = {
-  venueCapacity: venueMax,   // ← the host-defined hard ceiling
-  maxPlayers:    venueMax,   // ← keeps existing capacity logic working
-  planCode:      ents.plan_code,
-};
+    const roomCaps = {
+      venueCapacity: venueMax,
+      maxPlayers:    venueMax,
+      planCode:      ents.plan_code,
+    };
 
-    // ── Schedule in DB ──────────────────────────────────────────────────────
     const result = await scheduleTicketedEvent({
       clubId, roomId, hostId, hostName,
       scheduledAt, timeZone,
       entryFee, fundraisingMode,
       currency, currencySymbol,
+      ticketTypes,      // ← new
       prizes, eventSponsors,
       roomCaps,
+      eventTitle,
+      eventLocation,
     });
 
-    // ── Consume credit after successful DB write ────────────────────────────
     const creditResult = await consumeCredit(clubId, 'ticketed_event', ents.plan_code);
     if (!creditResult.ok) {
       console.error(
@@ -188,15 +182,19 @@ router.patch('/rooms/:roomId', async (req, res) => {
 
     const {
       scheduledAt, timeZone, entryFee, fundraisingMode,
-      currency, currencySymbol, prizes, eventSponsors,
+      currency, currencySymbol,
+      ticketTypes,      // ← new
+      prizes, eventSponsors,
     } = req.body;
 
-    console.log(`[ticketedEventMgmtRoutes] ✏️  Update ticketed event ${roomId} — club: ${clubId}`);
+    console.log(`[ticketedEventMgmtRoutes] ✏️  Update ticketed event ${roomId} — club: ${clubId} — ticket types: ${Array.isArray(ticketTypes) ? ticketTypes.length : 'unchanged'}`);
 
     const updated = await updateTicketedEvent({
       clubId, roomId,
       scheduledAt, timeZone, entryFee, fundraisingMode,
-      currency, currencySymbol, prizes, eventSponsors,
+      currency, currencySymbol,
+      ticketTypes,      // ← new
+      prizes, eventSponsors,
     });
 
     return res.status(200).json({ room: updated });
@@ -224,7 +222,6 @@ router.post('/rooms/:roomId/cancel', async (req, res) => {
 });
 
 // ─── POST /rooms/:roomId/open-checkin ─────────────────────────────────────────
-// Replaces "hydrate/launch" — opens check-in on the night
 router.post('/rooms/:roomId/open-checkin', async (req, res) => {
   try {
     const clubId = req.club_id;

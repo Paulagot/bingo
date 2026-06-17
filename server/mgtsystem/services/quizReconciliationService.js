@@ -1578,18 +1578,21 @@ export async function getReconciliationAuditView(roomId) {
   }));
 
   // ── 7. Ticket detail ───────────────────────────────────────────────────────
+// ── 7. Ticket detail ───────────────────────────────────────────────────────
   const [ticketRows] = await connection.execute(
     `SELECT
        t.ticket_id, t.player_name, t.purchaser_name,
        t.payment_method, t.total_amount, t.redemption_status,
-       t.confirmed_at, t.confirmed_by_name
+       t.confirmed_at, t.confirmed_by_name,
+       t.ticket_type_id,   -- ← ADD
+       t.ticket_type_name  -- ← ADD
      FROM ${TABLE_PREFIX}quiz_tickets t
      WHERE t.room_id = ?
        AND t.payment_status = 'payment_confirmed'
-     ORDER BY t.player_name ASC`,
+     ORDER BY t.ticket_type_name ASC, t.player_name ASC`,
     [roomId]
   );
-
+ 
   const tickets = ticketRows.map(row => ({
     ticketId:         row.ticket_id,
     playerName:       row.player_name,
@@ -1599,6 +1602,8 @@ export async function getReconciliationAuditView(roomId) {
     redemptionStatus: row.redemption_status,
     confirmedAt:      row.confirmed_at ? row.confirmed_at.toISOString() : null,
     confirmedByName:  row.confirmed_by_name || null,
+    ticketTypeId:     row.ticket_type_id   || null,   // ← ADD
+    ticketTypeName:   row.ticket_type_name || null,   // ← ADD
   }));
 
   // ── 8. By payment method ───────────────────────────────────────────────────

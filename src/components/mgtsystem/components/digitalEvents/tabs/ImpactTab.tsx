@@ -1,4 +1,11 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/ImpactTab.tsx
+// UPDATED:
+//   - Added isTicketedEvent detection (was falling through to quiz branch)
+//   - New "Ticketed Event" pill with its own icon/colour
+//   - "Players" relabelled "Attendees" for ticketed events
+//   - Volunteers section now reads config.admins (now populated by the
+//     check-in dashboard — see CheckinDashboard.PATCH.tsx) for ticketed events,
+//     same pattern as quiz/elimination
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -12,7 +19,7 @@ import { useCurrency } from '../../../hooks/useCurrency';
 import { feedbackService, type FeedbackSummary } from '../../../../feedback/FeedbackService';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPES  (unchanged from original)
+// TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface LeaderboardEntry { id: string; name: string; score: number; }
@@ -136,10 +143,8 @@ function CollapsibleSection({ icon, title, subtitle, count, children, defaultOpe
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HELPERS  (unchanged)
+// HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-
-
 
 function getSponsorName(sponsor: PrizeAward['sponsor']): string {
   if (!sponsor) return '';
@@ -156,7 +161,6 @@ function getPlaceLabel(place: number) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FEEDBACK STATS CARD
-// A small self-contained card for a single feedback metric.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FeedbackStatCard({
@@ -222,44 +226,68 @@ export default function ImpactTab({
   const hostName = config?.hostName || 'Host';
 
   // ── Detect game type ───────────────────────────────────────────────────────
+  // FIXED: previously only checked for 'elimination' and fell through to
+  // 'quiz' for everything else — including ticketed_event rooms, which is
+  // why the pill incorrectly said "Quiz". Now explicitly detects all three.
   const auditLeaderboard = auditView?.reconciliation?.finalLeaderboard;
-  const isElimination = auditLeaderboard?.type === 'elimination'
-    || (room as any).room_type === 'elimination';
+  const roomGameType = (room as any).game_type ?? (room as any).room_type ?? null;
 
-  const gameTypeLabel = isElimination ? 'Elimination' : 'Quiz';
-  const gameTagline   = isElimination
-    ? 'How this elimination brought your community together.'
-    : 'How this quiz brought your community together.';
+  const isTicketedEvent = roomGameType === 'ticketed_event';
+  const isElimination = !isTicketedEvent && (
+    auditLeaderboard?.type === 'elimination' || roomGameType === 'elimination'
+  );
+  const isQuiz = !isTicketedEvent && !isElimination;
 
-  // ── Leaderboard data ───────────────────────────────────────────────────────
+  const gameTypeLabel = isTicketedEvent ? 'Ticketed Event' : isElimination ? 'Elimination' : 'Quiz';
+  const gameTagline   = isTicketedEvent
+    ? 'How this ticketed event brought your community together.'
+    : isElimination
+      ? 'How this elimination brought your community together.'
+      : 'How this quiz brought your community together.';
+
+  // Label for "players" stat — ticketed events have attendees, not players
+  const personLabel = isTicketedEvent ? 'Attendees' : 'Players';
+
+  // ── Leaderboard data — not applicable to ticketed events ──────────────────
   const eliminationData: EliminationLeaderboard | null =
     isElimination && auditLeaderboard?.type === 'elimination' ? auditLeaderboard : null;
   const quizLeaderboard: LeaderboardEntry[] =
-    !isElimination ? (config?.reconciliation?.finalLeaderboard || []) : [];
-  const playerCount = isElimination
-    ? (eliminationData?.totalPlayers ?? 0)
-    : quizLeaderboard.length;
+    isQuiz ? (config?.reconciliation?.finalLeaderboard || []) : [];
+
+  // ── Attendee / player count ─────────────────────────────────────────────────
+  // Ticketed events: count confirmed tickets (from auditView), not a leaderboard.
+  const ticketRowsForCount: AuditTicketRow[] = auditView?.tickets ?? [];
+  const playerCount = isTicketedEvent
+    ? ticketRowsForCount.length
+    : isElimination
+      ? (eliminationData?.totalPlayers ?? 0)
+      : quizLeaderboard.length;
 
   // ── Prize awards ───────────────────────────────────────────────────────────
   const rec         = config?.reconciliation || {};
   const prizeAwards: PrizeAward[] = rec.prizeAwards || [];
 
   // ── Volunteers ─────────────────────────────────────────────────────────────
+  // Ticketed events now persist admins to config.admins via the check-in
+  // dashboard (same shape as quiz/elimination: { id, name }), populated when
+  // door staff confirm payments or are added via the Staff tab.
   const admins: Admin[] = !isElimination ? (config?.admins || []) : [];
   const eliminationAdminCount = eliminationData?.totalAdmins ?? 0;
   const volunteerCount = isElimination
     ? eliminationAdminCount + 1
     : admins.length + 1;
 
-  // ── Rounds / questions ──────────────────────────────────────────────────────
-  const roundCount = isElimination
-    ? (eliminationData?.totalRounds ?? 0)
-    : (config?.roundDefinitions || []).length;
-  const totalQuestions = isElimination
+  // ── Rounds / questions — not applicable to ticketed events ─────────────────
+  const roundCount = isTicketedEvent
     ? 0
-    : (config?.roundDefinitions || []).reduce(
+    : isElimination
+      ? (eliminationData?.totalRounds ?? 0)
+      : (config?.roundDefinitions || []).length;
+  const totalQuestions = isQuiz
+    ? (config?.roundDefinitions || []).reduce(
         (sum: number, rd: any) => sum + (rd.config?.questionsPerRound || 0), 0
-      );
+      )
+    : 0;
 
   // ── Ticket data ─────────────────────────────────────────────────────────────
   const ticketRows: AuditTicketRow[] = auditView?.tickets ?? [];
@@ -281,7 +309,7 @@ export default function ImpactTab({
   const sponsors = [...new Set(
     prizeAwards.map(a => getSponsorName(a.sponsor)).filter(Boolean)
   )];
- 
+
 
   const eventDate = room.scheduled_at
     ? new Date(room.scheduled_at).toLocaleDateString('en-GB', {
@@ -301,7 +329,6 @@ export default function ImpactTab({
     const el = document.getElementById('impact-tab-print-area');
     if (!el) return;
 
-    // Capture styles from the current document
     const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
       .map(n => n.outerHTML).join('\n');
 
@@ -315,14 +342,9 @@ export default function ImpactTab({
         body { margin: 0; padding: 0; background: #fff;
                -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         #pr  { max-width: 900px; margin: 0 auto; padding: 24px; }
-
-        /* Force all collapsible sections open for print */
         .impact-collapsible-content { display: block !important; }
-
-        /* Hide toggle buttons and interactive controls */
         .impact-collapsible-toggle,
         .impact-no-print { display: none !important; }
-
         .fixed, .absolute, .sticky { position: static !important; }
         .overflow-y-auto, .overflow-auto, .overflow-hidden { overflow: visible !important; }
         @media print { @page { size: A4; margin: 14mm; } }
@@ -339,8 +361,6 @@ export default function ImpactTab({
     setTimeout(() => { if (!w.closed) run(); }, 1000);
   };
 
-  // ── Feedback display helpers ────────────────────────────────────────────────
-  // We show feedback cards only when there is at least 1 response.
   const hasFeedback = !feedbackLoading && feedback && feedback.total > 0;
 
 
@@ -367,11 +387,13 @@ export default function ImpactTab({
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-xl font-black text-[#102532]">Community Impact</h2>
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                isElimination
-                  ? 'bg-[rgba(233,87,79,0.1)] text-[#c8423b] border border-[rgba(233,87,79,0.3)]'
-                  : 'bg-[rgba(21,127,133,0.12)] text-[#157f85] border border-[rgba(21,127,133,0.3)]'
+                isTicketedEvent
+                  ? 'bg-[rgba(3,105,161,0.1)] text-[#0369a1] border border-[rgba(3,105,161,0.3)]'
+                  : isElimination
+                    ? 'bg-[rgba(233,87,79,0.1)] text-[#c8423b] border border-[rgba(233,87,79,0.3)]'
+                    : 'bg-[rgba(21,127,133,0.12)] text-[#157f85] border border-[rgba(21,127,133,0.3)]'
               }`}>
-                {isElimination ? <Zap className="h-3 w-3" /> : <Trophy className="h-3 w-3" />}
+                {isTicketedEvent ? <Ticket className="h-3 w-3" /> : isElimination ? <Zap className="h-3 w-3" /> : <Trophy className="h-3 w-3" />}
                 {gameTypeLabel}
               </span>
             </div>
@@ -425,7 +447,7 @@ export default function ImpactTab({
         />
         <StatCard
           icon={<Users className="h-5 w-5" />}
-          label="Players"
+          label={personLabel}
           value={playerCount}
           tone="indigo"
           helper="Community members activated"
@@ -452,7 +474,7 @@ export default function ImpactTab({
             label={isElimination ? 'Rounds Played' : 'Rounds'}
             value={roundCount}
             tone="blue"
-            helper={!isElimination && totalQuestions > 0 ? `~${totalQuestions} questions` : undefined}
+            helper={isQuiz && totalQuestions > 0 ? `~${totalQuestions} questions` : undefined}
           />
         )}
         {hasTickets && redemptionRate && (
@@ -474,24 +496,23 @@ export default function ImpactTab({
         )}
         {hasFeedback && (
           <>
-            {/* Response rate card — in grid, before the two metric cards */}
             <div className="rounded-xl border border-[rgba(184,198,176,0.5)] bg-[rgba(184,198,176,0.1)] p-4">
               <div className="mb-2 text-[#52636f]"><MessageSquare className="h-5 w-5" /></div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">Player Feedback</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">{personLabel} Feedback</p>
               <p className="mt-1 text-xl font-black text-[#102532]">
                 {feedback!.total} <span className="text-sm font-semibold text-[#52636f]">of {playerCount}</span>
               </p>
-              <p className="mt-1 text-[11px] text-[#52636f]">players left feedback</p>
+              <p className="mt-1 text-[11px] text-[#52636f]">{personLabel.toLowerCase()} left feedback</p>
             </div>
             <FeedbackStatCard
               icon={<ThumbsUp className="h-5 w-5" />}
-              label="Enjoyed the game"
+              label="Enjoyed the event"
               yesCount={feedback!.enjoyed_yes}
               totalAnswered={feedback!.total}
             />
             <FeedbackStatCard
               icon={<Repeat2 className="h-5 w-5" />}
-              label="Would play again"
+              label="Would attend again"
               yesCount={feedback!.play_again_yes}
               totalAnswered={feedback!.total}
               tone="amber"
@@ -499,10 +520,6 @@ export default function ImpactTab({
           </>
         )}
       </div>
-
-
-
-
 
       {/* ── Sponsors ────────────────────────────────────────────────────────── */}
       {sponsors.length > 0 && (
@@ -567,19 +584,21 @@ export default function ImpactTab({
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-[#102532]">{admin.name}</p>
-                    <p className="text-xs text-[#52636f]">Admin / Volunteer</p>
+                    <p className="text-xs text-[#52636f]">{isTicketedEvent ? 'Door staff / Volunteer' : 'Admin / Volunteer'}</p>
                   </div>
                 </div>
               ))
-            : <div className="px-4 py-3 text-xs text-[#52636f]">No additional admins registered.</div>
+            : <div className="px-4 py-3 text-xs text-[#52636f]">
+                {isTicketedEvent ? 'No door staff registered.' : 'No additional admins registered.'}
+              </div>
         )}
         <div className="px-4 py-2.5 bg-[rgba(184,198,176,0.1)] border-t border-[rgba(184,198,176,0.3)] text-xs text-[#52636f] font-medium">
           {volunteerCount} volunteer{volunteerCount !== 1 ? 's' : ''} contributed to this event
         </div>
       </CollapsibleSection>
 
-      {/* ── Final Leaderboard — collapsible ────────────────────────────────── */}
-      {isElimination ? (
+      {/* ── Final Leaderboard — collapsible (not shown for ticketed events) ── */}
+      {isTicketedEvent ? null : isElimination ? (
         eliminationData && eliminationData.finalStandings.length > 0 && (
           <CollapsibleSection
             icon={<Zap className="h-5 w-5 text-[#c8423b]" />}
@@ -702,8 +721,6 @@ export default function ImpactTab({
           })}
         </CollapsibleSection>
       )}
-
-
 
       </div> {/* end impact-tab-print-area */}
     </div>

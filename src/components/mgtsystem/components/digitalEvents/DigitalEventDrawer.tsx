@@ -19,6 +19,7 @@ import ReportTab from "./tabs/ReportTab";
 import ApprovalTotalsTab from "./tabs/ApprovalTotalsTab";
 import ImpactTab from "./tabs/ImpactTab";
 import TicketedEventReconciliationTab from "./tabs/reconciliation/TicketedEventReconciliationTab";
+import TicketsTabTicketedEvent from './tabs/TicketsTabTicketedEvent';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -356,11 +357,16 @@ export default function DigitalEventDrawer({
               confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
           )}
 
-          {activeTab === "tickets" && (
-            <TicketsTab room={room} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
-              canUseTicketing={canUseTicketing}
-              confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
-          )}
+         {activeTab === "tickets" && (
+     isTicketedEvent
+       ? <TicketsTabTicketedEvent room={room} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
+           canUseTicketing={canUseTicketing}
+           confirmedBy={confirmedBy} confirmedByName={confirmedByName}
+           config={config} />
+       : <TicketsTab room={room} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
+           canUseTicketing={canUseTicketing}
+           confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
+   )}
 
           {activeTab === "launch" && (
             <LaunchTab

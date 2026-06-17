@@ -45,10 +45,15 @@ const faqs = [
     answer:
       'You can use this format for dinners, galas, sports events, race nights, awards nights, coffee mornings, family fun days, concerts, comedy nights, workshops, training days, community evenings, club socials, charity lunches, breakfast mornings, open days and other ticketed fundraisers.',
   },
+    {
+    question: 'Can we have different ticket types and prices for the one event?',
+    answer:
+      'Yes. You can set up multiple ticket types and prices for the same event, including early bird tickets, VIP tickets, group tickets, U16 tickets or other ticketing options.',
+  },
   {
     question: 'How does a ticketed event work?',
     answer:
-      'The organiser creates the event, selects ticketed event as the format, adds the ticket price and shares the event link with supporters. Supporters can then open the link, choose a ticket, enter their details and follow the payment instructions.',
+      'The organiser creates the event, selects ticketed event as the format, adds ticket types and prices and shares the event link with supporters. Supporters can then open the link, choose a ticket, enter their details and follow the payment instructions.',
   },
   {
     question: 'Can supporters buy or reserve tickets online?',
@@ -124,8 +129,12 @@ const eventTypeItems = [
 
 const processSteps = [
   {
-    title: 'Create the event',
-    text: 'Add the event name, date, location, ticket price and the key details supporters need before they decide to attend.',
+    title: 'Add Ticketed activity to the event',
+    text: 'Once you have created the event, you can add ticketed activity to it.',
+  },
+    {
+    title: 'Setting up the ticketed activity',
+    text: 'Add your ticket types, prices and availability. Set expiry dates and limits to cater for VIP tickets, early bird tickets, group tickets or other ticketing options.',
   },
   {
     title: 'Share the ticket link',
@@ -236,12 +245,12 @@ export default function TicketedEventsPage() {
 
       <SplitSection
         eyebrow="Simple setup"
-        title="Set up the event, add the ticket price and share the link"
-        text="The organiser creates the event, chooses ticketed event as the format, adds the ticket price and shares the event link with supporters. It is designed for practical fundraisers where the team needs something simple, clear and easy to manage."
+        title="Set up the event, add ticket types and prices and share the link"
+        text="The organiser creates the event, chooses ticketed event as the format, adds ticket types and prices and shares the event link with supporters. It is designed for practical fundraisers where the team needs something simple, clear and easy to manage."
         bullets={[
           'Create dinners, galas, sports events and community fundraisers',
-          'Set the ticket or entry price',
-          'Add the event details supporters need',
+          'Set the ticket types and entry price',
+          'Add details of any sponsors or prizes',
           'Share one clear ticket link',
           'Let supporters choose their ticket and enter their details',
           'Keep the ticket flow connected to the event',

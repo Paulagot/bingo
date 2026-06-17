@@ -105,7 +105,24 @@ router.get('/room/:roomId', async (req, res) => {
       [roomId]
     );
 
-    const summary = {
+    
+    // By ticket type breakdown — null ticket_type_id = legacy room with no types
+    const [byTicketType] = await connection.execute(
+      `SELECT
+         COALESCE(ticket_type_id,   'general')          AS ticket_type_id,
+         COALESCE(ticket_type_name, 'General Admission') AS ticket_type_name,
+         COUNT(*)          AS ticket_count,
+         SUM(entry_fee)    AS entry_fees,
+         SUM(total_amount) AS total
+       FROM ${TICKETS_TABLE}
+       WHERE room_id = ?
+         AND payment_status = 'payment_confirmed'
+       GROUP BY ticket_type_id, ticket_type_name
+       ORDER BY total DESC`,
+      [roomId]
+    );
+
+   const summary = {
       entryFees:        Number(summaryRow?.entry_fees      ?? 0),
       extras:           Number(summaryRow?.extras          ?? 0),
       startingTotal:    Number(summaryRow?.starting_total  ?? 0),
@@ -115,6 +132,14 @@ router.get('/room/:roomId', async (req, res) => {
         entryFees:  Number(r.entry_fees ?? 0),
         extras:     Number(r.extras     ?? 0),
         total:      Number(r.total      ?? 0),
+      })),
+      // ← ADD THIS:
+      byTicketType: byTicketType.map(r => ({
+        ticketTypeId:   r.ticket_type_id,
+        ticketTypeName: r.ticket_type_name,
+        ticketCount:    Number(r.ticket_count ?? 0),
+        entryFees:      Number(r.entry_fees   ?? 0),
+        total:          Number(r.total        ?? 0),
       })),
       tickets: {
         total:        Number(ticketCounts?.total        ?? 0),
