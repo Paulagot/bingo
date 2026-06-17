@@ -1,5 +1,5 @@
 // src/components/Quiz/tickets/TicketConfirmation.tsx
-// UPDATED: club name, event type label, game-type-aware copy
+// UPDATED: Shows ticket type name in the ticket summary when present.
 
 import React, { useMemo, useState } from 'react';
 import { Check, Copy, ExternalLink, Link as LinkIcon } from 'lucide-react';
@@ -7,7 +7,7 @@ import type { Ticket, RoomInfo } from './types';
 import { getGameTypeMeta } from './gameTypeMeta';
 
 interface TicketConfirmationProps {
-  ticket: Ticket;
+  ticket:   Ticket;
   roomInfo: RoomInfo;
 }
 
@@ -17,7 +17,7 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
   ticket,
   roomInfo,
 }) => {
-  const [copiedJoin, setCopiedJoin] = useState(false);
+  const [copiedJoin,   setCopiedJoin]   = useState(false);
   const [copiedStatus, setCopiedStatus] = useState(false);
 
   const origin =
@@ -27,96 +27,70 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
 
   const statusUrl = `${origin}/tickets/status/${ticket.ticketId}`;
 
-  // Resolve display name: club name wins, fall back to hostName from roomInfo
   const displayName =
     ticket.clubName || roomInfo.clubName || roomInfo.hostName || 'the host';
 
-  // Game-type meta for copy
   const meta = getGameTypeMeta(ticket.gameType ?? roomInfo.gameType);
 
-  const copyToClipboard = async (
-    value: string,
-    setFlag: (v: boolean) => void
-  ) => {
+  const copyToClipboard = async (value: string, setFlag: (v: boolean) => void) => {
     try {
       await navigator.clipboard.writeText(value);
       setFlag(true);
       setTimeout(() => setFlag(false), 2000);
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   };
 
   const status = useMemo(() => {
-    const map: Record<
-      StatusKey,
-      {
-        icon: string;
-        title: string;
-        message: string;
-        badgeClass: string;
-        boxClass: string;
-        borderClass: string;
-        textClass: string;
-      }
-    > = {
+    const map: Record<StatusKey, {
+      icon: string; title: string; message: string;
+      badgeClass: string; boxClass: string; borderClass: string; textClass: string;
+    }> = {
       payment_claimed: {
-        icon: '⏳',
-        title: 'Payment pending',
-        message: 'The host will confirm your payment shortly.',
-        badgeClass: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        boxClass: 'bg-yellow-50',
+        icon:        '⏳',
+        title:       'Payment pending',
+        message:     'The host will confirm your payment shortly.',
+        badgeClass:  'bg-yellow-100 text-yellow-800 border-yellow-200',
+        boxClass:    'bg-yellow-50',
         borderClass: 'border-yellow-200',
-        textClass: 'text-yellow-900',
+        textClass:   'text-yellow-900',
       },
       payment_confirmed: {
-        icon: '✅',
-        title: 'Payment confirmed',
-        message: `Your ticket is ready — you can join when the ${meta.eventNoun} opens.`,
-        badgeClass: 'bg-green-100 text-green-800 border-green-200',
-        boxClass: 'bg-green-50',
+        icon:        '✅',
+        title:       'Payment confirmed',
+        message:     `Your ticket is ready — you can join when the ${meta.eventNoun} opens.`,
+        badgeClass:  'bg-green-100 text-green-800 border-green-200',
+        boxClass:    'bg-green-50',
         borderClass: 'border-green-200',
-        textClass: 'text-green-900',
+        textClass:   'text-green-900',
       },
       refunded: {
-        icon: '💰',
-        title: 'Refunded',
-        message:
-          'This ticket was refunded. If you think this is a mistake, contact the host.',
-        badgeClass: 'bg-red-100 text-red-800 border-red-200',
-        boxClass: 'bg-red-50',
+        icon:        '💰',
+        title:       'Refunded',
+        message:     'This ticket was refunded. If you think this is a mistake, contact the host.',
+        badgeClass:  'bg-red-100 text-red-800 border-red-200',
+        boxClass:    'bg-red-50',
         borderClass: 'border-red-200',
-        textClass: 'text-red-900',
+        textClass:   'text-red-900',
       },
     };
-
     return map[ticket.paymentStatus];
   }, [ticket.paymentStatus, meta.eventNoun]);
 
   return (
     <div className="h-full overflow-y-auto">
+
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 sm:px-8 sm:py-5">
         <div className="flex items-center gap-4">
           <div className="text-4xl sm:text-5xl">{meta.emoji}</div>
-
           <div className="min-w-0 flex-1">
-            <div className="text-white text-xl sm:text-2xl font-bold leading-tight">
-              Ticket created
-            </div>
-
+            <div className="text-white text-xl sm:text-2xl font-bold leading-tight">Ticket created</div>
             <div className="mt-1 text-indigo-100 text-sm">
-              Ticket ID:{' '}
-              <span className="font-semibold text-white/90">
-                {ticket.ticketId}
-              </span>
+              Ticket ID: <span className="font-semibold text-white/90">{ticket.ticketId}</span>
             </div>
-
             <div className="mt-2 text-white/90 text-xs sm:text-sm">
               We&apos;ve sent confirmation to:{' '}
-              <span className="font-semibold text-white">
-                {ticket.purchaserEmail}
-              </span>
+              <span className="font-semibold text-white">{ticket.purchaserEmail}</span>
             </div>
           </div>
         </div>
@@ -126,36 +100,25 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
       <div className="bg-indigo-50 border-b border-indigo-100 px-5 py-3 sm:px-8 flex items-center gap-3">
         <span className="text-lg">🏢</span>
         <div className="min-w-0">
-          <div className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">
-            {meta.label}
-          </div>
-          <div className="text-sm font-bold text-indigo-900 truncate">
-            {displayName}
-          </div>
+          <div className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">{meta.label}</div>
+          <div className="text-sm font-bold text-indigo-900 truncate">{displayName}</div>
         </div>
       </div>
 
       {/* Body */}
       <div className="p-4 sm:p-6 space-y-5">
+
         {/* Status */}
-        <div
-          className={`rounded-xl border ${status.borderClass} ${status.boxClass} p-4`}
-        >
+        <div className={`rounded-xl border ${status.borderClass} ${status.boxClass} p-4`}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="text-2xl">{status.icon}</div>
               <div>
-                <div className={`font-semibold ${status.textClass}`}>
-                  {status.title}
-                </div>
+                <div className={`font-semibold ${status.textClass}`}>{status.title}</div>
                 <div className="text-sm text-gray-700">{status.message}</div>
               </div>
             </div>
-
-            {/* mobile badge */}
-            <span
-              className={`sm:hidden shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${status.badgeClass}`}
-            >
+            <span className={`sm:hidden shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${status.badgeClass}`}>
               {ticket.paymentStatus.replace('_', ' ')}
             </span>
           </div>
@@ -170,31 +133,23 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
                 Your ticket link
               </h2>
               <p className="mt-1 text-sm text-indigo-900/80">
-                This is the same link we email you. Use it on{' '}
-                {meta.eventNoun} night to join.
+                This is the same link we email you. Use it on {meta.eventNoun} night to join.
               </p>
             </div>
           </div>
-
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <code className="w-full sm:flex-1 bg-white px-3 py-3 rounded-lg border border-indigo-200 font-mono text-sm sm:text-base break-all">
               {statusUrl}
             </code>
-
             <button
               type="button"
               onClick={() => copyToClipboard(statusUrl, setCopiedJoin)}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
             >
-              {copiedJoin ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
+              {copiedJoin ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copiedJoin ? 'Copied' : 'Copy link'}
             </button>
           </div>
-
           <div className="mt-3 text-xs text-indigo-900/70">
             Token: <span className="font-mono">{ticket.joinToken}</span>
           </div>
@@ -203,20 +158,25 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
         {/* Ticket summary */}
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <h2 className="font-semibold text-gray-900 mb-3">Ticket summary</h2>
-
           <div className="space-y-2 text-sm">
+
+            {/* Ticket type — only shown for ticketed events */}
+            {ticket.ticketTypeName && (
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-600">Ticket type</span>
+                <span className="font-medium text-gray-900">{ticket.ticketTypeName}</span>
+              </div>
+            )}
+
             <div className="flex justify-between gap-3">
-              <span className="text-gray-600">Player name</span>
-              <span className="font-medium text-gray-900 truncate">
-                {ticket.playerName}
-              </span>
+              <span className="text-gray-600">Name</span>
+              <span className="font-medium text-gray-900 truncate">{ticket.playerName}</span>
             </div>
 
             <div className="flex justify-between gap-3">
-              <span className="text-gray-600">Entry fee</span>
+              <span className="text-gray-600">{ticket.ticketTypeName ? 'Ticket price' : 'Entry fee'}</span>
               <span className="font-medium text-gray-900">
-                {ticket.currency}
-                {ticket.entryFee.toFixed(2)}
+                {ticket.currency}{ticket.entryFee.toFixed(2)}
               </span>
             </div>
 
@@ -224,8 +184,7 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
               <div className="flex justify-between gap-3">
                 <span className="text-gray-600">Extras</span>
                 <span className="font-medium text-gray-900">
-                  {ticket.currency}
-                  {ticket.extrasTotal.toFixed(2)}
+                  {ticket.currency}{ticket.extrasTotal.toFixed(2)}
                 </span>
               </div>
             )}
@@ -233,8 +192,7 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
             <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between gap-3">
               <span className="font-semibold text-gray-900">Total</span>
               <span className="font-bold text-gray-900">
-                {ticket.currency}
-                {ticket.totalAmount.toFixed(2)}
+                {ticket.currency}{ticket.totalAmount.toFixed(2)}
               </span>
             </div>
           </div>
@@ -242,9 +200,7 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
 
         {/* What happens next */}
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">
-            What happens next
-          </h3>
+          <h3 className="font-semibold text-blue-900 mb-2">What happens next</h3>
           <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
             <li>The host confirms your payment</li>
             <li>Your ticket becomes ready to use</li>
@@ -255,29 +211,20 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
 
         {/* Status link + copy */}
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <div className="font-semibold text-gray-900 mb-2">
-            Ticket status link
-          </div>
-
+          <div className="font-semibold text-gray-900 mb-2">Ticket status link</div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <code className="w-full sm:flex-1 bg-gray-50 px-3 py-3 rounded-lg border border-gray-200 font-mono text-xs sm:text-sm break-all">
               {statusUrl}
             </code>
-
             <button
               type="button"
               onClick={() => copyToClipboard(statusUrl, setCopiedStatus)}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-black"
             >
-              {copiedStatus ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
+              {copiedStatus ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copiedStatus ? 'Copied' : 'Copy'}
             </button>
           </div>
-
           <a
             href={`/tickets/status/${ticket.ticketId}`}
             target="_blank"

@@ -4,30 +4,31 @@
 // Used by door staff to add guests who pay on the night.
 // Accessible via operator token (?token=xyz) or club session.
 //
-// URL: /tickets/walkin/:roomId?token=xxx
-//
-// Unlike the online ticket purchase flow:
-//   - Uses onnight_method_ids (cash, card tap, etc.)
-//   - Email is optional
-//   - Ticket is created as payment_confirmed + redeemed immediately
-//   - No extras, no QR code step
-//
-// Status guard: if the room is not 'open', redirects to /
-// (covers completed, cancelled, and any other non-open state)
+// UPDATED: Ticket type selection step added when multiple types are available.
+//          Uses the same getAvailableTicketTypes logic as the public purchase flow
+//          (served by GET /api/quiz/tickets/room/:roomId/info).
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertTriangle, CheckCircle2, UserPlus } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle2, UserPlus, Ticket } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface TicketTypeOption {
+  id:        string;
+  name:      string;
+  price:     string;
+  soldCount: number;
+  remaining: number | null;
+}
+
 interface PaymentMethod {
-  id: number;
+  id:             number;
   methodLabel:    string;
   methodCategory: string;
   providerName:   string | null;
   isEnabled?:     boolean;
-  methodConfig?:  Record<string, any>;
+  methodConfig?:  Record<string, unknown>;
 }
 
 interface RoomInfo {
@@ -39,14 +40,16 @@ interface RoomInfo {
   hostName:        string;
   clubName?:       string | null;
   gameType?:       string;
+  ticketTypes?:    TicketTypeOption[];
 }
 
 interface WalkinResult {
-  ticketId:      string;
-  purchaserName: string;
-  totalAmount:   number;
-  currency:      string;
-  paymentMethod: string;
+  ticketId:       string;
+  purchaserName:  string;
+  totalAmount:    number;
+  currency:       string;
+  paymentMethod:  string;
+  ticketTypeName: string | null;
 }
 
 interface WalkinFlowProps {
@@ -79,17 +82,19 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Form state
-  const [name,            setName]            = useState('');
-  const [email,           setEmail]           = useState('');
-  const [selectedMethod,  setSelectedMethod]  = useState<PaymentMethod | null>(null);
-  const [customAmount,    setCustomAmount]     = useState('');
-  const [submitError,     setSubmitError]      = useState<string | null>(null);
-  const [result,          setResult]           = useState<WalkinResult | null>(null);
+  const [name,             setName]            = useState('');
+  const [email,            setEmail]           = useState('');
+  const [selectedMethod,   setSelectedMethod]  = useState<PaymentMethod | null>(null);
+  const [selectedType,     setSelectedType]    = useState<TicketTypeOption | null>(null);
+  const [customAmount,     setCustomAmount]    = useState('');
+  const [submitError,      setSubmitError]     = useState<string | null>(null);
+  const [result,           setResult]          = useState<WalkinResult | null>(null);
 
   // ── Load room info + onnight payment methods ──────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
+        // Use the public info endpoint — it already returns available ticket types
         const infoRes = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
         if (!infoRes.ok) {
           const d = await infoRes.json().catch(() => ({}));
@@ -97,18 +102,19 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
         }
         const info = await infoRes.json();
 
-        // Verify this is a ticketed event room
         if (info.gameType && info.gameType !== 'ticketed_event') {
           throw new Error('This walk-in page is only for ticketed events.');
         }
 
-        // ── Status guard ────────────────────────────────────────────────────
-        // Only allow walk-ins when the room is open (check-in running).
-        // Completed, cancelled, scheduled → redirect to home.
+        // Only allow walk-ins when the room is open (check-in running)
         if (info.status !== 'open') {
           navigate('/', { replace: true });
           return;
         }
+
+        const ticketTypes: TicketTypeOption[] = Array.isArray(info.ticketTypes)
+          ? info.ticketTypes
+          : [];
 
         setRoomInfo({
           roomId:          info.roomId,
@@ -119,11 +125,17 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           hostName:        info.hostName || '',
           clubName:        info.clubName || null,
           gameType:        info.gameType,
+          ticketTypes,
         });
 
-        // On-night payment methods
+        // Auto-select if only one type available
+        if (ticketTypes.length === 1 && ticketTypes[0]) {
+          setSelectedType(ticketTypes[0]);
+        }
+
+        // On-night payment methods — use context=onnight to get cash, card tap etc.
         const methodsRes = await fetch(
-          `/api/quiz-rooms/${roomId}/available-payment-methods`,
+          `/api/quiz-rooms/${roomId}/available-payment-methods?context=onnight`,
           { headers: getAuthHeaders(token) }
         );
         const methodsData = await methodsRes.json().catch(() => ({ ok: false, paymentMethods: [] }));
@@ -133,12 +145,11 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
 
         const enabled = all.filter(m => m.isEnabled !== false);
         setMethods(enabled);
-
-        if (enabled.length > 0) setSelectedMethod(enabled[0]);
+        if (enabled.length > 0 && enabled[0]) setSelectedMethod(enabled[0]);
 
         setStep('form');
-      } catch (e: any) {
-        setLoadError(e?.message || 'Failed to load event info');
+      } catch (e: unknown) {
+        setLoadError(e instanceof Error ? e.message : 'Failed to load event info');
         setStep('error');
       }
     };
@@ -147,21 +158,26 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
   }, [roomId, token, navigate]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const isDonation = roomInfo?.fundraisingMode === 'donation';
+  const isDonation    = roomInfo?.fundraisingMode === 'donation';
+  const ticketTypes   = roomInfo?.ticketTypes ?? [];
+  const hasMultiTypes = ticketTypes.length > 1;
 
   const amount = useMemo(() => {
     if (isDonation) {
       const parsed = parseFloat(customAmount);
       return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
     }
+    // Use selected ticket type price, fall back to room entryFee
+    if (selectedType) return parseFloat(selectedType.price) || 0;
     return roomInfo?.entryFee ?? 0;
-  }, [isDonation, customAmount, roomInfo]);
+  }, [isDonation, customAmount, selectedType, roomInfo]);
 
   const sym = roomInfo?.currencySymbol ?? '€';
 
   const isValid = name.trim().length > 0 &&
     selectedMethod !== null &&
-    (isDonation ? amount > 0 : true);
+    (isDonation ? amount > 0 : true) &&
+    (!hasMultiTypes || selectedType !== null);
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -181,6 +197,8 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           paymentMethod:       selectedMethod!.providerName || selectedMethod!.methodCategory,
           clubPaymentMethodId: selectedMethod!.id,
           confirmedByName:     token ? 'Door staff' : 'Admin',
+          ticketTypeId:        selectedType?.id   ?? null,
+          ticketTypeName:      selectedType?.name ?? null,
         }),
       });
 
@@ -188,15 +206,16 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
       if (!res.ok) throw new Error(data.message || data.error || 'Failed to create ticket');
 
       setResult({
-        ticketId:      data.ticketId,
-        purchaserName: name.trim(),
-        totalAmount:   amount,
-        currency:      sym,
-        paymentMethod: selectedMethod!.methodLabel,
+        ticketId:       data.ticketId,
+        purchaserName:  name.trim(),
+        totalAmount:    amount,
+        currency:       sym,
+        paymentMethod:  selectedMethod!.methodLabel,
+        ticketTypeName: selectedType?.name ?? null,
       });
       setStep('done');
-    } catch (e: any) {
-      setSubmitError(e?.message || 'Failed to check in. Please try again.');
+    } catch (e: unknown) {
+      setSubmitError(e instanceof Error ? e.message : 'Failed to check in. Please try again.');
       setStep('form');
     }
   };
@@ -206,6 +225,8 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
     setName('');
     setEmail('');
     setCustomAmount('');
+    // Keep type selected if only one — reset if multiple
+    if (hasMultiTypes) setSelectedType(null);
     setSelectedMethod(methods[0] ?? null);
     setResult(null);
     setSubmitError(null);
@@ -246,6 +267,9 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           </div>
           <h2 className="text-lg font-bold text-[#102532] mb-1">Checked in!</h2>
           <p className="text-2xl font-black text-[#157f85] mb-1">{result.purchaserName}</p>
+          {result.ticketTypeName && (
+            <p className="text-sm font-semibold text-[#52636f] mb-1">{result.ticketTypeName}</p>
+          )}
           <p className="text-sm text-[#52636f] mb-4">
             {result.currency}{result.totalAmount.toFixed(2)} · {result.paymentMethod}
           </p>
@@ -289,7 +313,11 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           <p className="text-xs text-[#52636f] mt-0.5">
             {isDonation
               ? 'Enter guest details and collect donation'
-              : `Entry fee: ${sym}${roomInfo?.entryFee?.toFixed(2)}`}
+              : selectedType
+                ? `${selectedType.name}: ${sym}${parseFloat(selectedType.price).toFixed(2)}`
+                : ticketTypes.length > 1
+                  ? 'Select a ticket type below'
+                  : `Entry fee: ${sym}${roomInfo?.entryFee?.toFixed(2)}`}
           </p>
         </div>
       </div>
@@ -300,6 +328,58 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-red-700">{submitError}</p>
+          </div>
+        )}
+
+        {/* ── Ticket type selector (only when multiple types) ── */}
+        {hasMultiTypes && (
+          <div className="bg-white rounded-xl border border-[#dce1df] p-4">
+            <h2 className="text-sm font-bold text-[#102532] mb-3">Ticket type</h2>
+            <div className="space-y-2">
+              {ticketTypes.map(type => {
+                const isSelected = selectedType?.id === type.id;
+                const price      = parseFloat(type.price);
+                const isLow      = type.remaining !== null && type.remaining <= 5;
+
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => setSelectedType(type)}
+                    className={`w-full rounded-xl border-2 px-4 py-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-[#157f85] bg-[rgba(21,127,133,0.06)]'
+                        : 'border-[#dce1df] bg-white hover:border-[#b8c6b0]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
+                          isSelected ? 'bg-[#157f85] text-white' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {isSelected
+                            ? <CheckCircle2 className="h-4 w-4" />
+                            : <Ticket className="h-4 w-4" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`text-sm font-semibold truncate ${isSelected ? 'text-[#157f85]' : 'text-[#102532]'}`}>
+                            {type.name}
+                          </p>
+                          {type.remaining !== null && (
+                            <p className={`text-xs ${isLow ? 'text-amber-600' : 'text-[#8a9bab]'}`}>
+                              {type.remaining} remaining
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-base font-bold flex-shrink-0 ${isSelected ? 'text-[#157f85]' : 'text-[#102532]'}`}>
+                        {sym}{isNaN(price) ? type.price : price.toFixed(2)}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -388,18 +468,14 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
         </div>
 
         {/* Amount summary */}
-        {!isDonation && (
+        {amount > 0 && (
           <div className="bg-[rgba(21,127,133,0.06)] rounded-xl border border-[rgba(21,127,133,0.2)] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#52636f]">Total to collect</span>
-            <span className="text-xl font-black text-[#102532]">
-              {sym}{(roomInfo?.entryFee ?? 0).toFixed(2)}
-            </span>
-          </div>
-        )}
-
-        {isDonation && amount > 0 && (
-          <div className="bg-[rgba(21,127,133,0.06)] rounded-xl border border-[rgba(21,127,133,0.2)] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#52636f]">Total to collect</span>
+            <div>
+              <span className="text-sm font-semibold text-[#52636f]">Total to collect</span>
+              {selectedType && (
+                <p className="text-xs text-[#8a9bab] mt-0.5">{selectedType.name}</p>
+              )}
+            </div>
             <span className="text-xl font-black text-[#102532]">
               {sym}{amount.toFixed(2)}
             </span>

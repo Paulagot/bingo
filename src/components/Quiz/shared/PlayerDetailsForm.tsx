@@ -38,15 +38,27 @@ const InputWithIcon: React.FC<{
   onChange: (v: string) => void;
   helper?: string;
   error?: string;
-}> = ({ label, required, icon, value, placeholder, type = 'text', onChange, helper, error }) => (
+}> = ({
+  label,
+  required,
+  icon,
+  value,
+  placeholder,
+  type = 'text',
+  onChange,
+  helper,
+  error,
+}) => (
   <div>
     <label className="mb-2 block text-sm font-medium text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
+
     <div className="relative">
       <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
         <div className="h-4 w-4 sm:h-5 sm:w-5">{icon}</div>
       </div>
+
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -63,6 +75,7 @@ const InputWithIcon: React.FC<{
         ].join(' ')}
       />
     </div>
+
     {helper && !error && <p className="mt-1 text-xs text-gray-500">{helper}</p>}
     {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
   </div>
@@ -88,36 +101,48 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
 
   const emailOk = useMemo(() => {
     if (mode === 'join') return true;
+
     const email = formData.purchaserEmail?.trim() || '';
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }, [formData.purchaserEmail, mode]);
 
-  const summary = !isDonationRoom ? (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="font-medium text-gray-900">
-            {mode === 'ticket' ? 'Ticket total' : 'Total to Pay'}
-          </div>
-          <div className="text-sm text-gray-600">
-            Entry: {currencySymbol}{entryFee}
-            {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal}`}
-          </div>
+const shouldShowSummary = !isDonationRoom && mode !== 'ticket';
+
+const summary = shouldShowSummary ? (
+  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex-1">
+        <div className="font-medium text-gray-900">
+          Total to Pay
         </div>
-        <div className="text-2xl font-bold text-blue-900">
-          {currencySymbol}{totalAmount}
+
+        <div className="text-sm text-gray-600">
+          Entry: {currencySymbol}
+          {entryFee}
+          {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal}`}
         </div>
       </div>
+
+      <div className="text-2xl font-bold text-blue-900">
+        {currencySymbol}
+        {totalAmount}
+      </div>
     </div>
-  ) : null;
+  </div>
+) : null;
 
   // ── Wide two-column layout (ticket mode, desktop) ─────────────────────────
   if (wideLayout && mode === 'ticket') {
     return (
       <div className="space-y-4">
-        <div className={`sm:grid sm:gap-6 ${isTicketedEvent ? 'sm:grid-cols-1 max-w-md' : 'sm:grid-cols-2'}`}>
+        <div
+          className={`sm:grid sm:gap-6 ${
+            isTicketedEvent ? 'sm:grid-cols-1 max-w-md' : 'sm:grid-cols-2'
+          }`}
+        >
           <div className="space-y-4">
             {summary}
+
             <InputWithIcon
               label="Full name"
               required
@@ -126,6 +151,7 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
               placeholder="John Doe"
               onChange={(v) => updateField('purchaserName', v)}
             />
+
             <InputWithIcon
               label="Email"
               required
@@ -143,7 +169,7 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
 
           {/* Player name column — hidden for ticketed events */}
           {!isTicketedEvent && (
-            <div className="mt-4 sm:mt-0 space-y-4">
+            <div className="mt-4 space-y-4 sm:mt-0">
               <InputWithIcon
                 label="Player name"
                 required
@@ -164,6 +190,7 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
   return (
     <div className="space-y-4">
       {summary}
+
       <div className="space-y-4">
         {mode === 'ticket' && (
           <>
@@ -175,6 +202,7 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
               placeholder="John Doe"
               onChange={(v) => updateField('purchaserName', v)}
             />
+
             <InputWithIcon
               label="Email"
               required
@@ -219,8 +247,9 @@ export const usePlayerDetailsValidation = (
     }
 
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      formData.purchaserEmail?.trim() || ''
+      formData.purchaserEmail?.trim() || '',
     );
+
     const nameValid = (formData.purchaserName?.trim() || '') !== '';
 
     // Ticketed events don't require a player name
@@ -229,6 +258,7 @@ export const usePlayerDetailsValidation = (
     }
 
     const playerNameValid = (formData.playerName?.trim() || '') !== '';
+
     return nameValid && emailValid && playerNameValid;
   }, [formData, mode, isTicketedEvent]);
 };

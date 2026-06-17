@@ -77,6 +77,8 @@ interface TicketRow {
   redemptionStatus: string;
   confirmedAt: string | null;
   confirmedByName: string | null;
+   ticketTypeId?:    string | null;   // ← ADD
+  ticketTypeName?:  string | null;   // ← ADD
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -587,6 +589,40 @@ export default function ApprovalTotalsTab({
                   </div>
                 }
               >
+
+                        {/* Ticket type summary cards — only shown when >1 type */}
+                {(() => {
+                  const typeMap = new Map<string, { name: string; count: number; revenue: number; redeemed: number }>();
+                  for (const t of tickets as TicketRow[]) {
+                    const id   = t.ticketTypeId   || 'general';
+                    const name = t.ticketTypeName || 'General Admission';
+                    if (!typeMap.has(id)) typeMap.set(id, { name, count: 0, revenue: 0, redeemed: 0 });
+                    const entry = typeMap.get(id)!;
+                    entry.count++;
+                    entry.revenue += Number(t.amount || 0);
+                    if (t.redemptionStatus === 'redeemed') entry.redeemed++;
+                  }
+                  const typeList = [...typeMap.values()];
+                  if (typeList.length <= 1) return null;
+                  return (
+                    <div className="grid gap-2 p-4 border-b border-gray-100 sm:grid-cols-2 lg:grid-cols-3 bg-white">
+                      {typeList.map(type => (
+                        <div key={type.name}
+                          className="rounded-xl border border-[rgba(21,127,133,0.2)] bg-[rgba(21,127,133,0.04)] p-3">
+                          <p className="text-xs font-bold text-[#157f85] truncate">{type.name}</p>
+                          <div className="mt-1 flex items-end justify-between gap-2">
+                            <div>
+                              <p className="text-xl font-black text-gray-900">{type.count}</p>
+                              <p className="text-[10px] text-gray-400">sold · {type.redeemed} redeemed</p>
+                            </div>
+                            <p className="text-sm font-bold text-[#157f85]">{fmt(type.revenue)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 <div className="divide-y divide-gray-50 bg-white">
                   {tickets.map((t: TicketRow) => (
                     <div
@@ -603,7 +639,21 @@ export default function ApprovalTotalsTab({
                               bought by {t.purchaserName}
                             </span>
                           )}
-                        </div>
+                        </div> <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-[#102532]">
+                          {t.playerName}
+                        </span>
+                        {t.ticketTypeName && (
+                          <span className="inline-flex items-center rounded-full border border-[rgba(21,127,133,0.25)] bg-[rgba(21,127,133,0.06)] px-2 py-0.5 text-[10px] font-semibold text-[#157f85]">
+                            {t.ticketTypeName}
+                          </span>
+                        )}
+                        {t.playerName !== t.purchaserName && (
+                          <span className="text-xs text-[#8a9bab]">
+                            bought by {t.purchaserName}
+                          </span>
+                        )}
+                      </div>
                         <span className="text-xs text-[#8a9bab]">
                           {getMethodLabel(t.paymentMethod)}
                           {t.confirmedByName &&

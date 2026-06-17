@@ -1,30 +1,30 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/OverviewTabTicketedEvent.tsx
+// UPDATED: Pricing section now shows all ticket types and prices.
+//          Income stat card shows price range instead of single "per ticket" label.
+
 import type { ReactNode } from 'react';
 import {
-  Calendar,
-  DollarSign,
-  Users,
-  Trophy,
-  Hash,
-  Link2,
-  Clock,
-  MapPin,
-  Wallet,
-  Sparkles,
-  CheckCircle,
-  CircleDollarSign,
-  Heart,
-  Tag,
-  Gift,
+  Calendar, DollarSign, Users, Trophy, Hash, Link2,
+  Clock, MapPin, Wallet, Sparkles, CheckCircle, CircleDollarSign,
+  Heart, Tag, Ticket,
 } from 'lucide-react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import type { RoomStats } from '../../../services/quizRoomServices';
 import { useCurrency } from '../../../hooks/useCurrency';
 
+interface TicketType {
+  id:          string;
+  name:        string;
+  price:       string;
+  isEnabled?:  boolean;
+  quantity?:   number | null;
+  saleEndsAt?: string | null;
+}
+
 interface Props {
-  room: Room;
-  config: any;
-  stats?: RoomStats;
+  room:             Room;
+  config:           any;
+  stats?:           RoomStats;
   linkedEventTitle?: string | null;
 }
 
@@ -42,10 +42,7 @@ function money(sym: string, value: number | string | null | undefined, decimals 
 
 function titleCase(value: string | null | undefined) {
   if (!value) return '—';
-  return String(value)
-    .replace(/_/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
@@ -153,28 +150,62 @@ function Pill({ children, tone = 'gray' }: { children: ReactNode; tone?: Tone })
 function getStatusTone(status: string | null | undefined): Tone {
   const v = String(status || '').toLowerCase();
   if (v === 'completed') return 'indigo';
-  if (v === 'live') return 'green';
+  if (v === 'live')      return 'green';
   if (v === 'scheduled') return 'indigo';
   if (v === 'cancelled') return 'rose';
   return 'gray';
 }
 
+// Format a UTC ISO string back to a human-readable date in the event timezone
+function formatSaleEndsAt(utcIso: string, timeZone: string | null): string {
+  try {
+    return new Date(utcIso).toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+      timeZone: timeZone || undefined,
+    });
+  } catch {
+    return utcIso;
+  }
+}
+
 export default function OverviewTabTicketedEvent({ room, config, stats, linkedEventTitle }: Props) {
   const { sym } = useCurrency(config);
 
-  const statusTone     = getStatusTone(room.status);
-  const statIncome     = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '—';
-  const isDonation     = config?.fundraisingMode === 'donation';
-  const entryFee       = isDonation ? null : Number(config?.entryFee ?? 0);
-  const venueCapacity  = Number(config?.roomCaps?.venueCapacity ?? config?.venueCapacity ?? config?.roomCaps?.maxPlayers ?? 0);
-  const scheduled      = formatDateTime(config?.eventDateTime || room.scheduled_at);
+  const statusTone    = getStatusTone(room.status);
+  const statIncome    = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '—';
+  const isDonation    = config?.fundraisingMode === 'donation';
+  const venueCapacity = Number(config?.roomCaps?.venueCapacity ?? config?.venueCapacity ?? config?.roomCaps?.maxPlayers ?? 0);
+  const scheduled     = formatDateTime(config?.eventDateTime || room.scheduled_at);
+  const timeZone      = config?.timeZone || (room as any).time_zone || null;
 
-  // Prizes — array shape
-  const prizes: any[]         = Array.isArray(config?.prizes) ? config.prizes : [];
-  const prizeTotal            = prizes.reduce((sum: number, p: any) => sum + Number(p?.value || 0), 0);
+  // Ticket types — prefer the array, fall back to legacy single entryFee
+  const ticketTypes: TicketType[] = (() => {
+    if (Array.isArray(config?.ticketTypes) && config.ticketTypes.length > 0) {
+      return config.ticketTypes;
+    }
+    if (config?.entryFee) {
+      return [{ id: 'general', name: 'General Admission', price: String(config.entryFee), isEnabled: true }];
+    }
+    return [];
+  })();
 
-  // Event sponsors — separate from prize sponsors
-  const eventSponsors: any[]  = Array.isArray(config?.eventSponsors) ? config.eventSponsors : [];
+  const enabledTypes = ticketTypes.filter(t => t.isEnabled !== false);
+
+  // Price range for the income stat card
+  const priceHelper = (() => {
+    if (isDonation) return 'Donation based';
+    if (enabledTypes.length === 0) return 'No ticket types set';
+    const prices = enabledTypes.map(t => parseFloat(t.price)).filter(p => !isNaN(p));
+    if (prices.length === 0) return '';
+    const min = Math.min(...prices), max = Math.max(...prices);
+    if (min === max) return `${money(sym, min)} per ticket`;
+    return `${money(sym, min)} – ${money(sym, max)} per ticket`;
+  })();
+
+  const prizes: any[]        = Array.isArray(config?.prizes) ? config.prizes : [];
+  const prizeTotal           = prizes.reduce((sum: number, p: any) => sum + Number(p?.value || 0), 0);
+  const eventSponsors: any[] = Array.isArray(config?.eventSponsors) ? config.eventSponsors : [];
 
   return (
     <div className="space-y-5 p-5">
@@ -187,7 +218,7 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Pill tone={statusTone}>{formatStatus(room.status)}</Pill>
                 <Pill tone="blue">
-                  <TicketIcon className="mr-1 h-3 w-3" />
+                  <TicketIconInline className="mr-1 h-3 w-3" />
                   Ticketed Event
                 </Pill>
                 {isDonation && <Pill tone="green">Donation based</Pill>}
@@ -226,7 +257,7 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
           icon={<CircleDollarSign className="h-5 w-5" />}
           label={isDonation ? 'Raised' : 'Income'}
           value={statIncome}
-          helper={isDonation ? 'Donation based' : entryFee && entryFee > 0 ? `${money(sym, entryFee)} per ticket` : 'Free entry'}
+          helper={priceHelper}
           tone="green"
         />
         <StatCard
@@ -253,7 +284,7 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
               {scheduled.compact}
             </DetailRow>
             <DetailRow icon={<MapPin className="h-4 w-4" />} label="Time zone">
-              {config?.timeZone || room.time_zone || 'Europe/Dublin'}
+              {timeZone || 'Europe/Dublin'}
             </DetailRow>
             {venueCapacity > 0 && (
               <DetailRow icon={<Users className="h-4 w-4" />} label="Venue capacity">
@@ -268,24 +299,90 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
           </div>
         </div>
 
+        {/* ── Ticket types & pricing ── */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <SectionHeader
             icon={<Wallet className="h-4 w-4" />}
-            title="Pricing and payments"
+            title="Ticket types & pricing"
+            subtitle={isDonation ? 'Donation-based event' : `${ticketTypes.length} ticket type${ticketTypes.length !== 1 ? 's' : ''} configured`}
           />
-          <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
-            <DetailRow
-              icon={isDonation ? <Gift className="h-4 w-4" /> : <DollarSign className="h-4 w-4" />}
-              label={isDonation ? 'Fundraising model' : 'Ticket price'}
-            >
-              {isDonation
-                ? 'Donation — attendees choose their amount'
-                : entryFee && entryFee > 0 ? money(sym, entryFee) : 'Free'}
-            </DetailRow>
-            <DetailRow icon={<Sparkles className="h-4 w-4" />} label="Currency">
-              {sym} ({config?.currency ?? 'club currency'})
-            </DetailRow>
-          </div>
+
+          {isDonation ? (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
+              <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Fundraising model">
+                Donation — attendees choose their amount
+              </DetailRow>
+              <DetailRow icon={<Sparkles className="h-4 w-4" />} label="Currency">
+                {sym} ({config?.currency ?? 'club currency'})
+              </DetailRow>
+            </div>
+          ) : ticketTypes.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500 text-center">
+              No ticket types configured
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {ticketTypes.map((tt) => {
+                const price     = parseFloat(tt.price);
+                const disabled  = tt.isEnabled === false;
+                const hasLimit  = tt.quantity != null && tt.quantity > 0;
+                const hasExpiry = !!tt.saleEndsAt;
+
+                return (
+                  <div key={tt.id}
+                    className={cn(
+                      'rounded-xl border p-3 transition-opacity',
+                      disabled
+                        ? 'border-gray-200 bg-gray-50 opacity-60'
+                        : 'border-[rgba(21,127,133,0.25)] bg-[rgba(21,127,133,0.04)]'
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn(
+                            'text-sm font-bold',
+                            disabled ? 'text-gray-400' : 'text-gray-900'
+                          )}>
+                            {tt.name}
+                          </span>
+                          {disabled && (
+                            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
+                              Disabled
+                            </span>
+                          )}
+                          {hasLimit && (
+                            <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                              Max {tt.quantity}
+                            </span>
+                          )}
+                        </div>
+                        {hasExpiry && tt.saleEndsAt && (
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            Sale ends {formatSaleEndsAt(tt.saleEndsAt, timeZone)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <span className={cn(
+                          'text-base font-black',
+                          disabled ? 'text-gray-400' : 'text-[#157f85]'
+                        )}>
+                          {isNaN(price) ? tt.price : money(sym, price)}
+                        </span>
+                        <p className="text-[10px] text-gray-400">per ticket</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400 px-1">
+                <Sparkles className="h-3 w-3" />
+                Currency: {sym} ({config?.currency ?? 'club currency'})
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -299,16 +396,13 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
           />
           <div className="grid gap-3 sm:grid-cols-2">
             {eventSponsors.map((sponsor: any, index: number) => (
-              <div key={index}
-                className="rounded-xl border p-3"
+              <div key={index} className="rounded-xl border p-3"
                 style={{ borderColor: 'rgba(210,181,130,0.5)', background: '#fff' }}>
                 <div className="flex items-start gap-2">
                   <Heart className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
                   <div>
                     <p className="text-sm font-bold text-gray-900">{sponsor.name}</p>
-                    {sponsor.role && (
-                      <p className="mt-0.5 text-xs text-gray-500">{sponsor.role}</p>
-                    )}
+                    {sponsor.role && <p className="mt-0.5 text-xs text-gray-500">{sponsor.role}</p>}
                   </div>
                 </div>
               </div>
@@ -355,7 +449,6 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
         <SectionHeader
           icon={<CheckCircle className="h-4 w-4" />}
           title="Internal reference"
-          subtitle="Useful details for support, reconciliation and troubleshooting."
         />
         <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
           <DetailRow icon={<Hash className="h-4 w-4" />} label="Room ID">
@@ -371,7 +464,7 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
   );
 }
 
-function TicketIcon({ className }: { className?: string }) {
+function TicketIconInline({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
