@@ -1,45 +1,70 @@
 // src/pages/events/SafeStreetsIrelandPadelPage.tsx
 import React from 'react';
 import {
-  CalendarDays,
-  Clock,
-  MapPin,
-  HeartHandshake,
-  Shield,
-  Ticket,
-  Sparkles,
-  ExternalLink,
   ArrowRight,
-  Users,
+  Bus,
+  CalendarDays,
+  Car,
+  Clock,
   Copy,
-  CreditCard,
-  Trophy,
-  HandHeart,
-  Info,
   Dumbbell,
+  Facebook,
+  ExternalLink,
+  HandHeart,
+  HeartHandshake,
+  Info,
+  Instagram,
+  Linkedin,
+  MapPin,
   Megaphone,
+  Navigation,
+  Shield,
+  Sparkles,
+  Ticket,
+  TrainFront,
+  Trophy,
+  Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import TicketPurchaseFlow from '../../components/Quiz/tickets/TicketPurchaseFlow';
 
-const ROOM_ID = '3AB540C228354AB1';
+const ROOM_ID = 'D932475520C24365';
 
 const EVENT_SLUG = '/events/safe-streets-ireland-padel';
 const EVENT_NAME = 'Safe Streets Ireland Padel Fundraiser';
 const EVENT_DATE = '27 June';
 const EVENT_YEAR = '2026';
-const EVENT_TIME = 'Time to be confirmed';
+const EVENT_TIME = '3:00pm – 5:00pm';
 const EVENT_LOCATION = 'House of Padel';
+const EVENT_ADDRESS = '5 Old Belgard Rd, Cookstown Industrial Estate, Dublin, D24 WD00';
+const EVENT_FULL_ADDRESS = `${EVENT_LOCATION}, ${EVENT_ADDRESS}`;
+
+const TOURNAMENT_TICKET_PRICE = '€25';
+const PLAY_TIME_TICKET_PRICE = '€10';
+const SPECTATOR_TICKET_PRICE = '€5';
 
 const SAFE_STREETS_URL = 'https://safestreetsireland.com/';
+const SAFE_STREETS_INSTAGRAM_URL = 'https://www.instagram.com/safestreetsireland/';
+const SAFE_STREETS_LINKEDIN_URL = 'https://www.linkedin.com/company/safe-streets-ireland/';
+const SAFE_STREETS_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61590416144888';
 const SUPERTEAM_URL = 'https://x.com/superteamIE';
+const TFI_JOURNEY_PLANNER_URL = 'https://www.transportforireland.ie/plan-a-journey/';
+const LUAS_RED_LINE_URL = 'https://www.luas.ie/luas-red-line-stops/';
 
 const SAFE_STREETS_LOGO = '/partner/SSI_LOGO_TRANSPARENT.png';
 const SUPERTEAM_LOGO = '/partner/superteam_ireland_logo.jpeg';
 
 const HERO_IMAGE_SRC =
   'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1600&q=80';
+
+const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(
+  EVENT_FULL_ADDRESS
+)}&output=embed`;
+
+const MAP_DIRECTIONS_URL = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+  EVENT_FULL_ADDRESS
+)}`;
 
 type PublicRoomInfo = {
   roomId: string;
@@ -106,7 +131,7 @@ function useEventSeo() {
 
     const title = `${EVENT_NAME} | ${EVENT_DATE} ${EVENT_YEAR} | FundRaisely`;
     const description =
-      'Buy tickets for the Safe Streets Ireland padel fundraiser on 27 June. A community fundraising event supporting youth violence prevention, safer streets and brighter futures.';
+      'Buy tickets for the Safe Streets Ireland padel fundraiser at House of Padel on 27 June 2026, 3pm to 5pm. Choose tournament entry, a €10 play-time ticket or a €5 spectator ticket and support safer streets, stronger communities and brighter futures.';
 
     document.title = title;
 
@@ -137,7 +162,7 @@ function useEventSeo() {
     setMeta('description', description);
     setMeta(
       'keywords',
-      'Safe Streets Ireland, padel fundraiser, youth crime prevention Ireland, knife crime prevention Ireland, community fundraiser, House of Padel, FundRaisely, Superteam Ireland'
+      'Safe Streets Ireland, padel fundraiser, youth crime prevention Ireland, knife crime prevention Ireland, community fundraiser, House of Padel, Cookstown Industrial Estate, Tallaght, FundRaisely, Superteam Ireland'
     );
 
     setPropertyMeta('og:title', title);
@@ -167,17 +192,56 @@ function useEventSeo() {
       '@type': 'Event',
       name: EVENT_NAME,
       description,
-      startDate: '2026-06-27',
+      startDate: '2026-06-27T15:00:00+01:00',
+      endDate: '2026-06-27T17:00:00+01:00',
       eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
       eventStatus: 'https://schema.org/EventScheduled',
       location: {
         '@type': 'Place',
         name: EVENT_LOCATION,
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '5 Old Belgard Rd, Cookstown Industrial Estate',
+          addressLocality: 'Dublin',
+          postalCode: 'D24 WD00',
+          addressCountry: 'IE',
+        },
       },
+      offers: [
+        {
+          '@type': 'Offer',
+          name: 'Tournament Entry',
+          price: '25',
+          priceCurrency: 'EUR',
+          availability: 'https://schema.org/InStock',
+          url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
+        },
+        {
+          '@type': 'Offer',
+          name: 'Play Time Ticket',
+          price: '10',
+          priceCurrency: 'EUR',
+          availability: 'https://schema.org/InStock',
+          url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
+        },
+        {
+          '@type': 'Offer',
+          name: 'Spectator Ticket',
+          price: '5',
+          priceCurrency: 'EUR',
+          availability: 'https://schema.org/InStock',
+          url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
+        },
+      ],
       organizer: {
         '@type': 'Organization',
         name: 'Safe Streets Ireland',
         url: SAFE_STREETS_URL,
+        sameAs: [
+          SAFE_STREETS_INSTAGRAM_URL,
+          SAFE_STREETS_LINKEDIN_URL,
+          SAFE_STREETS_FACEBOOK_URL,
+        ],
       },
       sponsor: [
         {
@@ -310,9 +374,11 @@ export default function SafeStreetsIrelandPadelPage() {
 
               <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-white/92">
                 Join <span className="font-black">Safe Streets Ireland</span> for a padel
-                fundraiser on <span className="font-black">{EVENT_DATE}</span>, supporting a
-                community-led campaign working to reduce youth violence and knife crime through
-                prevention, education, community action and opportunity.
+                fundraiser on <span className="font-black">{EVENT_DATE}</span> at{' '}
+                <span className="font-black">{EVENT_LOCATION}</span>. The first half is the
+                tournament, followed by open play time in the second half. Choose a tournament,
+                play-time or spectator ticket and support a community-led campaign working to reduce
+                youth violence through prevention, education, action and opportunity.
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -336,9 +402,9 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <Badge>Non-digital ticketed event</Badge>
-                <Badge>Padel fundraiser</Badge>
-                <Badge>Supporting youth crime prevention</Badge>
+                <Badge>Tournament: {TOURNAMENT_TICKET_PRICE}</Badge>
+                <Badge>Play time: {PLAY_TIME_TICKET_PRICE}</Badge>
+                <Badge>Spectator: {SPECTATOR_TICKET_PRICE}</Badge>
               </div>
             </div>
 
@@ -371,6 +437,10 @@ export default function SafeStreetsIrelandPadelPage() {
                     href={SUPERTEAM_URL}
                     fallback="Superteam Ireland"
                   />
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-white/20 bg-white/12 p-4">
+                  <SafeStreetsSocialLinks tone="hero" />
                 </div>
               </div>
 
@@ -408,6 +478,184 @@ export default function SafeStreetsIrelandPadelPage() {
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_520px] xl:grid-cols-[minmax(0,1fr)_560px]">
           <div className="space-y-8">
             <SectionCard
+              eyebrow="Event details"
+              title="Padel, purpose and community action"
+            >
+              <div className="grid gap-4 md:grid-cols-3">
+                <InfoPanel
+                  icon={<CalendarDays className="h-6 w-6" />}
+                  title="When"
+                  text={`${EVENT_DATE} ${EVENT_YEAR}, ${EVENT_TIME}. Please arrive a little early so the organiser can check everyone in and get play started smoothly.`}
+                />
+
+                <InfoPanel
+                  icon={<MapPin className="h-6 w-6" />}
+                  title="Where"
+                  text={`${EVENT_LOCATION}, ${EVENT_ADDRESS}. The venue is in Cookstown Industrial Estate, Dublin 24.`}
+                />
+
+                <InfoPanel
+                  icon={<Ticket className="h-6 w-6" />}
+                  title="Tickets"
+                  text={`Choose ${TOURNAMENT_TICKET_PRICE} tournament entry to compete, ${PLAY_TIME_TICKET_PRICE} play-time entry to play in the second half only, or a ${SPECTATOR_TICKET_PRICE} spectator ticket to attend and support.`}
+                />
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-[#eabf99] bg-[#fff6ed] p-5">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#df741d] text-white">
+                    <Info className="h-5 w-5" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-black text-[#17120d]">
+                      Three ways to take part.
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-7 text-[#5f5044]">
+                      The first half of the event is the tournament. The second half is open play
+                      time. Tournament players take part in both parts, play-time ticket holders
+                      join for the second-half padel session, and spectators can come along to
+                      support without playing.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard eyebrow="Ticket types" title="Choose how you want to take part">
+              <div className="grid gap-4">
+                <TicketTypeCard
+                  icon={<Trophy className="h-6 w-6" />}
+                  name="Tournament Entry"
+                  price={TOURNAMENT_TICKET_PRICE}
+                  description="For players who want to compete in the first-half organised padel tournament and then stay for the second-half play time."
+                  bullets={[
+                    'Compete in the tournament',
+                    'Includes second-half play time',
+                    'Best for players who want the full event experience',
+                  ]}
+                  highlight
+                />
+
+                <TicketTypeCard
+                  icon={<Dumbbell className="h-6 w-6" />}
+                  name="Play Time Ticket"
+                  price={PLAY_TIME_TICKET_PRICE}
+                  description="For people who want to play padel in the second half of the event without entering the tournament."
+                  bullets={[
+                    'Second-half padel play time',
+                    'No tournament entry or scoring',
+                    'Good for casual players and beginners',
+                  ]}
+                />
+
+                <TicketTypeCard
+                  icon={<Users className="h-6 w-6" />}
+                  name="Spectator Ticket"
+                  price={SPECTATOR_TICKET_PRICE}
+                  description="For supporters who want to attend, watch the tournament, cheer people on and support Safe Streets Ireland without playing padel."
+                  bullets={[
+                    'Attend and support the fundraiser',
+                    'Watch the tournament and play time',
+                    'No padel court time included',
+                  ]}
+                />
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={scrollToTickets}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#df741d] px-5 py-3 text-sm font-black text-white transition hover:bg-[#c96316]"
+                >
+                  Book your ticket
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+
+                <a
+                  href={MAP_DIRECTIONS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#e5d4c2] bg-[#fffaf4] px-5 py-3 text-sm font-black text-[#17120d] transition hover:bg-[#fff3e3]"
+                >
+                  Get directions
+                  <Navigation className="h-4 w-4" />
+                </a>
+              </div>
+            </SectionCard>
+
+            <SectionCard eyebrow="How to get there" title="House of Padel, Cookstown Industrial Estate">
+              <div className="overflow-hidden rounded-[1.75rem] border border-[#e5d4c2] bg-[#fffaf4]">
+                <iframe
+                  title="Map showing House of Padel, 5 Old Belgard Road, Cookstown Industrial Estate, Dublin"
+                  src={MAP_EMBED_SRC}
+                  className="h-[360px] w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <TravelCard
+                  icon={<Navigation className="h-6 w-6" />}
+                  title="Address for maps"
+                  text={EVENT_FULL_ADDRESS}
+                  ctaLabel="Open in Google Maps"
+                  href={MAP_DIRECTIONS_URL}
+                />
+
+                <TravelCard
+                  icon={<Car className="h-6 w-6" />}
+                  title="By car"
+                  text="Use the D24 WD00 Eircode. The venue is in Cookstown Industrial Estate, off Old Belgard Road. Allow a little extra time for event check-in."
+                  ctaLabel="Get directions"
+                  href={MAP_DIRECTIONS_URL}
+                />
+
+                <TravelCard
+                  icon={<TrainFront className="h-6 w-6" />}
+                  title="By Luas"
+                  text="Use the Luas Red Line. Cookstown and Belgard are the most useful nearby stops to check, with Tallaght also nearby for people connecting through The Square."
+                  ctaLabel="Luas Red Line stops"
+                  href={LUAS_RED_LINE_URL}
+                />
+
+                <TravelCard
+                  icon={<Bus className="h-6 w-6" />}
+                  title="By bus"
+                  text="Useful routes to check include routes serving Cookstown Road and Tallaght, including 27, 56A and W62. Check live times before travelling."
+                  ctaLabel="Plan on TFI"
+                  href={TFI_JOURNEY_PLANNER_URL}
+                />
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-[#eabf99] bg-[#fff6ed] p-5">
+                <h3 className="text-lg font-black text-[#17120d]">Public transport notes</h3>
+
+                <ul className="mt-3 space-y-2 text-sm leading-7 text-[#5f5044]">
+                  <li>
+                    <span className="font-black text-[#17120d]">Luas:</span> Red Line stops to
+                    check are Cookstown, Belgard and Tallaght. The right stop may depend on where
+                    you are travelling from and whether you are walking or connecting by bus.
+                  </li>
+                  <li>
+                    <span className="font-black text-[#17120d]">Bus:</span> Cookstown Road and
+                    Tallaght services are the most relevant. Routes shown on public transport
+                    resources include 27, 56A and W62, but attendees should use TFI or Google Maps
+                    for live routing on the day.
+                  </li>
+                  <li>
+                    <span className="font-black text-[#17120d]">Tip:</span> search for “House of
+                    Padel, D24 WD00” rather than only “Old Belgard Road” so your map app brings you
+                    to the venue entrance area.
+                  </li>
+                </ul>
+              </div>
+            </SectionCard>
+
+            <SectionCard
               eyebrow="Why it matters"
               title="A community event for safer streets and brighter futures"
             >
@@ -438,47 +686,27 @@ export default function SafeStreetsIrelandPadelPage() {
 
                     <p className="mt-2 text-sm leading-7 text-[#5f5044]">
                       This padel fundraiser brings people together around a positive message:
-                      safer communities are possible when people show up, support each other
-                      and create better choices for young people.
+                      safer communities are possible when people show up, support each other and
+                      create better choices for young people.
                     </p>
                   </div>
                 </div>
               </div>
             </SectionCard>
 
-            <SectionCard eyebrow="Event format" title="A social padel fundraiser">
+            <SectionCard eyebrow="Event format" title="Tournament first, play time second">
               <div className="grid gap-4 md:grid-cols-2">
                 <InfoPanel
-                  icon={<Ticket className="h-6 w-6" />}
-                  title="Buy a ticket"
-                  text="Reserve your place through the FundRaisely ticket panel. Your ticket supports the Safe Streets Ireland fundraiser."
+                  icon={<Trophy className="h-6 w-6" />}
+                  title="First half: tournament"
+                  text="Tournament ticket holders are included in the organised competition. The organiser can confirm the exact format on the day based on numbers."
                 />
 
                 <InfoPanel
                   icon={<Dumbbell className="h-6 w-6" />}
-                  title="Play in person"
-                  text="This is a physical padel event at House of Padel. There is no digital game room or online gameplay required."
+                  title="Second half: play time"
+                  text="Play-time ticket holders join for the second-half padel session only. They can play and support the event without being entered into the tournament."
                 />
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-[#eabf99] bg-[#fff6ed] p-5">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#df741d] text-white">
-                    <Info className="h-5 w-5" />
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-black text-[#17120d]">
-                      Final running details may be confirmed closer to the event.
-                    </h3>
-
-                    <p className="mt-2 text-sm leading-7 text-[#5f5044]">
-                      The date is confirmed as <strong>{EVENT_DATE}</strong>. Start time,
-                      match format, ticket limits and sponsor details can be updated on this
-                      page once the organiser confirms them.
-                    </p>
-                  </div>
-                </div>
               </div>
             </SectionCard>
 
@@ -492,14 +720,14 @@ export default function SafeStreetsIrelandPadelPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <FeatureCard
                   icon={<Trophy className="h-6 w-6" />}
-                  title="A positive night out"
-                  text="The event is designed to feel welcoming and energetic, with padel giving people an easy way to take part and support the campaign."
+                  title="A friendly competition"
+                  text="The tournament option gives confident players something to compete in, while still keeping the event welcoming and community-focused."
                 />
 
                 <FeatureCard
                   icon={<Users className="h-6 w-6" />}
-                  title="Community in action"
-                  text="Supporters, families, local businesses and partner organisations can come together around one clear message: safer streets start with stronger communities."
+                  title="Room for casual players"
+                  text="The €10 play-time ticket makes it easier for beginners, supporters and social players to join in without pressure."
                 />
 
                 <FeatureCard
@@ -510,7 +738,7 @@ export default function SafeStreetsIrelandPadelPage() {
 
                 <FeatureCard
                   icon={<HandHeart className="h-6 w-6" />}
-                  title="Support that goes beyond the night"
+                  title="Support that goes beyond the day"
                   text="Every ticket and share helps raise awareness for Safe Streets Ireland’s wider work around prevention, education, community action and opportunity."
                 />
               </div>
@@ -518,9 +746,9 @@ export default function SafeStreetsIrelandPadelPage() {
 
             <SectionCard eyebrow="Campaign storytelling" title="More than a fundraiser">
               <p className="mb-6 text-base leading-8 text-[#5f5044]">
-                Safe Streets Ireland is not just asking people to attend an event. The
-                campaign is inviting people to stand behind a message: violence is not
-                inevitable, and communities can help create better choices for young people.
+                Safe Streets Ireland is not just asking people to attend an event. The campaign
+                is inviting people to stand behind a message: violence is not inevitable, and
+                communities can help create better choices for young people.
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -578,6 +806,7 @@ export default function SafeStreetsIrelandPadelPage() {
                     <Ticket className="h-4 w-4" />
                   </button>
                 </div>
+
               </div>
             </SectionCard>
 
@@ -633,18 +862,9 @@ export default function SafeStreetsIrelandPadelPage() {
               eventPageUrl={eventPageUrl}
             />
 
-            <ShareEventCard eventPageUrl={eventPageUrl} />
+            <QuickDetailsCard />
 
-            <div className="mt-4 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
-              <p className="text-sm leading-7 text-[#5f5044]">
-                Door payments may also be accepted if enabled by the organiser. Options can
-                include{' '}
-                <span className="font-semibold text-[#17120d]">
-                  cash, card tap, Revolut or another agreed payment method
-                </span>
-                .
-              </p>
-            </div>
+            <ShareEventCard eventPageUrl={eventPageUrl} />
           </aside>
         </div>
       </main>
@@ -760,6 +980,153 @@ function InfoPanel({
   );
 }
 
+function TicketTypeCard({
+  icon,
+  name,
+  price,
+  description,
+  bullets,
+  highlight = false,
+}: {
+  icon: React.ReactNode;
+  name: string;
+  price: string;
+  description: string;
+  bullets: string[];
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-[1.75rem] border p-6 ${
+        highlight
+          ? 'border-[#df741d] bg-[#fff6ed] shadow-sm'
+          : 'border-[#eadccc] bg-[#fffdf9]'
+      }`}
+    >
+      <div className="grid gap-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
+        <div>
+          <div className="flex items-start justify-between gap-4 md:block">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff0df] text-[#df741d]">
+              {icon}
+            </div>
+
+            <div className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#17120d] ring-1 ring-[#eadccc] md:mt-5 md:inline-flex">
+              {price}
+            </div>
+          </div>
+
+          <h3 className="mt-5 text-2xl font-black text-[#17120d] md:max-w-[190px]">
+            {name}
+          </h3>
+        </div>
+
+        <div>
+          <p className="text-sm leading-7 text-[#5f5044] md:text-base md:leading-8">
+            {description}
+          </p>
+
+          <ul className="mt-5 grid gap-3 text-sm leading-6 text-[#5f5044] md:text-[15px]">
+            {bullets.map((bullet) => (
+              <li key={bullet} className="flex gap-2">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#df741d]" />
+                <span>{bullet}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TravelCard({
+  icon,
+  title,
+  text,
+  ctaLabel,
+  href,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+  ctaLabel: string;
+  href: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#eadccc] bg-[#fffdf9] p-5">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff0df] text-[#df741d]">
+        {icon}
+      </div>
+
+      <h3 className="text-lg font-black text-[#17120d]">{title}</h3>
+
+      <p className="mt-2 text-sm leading-7 text-[#5f5044]">{text}</p>
+
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#c96316] hover:text-[#9f4d10]"
+      >
+        {ctaLabel}
+        <ExternalLink className="h-4 w-4" />
+      </a>
+    </div>
+  );
+}
+
+function QuickDetailsCard() {
+  return (
+    <div className="mt-4 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#df741d]">
+        Event quick details
+      </p>
+
+      <div className="mt-4 space-y-3 text-sm leading-6 text-[#5f5044]">
+        <div className="flex items-start gap-3">
+          <CalendarDays className="mt-0.5 h-4 w-4 text-[#df741d]" />
+          <span>
+            <strong className="text-[#17120d]">Date:</strong> {EVENT_DATE} {EVENT_YEAR}
+          </span>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <Clock className="mt-0.5 h-4 w-4 text-[#df741d]" />
+          <span>
+            <strong className="text-[#17120d]">Time:</strong> {EVENT_TIME}
+          </span>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <MapPin className="mt-0.5 h-4 w-4 text-[#df741d]" />
+          <span>
+            <strong className="text-[#17120d]">Venue:</strong> {EVENT_FULL_ADDRESS}
+          </span>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <Ticket className="mt-0.5 h-4 w-4 text-[#df741d]" />
+          <span>
+            <strong className="text-[#17120d]">Tickets:</strong> Tournament{' '}
+            {TOURNAMENT_TICKET_PRICE}; Play Time {PLAY_TIME_TICKET_PRICE}; Spectator{' '}
+            {SPECTATOR_TICKET_PRICE}.
+          </span>
+        </div>
+      </div>
+
+      <a
+        href={MAP_DIRECTIONS_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#e5d4c2] bg-[#fffaf4] px-5 py-3 text-sm font-black text-[#17120d] transition hover:bg-[#fff3e3]"
+      >
+        Open directions
+        <Navigation className="h-4 w-4" />
+      </a>
+    </div>
+  );
+}
+
 function PartnerLogoCard({
   imgSrc,
   name,
@@ -816,7 +1183,7 @@ function FundraiselyPartnerCard() {
         <div>
           <p className="text-xl font-black tracking-tight text-[#17120d]">FundRaisely</p>
           <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#9f4d10]">
-            Ticketing partner
+            Fundraising partner
           </p>
         </div>
       </div>
@@ -936,13 +1303,13 @@ function TicketIntroCard({
           ? 'This event has ended or is no longer available.'
           : shouldShowHoldTight
             ? 'Ticket sales are not open right now. Once the organiser opens the room, this panel will show the live ticket flow.'
-            : `Buy your ticket for the Safe Streets Ireland padel fundraiser on ${EVENT_DATE}.`}
+            : `Book your place for the Safe Streets Ireland padel fundraiser on ${EVENT_DATE}, ${EVENT_TIME}.`}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <SmallPill>{EVENT_DATE}</SmallPill>
-        <SmallPill>Padel</SmallPill>
-        <SmallPill>In person</SmallPill>
+        <SmallPill>{EVENT_TIME}</SmallPill>
+        <SmallPill>3 ticket types</SmallPill>
       </div>
     </div>
   );
@@ -1113,6 +1480,65 @@ function DirectTicketLinkCard({ ticketBuyUrl }: { ticketBuyUrl: string }) {
   );
 }
 
+
+function SafeStreetsSocialLinks({
+  tone = 'dark',
+  showLabel = true,
+}: {
+  tone?: 'hero' | 'dark';
+  showLabel?: boolean;
+}) {
+  const links = [
+    {
+      label: 'Instagram',
+      href: SAFE_STREETS_INSTAGRAM_URL,
+      icon: <Instagram className="h-4 w-4" />,
+    },
+    {
+      label: 'LinkedIn',
+      href: SAFE_STREETS_LINKEDIN_URL,
+      icon: <Linkedin className="h-4 w-4" />,
+    },
+    {
+      label: 'Facebook',
+      href: SAFE_STREETS_FACEBOOK_URL,
+      icon: <Facebook className="h-4 w-4" />,
+    },
+  ];
+
+  const labelClass = tone === 'hero' ? 'text-white/75' : 'text-[#7a6758]';
+  const linkClass =
+    tone === 'hero'
+      ? 'border-white/30 bg-white/12 text-white hover:bg-white/22'
+      : 'border-[#e5d4c2] bg-[#fffaf4] text-[#17120d] hover:bg-[#fff3e3]';
+
+  return (
+    <div>
+      {showLabel && (
+        <p className={`text-xs font-black uppercase tracking-[0.18em] ${labelClass}`}>
+          Follow Safe Streets Ireland
+        </p>
+      )}
+
+      <div className={showLabel ? 'mt-3 flex flex-wrap gap-2' : 'flex items-center gap-2'}>
+        {links.map((link) => (
+          <a
+            key={link.label}
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Follow Safe Streets Ireland on ${link.label}`}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${linkClass}`}
+          >
+            {link.icon}
+            <span className={showLabel ? '' : 'sr-only'}>{link.label}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ShareEventCard({ eventPageUrl }: { eventPageUrl: string }) {
   const [copied, setCopied] = React.useState(false);
 
@@ -1161,6 +1587,7 @@ function ShareEventCard({ eventPageUrl }: { eventPageUrl: string }) {
           {eventPageUrl}
         </p>
       )}
+
     </div>
   );
 }

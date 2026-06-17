@@ -73,6 +73,60 @@ function isTruthyDbBoolean(value) {
   return value === true || value === 1 || value === '1';
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER (add near top of file, after existing helper functions)
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+
+async function validateAndResolveTicketType(roomId, config, ticketTypeId, totalSold, maxCapacity) {
+  const allTypes = Array.isArray(config.ticketTypes) && config.ticketTypes.length > 0
+    ? config.ticketTypes
+    : config.entryFee
+      ? [{ id: 'general', name: 'General Admission', price: String(config.entryFee), isEnabled: true, quantity: null, saleEndsAt: null }]
+      : [];
+ 
+  if (allTypes.length === 0) {
+    throw new Error('ticket_type_not_found — no ticket types configured for this event');
+  }
+ 
+  // Find the requested type, fall back to first if not found
+  let type = ticketTypeId ? allTypes.find(t => t.id === ticketTypeId) : null;
+  if (!type) type = allTypes[0];
+  if (!type) throw new Error('ticket_type_not_found — requested ticket type does not exist');
+ 
+  // Re-run availability checks
+  if (type.isEnabled === false) {
+    throw new Error(`ticket_type_unavailable — "${type.name}" is not currently available`);
+  }
+ 
+  if (type.saleEndsAt && Date.now() > new Date(type.saleEndsAt).getTime()) {
+    throw new Error(`ticket_type_unavailable — "${type.name}" sale has ended`);
+  }
+ 
+  if (type.quantity != null) {
+    // Count sold for this specific type
+    const [soldRows] = await connection.execute(
+      `SELECT COUNT(*) AS sold
+       FROM ${TICKETS_TABLE}
+       WHERE room_id = ?
+         AND ticket_type_id = ?
+         AND payment_status IN ('payment_claimed', 'payment_confirmed')`,
+      [roomId, type.id]
+    );
+    const typeSold = Number(soldRows?.[0]?.sold ?? 0);
+    if (typeSold >= type.quantity) {
+      throw new Error(`ticket_type_unavailable — "${type.name}" is sold out`);
+    }
+  }
+ 
+  return {
+    typeId:   type.id,
+    typeName: type.name,
+    price:    parseFloat(type.price) || 0,
+  };
+}
+
+
 /**
  * Get room configuration from database.
  * Returns null if room not found or is Web3.
@@ -293,246 +347,165 @@ export async function createTicketWithPayment({
   paymentMethod,
   paymentReference,
   clubPaymentMethodId = null,
+  ticketTypeId   = null,
+  ticketTypeName = null,
 }) {
-  // ✅ STEP 0: CHECK CAPACITY FIRST
+  // STEP 0: Overall capacity check (existing behaviour)
   const capacityCheck = await canPurchaseTickets(roomId, 1);
-
   if (!capacityCheck.allowed) {
-    if (DEBUG) {
-      console.log('[TicketService] 🚫 Ticket purchase blocked:', {
-        roomId,
-        reason: capacityCheck.reason,
-        capacity: capacityCheck.capacity,
-      });
-    }
-
     throw new Error(capacityCheck.reason);
   }
-
-  if (DEBUG) {
-    console.log('[TicketService] ✅ Capacity check passed:', {
-      roomId,
-      availableForTickets: capacityCheck.capacity.availableForTickets,
-      maxCapacity: capacityCheck.capacity.maxCapacity,
-    });
-  }
-
-  // 1. Get room config
-  const roomData = await getRoomConfig(roomId);
-
-  if (!roomData) {
-    throw new Error('Room not found or not available for ticket purchase');
-  }
-
-  const { clubId, config, linkedPaymentMethods, status: roomStatus } = roomData;
  
+  // STEP 1: Room config
+  const roomData = await getRoomConfig(roomId);
+  if (!roomData) throw new Error('Room not found or not available for ticket purchase');
+ 
+  const { clubId, config, linkedPaymentMethods, status: roomStatus } = roomData;
+  const isTicketedEvent = roomData.gameType === 'ticketed_event';
+ 
+  // STEP 2: Payment method validation (existing behaviour)
   const validatedPaymentMethod = await validateManualTicketPaymentMethod({
-    roomId,
-    clubId,
-    linkedPaymentMethods,
-    clubPaymentMethodId,
-    roomStatus,              // ← 'scheduled' | 'open' | etc.
+    roomId, clubId, linkedPaymentMethods, clubPaymentMethodId, roomStatus,
   });
-
-  // Do not trust client-supplied paymentMethod.
-  paymentMethod = validatedPaymentMethod.paymentMethod;
+  paymentMethod       = validatedPaymentMethod.paymentMethod;
   clubPaymentMethodId = validatedPaymentMethod.id;
-
-  // 2. Calculate pricing
+ 
+  // STEP 3: Pricing
   const isDonationRoom = config?.fundraisingMode === 'donation';
-
-  let entryFee = 0;
+  const currency = currencyFromSymbol(config.currencySymbol);
+ 
+  let entryFee    = 0;
   let extrasTotal = 0;
   let totalAmount = 0;
   const extrasWithPrices = [];
-
- const currency = currencyFromSymbol(config.currencySymbol);
-
+ 
   if (isDonationRoom) {
     const parsedDonation = Number(donationAmount);
-
     if (!Number.isFinite(parsedDonation) || parsedDonation <= 0) {
       throw new Error('invalid_donation_amount_for_ticket');
     }
-
-    entryFee = parsedDonation;
+    entryFee    = parsedDonation;
     extrasTotal = 0;
     totalAmount = parsedDonation;
-
-    // Donation tickets include enabled extras automatically.
-    // Do not create priced extra rows.
+ 
+  } else if (isTicketedEvent) {
+    // ── Per-type validation + price resolution ──────────────────────────────
+    const resolved = await validateAndResolveTicketType(
+      roomId,
+      config,
+      ticketTypeId,
+      capacityCheck.capacity.totalTickets,
+      capacityCheck.capacity.maxCapacity
+    );
+    ticketTypeId   = resolved.typeId;
+    ticketTypeName = resolved.typeName;
+    entryFee       = resolved.price;
+    extrasTotal    = 0;
+    totalAmount    = entryFee;
+ 
   } else {
+    // Quiz / elimination
     entryFee = parseFloat(config.entryFee || 0);
-
     for (const extraId of selectedExtras) {
       const price = config.fundraisingPrices?.[extraId] || 0;
-
       if (price > 0) {
         extrasTotal += price;
         extrasWithPrices.push({ extraId, price });
       }
     }
-
     totalAmount = entryFee + extrasTotal;
   }
-
-  // 3. Generate unique IDs
+ 
+  // STEP 4: Generate IDs
   const ticketId = nanoid(12);
   const joinToken = nanoid(16);
-
-  // 4. Insert ticket WITH payment claimed (skips pending_payment)
+ 
+  // STEP 5: Insert ticket
   const sql = `
     INSERT INTO ${TICKETS_TABLE}
       (
-        ticket_id,
-        room_id,
-        club_id,
-        purchaser_name,
-        purchaser_email,
-        purchaser_phone,
-        player_name,
-        entry_fee,
-        extras,
-        extras_total,
-        total_amount,
-        currency,
-        payment_status,
-        payment_method,
-        payment_reference,
-        club_payment_method_id,
-        redemption_status,
-        join_token
+        ticket_id, room_id, club_id,
+        purchaser_name, purchaser_email, purchaser_phone, player_name,
+        entry_fee, extras, extras_total, total_amount, currency,
+        payment_status, payment_method, payment_reference, club_payment_method_id,
+        redemption_status, join_token,
+        ticket_type_id, ticket_type_name
       )
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_claimed', ?, ?, ?, 'blocked', ?)
+      (?, ?, ?,
+       ?, ?, ?, ?,
+       ?, ?, ?, ?, ?,
+       'payment_claimed', ?, ?, ?,
+       'blocked', ?,
+       ?, ?)
   `;
-
-  const params = [
-    ticketId,
-    roomId,
-    clubId,
-    purchaserName,
-    purchaserEmail,
-    purchaserPhone,
-    playerName || purchaserName,
+ 
+  await connection.execute(sql, [
+    ticketId, roomId, clubId,
+    purchaserName, purchaserEmail, purchaserPhone, playerName || purchaserName,
     entryFee,
     JSON.stringify(extrasWithPrices),
-    extrasTotal,
-    totalAmount,
-    currency,
-    paymentMethod,
-    paymentReference,
-    clubPaymentMethodId,
+    extrasTotal, totalAmount, currency,
+    paymentMethod, paymentReference, clubPaymentMethodId,
     joinToken,
-  ];
-
-  await connection.execute(sql, params);
-
-  // 5. Create ledger entries (entry fee)
+    isTicketedEvent ? (ticketTypeId   || null) : null,
+    isTicketedEvent ? (ticketTypeName || null) : null,
+  ]);
+ 
+  // STEP 6: Ledger
   const playerId = `ticket_${ticketId}`;
-
+ 
+  const ledgerMetadata = isDonationRoom
+    ? { fundraisingMode: 'donation', donationAmount: entryFee, paymentMethodLabel: validatedPaymentMethod.methodLabel, paymentProvider: validatedPaymentMethod.providerName, isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount }
+    : isTicketedEvent
+    ? { ticketTypeId, ticketTypeName, paymentMethodLabel: validatedPaymentMethod.methodLabel, paymentProvider: validatedPaymentMethod.providerName, isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount }
+    : { paymentMethodLabel: validatedPaymentMethod.methodLabel, paymentProvider: validatedPaymentMethod.providerName, isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount };
+ 
   const ledgerId = await createExpectedPayment({
-    roomId,
-    clubId,
-    playerId,
-    playerName: playerName || purchaserName,
-    ledgerType: 'entry_fee',
-    amount: entryFee,
-    currency,
-    paymentMethod,
-    paymentSource: 'player_claimed',
-    clubPaymentMethodId,
-    paymentReference,
-    claimedAt: new Date(),
-    ticketId,
-    extraMetadata: isDonationRoom
-      ? {
-          fundraisingMode: 'donation',
-          donationAmount: entryFee,
-          paymentMethodLabel: validatedPaymentMethod.methodLabel,
-          paymentProvider: validatedPaymentMethod.providerName,
-          isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount,
-        }
-      : {
-          paymentMethodLabel: validatedPaymentMethod.methodLabel,
-          paymentProvider: validatedPaymentMethod.providerName,
-          isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount,
-        },
+    roomId, clubId, playerId, playerName: playerName || purchaserName,
+    ledgerType: 'entry_fee', amount: entryFee, currency,
+    paymentMethod, paymentSource: 'player_claimed', clubPaymentMethodId,
+    paymentReference, claimedAt: new Date(), ticketId,
+    extraMetadata: ledgerMetadata,
   });
-
-  // 6. Create ledger entries (extras)
-  // Fixed-fee tickets only. Donation tickets include extras automatically.
-  if (!isDonationRoom) {
+ 
+  // STEP 7: Extras ledger (quiz/elimination only)
+  if (!isDonationRoom && !isTicketedEvent) {
     for (const extra of extrasWithPrices) {
       await createExpectedPayment({
-        roomId,
-        clubId,
-        playerId,
-        playerName: playerName || purchaserName,
-        ledgerType: 'extra_purchase',
-        amount: extra.price,
-        currency,
-        paymentMethod,
-        paymentSource: 'player_claimed',
-        clubPaymentMethodId,
-        paymentReference,
-        claimedAt: new Date(),
+        roomId, clubId, playerId, playerName: playerName || purchaserName,
+        ledgerType: 'extra_purchase', amount: extra.price, currency,
+        paymentMethod, paymentSource: 'player_claimed', clubPaymentMethodId,
+        paymentReference, claimedAt: new Date(),
         extraId: extra.extraId,
-        extraMetadata: {
-          ...extra,
-          paymentMethodLabel: validatedPaymentMethod.methodLabel,
-          paymentProvider: validatedPaymentMethod.providerName,
-          isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount,
-        },
+        extraMetadata: { ...extra, paymentMethodLabel: validatedPaymentMethod.methodLabel, paymentProvider: validatedPaymentMethod.providerName, isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount },
         ticketId,
       });
     }
   }
-
-  // 7. Update ticket with ledger ID
+ 
+  // STEP 8: Link ledger to ticket
   await connection.execute(
     `UPDATE ${TICKETS_TABLE} SET ledger_id = ? WHERE ticket_id = ?`,
     [ledgerId, ticketId]
   );
-
-  if (DEBUG) {
-    console.log('[TicketService] ✅ Ticket created with payment claimed:', {
-      ticketId,
-      roomId,
-      purchaserName,
-      entryFee,
-      extrasTotal,
-      totalAmount,
-      currency,
-      paymentReference,
-      clubPaymentMethodId,
-      paymentMethodLabel: validatedPaymentMethod.methodLabel,
-      paymentProvider: validatedPaymentMethod.providerName,
-    });
-  }
-
+ 
   return {
-    ticketId,
-    joinToken,
-    roomId,
-    clubId,
-    purchaserName,
-    purchaserEmail,
+    ticketId, joinToken, roomId, clubId,
+    purchaserName, purchaserEmail,
     playerName: playerName || purchaserName,
-    entryFee,
-    extrasTotal,
-    totalAmount,
-    currency,
+    entryFee, extrasTotal, totalAmount, currency,
     extras: extrasWithPrices,
     fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
-    donationAmount: isDonationRoom ? entryFee : null,
-    paymentStatus: 'payment_claimed',
-    redemptionStatus: 'blocked',
-    paymentMethod,
-    paymentReference,
-    clubPaymentMethodId,
+    donationAmount:  isDonationRoom ? entryFee : null,
+    paymentStatus:   'payment_claimed',
+    redemptionStatus:'blocked',
+    paymentMethod, paymentReference, clubPaymentMethodId,
+    ticketTypeId:   isTicketedEvent ? ticketTypeId   : null,
+    ticketTypeName: isTicketedEvent ? ticketTypeName : null,
   };
 }
+
 
 /**
  * Create a donation ticket after a crypto payment has already been verified on-chain.

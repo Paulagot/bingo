@@ -1,13 +1,13 @@
 // src/components/mgtsystem/modals/ScheduleTicketedEventModal.tsx
 //
-// Handles both scheduling (create) and editing a ticketed event room.
-// Pass `existingRoom` to enter edit mode — fields pre-fill, submit calls PATCH.
-// Without `existingRoom` the modal is in create mode — submit calls POST /schedule.
+// UPDATED: Each ticket type now has isEnabled toggle, optional quantity limit,
+//          and optional saleEndsAt (stored as UTC, entered in event timezone).
 
 import { useState, useEffect } from 'react';
 import {
-  X, DollarSign, Trophy, Gift, Plus, Trash2,
-  Heart, Tag, Save, Users, Ticket,
+  X, DollarSign, Trophy, Plus, Trash2,
+  Heart, Tag, Save, Users, Ticket, ToggleLeft, ToggleRight,
+  Calendar, Hash,
 } from 'lucide-react';
 import { useAuthStore } from '../../../features/auth';
 import { currencySymbol } from '../shared/CurrencySelect';
@@ -16,6 +16,15 @@ import type { Event } from '../types/event';
 import type { TicketedEventRoomListItem } from '../services/TicketedEventMgmtService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface TicketType {
+  id:         string;
+  name:       string;
+  price:      string;
+  isEnabled:  boolean;
+  quantity:   string;   // empty string = no limit
+  saleEndsAt: string;   // local datetime-local input value, e.g. "2026-07-01T23:59"
+}
 
 interface Prize {
   place:       number;
@@ -33,19 +42,96 @@ interface Props {
   onClose:       () => void;
   onSaved:       (roomId?: string) => void;
   event:         Event;
-  existingRoom?: TicketedEventRoomListItem | null; // if present = edit mode
+  existingRoom?: TicketedEventRoomListItem | null;
 }
 
-type FundraisingMode = 'fixed_fee' | 'donation';
-
-const MAX_PRIZES   = 10;
-const MAX_SPONSORS = 3;
+const MAX_PRIZES       = 10;
+const MAX_SPONSORS     = 3;
+const MAX_TICKET_TYPES = 10;
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 };
+
+function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || `type_${Date.now()}`;
+}
+
+/**
+ * Convert a local datetime string (e.g. "2026-07-01T23:59") in a given
+ * IANA timezone to a UTC ISO string for storage.
+ */
+function localToUtc(localDatetime: string, timeZone: string): string | null {
+  if (!localDatetime) return null;
+  try {
+    const tIdx     = localDatetime.indexOf('T');
+    const datePart = tIdx >= 0 ? localDatetime.slice(0, tIdx) : localDatetime;
+    const timePart = tIdx >= 0 ? localDatetime.slice(tIdx + 1) : '23:59';
+
+    const dateParts = datePart.split('-').map(Number);
+    const timeParts = timePart.split(':').map(Number);
+
+    const year   = dateParts[0] ?? 0;
+    const month  = dateParts[1] ?? 1;
+    const day    = dateParts[2] ?? 1;
+    const hour   = timeParts[0] ?? 23;
+    const minute = timeParts[1] ?? 59;
+
+    // Build a UTC Date from the naive local values
+    const naiveUtc = new Date(Date.UTC(year, month - 1, day, hour, minute));
+
+    // Use Intl to find what the formatter thinks the local time is for this UTC instant
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    });
+
+    const p: Record<string, number> = {};
+    for (const part of formatter.formatToParts(naiveUtc)) {
+      if (part.type !== 'literal') p[part.type] = parseInt(part.value, 10);
+    }
+
+    const pYear   = p['year']   ?? year;
+    const pMonth  = p['month']  ?? month;
+    const pDay    = p['day']    ?? day;
+    const pHour   = p['hour']   ?? hour;
+    const pMinute = p['minute'] ?? minute;
+    const pSecond = p['second'] ?? 0;
+
+    const localAsUTC = Date.UTC(pYear, pMonth - 1, pDay, pHour, pMinute, pSecond);
+    const offsetMs   = localAsUTC - naiveUtc.getTime();
+    const trueUtc    = new Date(naiveUtc.getTime() - offsetMs);
+
+    return trueUtc.toISOString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert a UTC ISO string back to a local datetime-local input value
+ * in the given IANA timezone (for pre-filling in edit mode).
+ */
+function utcToLocalInput(utcIso: string, timeZone: string): string {
+  if (!utcIso) return '';
+  try {
+    const date = new Date(utcIso);
+    const formatter = new Intl.DateTimeFormat('sv-SE', {
+      timeZone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+      hour12: false,
+    });
+    // sv-SE gives "YYYY-MM-DD HH:MM" — replace space with T
+    return formatter.format(date).replace(' ', 'T');
+  } catch {
+    return '';
+  }
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -87,46 +173,91 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
   const hostId          = user?.id || user?.user_id || user?.club_user_id || '';
   const hostName        = user?.name || user?.full_name || user?.first_name || '';
 
-  const [submitting, setSubmitting]           = useState(false);
-  const [error, setError]                     = useState<string | null>(null);
-  const [fundraisingMode, setFundraisingMode] = useState<FundraisingMode>('fixed_fee');
-  const [entryFee, setEntryFee]               = useState('');
-  const [prizes, setPrizes]                   = useState<Prize[]>([]);
-  const [eventSponsors, setEventSponsors]     = useState<EventSponsor[]>([{ name: '', role: '' }]);
-  const [venueCapacity, setVenueCapacity]     = useState('');
+  const [submitting, setSubmitting]       = useState(false);
+  const [error, setError]                 = useState<string | null>(null);
+  const [ticketTypes, setTicketTypes]     = useState<TicketType[]>([
+    { id: 'general', name: 'General Admission', price: '', isEnabled: true, quantity: '', saleEndsAt: '' },
+  ]);
+  const [prizes, setPrizes]               = useState<Prize[]>([]);
+  const [eventSponsors, setEventSponsors] = useState<EventSponsor[]>([{ name: '', role: '' }]);
+  const [venueCapacity, setVenueCapacity] = useState('');
 
-  // Pre-fill date/timezone from the parent event (create mode)
+  const fundraisingMode = 'fixed_fee' as const;
+
   const scheduledAt = event.start_datetime
     || (event.event_date ? `${event.event_date}T19:00:00` : null);
+
   const timeZone = event.time_zone
     || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-  const isDonation = fundraisingMode === 'donation';
 
   // ── Seed from existing config in edit mode ──────────────────────────────────
   useEffect(() => {
     if (!isEditMode || !existingRoom) return;
-
     const cfg = ticketedEventMgmtService.parseConfig(existingRoom);
     if (!cfg) return;
 
-    setFundraisingMode(cfg.fundraisingMode ?? 'fixed_fee');
-    setEntryFee(cfg.entryFee ?? '');
-    setPrizes(
-      Array.isArray(cfg.prizes) && cfg.prizes.length > 0
-        ? cfg.prizes
-        : []
-    );
+    if (Array.isArray(cfg.ticketTypes) && cfg.ticketTypes.length > 0) {
+      setTicketTypes(cfg.ticketTypes.map(t => ({
+        id:         t.id   || '',
+        name:       t.name || '',
+        price:      t.price != null ? String(t.price) : '',
+        // isEnabled defaults true if field absent (older records)
+        isEnabled:  t.isEnabled !== false,
+        // quantity: only set if it's a positive number (field absent on old records)
+        quantity:   (t.quantity != null && Number(t.quantity) > 0) ? String(t.quantity) : '',
+        // saleEndsAt: convert UTC → local input value (field absent on old records)
+        saleEndsAt: t.saleEndsAt ? utcToLocalInput(String(t.saleEndsAt), timeZone) : '',
+      })));
+    } else if (cfg.entryFee) {
+      // Legacy room with no ticketTypes — synthesise a single General Admission type
+      setTicketTypes([{
+        id: 'general', name: 'General Admission', price: String(cfg.entryFee),
+        isEnabled: true, quantity: '', saleEndsAt: '',
+      }]);
+    }
+
+    setPrizes(Array.isArray(cfg.prizes) && cfg.prizes.length > 0 ? cfg.prizes : []);
     setEventSponsors(
       Array.isArray(cfg.eventSponsors) && cfg.eventSponsors.length > 0
         ? cfg.eventSponsors
         : [{ name: '', role: '' }]
     );
-    // venueCapacity lives in roomCaps
-    const cap = cfg.roomCaps?.venueCapacity ?? cfg.roomCaps?.maxPlayers;
-    if (cap && cap < 999999) setVenueCapacity(String(cap));
+
+    // Venue capacity — check both roomCaps in config and the room's own room_caps_json
+    // (stored as room_caps_json on the room record, parsed into cfg.roomCaps)
+    const cap =
+      cfg.roomCaps?.venueCapacity ??
+      cfg.roomCaps?.maxPlayers    ??
+      null;
+    if (cap != null && Number(cap) > 0 && Number(cap) < 999999) {
+      setVenueCapacity(String(cap));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Ticket type handlers ────────────────────────────────────────────────────
+
+  const handleAddTicketType = () => {
+    if (ticketTypes.length >= MAX_TICKET_TYPES) return;
+    setTicketTypes(prev => [...prev, {
+      id: '', name: '', price: '', isEnabled: true, quantity: '', saleEndsAt: '',
+    }]);
+  };
+
+  const handleTicketTypeChange = (i: number, field: keyof TicketType, val: string | boolean) => {
+    setTicketTypes(prev => prev.map((t, idx) => {
+      if (idx !== i) return t;
+      if (field === 'name' && typeof val === 'string') {
+        return { ...t, name: val, id: slugify(val) };
+      }
+      return { ...t, [field]: val };
+    }));
+  };
+
+  const handleRemoveTicketType = (i: number) => {
+    if (ticketTypes.length <= 1) return;
+    setTicketTypes(prev => prev.filter((_, idx) => idx !== i));
+  };
 
   // ── Prize handlers ──────────────────────────────────────────────────────────
 
@@ -160,15 +291,45 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
     setEventSponsors(prev => prev.filter((_, idx) => idx !== i));
   };
 
+  // ── Combined quantity warning (non-blocking) ────────────────────────────────
+  // Shown when all named types have quantities set and their sum exceeds venue cap.
+  // Sales always stop at venue cap at purchase time regardless.
+  const combinedQuantityWarning = (() => {
+    const cap = parseInt(venueCapacity);
+    if (!cap || isNaN(cap)) return null;
+    const namedTypes = ticketTypes.filter(t => t.name.trim());
+    const typesWithQty = namedTypes.filter(t => t.quantity);
+    if (namedTypes.length === 0 || typesWithQty.length < namedTypes.length) return null;
+    const total = typesWithQty.reduce((sum, t) => sum + (parseInt(t.quantity) || 0), 0);
+    if (total > cap) {
+      return `Combined type limits (${total}) exceed venue capacity (${cap}). Sales will stop at ${cap} total regardless.`;
+    }
+    return null;
+  })();
+
   // ── Validation ──────────────────────────────────────────────────────────────
 
   const validate = (): string | null => {
     if (!venueCapacity || isNaN(parseInt(venueCapacity)) || parseInt(venueCapacity) < 1) {
       return 'Venue capacity must be at least 1';
     }
-    if (!isDonation) {
-      const fee = parseFloat(entryFee);
-      if (!entryFee || isNaN(fee) || fee <= 0) return 'Entry fee must be greater than 0';
+    const validTypes = ticketTypes.filter(t => t.name.trim());
+    if (validTypes.length === 0) {
+      return 'At least one ticket type with a name is required';
+    }
+    for (const t of validTypes) {
+      const price = parseFloat(t.price);
+      if (!t.price || isNaN(price) || price <= 0) {
+        return `"${t.name}" must have a price greater than 0`;
+      }
+      if (t.quantity) {
+        const qty = parseInt(t.quantity);
+        if (isNaN(qty) || qty < 1) {
+          return `"${t.name}" quantity limit must be at least 1`;
+        }
+        // Individual type qty can exceed venue cap — warning shown separately.
+        // Hard ceiling enforced at purchase time by canPurchaseTickets.
+      }
     }
     return null;
   };
@@ -181,23 +342,34 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
     if (err) { setError(err); return; }
     setSubmitting(true);
 
+    const validTicketTypes = ticketTypes
+      .filter(t => t.name.trim() && t.price)
+      .map(t => ({
+        id:         t.id || slugify(t.name),
+        name:       t.name.trim(),
+        price:      t.price,
+        isEnabled:  t.isEnabled,
+        quantity:   t.quantity ? parseInt(t.quantity) : null,
+        // Convert local datetime to UTC for storage
+        saleEndsAt: t.saleEndsAt ? localToUtc(t.saleEndsAt, timeZone) : null,
+      }));
+
+    const entryFee = validTicketTypes[0]?.price ?? null;
+
     try {
       if (isEditMode && existingRoom) {
-        // ── EDIT MODE: PATCH existing room ────────────────────────────────
         await ticketedEventMgmtService.updateRoom(existingRoom.room_id, {
-          entryFee:        isDonation ? null : entryFee,
+          entryFee,
           fundraisingMode,
-          currency:        clubCurrencyISO,
-          currencySymbol:  sym,
-          prizes:          prizes.filter(p => p.description.trim()),
-          eventSponsors:   eventSponsors.filter(s => s.name.trim()),
+          currency:       clubCurrencyISO,
+          currencySymbol: sym,
+          ticketTypes:    validTicketTypes,
+          prizes:         prizes.filter(p => p.description.trim()),
+          eventSponsors:  eventSponsors.filter(s => s.name.trim()),
         });
-
         onSaved(existingRoom.room_id);
         onClose();
-
       } else {
-        // ── CREATE MODE: unchanged ────────────────────────────────────────
         const { v4: uuidv4 } = await import('uuid');
         const roomId = uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
 
@@ -207,15 +379,16 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
           hostName,
           scheduledAt,
           timeZone,
-          entryFee:        isDonation ? null : entryFee,
+          entryFee,
           fundraisingMode,
-          currency:        clubCurrencyISO,
-          currencySymbol:  sym,
-          prizes:          prizes.filter(p => p.description.trim()),
-          eventSponsors:   eventSponsors.filter(s => s.name.trim()),
-          venueCapacity:   venueCapacity ? parseInt(venueCapacity) : undefined,
-          eventTitle:      event.title         || null,
-          eventLocation:   event.location_label || null,
+          currency:       clubCurrencyISO,
+          currencySymbol: sym,
+          ticketTypes:    validTicketTypes,
+          prizes:         prizes.filter(p => p.description.trim()),
+          eventSponsors:  eventSponsors.filter(s => s.name.trim()),
+          venueCapacity:  venueCapacity ? parseInt(venueCapacity) : undefined,
+          eventTitle:     event.title          || null,
+          eventLocation:  event.location_label || null,
         };
 
         const data = await ticketedEventMgmtService.scheduleEvent(payload);
@@ -232,8 +405,6 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
       setSubmitting(false);
     }
   };
-
-  // ── Event date display ──────────────────────────────────────────────────────
 
   const eventDateDisplay = scheduledAt
     ? new Date(scheduledAt).toLocaleDateString('en-GB', {
@@ -293,42 +464,19 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
             </div>
           )}
 
-          {/* ── 1. Fundraising Mode ── */}
-          <Section>
-            <SectionHeader
-              icon={<DollarSign className="h-4 w-4" />}
-              title="Fundraising Model"
-              subtitle="How will attendees contribute?"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { mode: 'fixed_fee' as const, icon: <DollarSign className="h-4 w-4" />, label: 'Fixed Ticket Price', desc: 'Every attendee pays the same ticket price' },
-                { mode: 'donation'  as const, icon: <Gift className="h-4 w-4" />,       label: 'Donation Based',     desc: 'Attendees donate any amount — or attend free' },
-              ]).map(({ mode, icon, label, desc }) => {
-                const active = fundraisingMode === mode;
-                return (
-                  <button key={mode} type="button" onClick={() => setFundraisingMode(mode)}
-                    className="rounded-xl border-2 p-4 text-left transition-all"
-                    style={active
-                      ? { borderColor: '#157f85', background: 'rgba(21,127,133,0.08)' }
-                      : { borderColor: '#dce1df', background: '#fff' }}>
-                    <div className="flex items-center gap-2 mb-1" style={{ color: active ? '#157f85' : '#8a9bab' }}>
-                      {icon}
-                      <p className="text-sm font-bold" style={{ color: active ? '#157f85' : '#102532' }}>{label}</p>
-                    </div>
-                    <p className="text-xs" style={{ color: '#52636f' }}>{desc}</p>
-                  </button>
-                );
-              })}
+          {combinedQuantityWarning && !error && (
+            <div className="flex items-start gap-2 rounded-lg border px-3 py-2.5"
+              style={{ background: '#fffbeb', borderColor: '#fcd34d' }}>
+              <p className="text-sm" style={{ color: '#92400e' }}>⚠️ {combinedQuantityWarning}</p>
             </div>
-          </Section>
+          )}
 
-          {/* ── 2. Venue Capacity ── */}
+          {/* ── 1. Venue Capacity ── */}
           <Section>
             <SectionHeader
               icon={<Users className="h-4 w-4" />}
               title="Venue Capacity"
-              subtitle="Maximum number of attendees. Ticket sales stop when this is reached."
+              subtitle="Maximum number of attendees across all ticket types."
             />
             <div className="max-w-[200px]">
               <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
@@ -343,48 +491,154 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
               />
             </div>
             <p className="mt-2 text-xs" style={{ color: '#8a9bab' }}>
-              Ticket sales and walk-in payments will be blocked once this limit is reached.
+              This is the hard ceiling. Per-type limits are subsets of this number.
             </p>
           </Section>
 
-          {/* ── 3. Entry Fee ── */}
-          {!isDonation && (
-            <Section>
-              <SectionHeader
-                icon={<DollarSign className="h-4 w-4" />}
-                title="Ticket Price"
-                subtitle={`Set the price per ticket — currency: ${sym} (${clubCurrencyISO})`}
-              />
-              <div className="max-w-[200px]">
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
-                  Amount <span style={{ color: '#e9574f' }}>*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-sm font-semibold" style={{ color: '#52636f' }}>{sym}</span>
-                  <input
-                    type="number" min="0.01" step="0.01" placeholder="10.00"
-                    value={entryFee}
-                    onChange={e => setEntryFee(e.target.value)}
-                    className={`${inputCls()} pl-7`}
-                    disabled={submitting}
-                  />
-                </div>
-              </div>
-              <p className="mt-2 text-xs" style={{ color: '#8a9bab' }}>
-                Currency is set to your club's reporting currency. Change it in club settings.
-              </p>
-            </Section>
-          )}
+          {/* ── 2. Ticket Types ── */}
+          <Section>
+            <SectionHeader
+              icon={<DollarSign className="h-4 w-4" />}
+              title="Ticket Types & Prices"
+              subtitle={`Define your ticket categories. Currency: ${sym} (${clubCurrencyISO}) · Times in ${timeZone}`}
+            />
+            <div className="space-y-4">
+              {ticketTypes.map((tt, i) => {
+                const hasName = tt.name.trim().length > 0;
+                return (
+                  <div key={i} className="rounded-xl border p-3 space-y-3"
+                    style={{
+                      borderColor: !tt.isEnabled ? '#dce1df' : hasName ? 'rgba(21,127,133,0.4)' : '#dce1df',
+                      background:  !tt.isEnabled ? '#f9fafb' : hasName ? 'rgba(21,127,133,0.04)' : '#fff',
+                      opacity:     tt.isEnabled ? 1 : 0.75,
+                    }}>
 
-          {isDonation && (
-            <div className="rounded-lg px-4 py-3 text-xs"
-              style={{ background: 'rgba(21,127,133,0.08)', color: '#157f85', border: '1px solid rgba(21,127,133,0.2)' }}>
-              Donation-based: attendees can contribute any amount or attend for free.
-              Currency: {sym} ({clubCurrencyISO})
+                    {/* Row header: type number + enable toggle + remove */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold" style={{ color: '#157f85' }}>
+                        Ticket type {i + 1}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {/* Enabled toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleTicketTypeChange(i, 'isEnabled', !tt.isEnabled)}
+                          disabled={submitting}
+                          className="flex items-center gap-1.5 text-xs font-medium transition"
+                          style={{ color: tt.isEnabled ? '#157f85' : '#8a9bab' }}
+                          title={tt.isEnabled ? 'Click to disable' : 'Click to enable'}
+                        >
+                          {tt.isEnabled
+                            ? <ToggleRight className="h-4 w-4" />
+                            : <ToggleLeft  className="h-4 w-4" />}
+                          {tt.isEnabled ? 'Enabled' : 'Disabled'}
+                        </button>
+                        {/* Remove button */}
+                        {ticketTypes.length > 1 && (
+                          <button type="button" onClick={() => handleRemoveTicketType(i)}
+                            className="rounded p-1 hover:bg-red-50" disabled={submitting}>
+                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Name + Price */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: '#52636f' }}>
+                          Name <span style={{ color: '#e9574f' }}>*</span>
+                        </label>
+                        <input
+                          type="text" placeholder="e.g. Early Bird"
+                          value={tt.name}
+                          onChange={e => handleTicketTypeChange(i, 'name', e.target.value)}
+                          className={inputCls(!tt.name.trim() && !!error)}
+                          disabled={submitting}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: '#52636f' }}>
+                          Price ({sym}) <span style={{ color: '#e9574f' }}>*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-sm font-semibold" style={{ color: '#52636f' }}>{sym}</span>
+                          <input
+                            type="number" min="0.01" step="0.01" placeholder="10.00"
+                            value={tt.price}
+                            onChange={e => handleTicketTypeChange(i, 'price', e.target.value)}
+                            className={`${inputCls(!tt.price && !!error)} pl-7`}
+                            disabled={submitting}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quantity limit + Sale ends */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: '#52636f' }}>
+                          <span className="inline-flex items-center gap-1">
+                            <Hash className="h-3 w-3" />
+                            Quantity limit <span style={{ color: '#8a9bab' }}>(optional)</span>
+                          </span>
+                        </label>
+                        <input
+                          type="number" min="1" step="1" placeholder="No limit"
+                          value={tt.quantity}
+                          onChange={e => handleTicketTypeChange(i, 'quantity', e.target.value)}
+                          className={inputCls()}
+                          disabled={submitting}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: '#52636f' }}>
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Sale ends <span style={{ color: '#8a9bab' }}>(optional)</span>
+                          </span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={tt.saleEndsAt}
+                          onChange={e => handleTicketTypeChange(i, 'saleEndsAt', e.target.value)}
+                          className={inputCls()}
+                          disabled={submitting}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Hints */}
+                    {(tt.quantity || tt.saleEndsAt) && (
+                      <div className="text-xs space-y-0.5" style={{ color: '#8a9bab' }}>
+                        {tt.quantity && (
+                          <p>Max {tt.quantity} ticket{parseInt(tt.quantity) !== 1 ? 's' : ''} of this type — remaining spots roll into overall capacity.</p>
+                        )}
+                        {tt.saleEndsAt && (
+                          <p>Sale closes at {new Date(tt.saleEndsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} ({timeZone}) — this type will auto-hide for buyers after that.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {ticketTypes.length < MAX_TICKET_TYPES && (
+                <button type="button" onClick={handleAddTicketType}
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition"
+                  style={{ background: '#f6f1e8', color: '#52636f' }}
+                  disabled={submitting}>
+                  <Plus className="h-3.5 w-3.5" />
+                  {ticketTypes.length === 0 ? 'Add Ticket Type' : 'Add Another Ticket Type'}
+                </button>
+              )}
             </div>
-          )}
+            <p className="mt-3 text-xs" style={{ color: '#8a9bab' }}>
+              Disabled or expired types are hidden from buyers automatically. The first enabled type is shown first.
+            </p>
+          </Section>
 
-          {/* ── 4. Event Sponsors ── */}
+          {/* ── 3. Event Sponsors ── */}
           <Section>
             <SectionHeader
               icon={<Heart className="h-4 w-4" />}
@@ -436,12 +690,9 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
                 </button>
               )}
             </div>
-            <p className="mt-3 text-xs" style={{ color: '#8a9bab' }}>
-              Sponsors appear on the event impact report after the event.
-            </p>
           </Section>
 
-          {/* ── 5. Prizes ── */}
+          {/* ── 4. Prizes ── */}
           <Section>
             <SectionHeader
               icon={<Trophy className="h-4 w-4" />}

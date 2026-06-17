@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Scale, CheckCircle2, AlertCircle, Loader, RefreshCw,
-  Lock, Ticket, DollarSign, Users, UserCheck, AlertTriangle, X,
+  Lock, Ticket, DollarSign, Users, UserCheck, AlertTriangle, X, 
 } from 'lucide-react';
 import type { Web2RoomListItem as Room } from '../../../../../../shared/api/quiz.api';
 import ticketedEventReconciliationService, {
@@ -465,6 +465,33 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
                     </span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+           {/* ── By ticket type ── */}
+          {summary && Array.isArray(summary.byTicketType) && summary.byTicketType.length > 1 && (
+            <div className="rounded-xl border border-[rgba(21,127,133,0.2)] overflow-hidden mb-4">
+              <div className="px-4 py-2.5 bg-[rgba(21,127,133,0.06)] border-b border-[rgba(21,127,133,0.15)] flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-[#157f85]" />
+                <span className="text-xs font-semibold text-[#157f85] uppercase">By Ticket Type</span>
+              </div>
+              <div className="divide-y divide-gray-50 bg-white">
+                {summary.byTicketType.map((row: any) => (
+                  <div key={row.ticketTypeId} className="px-4 py-2.5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(21,127,133,0.25)] bg-[rgba(21,127,133,0.06)] px-2 py-0.5 text-xs font-semibold text-[#157f85]">
+                        {row.ticketTypeName}
+                      </span>
+                      <span className="text-xs text-gray-400">{row.ticketCount} ticket{row.ticketCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{fmt(sym, row.total)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-2.5 flex justify-between bg-gray-50 border-t border-gray-200">
+                <span className="text-sm font-semibold text-gray-700">Total</span>
+                <span className="text-sm font-bold text-[#157f85]">{fmt(sym, summary.startingTotal)}</span>
               </div>
             </div>
           )}

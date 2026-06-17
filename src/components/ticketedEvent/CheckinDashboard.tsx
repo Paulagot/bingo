@@ -258,12 +258,35 @@ const AdminsTab: React.FC<{
   token:  string | null;
 }> = ({ roomId, token }) => {
   const [admins,      setAdmins]      = useState<Admin[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
   const [newName,     setNewName]     = useState('');
+  const [adding,      setAdding]      = useState(false);
+  const [addError,    setAddError]    = useState<string | null>(null);
   const [generating,  setGenerating]  = useState(false);
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [copiedId,    setCopiedId]    = useState<string | null>(null);
   const [adminTokens, setAdminTokens] = useState<Record<string, string>>({});
-
+ 
+  // ── Load existing admins on mount ──────────────────────────────────────────
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/ticketed-event/admins/room/${roomId}`, {
+          headers: getAuthHeaders(token),
+        });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.admins)) {
+          setAdmins(data.admins);
+        }
+      } catch {
+        // Non-fatal — staff list just starts empty
+      } finally {
+        setLoadingList(false);
+      }
+    };
+    load();
+  }, [roomId, token]);
+ 
   const generateInvite = async (admin: Admin) => {
     if (adminTokens[admin.id]) {
       setExpandedId(admin.id);
@@ -271,7 +294,7 @@ const AdminsTab: React.FC<{
     }
     setGenerating(true);
     try {
-   const res = await fetch(`/api/ticketed-event/checkin/${roomId}/operator-token`, {
+      const res = await fetch(`/api/ticketed-event/checkin/${roomId}/operator-token`, {
         method:  'POST',
         headers: { ...getAuthHeaders(token), 'Content-Type': 'application/json' },
         body:    JSON.stringify({ staffName: admin.name }),
@@ -287,7 +310,7 @@ const AdminsTab: React.FC<{
       setGenerating(false);
     }
   };
-
+ 
   const copyLink = (admin: Admin) => {
     const url = adminTokens[admin.id];
     if (!url) return;
@@ -295,24 +318,51 @@ const AdminsTab: React.FC<{
     setCopiedId(admin.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
-
-  const handleAdd = () => {
+ 
+  // ── Add admin — now persists to backend ────────────────────────────────────
+  const handleAdd = async () => {
     const trimmed = newName.trim();
-    if (!trimmed) return;
-    const admin: Admin = {
-      id:        `admin-${Date.now()}`,
-      name:      trimmed,
-      createdAt: new Date().toISOString(),
-    };
-    setAdmins(prev => [...prev, admin]);
-    setNewName('');
+    if (!trimmed || adding) return;
+ 
+    setAdding(true);
+    setAddError(null);
+    try {
+      const res = await fetch(`/api/ticketed-event/admins/room/${roomId}`, {
+        method:  'POST',
+        headers: { ...getAuthHeaders(token), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add staff member');
+ 
+      setAdmins(prev => [...prev, data.admin]);
+      setNewName('');
+    } catch (e: any) {
+      setAddError(e?.message || 'Failed to add staff member');
+    } finally {
+      setAdding(false);
+    }
   };
-
-  const handleRemove = (id: string) => {
+ 
+  // ── Remove admin — now persists to backend ─────────────────────────────────
+  const handleRemove = async (id: string) => {
+    // Optimistic removal, roll back on failure
+    const previous = admins;
     setAdmins(prev => prev.filter(a => a.id !== id));
     setAdminTokens(prev => { const n = { ...prev }; delete n[id]; return n; });
+ 
+    try {
+      const res = await fetch(`/api/ticketed-event/admins/room/${roomId}/${id}`, {
+        method:  'DELETE',
+        headers: getAuthHeaders(token),
+      });
+      if (!res.ok) throw new Error('Failed to remove');
+    } catch {
+      // Roll back on failure
+      setAdmins(previous);
+    }
   };
-
+ 
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -322,100 +372,110 @@ const AdminsTab: React.FC<{
           value={newName}
           onChange={e => setNewName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) handleAdd(); }}
-          className="flex-1 rounded-lg border border-[#dce1df] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#157f85]"
+          disabled={adding}
+          className="flex-1 rounded-lg border border-[#dce1df] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#157f85] disabled:opacity-60"
         />
         <button
           type="button"
           onClick={handleAdd}
-          disabled={!newName.trim()}
+          disabled={!newName.trim() || adding}
           className="inline-flex items-center gap-1.5 rounded-lg bg-[#157f85] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0e6268] disabled:opacity-40 transition-colors"
         >
-          <UserPlus className="h-4 w-4" />
+          {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
         </button>
       </div>
-
+ 
+      {addError && (
+        <p className="text-xs text-red-600">{addError}</p>
+      )}
+ 
       <p className="text-xs text-[#8a9bab]">
         Door staff can scan QR codes and confirm payments. They cannot close the event.
+        Staff added here also appear in the Impact tab as event volunteers.
       </p>
-
-      {admins.length === 0 && (
+ 
+      {loadingList ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-[#157f85]" />
+        </div>
+      ) : admins.length === 0 ? (
         <div className="rounded-xl border border-[#dce1df] bg-[#fbf8f2] p-6 text-center">
           <Users className="mx-auto mb-2 h-10 w-10 text-[#b8c6b0]" />
           <p className="text-sm text-[#8a9bab]">No door staff added yet.</p>
         </div>
-      )}
-
-      {admins.map(admin => {
-        const isExpanded = expandedId === admin.id;
-        const isCopied   = copiedId   === admin.id;
-        const link       = adminTokens[admin.id] || null;
-
-        return (
-          <div key={admin.id} className="rounded-xl border border-[#dce1df] overflow-hidden">
-            <div className="flex items-center justify-between gap-2 px-4 py-3 bg-[#fbf8f2]">
-              <div className="flex items-center gap-2">
-                <div className="rounded-full bg-[rgba(21,127,133,0.12)] p-1.5">
-                  <Shield className="h-3.5 w-3.5 text-[#157f85]" />
-                </div>
-                <span className="font-semibold text-[#102532] text-sm">{admin.name}</span>
-                <span className="rounded-full border border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)] px-2 py-0.5 text-xs text-[#157f85]">
-                  Door staff
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => generateInvite(admin)}
-                  disabled={generating}
-                  className="inline-flex items-center gap-1 rounded-lg border border-[#dce1df] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#52636f] hover:bg-[#f6f1e8] transition-colors"
-                >
-                  {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
-                  {isExpanded ? 'Hide' : 'Invite'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(admin.id)}
-                  className="rounded-lg border border-red-100 bg-red-50 p-1.5 text-red-400 hover:bg-red-100 transition-colors"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {isExpanded && link && (
-              <div className="border-t border-[#dce1df] bg-white p-4">
-                <div className="flex flex-col sm:flex-row gap-4 items-center">
-                  <div className="rounded-xl bg-white border border-[#dce1df] p-3 flex-shrink-0">
-                    <QRCodeCanvas value={link} size={120} />
+      ) : (
+        admins.map(admin => {
+          const isExpanded = expandedId === admin.id;
+          const isCopied   = copiedId   === admin.id;
+          const link       = adminTokens[admin.id] || null;
+ 
+          return (
+            <div key={admin.id} className="rounded-xl border border-[#dce1df] overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-4 py-3 bg-[#fbf8f2]">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-[rgba(21,127,133,0.12)] p-1.5">
+                    <Shield className="h-3.5 w-3.5 text-[#157f85]" />
                   </div>
-                  <div className="flex-1 w-full space-y-2">
-                    <p className="text-xs text-[#52636f]">
-                      Share with <span className="font-semibold text-[#102532]">{admin.name}</span> to let them scan tickets and confirm payments.
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={link}
-                        readOnly
-                        className="flex-1 rounded-lg border border-[#dce1df] px-2 py-1.5 text-xs font-mono text-[#52636f] min-w-0"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => copyLink(admin)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#157f85] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e6268] transition-colors flex-shrink-0"
-                      >
-                        <LinkIcon className="h-3.5 w-3.5" />
-                        {isCopied ? 'Copied!' : 'Copy'}
-                      </button>
+                  <span className="font-semibold text-[#102532] text-sm">{admin.name}</span>
+                  <span className="rounded-full border border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)] px-2 py-0.5 text-xs text-[#157f85]">
+                    Door staff
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => generateInvite(admin)}
+                    disabled={generating}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#dce1df] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#52636f] hover:bg-[#f6f1e8] transition-colors"
+                  >
+                    {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
+                    {isExpanded ? 'Hide' : 'Invite'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(admin.id)}
+                    className="rounded-lg border border-red-100 bg-red-50 p-1.5 text-red-400 hover:bg-red-100 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+ 
+              {isExpanded && link && (
+                <div className="border-t border-[#dce1df] bg-white p-4">
+                  <div className="flex flex-col sm:flex-row gap-4 items-center">
+                    <div className="rounded-xl bg-white border border-[#dce1df] p-3 flex-shrink-0">
+                      <QRCodeCanvas value={link} size={120} />
                     </div>
-                    <p className="text-xs text-[#8a9bab]">Valid for 12 hours.</p>
+                    <div className="flex-1 w-full space-y-2">
+                      <p className="text-xs text-[#52636f]">
+                        Share with <span className="font-semibold text-[#102532]">{admin.name}</span> to let them scan tickets and confirm payments.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={link}
+                          readOnly
+                          className="flex-1 rounded-lg border border-[#dce1df] px-2 py-1.5 text-xs font-mono text-[#52636f] min-w-0"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => copyLink(admin)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#157f85] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e6268] transition-colors flex-shrink-0"
+                        >
+                          <LinkIcon className="h-3.5 w-3.5" />
+                          {isCopied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-[#8a9bab]">Valid for 12 hours.</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+              )}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 };

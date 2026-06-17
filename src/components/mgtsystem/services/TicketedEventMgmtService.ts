@@ -1,12 +1,7 @@
 // src/components/mgtsystem/services/TicketedEventMgmtService.ts
-//
-// Frontend service for ticketed event management.
-// Extends BaseService — same auth header pattern as all other mgmt services.
-// All requests go to /api/ticketed-event/mgmt (auth-gated).
+// UPDATED: TicketType now includes isEnabled, quantity, saleEndsAt.
 
 import BaseService from './BaseService';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type TicketedEventStatus =
   | 'scheduled'
@@ -14,6 +9,15 @@ export type TicketedEventStatus =
   | 'live'
   | 'completed'
   | 'cancelled';
+
+export interface TicketType {
+  id:          string;
+  name:        string;
+  price:       string;
+  isEnabled:   boolean;
+  quantity:    number | null;   // null = no per-type limit
+  saleEndsAt:  string | null;   // UTC ISO string, null = no date limit
+}
 
 export interface TicketedEventPrize {
   place:       number;
@@ -34,31 +38,36 @@ export interface TicketedEventConfig {
   hostName:        string | null;
   fundraisingMode: 'fixed_fee' | 'donation';
   entryFee:        string | null;
+  ticketTypes:     TicketType[];
   currency:        string;
   currencySymbol:  string;
   timeZone:        string | null;
   eventDateTime:   string | null;
   prizes:          TicketedEventPrize[];
   eventSponsors:   TicketedEventSponsor[];
- roomCaps: { maxPlayers: number; planCode?: string; venueCapacity?: number | null };
+  roomCaps: {
+    maxPlayers:     number;
+    planCode?:      string;
+    venueCapacity?: number | null;
+  };
 }
 
 export interface TicketedEventRoomListItem {
-  room_id:              string;
-  host_id:              string;
-  club_id:              string;
-  game_type:            'ticketed_event';
-  status:               TicketedEventStatus;
-  scheduled_at:         string | null;
-  ended_at:             string | null;
-  time_zone:            string | null;
-  config_json:          TicketedEventConfig | string | null;
-  room_caps_json:       null;
-  prize_description:    string | null;
-  prize_value:          number | null;
+  room_id:               string;
+  host_id:               string;
+  club_id:               string;
+  game_type:             'ticketed_event';
+  status:                TicketedEventStatus;
+  scheduled_at:          string | null;
+  ended_at:              string | null;
+  time_zone:             string | null;
+  config_json:           TicketedEventConfig | string | null;
+  room_caps_json:        null;
+  prize_description:     string | null;
+  prize_value:           number | null;
   reconciliation_status: string;
-  created_at:           string;
-  updated_at:           string;
+  created_at:            string;
+  updated_at:            string;
 }
 
 export interface ScheduleTicketedEventPayload {
@@ -71,19 +80,24 @@ export interface ScheduleTicketedEventPayload {
   fundraisingMode: 'fixed_fee' | 'donation';
   currency:        string;
   currencySymbol:  string;
+  ticketTypes?:    TicketType[];
   prizes?:         TicketedEventPrize[];
   eventSponsors?:  TicketedEventSponsor[];
+  venueCapacity?:  number;
+  eventTitle?:     string | null;
+  eventLocation?:  string | null;
 }
 
 export interface UpdateTicketedEventPayload {
-  scheduledAt?:    string | null;
-  timeZone?:       string | null;
-  entryFee?:       string | null;
+  scheduledAt?:     string | null;
+  timeZone?:        string | null;
+  entryFee?:        string | null;
   fundraisingMode?: 'fixed_fee' | 'donation';
-  currency?:       string;
-  currencySymbol?: string;
-  prizes?:         TicketedEventPrize[];
-  eventSponsors?:  TicketedEventSponsor[];
+  currency?:        string;
+  currencySymbol?:  string;
+  ticketTypes?:     TicketType[];
+  prizes?:          TicketedEventPrize[];
+  eventSponsors?:   TicketedEventSponsor[];
 }
 
 export interface ScheduleTicketedEventResponse {
@@ -94,35 +108,23 @@ export interface ScheduleTicketedEventResponse {
   roomCaps:    { maxPlayers: number };
 }
 
-// ─── Service ──────────────────────────────────────────────────────────────────
-
 class TicketedEventMgmtService extends BaseService {
   private readonly base = '/ticketed-event/mgmt';
 
-  // ── Schedule ────────────────────────────────────────────────────────────────
-
-  async scheduleEvent(
-    payload: ScheduleTicketedEventPayload,
-  ): Promise<ScheduleTicketedEventResponse> {
+  async scheduleEvent(payload: ScheduleTicketedEventPayload): Promise<ScheduleTicketedEventResponse> {
     return this.request<ScheduleTicketedEventResponse>(`${this.base}/schedule`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   }
 
-  // ── List ────────────────────────────────────────────────────────────────────
-
   async getRooms(
     status: TicketedEventStatus | 'all' = 'all',
     time: 'upcoming' | 'past' | 'all' = 'all',
   ): Promise<{ rooms: TicketedEventRoomListItem[] }> {
     const qs = this.buildQueryString({ status, time });
-    return this.request<{ rooms: TicketedEventRoomListItem[] }>(
-      `${this.base}/rooms?${qs}`,
-    );
+    return this.request<{ rooms: TicketedEventRoomListItem[] }>(`${this.base}/rooms?${qs}`);
   }
-
-  // ── Get single ──────────────────────────────────────────────────────────────
 
   async getRoom(roomId: string): Promise<{ room: TicketedEventRoomListItem }> {
     return this.request<{ room: TicketedEventRoomListItem }>(
@@ -130,22 +132,12 @@ class TicketedEventMgmtService extends BaseService {
     );
   }
 
-  // ── Update ──────────────────────────────────────────────────────────────────
-
-  async updateRoom(
-    roomId: string,
-    payload: UpdateTicketedEventPayload,
-  ): Promise<{ room: TicketedEventRoomListItem }> {
+  async updateRoom(roomId: string, payload: UpdateTicketedEventPayload): Promise<{ room: TicketedEventRoomListItem }> {
     return this.request<{ room: TicketedEventRoomListItem }>(
       `${this.base}/rooms/${encodeURIComponent(roomId)}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      },
+      { method: 'PATCH', body: JSON.stringify(payload) },
     );
   }
-
-  // ── Cancel ──────────────────────────────────────────────────────────────────
 
   async cancelRoom(roomId: string): Promise<{ ok: boolean }> {
     return this.request<{ ok: boolean }>(
@@ -154,16 +146,9 @@ class TicketedEventMgmtService extends BaseService {
     );
   }
 
-  // ── Open check-in ───────────────────────────────────────────────────────────
-
   async openCheckIn(roomId: string): Promise<{ roomId: string; status: string; alreadyOpen: boolean }> {
-    return this.request(
-      `${this.base}/rooms/${encodeURIComponent(roomId)}/open-checkin`,
-      { method: 'POST' },
-    );
+    return this.request(`${this.base}/rooms/${encodeURIComponent(roomId)}/open-checkin`, { method: 'POST' });
   }
-
-  // ── Complete ─────────────────────────────────────────────────────────────────
 
   async completeEvent(roomId: string): Promise<{ ok: boolean }> {
     return this.request<{ ok: boolean }>(
@@ -172,26 +157,28 @@ class TicketedEventMgmtService extends BaseService {
     );
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-
   parseConfig(room: TicketedEventRoomListItem): TicketedEventConfig | null {
     if (!room.config_json) return null;
     if (typeof room.config_json === 'object') return room.config_json as TicketedEventConfig;
-    try {
-      return JSON.parse(room.config_json) as TicketedEventConfig;
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(room.config_json) as TicketedEventConfig; }
+    catch { return null; }
   }
 
   formatEntryFee(config: TicketedEventConfig | null): string {
     if (!config) return '—';
     if (config.fundraisingMode === 'donation') return 'Donation';
+    const types = (config.ticketTypes ?? []).filter(t => t.isEnabled !== false);
+    if (types.length > 1) {
+      const prices = types.map(t => parseFloat(t.price)).filter(p => !isNaN(p));
+      if (!prices.length) return '—';
+      const min = Math.min(...prices), max = Math.max(...prices);
+      if (min === max) return `${config.currencySymbol}${min.toFixed(2)}`;
+      return `${config.currencySymbol}${min.toFixed(2)} – ${config.currencySymbol}${max.toFixed(2)}`;
+    }
     if (!config.entryFee) return '—';
     return `${config.currencySymbol}${Number(config.entryFee).toFixed(2)}`;
   }
 }
 
-// Singleton
 const ticketedEventMgmtService = new TicketedEventMgmtService();
 export default ticketedEventMgmtService;
