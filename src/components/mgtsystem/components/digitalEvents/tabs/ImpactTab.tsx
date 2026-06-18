@@ -47,6 +47,7 @@ interface PrizeAward {
   winnerName: string; winnerPlayerId: string;
   sponsor?: { name?: string } | string;
 }
+interface EventSponsor { name: string; role?: string; }
 interface Admin { id: string; name: string; }
 interface AuditTicketRow {
   ticketId: string; playerName: string; purchaserName: string;
@@ -306,9 +307,25 @@ export default function ImpactTab({
   const totalPrizeValue = prizeAwards.reduce(
     (sum, a) => sum + Number(a.declaredValue || 0), 0
   );
-  const sponsors = [...new Set(
+
+  // Prize sponsors — organisations attached to a specific prize award
+  const prizeSponsorNames = [...new Set(
     prizeAwards.map(a => getSponsorName(a.sponsor)).filter(Boolean)
   )];
+
+  // Event sponsors — organisations supporting the event as a whole, set up
+  // in the event config (config.eventSponsors), separate from prize sponsors.
+  // Previously this data existed but was never read by the Impact tab.
+  const eventSponsors: EventSponsor[] = Array.isArray(config?.eventSponsors)
+    ? config.eventSponsors.filter((s: any) => s?.name)
+    : [];
+
+  // Combined, de-duplicated list for the simple "Sponsors" pill display.
+  // Event sponsors take precedence for the role label if a name appears in both.
+  const sponsors = [...new Set([
+    ...eventSponsors.map(s => s.name),
+    ...prizeSponsorNames,
+  ])];
 
 
   const eventDate = room.scheduled_at
@@ -527,17 +544,23 @@ export default function ImpactTab({
           <SectionHead
             icon={<Heart className="h-5 w-5 text-[#8a6d2f]" />}
             title="Sponsors"
-            subtitle="Organisations that contributed prizes to this event"
+            subtitle="Organisations that supported this event"
           />
           <div className="flex flex-wrap gap-2">
-            {sponsors.map(s => (
-              <span
-                key={s}
-                className="inline-flex items-center rounded-full bg-white border border-[rgba(210,181,130,0.5)] px-3 py-1.5 text-sm font-semibold text-amber-900"
-              >
-                {s}
-              </span>
-            ))}
+            {sponsors.map(name => {
+              const eventSponsor = eventSponsors.find(s => s.name === name);
+              return (
+                <span
+                  key={name}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[rgba(210,181,130,0.5)] px-3 py-1.5 text-sm font-semibold text-amber-900"
+                >
+                  {name}
+                  {eventSponsor?.role && (
+                    <span className="text-xs font-normal text-amber-700">· {eventSponsor.role}</span>
+                  )}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
