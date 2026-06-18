@@ -5,6 +5,12 @@
 //   2. Door staff via operator token (?token=xyz in query or Authorization header)
 //
 // Mounted at /api/ticketed-event/checkin
+//
+// UPDATED: confirm-payment and walk-in handlers now call ensureAdminCaptured()
+// so that whoever confirms a payment or adds a walk-in guest is automatically
+// recorded in config_json.admins (if not already there). This feeds the
+// Impact tab's volunteer count — previously door staff who confirmed
+// payments were never persisted anywhere as a "volunteer".
 
 import express from 'express';
 import jwt from 'jsonwebtoken';
@@ -85,6 +91,56 @@ if (req.is_operator) {
     name: req.user?.name || req.user?.email || 'Admin',
     role: req.user?.role || 'admin',
   };
+}
+
+// ─── Auto-capture confirmer as a volunteer/admin ──────────────────────────────
+// Whenever someone confirms a payment or adds a walk-in, record their name in
+// config_json.admins if not already there — so the Impact tab's volunteer
+// count reflects everyone who actually helped, not just people explicitly
+// added via the Staff tab. Works identically for club users and door staff
+// on operator tokens, since it only needs roomId + a name string — it doesn't
+// care which auth path produced that name.
+async function ensureAdminCaptured(roomId, confirmerName) {
+  if (!confirmerName || !confirmerName.trim()) return;
+
+  // Skip generic/system placeholder names — not real volunteers
+  const skip = new Set(['admin', 'host', 'system', 'door staff', 'unknown']);
+  const trimmedName = confirmerName.trim();
+  if (skip.has(trimmedName.toLowerCase())) return;
+
+  try {
+    const [rows] = await connection.execute(
+      `SELECT config_json FROM ${ROOMS_TABLE} WHERE room_id = ? LIMIT 1`,
+      [roomId]
+    );
+    const room = rows?.[0];
+    if (!room) return;
+
+    const config = typeof room.config_json === 'string'
+      ? JSON.parse(room.config_json)
+      : (room.config_json ?? {});
+
+    const admins = Array.isArray(config.admins) ? config.admins : [];
+    const alreadyExists = admins.some(
+      a => (a.name || '').trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (alreadyExists) return;
+
+    const newAdmin = {
+      id:        `admin-${Date.now()}`,
+      name:      trimmedName,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedConfig = { ...config, admins: [...admins, newAdmin] };
+    await connection.execute(
+      `UPDATE ${ROOMS_TABLE} SET config_json = ? WHERE room_id = ?`,
+      [JSON.stringify(updatedConfig), roomId]
+    );
+  } catch (err) {
+    // Non-fatal — never block a payment confirmation or walk-in over this
+    console.error('[ticketedEventCheckin] ensureAdminCaptured failed:', err);
+  }
 }
 
 // ─── POST /api/ticketed-event/checkin/:roomId/operator-token ──────────────────
@@ -224,7 +280,6 @@ router.get('/:roomId/tickets', flexAuth, async (req, res) => {
 // ─── POST /api/ticketed-event/checkin/:roomId/scan ───────────────────────────
 // QR code scan — redeem a ticket by its join_token.
 // This is the endpoint the QR scanner calls when a guest scans in.
-
 //
 // The frontend sends either:
 //   { joinToken: "raw-token" }      — manual entry or raw-token QR
@@ -359,6 +414,9 @@ const confirmer = resolveConfirmerIdentity(req);
       confirmedByRole,
     });
 
+    // 3. Capture this confirmer as a volunteer if not already recorded
+    await ensureAdminCaptured(roomId, confirmedByName);
+
     return res.status(200).json({ ok: true, message: 'Payment confirmed.' });
   } catch (err) {
     console.error('[ticketedEventCheckin] ❌ confirm error:', err);
@@ -479,6 +537,9 @@ router.post('/:roomId/walkin', flexAuth, async (req, res) => {
       `UPDATE ${TICKETS_TABLE} SET ledger_id = ? WHERE ticket_id = ?`,
       [ledgerId, ticketId]
     );
+
+    // Capture this door-staff member as a volunteer if not already recorded
+    await ensureAdminCaptured(roomId, confirmer.name);
 
     return res.status(201).json({
       ok:            true,

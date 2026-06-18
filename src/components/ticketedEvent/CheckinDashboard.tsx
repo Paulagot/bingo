@@ -6,6 +6,11 @@
 //
 // URL: /ticketed-event/checkin/:roomId?hostId=xxx  (logged-in host)
 //      /ticketed-event/checkin/:roomId?token=xxx   (door staff operator token)
+//
+// UPDATED: AdminsTab now persists to the backend (GET/POST/DELETE against
+// /api/ticketed-event/admins/room/:roomId) instead of living only in local
+// React state — staff lists now survive a page refresh and feed into the
+// Impact tab's volunteer count.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -250,8 +255,10 @@ const QRScanner: React.FC<{
 };
 
 // ─── Admins tab ───────────────────────────────────────────────────────────────
-// HTTP-based (no socket) — stores admins in local state and generates invite links
-// that include a signed operator token.
+// Now persists to the backend: GET on mount, POST on add, DELETE on remove.
+// This is what feeds config_json.admins, which the Impact tab reads for the
+// volunteer count. Door staff added here can also generate operator-token
+// invite links the same as before.
 
 const AdminsTab: React.FC<{
   roomId: string;
@@ -266,27 +273,29 @@ const AdminsTab: React.FC<{
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [copiedId,    setCopiedId]    = useState<string | null>(null);
   const [adminTokens, setAdminTokens] = useState<Record<string, string>>({});
- 
+
   // ── Load existing admins on mount ──────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
         const res = await fetch(`/api/ticketed-event/admins/room/${roomId}`, {
           headers: getAuthHeaders(token),
         });
         const data = await res.json();
-        if (res.ok && Array.isArray(data.admins)) {
+        if (!cancelled && res.ok && Array.isArray(data.admins)) {
           setAdmins(data.admins);
         }
       } catch {
         // Non-fatal — staff list just starts empty
       } finally {
-        setLoadingList(false);
+        if (!cancelled) setLoadingList(false);
       }
     };
     load();
+    return () => { cancelled = true; };
   }, [roomId, token]);
- 
+
   const generateInvite = async (admin: Admin) => {
     if (adminTokens[admin.id]) {
       setExpandedId(admin.id);
@@ -310,7 +319,7 @@ const AdminsTab: React.FC<{
       setGenerating(false);
     }
   };
- 
+
   const copyLink = (admin: Admin) => {
     const url = adminTokens[admin.id];
     if (!url) return;
@@ -318,12 +327,12 @@ const AdminsTab: React.FC<{
     setCopiedId(admin.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
- 
-  // ── Add admin — now persists to backend ────────────────────────────────────
+
+  // ── Add admin — persists to backend, only updates state on success ────────
   const handleAdd = async () => {
     const trimmed = newName.trim();
     if (!trimmed || adding) return;
- 
+
     setAdding(true);
     setAddError(null);
     try {
@@ -334,7 +343,7 @@ const AdminsTab: React.FC<{
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add staff member');
- 
+
       setAdmins(prev => [...prev, data.admin]);
       setNewName('');
     } catch (e: any) {
@@ -343,14 +352,13 @@ const AdminsTab: React.FC<{
       setAdding(false);
     }
   };
- 
-  // ── Remove admin — now persists to backend ─────────────────────────────────
+
+  // ── Remove admin — optimistic, rolls back on failure ───────────────────────
   const handleRemove = async (id: string) => {
-    // Optimistic removal, roll back on failure
     const previous = admins;
     setAdmins(prev => prev.filter(a => a.id !== id));
     setAdminTokens(prev => { const n = { ...prev }; delete n[id]; return n; });
- 
+
     try {
       const res = await fetch(`/api/ticketed-event/admins/room/${roomId}/${id}`, {
         method:  'DELETE',
@@ -358,11 +366,10 @@ const AdminsTab: React.FC<{
       });
       if (!res.ok) throw new Error('Failed to remove');
     } catch {
-      // Roll back on failure
       setAdmins(previous);
     }
   };
- 
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -384,16 +391,16 @@ const AdminsTab: React.FC<{
           {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
         </button>
       </div>
- 
+
       {addError && (
         <p className="text-xs text-red-600">{addError}</p>
       )}
- 
+
       <p className="text-xs text-[#8a9bab]">
         Door staff can scan QR codes and confirm payments. They cannot close the event.
         Staff added here also appear in the Impact tab as event volunteers.
       </p>
- 
+
       {loadingList ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-[#157f85]" />
@@ -408,7 +415,7 @@ const AdminsTab: React.FC<{
           const isExpanded = expandedId === admin.id;
           const isCopied   = copiedId   === admin.id;
           const link       = adminTokens[admin.id] || null;
- 
+
           return (
             <div key={admin.id} className="rounded-xl border border-[#dce1df] overflow-hidden">
               <div className="flex items-center justify-between gap-2 px-4 py-3 bg-[#fbf8f2]">
@@ -440,7 +447,7 @@ const AdminsTab: React.FC<{
                   </button>
                 </div>
               </div>
- 
+
               {isExpanded && link && (
                 <div className="border-t border-[#dce1df] bg-white p-4">
                   <div className="flex flex-col sm:flex-row gap-4 items-center">
