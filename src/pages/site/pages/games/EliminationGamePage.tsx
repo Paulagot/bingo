@@ -114,7 +114,7 @@ const screenshotSlots = [
     title: 'Simple host controls',
     description:
       'The host starts the game and follows the guided flow as players move through elimination rounds.',
-    imageKey: 'quizGameplayScreenshot' as const,
+    imageKey: 'eliminationGameplayScreenshot' as const,
     variant: 'standard' as const,
   },
   {
@@ -338,7 +338,7 @@ export default function EliminationGamePage() {
         description="FundRaisely Elimination is a fast last-person-standing game for clubs, charities, schools, pubs and community groups. Players join, take part in quick challenge rounds and stay in the game until they are knocked out. The host only needs to start the game, while FundRaisely manages the round flow, difficulty mix and winner journey."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore features', to: '/features' }}
-        image={images.communityQuizNight}
+        image={images.eliminationHero}
         status="Quick repeatable fundraiser for clubs, pubs, campaigns and community events"
         variant="standard"
       />
@@ -411,7 +411,7 @@ export default function EliminationGamePage() {
           'Keep the game easy to explain for new players',
           'Repeat the format without rebuilding everything from scratch',
         ]}
-        image={images.communityQuizNight}
+        image={images.eliminationLarge}
         reverse={false}
       />
 
@@ -422,12 +422,12 @@ export default function EliminationGamePage() {
         items={repeatableFundraiserItems}
       />
 
-      <ScreenshotShowcase
+      {/* <ScreenshotShowcase
         eyebrow="Product screens"
         title="A lighter game flow connected to the wider FundRaisely platform"
         text="Elimination should feel quick to run, but still connected to the important event records: joining, payment status, player activity, winners and after-event review."
         slots={screenshotSlots}
-      />
+      /> */}
 
       <SplitSection
         eyebrow="Fresh each time"
@@ -441,7 +441,7 @@ export default function EliminationGamePage() {
           'Repeat players do not simply get the same game every time',
           'The format stays familiar while the content feels fresh',
         ]}
-        image={images.quizGameplayScreenshot}
+        image={images.eliminationGameplayScreenshot}
         reverse
       />
 
@@ -464,7 +464,7 @@ export default function EliminationGamePage() {
           'Easy for volunteers and helpers to support',
           'Designed for repeat use rather than one-off setup',
         ]}
-        image={images.paymentTrackingScreenshot}
+        image={images.eliminationHostScreenshot}
         reverse={false}
       />
 
