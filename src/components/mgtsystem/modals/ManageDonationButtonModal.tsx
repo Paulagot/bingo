@@ -1,4 +1,18 @@
 // src/components/mgtsystem/modals/ManageDonationButtonModal.tsx
+//
+// UPDATED for Phase 2. Adds:
+//   - A second "Trackable" section (Stripe/crypto) alongside the
+//     existing "Manual link" section, per explicit choice: two visually
+//     separate sections rather than one merged dropdown.
+//   - Amount-tier config (preset amounts + allow-custom-amount), shown
+//     only when a Trackable method is selected — meaningless for
+//     manual-link buttons, which go straight to an external URL.
+//   - Embed preview that's an <iframe> for Trackable, the existing <a>
+//     preview for Manual link.
+//
+// Tier selection is mutually exclusive — selecting a method in one
+// section clears the other, since a button has exactly one configured
+// method (see ResolvedDonationMethod in donationCheckout.ts for why).
 
 import { useState, useEffect, useMemo } from 'react';
 import {
@@ -8,6 +22,11 @@ import {
   Copy,
   CheckCircle2,
   AlertTriangle,
+  CreditCard,
+  Link2,
+  Plus,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
 
 import DonationButtonService from '../services/DonationButtonService';
@@ -16,6 +35,7 @@ import type {
   ClubDonationButtonWithPaymentMethod,
   EligibleDonationPaymentMethod,
 } from '../../../shared/types/donationButton';
+import type { EligibleTrackableMethod } from '../../../shared/types/donationCheckout';
 
 interface ManageDonationButtonModalProps {
   clubId: string;
@@ -28,6 +48,8 @@ function formatProviderName(providerName?: string | null) {
   return providerName.replace(/_/g, ' ');
 }
 
+const MAX_PRESETS = 4;
+
 export default function ManageDonationButtonModal({
   clubId,
   onClose,
@@ -35,20 +57,26 @@ export default function ManageDonationButtonModal({
 }: ManageDonationButtonModalProps) {
   const [donationButton, setDonationButton] =
     useState<ClubDonationButtonWithPaymentMethod | null>(null);
-  const [eligibleMethods, setEligibleMethods] = useState<EligibleDonationPaymentMethod[]>([]);
+  const [eligibleManualMethods, setEligibleManualMethods] = useState<EligibleDonationPaymentMethod[]>([]);
+  const [eligibleTrackableMethods, setEligibleTrackableMethods] = useState<EligibleTrackableMethod[]>([]);
 
   const [loadingList, setLoadingList] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state — separate from donationButton so edits don't mutate
-  // the last-saved snapshot until Save succeeds.
   const [isEnabled, setIsEnabled] = useState(false);
   const [buttonLabel, setButtonLabel] = useState('Donate now');
   const [buttonTitle, setButtonTitle] = useState('');
-  const [selectedMethodId, setSelectedMethodId] = useState<string>('');
 
-  // Embed state
+  // Mutually exclusive — only one of these two is ever non-empty.
+  const [selectedManualMethodId, setSelectedManualMethodId] = useState<string>('');
+  const [selectedTrackableMethodId, setSelectedTrackableMethodId] = useState<string>('');
+
+  // Amount-tier config — only relevant when a trackable method is selected.
+  const [allowCustomAmount, setAllowCustomAmount] = useState(true);
+  const [presetAmounts, setPresetAmounts] = useState<number[]>([]);
+  const [newPresetValue, setNewPresetValue] = useState('');
+
   const [embedHtml, setEmbedHtml] = useState<string | null>(null);
   const [embedError, setEmbedError] = useState<string | null>(null);
   const [loadingEmbed, setLoadingEmbed] = useState(false);
@@ -60,18 +88,31 @@ export default function ManageDonationButtonModal({
       setError(null);
       const res = await DonationButtonService.getForManagement(clubId);
       setDonationButton(res.donationButton);
-      setEligibleMethods(res.eligiblePaymentMethods || []);
+      setEligibleManualMethods(res.eligibleManualMethods || []);
+      setEligibleTrackableMethods(res.eligibleTrackableMethods || []);
+      setAllowCustomAmount(res.amountConfig?.allowCustomAmount ?? true);
+      setPresetAmounts(res.amountConfig?.presetAmounts ?? []);
 
       if (res.donationButton) {
         setIsEnabled(res.donationButton.isEnabled);
         setButtonLabel(res.donationButton.buttonLabel || 'Donate now');
         setButtonTitle(res.donationButton.buttonTitle || '');
-        setSelectedMethodId(res.donationButton.clubPaymentMethodId);
+
+        const savedId = res.donationButton.clubPaymentMethodId;
+        const isTrackable = (res.eligibleTrackableMethods || []).some((m) => m.clubPaymentMethodId === savedId);
+        if (isTrackable) {
+          setSelectedTrackableMethodId(savedId);
+          setSelectedManualMethodId('');
+        } else {
+          setSelectedManualMethodId(savedId);
+          setSelectedTrackableMethodId('');
+        }
       } else {
         setIsEnabled(false);
         setButtonLabel('Donate now');
         setButtonTitle('');
-        setSelectedMethodId('');
+        setSelectedManualMethodId('');
+        setSelectedTrackableMethodId('');
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to load donation button settings');
@@ -85,34 +126,60 @@ export default function ManageDonationButtonModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId]);
 
-  // Reset embed whenever the saved config changes, so a stale embed
-  // never lingers after the underlying settings have moved on.
   useEffect(() => {
     setEmbedHtml(null);
     setEmbedError(null);
     setCopied(false);
   }, [donationButton]);
 
-  const selectedMethodIsStale = useMemo(() => {
-    if (!selectedMethodId) return false;
-    return !eligibleMethods.some((m) => m.id === selectedMethodId && m.isEnabled);
-  }, [selectedMethodId, eligibleMethods]);
+  const handleSelectManual = (id: string) => {
+    setSelectedManualMethodId(id);
+    setSelectedTrackableMethodId('');
+  };
 
-  const savedMethodIsDisabled =
-    !!donationButton?.paymentMethod && donationButton.paymentMethod.isEnabled === false;
+  const handleSelectTrackable = (id: string) => {
+    setSelectedTrackableMethodId(id);
+    setSelectedManualMethodId('');
+  };
 
-  const hasAnyEligibleEnabledMethod = useMemo(
-    () => eligibleMethods.some((m) => m.isEnabled),
-    [eligibleMethods]
-  );
+  const selectedManualIsStale = useMemo(() => {
+    if (!selectedManualMethodId) return false;
+    return !eligibleManualMethods.some((m) => m.id === selectedManualMethodId && m.isEnabled);
+  }, [selectedManualMethodId, eligibleManualMethods]);
+
+  const selectedTrackableIsStale = useMemo(() => {
+    if (!selectedTrackableMethodId) return false;
+    return !eligibleTrackableMethods.some(
+      (m) => m.clubPaymentMethodId === selectedTrackableMethodId && m.isEnabled
+    );
+  }, [selectedTrackableMethodId, eligibleTrackableMethods]);
+
+  const handleAddPreset = () => {
+    const value = Number(newPresetValue);
+    if (!Number.isFinite(value) || value <= 0) return;
+    if (presetAmounts.length >= MAX_PRESETS) return;
+    if (presetAmounts.includes(value)) return;
+    setPresetAmounts([...presetAmounts, value].sort((a, b) => a - b));
+    setNewPresetValue('');
+  };
+
+  const handleRemovePreset = (value: number) => {
+    setPresetAmounts(presetAmounts.filter((p) => p !== value));
+  };
 
   const handleSave = async () => {
+    const selectedMethodId = selectedTrackableMethodId || selectedManualMethodId;
+
     if (!selectedMethodId) {
       setError('Please select a payment method to power the donation button.');
       return;
     }
     if (!buttonLabel.trim()) {
       setError('Button label is required.');
+      return;
+    }
+    if (selectedTrackableMethodId && !allowCustomAmount && presetAmounts.length === 0) {
+      setError('Add at least one preset amount, or allow custom amounts.');
       return;
     }
 
@@ -124,9 +191,13 @@ export default function ManageDonationButtonModal({
         buttonLabel: buttonLabel.trim(),
         buttonTitle: buttonTitle.trim() || undefined,
         clubPaymentMethodId: selectedMethodId,
+        ...(selectedTrackableMethodId
+          ? { allowCustomAmount, presetAmounts }
+          : {}),
       });
       setDonationButton(res.donationButton);
-      setEligibleMethods(res.eligiblePaymentMethods || []);
+      setEligibleManualMethods(res.eligibleManualMethods || []);
+      setEligibleTrackableMethods(res.eligibleTrackableMethods || []);
     } catch (err: any) {
       setError(err?.message || 'Failed to save donation button');
     } finally {
@@ -163,6 +234,8 @@ export default function ManageDonationButtonModal({
     }
   };
 
+  const hasAnyEligibleMethod = eligibleManualMethods.length > 0 || eligibleTrackableMethods.length > 0;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -172,7 +245,6 @@ export default function ManageDonationButtonModal({
         className="flex flex-col w-full max-w-2xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden"
         style={{ background: '#ffffff' }}
       >
-        {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderBottom: '3px solid #157f85', background: '#ffffff' }}
@@ -189,7 +261,7 @@ export default function ManageDonationButtonModal({
                 Website Donation Button
               </h2>
               <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>
-                Create a simple donation button for your club website.
+                Create a donation button for your club website.
               </p>
             </div>
           </div>
@@ -203,7 +275,6 @@ export default function ManageDonationButtonModal({
           </button>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -217,7 +288,6 @@ export default function ManageDonationButtonModal({
           </div>
         )}
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ background: '#f6f1e8' }}>
           {loadingList ? (
             <div className="text-center py-12">
@@ -227,19 +297,18 @@ export default function ManageDonationButtonModal({
               />
               <p className="mt-2 text-sm text-gray-600">Loading donation button settings...</p>
             </div>
-          ) : !hasAnyEligibleEnabledMethod && eligibleMethods.length === 0 ? (
-            // Empty state — no eligible methods exist at all yet
+          ) : !hasAnyEligibleMethod ? (
             <div
               className="rounded-xl p-6 text-center"
               style={{ background: '#ffffff', border: '1px dashed #dce1df' }}
             >
               <Gift className="mx-auto mb-3 h-8 w-8" style={{ color: '#b8c6b0' }} />
               <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                No link-based payment methods are available yet
+                No eligible payment methods yet
               </h3>
               <p className="text-sm text-gray-600 mb-4">
-                Add a manual payment method with a payment link, such as SumUp, Revolut, Monzo or
-                ZippyPay, then return here to create your donation button.
+                Connect Stripe, add a crypto wallet, or add a manual payment link (SumUp,
+                Revolut, Monzo, ZippyPay), then return here to create your donation button.
               </p>
               <button
                 type="button"
@@ -252,30 +321,6 @@ export default function ManageDonationButtonModal({
             </div>
           ) : (
             <>
-              {/* Stale-selection banner — saved method now disabled */}
-              {savedMethodIsDisabled && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-700 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-amber-900">
-                      Your selected payment method is disabled
-                    </p>
-                    <p className="text-sm text-amber-700 mt-1">
-                      The donation button is inactive until you re-enable{' '}
-                      <strong>{donationButton?.paymentMethod?.methodLabel}</strong> in Payment
-                      Methods, or choose a different eligible method below.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onOpenPaymentMethods}
-                      className="text-xs font-semibold text-amber-800 underline mt-2 inline-block"
-                    >
-                      Go to Payment Methods
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Enable toggle */}
               <section
                 className="rounded-xl p-4 flex items-center justify-between gap-4"
@@ -325,7 +370,8 @@ export default function ManageDonationButtonModal({
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-600 mb-2">
-                    Optional heading <span className="text-gray-400">(shown above the button on this page only — not part of the embed)</span>
+                    Optional heading{' '}
+                    <span className="text-gray-400">(shown above the button — not part of the embed)</span>
                   </label>
                   <input
                     type="text"
@@ -339,53 +385,163 @@ export default function ManageDonationButtonModal({
                 </div>
               </section>
 
-              {/* Payment method picker */}
+              {/* ── Trackable section ── */}
               <section
                 className="rounded-xl p-4 space-y-3"
                 style={{ background: '#ffffff', border: '1px solid #dce1df' }}
               >
-                <label className="block text-sm font-semibold text-gray-600">
-                  Payment method *
-                </label>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" style={{ color: '#157f85' }} />
+                  <label className="block text-sm font-semibold text-gray-900">
+                    Trackable (card / crypto)
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Supporters see an amount picker and pay through a checkout FundRaisely
+                  tracks — donations appear in your reporting automatically.
+                </p>
 
-                <select
-                  value={selectedMethodId}
-                  onChange={(e) => setSelectedMethodId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="">Select a payment method...</option>
-                  {eligibleMethods.map((m) => (
-                    <option key={m.id} value={m.id} disabled={!m.isEnabled}>
-                      {m.methodLabel} ({formatProviderName(m.providerName)})
-                      {!m.isEnabled ? ' — disabled' : ''}
-                    </option>
-                  ))}
-                </select>
+                {eligibleTrackableMethods.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">
+                    No Stripe or crypto payment methods are connected yet.
+                  </p>
+                ) : (
+                  <select
+                    value={selectedTrackableMethodId}
+                    onChange={(e) => handleSelectTrackable(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Not used for this button...</option>
+                    {eligibleTrackableMethods.map((m) => (
+                      <option key={m.clubPaymentMethodId} value={m.clubPaymentMethodId} disabled={!m.isEnabled}>
+                        {m.methodLabel} ({formatProviderName(m.providerName)})
+                        {!m.isEnabled ? ' — disabled' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
 
-                {selectedMethodIsStale && (
+                {selectedTrackableIsStale && (
                   <p className="text-xs text-amber-700">
                     This method is disabled and can't be used until it's re-enabled in Payment
                     Methods.
                   </p>
                 )}
 
-                <p className="text-xs text-gray-500">
-                  Only manual payment methods with a payment link (SumUp, Revolut, Monzo,
-                  ZippyPay) can power this button. Cash, card tap, bank transfer, Stripe and
-                  crypto methods are not eligible.
-                </p>
+                {selectedTrackableMethodId && (
+                  <div className="pt-3 border-t border-gray-100 space-y-3">
+                    <p className="text-sm font-semibold text-gray-900">Donation amounts</p>
+
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={allowCustomAmount}
+                        onChange={(e) => setAllowCustomAmount(e.target.checked)}
+                        className="rounded"
+                      />
+                      Let supporters enter their own amount
+                    </label>
+
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600 mb-2">
+                        Preset amounts ({presetAmounts.length}/{MAX_PRESETS})
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {presetAmounts.map((amount) => (
+                          <span
+                            key={amount}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                            style={{ background: 'rgba(21,127,133,0.1)', color: '#157f85' }}
+                          >
+                            {amount}
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePreset(amount)}
+                              aria-label={`Remove ${amount}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      {presetAmounts.length < MAX_PRESETS && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            step="0.01"
+                            value={newPresetValue}
+                            onChange={(e) => setNewPresetValue(e.target.value)}
+                            placeholder="e.g. 10"
+                            className="w-28 px-3 py-1.5 border border-gray-200 rounded-lg text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddPreset}
+                            className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-gray-50"
+                            style={{ borderColor: '#dce1df', color: '#157f85' }}
+                          >
+                            <Plus className="h-3 w-3" /> Add
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </section>
 
-              {/* Warning */}
+              {/* ── Manual link section ── */}
+              <section
+                className="rounded-xl p-4 space-y-3"
+                style={{ background: '#ffffff', border: '1px solid #dce1df' }}
+              >
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-4 w-4" style={{ color: '#52636f' }} />
+                  <label className="block text-sm font-semibold text-gray-900">
+                    Manual link
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Links straight to an external payment page (SumUp, Revolut, Monzo,
+                  ZippyPay). No amount picker, no automatic tracking.
+                </p>
+
+                {eligibleManualMethods.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">
+                    No manual payment links are configured yet.
+                  </p>
+                ) : (
+                  <select
+                    value={selectedManualMethodId}
+                    onChange={(e) => handleSelectManual(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Not used for this button...</option>
+                    {eligibleManualMethods.map((m) => (
+                      <option key={m.id} value={m.id} disabled={!m.isEnabled}>
+                        {m.methodLabel} ({formatProviderName(m.providerName)})
+                        {!m.isEnabled ? ' — disabled' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {selectedManualIsStale && (
+                  <p className="text-xs text-amber-700">
+                    This method is disabled and can't be used until it's re-enabled in Payment
+                    Methods.
+                  </p>
+                )}
+              </section>
+
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-800">
-                  External payment links are not auto-confirmed by FundRaisely. Use this button
-                  for simple donations only — not for tickets, paid entries or anything that
-                  needs automatic confirmation.
+                  Choose one method from either section above — a button uses exactly one
+                  payment method at a time. Selecting a method in one section clears any
+                  selection in the other.
                 </p>
               </div>
 
-              {/* Save */}
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -397,7 +553,6 @@ export default function ManageDonationButtonModal({
                 </button>
               </div>
 
-              {/* Embed code */}
               {donationButton && (
                 <section
                   className="rounded-xl p-4 space-y-3"
@@ -436,49 +591,46 @@ export default function ManageDonationButtonModal({
                         onFocus={(e) => e.currentTarget.select()}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-xs font-mono resize-none"
                       />
-                      <button
-                        type="button"
-                        onClick={handleCopy}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#157f85] text-white text-sm font-semibold rounded-lg hover:bg-[#0e6268] transition-colors"
-                      >
-                        {copied ? (
-                          <>
-                            <CheckCircle2 className="h-4 w-4" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4" />
-                            Copy embed code
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCopy}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#157f85] text-white text-sm font-semibold rounded-lg hover:bg-[#0e6268] transition-colors"
+                        >
+                          {copied ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-4 w-4" />
+                              Copy embed code
+                            </>
+                          )}
+                        </button>
 
-                      {/* Live preview — rendered as a real React element from
-                          typed fields, not from the raw embedHtml string, so
-                          there's no HTML injection surface here at all. */}
-                      {donationButton?.paymentMethod?.link && (
-                        <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500 mb-2">Preview:</p>
-                          <a
-                            href={donationButton.paymentMethod.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-block',
-                              padding: '12px 18px',
-                              borderRadius: '8px',
-                              background: '#157f85',
-                              color: '#ffffff',
-                              textDecoration: 'none',
-                              fontWeight: 700,
-                              fontFamily: 'Arial, sans-serif',
+                        {/* Test button — only meaningful for a Trackable
+                            button, since that's the only case with a real
+                            FundRaisely-hosted page to open. A manual-link
+                            button's "embed" is just an external <a> tag —
+                            opening it here would just be testing the club's
+                            own SumUp/Revolut link, not anything FundRaisely
+                            built, so there's nothing useful to preview. */}
+                        {selectedTrackableMethodId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              window.open(`/embed/donate/${clubId}`, '_blank', 'noopener,noreferrer');
                             }}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white border text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                            style={{ borderColor: '#157f85', color: '#157f85' }}
                           >
-                            {donationButton.buttonLabel}
-                          </a>
-                        </div>
-                      )}
+                            <ExternalLink className="h-4 w-4" />
+                            Test donation button
+                          </button>
+                        )}
+                      </div>
                     </>
                   )}
                 </section>
@@ -487,7 +639,6 @@ export default function ManageDonationButtonModal({
           )}
         </div>
 
-        {/* Footer */}
         <div
           className="flex items-center justify-end px-6 py-4 flex-shrink-0"
           style={{ borderTop: '1px solid #dce1df', background: '#fbf8f2' }}
