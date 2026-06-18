@@ -1,9 +1,11 @@
 import express from 'express';
 import authenticateToken from '../../middleware/auth.js';
 import DonationButtonService from '../services/DonationButtonService.js';
+import DonationCheckoutService from '../../donations/services/DonationCheckoutService.js';
 
 const router = express.Router();
-const svc = new DonationButtonService();
+const tierAService = new DonationButtonService();
+const tierBService = new DonationCheckoutService();
 
 function mapErrorToStatus(message) {
   if (!message) return 500;
@@ -14,12 +16,16 @@ function mapErrorToStatus(message) {
     message === 'Selected payment method does not belong to this club' ||
     message === 'Selected payment method is disabled' ||
     message === 'Selected payment method is not eligible for the donation button' ||
+    message === 'Selected payment method is not eligible for trackable donations' ||
     message === 'Selected payment method has no payment link' ||
     message === 'Selected payment method link is not a valid secure URL' ||
     message === 'Button label is required' ||
     message === 'Button label must be 80 characters or fewer' ||
     message === 'Button title must be 160 characters or fewer' ||
-    message === 'A payment method must be selected'
+    message === 'A payment method must be selected' ||
+    message === 'A maximum of 4 preset amounts is allowed' ||
+    message === 'Preset amounts must all be positive numbers' ||
+    message === 'Enable custom amounts or add at least one preset amount'
   ) {
     return 400;
   }
@@ -28,31 +34,59 @@ function mapErrorToStatus(message) {
     message === 'Linked payment method is disabled' ||
     message === 'Linked payment method has no valid payment link'
   ) {
-    return 409; // conflict: exists, but currently inactive
+    return 409;
   }
   return 500;
 }
 
 /**
  * GET /donation-buttons/:clubId/manage
- * Returns the club's current donation button config (or null if not
- * yet created) plus the list of eligible payment methods, including
- * disabled-but-otherwise-qualifying ones so the admin can see why a
- * previous selection may no longer be active.
+ *
+ * Combines Tier A (manual link) and Tier B (Stripe/crypto) eligible
+ * methods into one response for the admin modal — this is the one
+ * place the two systems meet, per the design discussion: each tier's
+ * service stays independent and untouched by the other, with this
+ * route doing the merging rather than either service knowing about
+ * the other's existence.
+ *
+ * donationButton itself still comes from Tier A's service
+ * (getForManagement reads the single shared button row regardless of
+ * which tier its method belongs to) — Tier B doesn't need its own
+ * "get the button" method since the row and its core fields
+ * (isEnabled/buttonLabel/buttonTitle/clubPaymentMethodId) are tier-
+ * agnostic; only the amount-tier columns are Tier-B-specific, and
+ * those are read directly here from the same row Tier A's query
+ * already fetched.
  */
 router.get('/donation-buttons/:clubId/manage', authenticateToken, async (req, res) => {
   try {
     const { clubId } = req.params;
-    console.log('[donation-buttons] GET manage — clubId param:', clubId, '| req.club_id:', req.club_id);
-
     if (clubId !== req.club_id) {
-      console.warn('[donation-buttons] clubId mismatch — returning 403');
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const data = await svc.getForManagement({ clubId });
-    console.log('[donation-buttons] getForManagement result:', JSON.stringify(data));
-    res.json(data);
+    const tierAData = await tierAService.getForManagement({ clubId });
+    const tierBMethods = await tierBService.listEligibleTierBMethods({ clubId });
+
+    // Tier A's mapped donationButton doesn't include the amount-tier
+    // columns (they don't exist in Tier A's world) — re-fetch the raw
+    // row just for those two fields rather than duplicating Tier A's
+    // whole row-fetch/mapping logic here.
+    let amountConfig = { allowCustomAmount: true, presetAmounts: [] };
+    if (tierAData.donationButton) {
+      const publicConfig = await tierBService.getPublicConfig({ clubId }).catch(() => null);
+      if (publicConfig) {
+        amountConfig = publicConfig.amountConfig;
+      }
+    }
+
+    res.json({
+      ok: true,
+      donationButton: tierAData.donationButton,
+      amountConfig,
+      eligibleManualMethods: tierAData.eligiblePaymentMethods,
+      eligibleTrackableMethods: tierBMethods,
+    });
   } catch (err) {
     console.error('[donation-buttons] GET manage error:', err);
     const status = mapErrorToStatus(err?.message);
@@ -62,8 +96,16 @@ router.get('/donation-buttons/:clubId/manage', authenticateToken, async (req, re
 
 /**
  * PUT /donation-buttons/:clubId
- * Create or update the club's single donation button.
- * Body: { isEnabled, buttonLabel, buttonTitle?, clubPaymentMethodId }
+ *
+ * Body shape now varies by which method the admin selected:
+ *   Tier A (manual link): { isEnabled, buttonLabel, buttonTitle, clubPaymentMethodId }
+ *   Tier B (Stripe/crypto): same, plus { allowCustomAmount, presetAmounts }
+ *
+ * The route looks up which tier clubPaymentMethodId actually belongs
+ * to and dispatches to the matching service's upsert — it does NOT
+ * trust a client-sent "tier" flag, since that would let a request
+ * claim Tier A while pointing at a Stripe method (or vice versa) and
+ * skip the tier-appropriate validation.
  */
 router.put('/donation-buttons/:clubId', authenticateToken, async (req, res) => {
   try {
@@ -72,7 +114,14 @@ router.put('/donation-buttons/:clubId', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const { isEnabled, buttonLabel, buttonTitle, clubPaymentMethodId } = req.body || {};
+    const {
+      isEnabled,
+      buttonLabel,
+      buttonTitle,
+      clubPaymentMethodId,
+      allowCustomAmount,
+      presetAmounts,
+    } = req.body || {};
 
     if (typeof isEnabled !== 'boolean') {
       return res.status(400).json({ error: 'isEnabled must be a boolean' });
@@ -81,7 +130,38 @@ router.put('/donation-buttons/:clubId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'clubPaymentMethodId is required' });
     }
 
-    const data = await svc.upsert({
+    // Determine tier server-side from the actual DB row, not from
+    // anything the client claims.
+    const isTierB = await tierBService.isTierBMethod({ clubId, clubPaymentMethodId });
+
+    if (isTierB) {
+      const data = await tierBService.upsertTierBButton({
+        clubId,
+        isEnabled,
+        buttonLabel,
+        buttonTitle,
+        clubPaymentMethodId,
+        allowCustomAmount: !!allowCustomAmount,
+        presetAmounts: Array.isArray(presetAmounts) ? presetAmounts : [],
+      });
+      // Re-fetch the combined shape (same as GET /manage) so the
+      // frontend gets one consistent response shape regardless of
+      // which tier was just saved.
+      const tierAData = await tierAService.getForManagement({ clubId });
+      const tierBMethods = await tierBService.listEligibleTierBMethods({ clubId });
+      return res.json({
+        ok: true,
+        donationButton: tierAData.donationButton,
+        amountConfig: data?.amountConfig ?? { allowCustomAmount: !!allowCustomAmount, presetAmounts: presetAmounts || [] },
+        eligibleManualMethods: tierAData.eligiblePaymentMethods,
+        eligibleTrackableMethods: tierBMethods,
+      });
+    }
+
+    // Falls through to Tier A's own upsert — unchanged from Phase 1,
+    // including its own validation (eligible provider list, https
+    // link check, etc).
+    const data = await tierAService.upsert({
       clubId,
       isEnabled,
       buttonLabel,
@@ -89,9 +169,16 @@ router.put('/donation-buttons/:clubId', authenticateToken, async (req, res) => {
       clubPaymentMethodId,
       userId: req.user_id,
     });
-
-    res.json(data);
+    const tierBMethods = await tierBService.listEligibleTierBMethods({ clubId });
+    res.json({
+      ok: true,
+      donationButton: data.donationButton,
+      amountConfig: { allowCustomAmount: true, presetAmounts: [] },
+      eligibleManualMethods: data.eligiblePaymentMethods,
+      eligibleTrackableMethods: tierBMethods,
+    });
   } catch (err) {
+    console.error('[donation-buttons] PUT error:', err);
     const status = mapErrorToStatus(err?.message);
     res.status(status).json({ error: err?.message || 'Failed to save donation button' });
   }
@@ -99,10 +186,12 @@ router.put('/donation-buttons/:clubId', authenticateToken, async (req, res) => {
 
 /**
  * GET /donation-buttons/:clubId/embed
- * Returns the server-generated embed HTML for the club's donation
- * button. Fails with 404/409 if not configured, disabled, or the
- * linked payment method is no longer usable — per spec section 14.4,
- * an inactive button never produces embed HTML.
+ *
+ * Tier A → unchanged, returns the <a> snippet via DonationButtonService.
+ * Tier B → returns an <iframe> snippet pointing at the public embed
+ * page instead. Decided the same way PUT decides — by looking up which
+ * tier the button's actual clubPaymentMethodId belongs to, not by a
+ * client-sent flag.
  */
 router.get('/donation-buttons/:clubId/embed', authenticateToken, async (req, res) => {
   try {
@@ -111,9 +200,42 @@ router.get('/donation-buttons/:clubId/embed', authenticateToken, async (req, res
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const data = await svc.getEmbed({ clubId });
+    const tierAData = await tierAService.getForManagement({ clubId });
+    const button = tierAData.donationButton;
+    if (!button) {
+      return res.status(404).json({ error: 'Donation button not configured' });
+    }
+
+    const isTierB = await tierBService.isTierBMethod({
+      clubId,
+      clubPaymentMethodId: button.clubPaymentMethodId,
+    });
+
+    if (isTierB) {
+      if (!button.isEnabled) {
+        return res.status(409).json({ error: 'Donation button is disabled' });
+      }
+      // appOrigin here is OUR origin (wherever the dashboard itself is
+      // running), used only to build the iframe src shown to the admin
+      // to copy — NOT the validated checkout-time appOrigin, which is
+      // resolved fresh by the embed page itself at donation time.
+      const proto = req.headers['x-forwarded-proto'] || req.protocol;
+      const dashboardOrigin = `${proto}://${req.get('host')}`;
+      const embedSrc = `${dashboardOrigin}/embed/donate/${clubId}`;
+      const safeLabel = String(button.buttonTitle || 'Donate').replace(/[<>"]/g, '');
+
+      const embedHtml =
+        `<iframe src="${embedSrc}" title="${safeLabel}" ` +
+        `style="width:100%;max-width:380px;height:520px;border:none;border-radius:12px;" ` +
+        `loading="lazy"></iframe>`;
+
+      return res.json({ ok: true, embedHtml, donationButton: button });
+    }
+
+    const data = await tierAService.getEmbed({ clubId });
     res.json(data);
   } catch (err) {
+    console.error('[donation-buttons] GET embed error:', err);
     const status = mapErrorToStatus(err?.message);
     res.status(status).json({ error: err?.message || 'Failed to generate embed' });
   }

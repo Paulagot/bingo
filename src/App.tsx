@@ -167,6 +167,8 @@ const WalkinPage = lazy(() =>
   }))
 );
 
+const DonateEmbedPage = lazy(() => import('./components/embed/DonateEmbedPage'));
+
 const Web3QuizPage = lazy(() => import('./pages/web3/quiz'));
 const PuzzlePage = lazy(() => import('./components/puzzles/pages/PuzzlePage'));
 const PuzzleDevTestPage = lazy(() => import('./components/puzzles/pages/Puzzledevtestpage'));
@@ -609,6 +611,23 @@ export default function App() {
             </Suspense>
           }
         />
+
+        <Route
+  path="/embed/donate/:clubId"
+  element={
+    <Suspense fallback={null}>
+      <DonateEmbedPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/embed/donate/:clubId/success"
+  element={
+    <Suspense fallback={null}>
+      <DonateEmbedPage />
+    </Suspense>
+  }
+/>
 
         <Route
   path="/ticketed-event/checkin/:roomId"
