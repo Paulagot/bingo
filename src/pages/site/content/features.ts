@@ -823,17 +823,17 @@ export const featurePages: Record<string, TemplateContent> = {
         description:
           "Select which club payment methods should appear for each fundraiser, so supporters only see the options that apply.",
         imageKey: "paymentOptionsScreenshot",
-        variant: "desktop",
+        variant: "standard",
       },
       {
-        title: "Mobile-friendly payment review",
+        title: "End of event reconciliations",
         description:
-          "Review payment status, invitations and manual payment actions from a phone-friendly organiser view.",
-        imageKey: "paymentActivePlayersMobileScreenshot",
-        variant: "mobile",
+          "Review payment status, make adjustments and approve the end of event finacials. This provides audit ready reports",
+        imageKey: "gameRecon",
+        variant: "standard",
       },
       {
-        title: "See payment status at a glance",
+        title: "Our unquie reconciliation lets you mark payments as disputed, and you can clear them up later",
         description:
           "Quickly spot who is paid, unpaid or still pending before the fundraiser starts or while the event is running.",
         imageKey: "paymentActivePlayersScreenshot",
@@ -1440,24 +1440,24 @@ ticketing: feature({
         title: "Locked audit reconciliation",
         description:
           "Show the approved audit-ready reconciliation, including the approved totals and locked status once the event record has been signed off.",
-        imageKey: "reportReconciliationScreenshot",
+        imageKey: "reportReconciliationLockedScreenshot",
         variant: "standard",
       },
       {
         title: "Outstanding and adjusted payments",
         description:
           "Track late payments, disputed items, written-off balances and adjustments that happen after the original event reconciliation.",
-        imageKey: "reportOutstandingPaymentsScreenshot",
+        imageKey: "paymentLatePaymentScreenshot",
         variant: "standard",
       },
       
-      {
-        title: "Impact, tickets and winners summary",
-        description:
-          "Summarise players, volunteers, tickets sold and redeemed, scores, prize or winner details and the final downloadable report view.",
-        imageKey: "reportImpactExportScreenshot",
-        variant: "standard",
-      },
+      // {
+      //   title: "Impact, tickets and winners summary",
+      //   description:
+      //     "Summarise players, volunteers, tickets sold and redeemed, scores, prize or winner details and the final downloadable report view.",
+      //   imageKey: "reportImpactExportScreenshot",
+      //   variant: "standard",
+      // },
     ],
     benefits: [
       {

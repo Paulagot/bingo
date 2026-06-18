@@ -116,6 +116,7 @@ import { createFeedbackRouter } from './routes/feedbackRoutes.js';
 import ticketedEventReconciliationRoutes from
   './ticketedEvent/api/ticketedEventReconciliationRoutes.js';
 import ticketedEventAdminsRoutes from './ticketedEvent/api/ticketedEventAdminsRoutes.js';
+import donationCheckoutRoutes from './donations/api/donationCheckoutRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -458,6 +459,7 @@ app.use('/api/quiz/web2', quizStatsRoutes);
 
 app.use('/api', quizPaymentMethodsRoutes);
 app.use('/api', donationButtonRoutes); 
+app.use('/api', donationCheckoutRoutes);
 app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);

@@ -37,10 +37,12 @@ export type ImageKey =
   | "paymentOnTheNightScreenshot"
   | "paymentActivePlayersMobileScreenshot"
   | "quizGameplayScreenshot"
+  | "eliminationGameplayScreenshot"
   | "reportHeroScreenshot"
   | "reportsScreenshot"
   | "reportReconciliationScreenshot"
    | "gamePlayScreenshot"
+   | "gameRecon"
   | "reportOverviewScreenshot"
   | "reportReconciliationLockedScreenshot"
   | "reportOutstandingPaymentsScreenshot"
@@ -58,6 +60,9 @@ export type ImageKey =
   | "charitiesHero"
   | "communityHero"
   | "hostControlsScreenshot"
+  | "eliminationHero"
+  | "eliminationHostScreenshot"
+  | "eliminationLarge"
   | "doorToDoorScreenshot";
   
 
@@ -247,7 +252,7 @@ export const images: Record<ImageKey, SiteImage> = {
   },
 
   paymentActivePlayersScreenshot: {
-    src: "/images/screenshots/payments-active-players.png",
+    src: "/images/screenshots/dispute.png",
     alt: "FundRaisely active players view showing unpaid, pending and paid payment statuses.",
   },
 
@@ -367,5 +372,27 @@ export const images: Record<ImageKey, SiteImage> = {
     src: "/images/screenshots/door-to-door.png",
     alt: "FundRaisely door-to-door fundraising screenshot showing a volunteer recording cash donations collected in person.",
   },
+  eliminationHero: {  
+        src: "/images/screenshots/eliminationHero.png",
+    alt: "People enjoying a game of elimination as a fundraising event in a club.",
+  },
+  eliminationGameplayScreenshot: { 
+       src: "/images/screenshots/elimiationgame.png",
+    alt: "FundRaisely elimination game, screnshots.",
+  },
+  eliminationHostScreenshot: { 
+     src: "/images/screenshots/elimiationhost.png",
+    alt: "FundRaisely elimination game, screnshots.",
+
+  },
+  eliminationLarge: { 
+     src: "/images/screenshots/eliminationlarge.png",
+    alt: "FundRaisely elimination game, screnshots.",
+
+  },
+  gameRecon:{
+      src: "/images/screenshots/gamerecon.png",
+    alt: "FundRaisely end of event reconciliation screens.",
+  }
   
 };

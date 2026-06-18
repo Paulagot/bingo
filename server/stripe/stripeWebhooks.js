@@ -17,6 +17,7 @@ import { createExpectedPayment } from '../mgtsystem/services/quizPaymentLedgerSe
 import { deleteExpiredTicket } from './stripeExpiredTicketService.js';
 import { confirmOrderByStripeIntent } from '../campaigns/services/campaignOrderService.js';
 import { addPlayerWithId } from '../elimination/services/eliminationRoomManager.js';
+import { confirmDonation, markDonationStatus } from '../donations/services/DonationLedgerService.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -341,6 +342,24 @@ export async function stripeWebhookHandler(req, res) {
           });
         }
 
+       } else if (type === 'club_donation') {
+        const donationId = session?.metadata?.donationId;
+ 
+        if (!donationId) {
+          console.warn('[StripeWebhook] ⚠️ club_donation missing donationId', { sessionId });
+        } else {
+          const updated = await confirmDonation({
+            externalCheckoutId: sessionId,
+            externalTransactionId: paymentIntentId,
+          });
+ 
+          if (DEBUG) {
+            console.log('[StripeWebhook] ✅ Club donation confirmed:', {
+              donationId, sessionId, updated,
+            });
+          }
+        }
+
       // ── Elimination walk-in payment ──────────────────────────────────────
       } else if (type === 'elimination_walkin_payment') {
         const {
@@ -420,6 +439,24 @@ export async function stripeWebhookHandler(req, res) {
           if (DEBUG) {
             console.log('[StripeWebhook] 🗑️ Expired ticket_purchase cleaned up:', {
               ticketId, sessionId, deleted: result.deleted, reason: result.reason,
+            });
+          }
+        }
+
+       } else if (type === 'club_donation') {
+        const donationId = session?.metadata?.donationId;
+ 
+        if (!donationId) {
+          console.warn('[StripeWebhook] ⚠️ expired club_donation missing donationId', { sessionId });
+        } else {
+          const updated = await markDonationStatus({
+            externalCheckoutId: sessionId,
+            status: 'expired',
+          });
+ 
+          if (DEBUG) {
+            console.log('[StripeWebhook] 🗑️ Expired club_donation marked:', {
+              donationId, sessionId, updated,
             });
           }
         }
