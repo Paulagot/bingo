@@ -85,6 +85,7 @@ import reconciliationRoutes from './mgtsystem/routes/quizReconciliation.js';
 import ticketsRouter from './mgtsystem/routes/quizTicketsRouter.js';
 import quizPaymentMethodsRoutes from './mgtsystem/routes/quizPaymentMethodsRoutes.js';
 import quizLatePayments from './mgtsystem/routes/quizLatePayments.js';
+import donationButtonRoutes from './mgtsystem/routes/donationButtonRoutes.js';
 import quizPersonalisedRoundRouter from './mgtsystem/routes/quizPersonalisedRoundRouter.js';
 import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 
@@ -358,14 +359,18 @@ app.use(
       mediaSrc: ["'self'", 'https:'],
       workerSrc: ["'self'", 'blob:'],
       manifestSrc: ["'self'"],
-      frameSrc: [
-        "'self'",
-        'https://verify.walletconnect.com',
-        'https://verify.walletconnect.org',
-        'https://www.youtube.com',
-        'https://www.youtube-nocookie.com',
-        'https://player.vimeo.com',
-      ],
+     frameSrc: [
+  "'self'",
+  'https://www.google.com',
+  'https://maps.google.com',
+  'https://www.google.co.uk',
+  'https://www.google.ie',
+  'https://verify.walletconnect.com',
+  'https://verify.walletconnect.org',
+  'https://www.youtube.com',
+  'https://www.youtube-nocookie.com',
+  'https://player.vimeo.com',
+],
       childSrc: ["'self'", 'https://verify.walletconnect.com', 'https://verify.walletconnect.org'],
       frameAncestors: ['*'],
       connectSrc: ALLOWED_CONNECT,
@@ -452,6 +457,7 @@ app.use('/api/quiz/tickets', ticketsRouter);
 app.use('/api/quiz/web2', quizStatsRoutes);
 
 app.use('/api', quizPaymentMethodsRoutes);
+app.use('/api', donationButtonRoutes); 
 app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);

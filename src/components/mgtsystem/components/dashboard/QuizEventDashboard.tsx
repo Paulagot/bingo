@@ -11,12 +11,12 @@ import ScheduleQuizModal from '../../modals/ScheduleQuizModal';
 import ScheduleTicketedEventModal from '../../modals/ScheduleTicketedEventModal';
 import ticketedEventMgmtService from '../../services/TicketedEventMgmtService';
 import { DashboardFundraisingSummary } from '../progress/DashboardFundraisingSummary';
-
+import ManageDonationButtonModal from '../../modals/ManageDonationButtonModal'; 
 
 import {
   CreditCard, Calendar, PlusCircle, RefreshCw,
   Trophy, CalendarDays, CheckCircle,
-  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket, LogOut,
+  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket, LogOut, Gift
 } from 'lucide-react';
 
 import { quizApi } from '../../../../shared/api';
@@ -107,6 +107,7 @@ export default function QuizEventDashboard() {
   const [paymentMethodMap, setPaymentMethodMap]     = useState<Record<string, boolean>>({});
 
   const [managePaymentsOpen, setManagePaymentsOpen]               = useState(false);
+   const [manageDonationButtonOpen, setManageDonationButtonOpen]   = useState(false);   
   const [scheduleQuizOpen, setScheduleQuizOpen]                   = useState(false);
   const [scheduleEliminationOpen, setScheduleEliminationOpen]     = useState(false);
   const [scheduleTicketedEventOpen, setScheduleTicketedEventOpen] = useState(false);
@@ -592,7 +593,7 @@ setLinkedEventsMap(leMap);
             <p className="mt-1 text-sm font-semibold" style={{ color: '#52636f' }}>{clubName}</p>
           </div>
           
-          <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap">
             {featureAccess.quizPayments && (
               <button type="button" onClick={() => setManagePaymentsOpen(true)}
                 className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
@@ -604,6 +605,19 @@ setLinkedEventsMap(leMap);
                 <span className="sm:hidden">Payments</span>
               </button>
             )}
+
+            {featureAccess.quizPayments && (
+              <button type="button" onClick={() => setManageDonationButtonOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
+                style={{ background: 'rgba(210,181,130,0.2)', color: '#102532' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(210,181,130,0.35)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(210,181,130,0.2)')}>
+                <Gift className="h-4 w-4" />
+                <span className="hidden sm:inline">Donation Button</span>
+                <span className="sm:hidden">Donate</span>
+              </button>
+            )}
+
             <button type="button"
               onClick={() => { setEventToEdit(null); setShowCreateForm(true); }}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
@@ -612,7 +626,6 @@ setLinkedEventsMap(leMap);
               onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}>
               <PlusCircle className="h-4 w-4" /> Create Event
             </button>
-   
           </div>
         </div>
 
@@ -972,6 +985,17 @@ setLinkedEventsMap(leMap);
         <ManagePaymentMethodsModal
           clubId={clubId}
           onClose={() => setManagePaymentsOpen(false)}
+        />
+      )}
+
+         {manageDonationButtonOpen && clubId && (
+        <ManageDonationButtonModal
+          clubId={clubId}
+          onClose={() => setManageDonationButtonOpen(false)}
+          onOpenPaymentMethods={() => {
+            setManageDonationButtonOpen(false);
+            setManagePaymentsOpen(true);
+          }}
         />
       )}
 

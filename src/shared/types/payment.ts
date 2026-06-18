@@ -76,6 +76,7 @@ export type InstantPaymentProvider =
   | 'starling'
   | 'wise'
   | 'cashapp'
+   | 'sumup'  
   // | 'open_banking_pay_by_bank'
   | 'zippypay'
   | 'other';

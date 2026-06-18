@@ -62,6 +62,13 @@ const PROVIDERS: ProviderOption[] = [
     category: 'instant_payment',
     helper: 'Can be an official club Revolut or a member/coach Revolut.',
   },
+    {
+    value: 'sumup',
+    label: 'SumUp payment link',
+    category: 'instant_payment',
+    helper:
+      'Use this for simple donations where supporters are sent to your SumUp payment page. Payments are not auto-confirmed by FundRaisely.',
+  },
   {
     value: 'monzo',
     label: 'Monzo',
@@ -100,7 +107,11 @@ const PROVIDER_PRESETS: Record<string, LinkPreset> = {
     linkLabel: 'ZippyPay link',
     linkPlaceholder: 'https://...',
   },
-};
+  sumup: {
+    linkLabel: 'SumUp payment link',
+    linkPlaceholder: 'https://pay.sumup.com/...',
+  },
+};;
 
 const DEFAULT_LINK_PRESET: LinkPreset = {
   linkLabel: 'Payment link',
@@ -144,6 +155,8 @@ function getDefaultLabel(providerName?: PaymentProvider | null): string {
       return 'Club bank transfer';
     case 'zippypay':
       return 'ZippyPay';
+    case 'sumup':
+      return 'Donate with SumUp';
     case 'solana_wallet':
       return 'Solana Wallet';
     default:
@@ -163,6 +176,8 @@ function getDefaultInstructions(providerName?: PaymentProvider | null): string {
       return 'Send payment by bank transfer. The host/admin will confirm once received.';
     case 'zippypay':
       return 'Send payment using the ZippyPay details shown. The host/admin will confirm once received.';
+    case 'sumup':
+      return 'You\u2019ll be taken to SumUp to complete your donation. The payment goes directly to the organisation\u2019s SumUp account and is not auto-confirmed by FundRaisely.';
     case 'solana_wallet':
       return 'Send payment to the Solana wallet shown. Crypto payments are verified by the app.';
     default:
@@ -185,6 +200,7 @@ function getDefaultConfig(providerName?: PaymentProvider | null): Config {
     case 'monzo':
     case 'bank_transfer':
     case 'zippypay':
+    case 'sumup':
       return {
         verificationMode: 'manual',
       };
@@ -301,6 +317,7 @@ export default function PaymentMethodForm({
   const isBankTransfer = providerKey === 'bank_transfer';
   const isZippyPay = providerKey === 'zippypay';
   const isRevolut = providerKey === 'revolut';
+   const isSumUp = providerKey === 'sumup';
   const isSolanaWallet = providerKey === 'solana_wallet';
   const isManualCategory = formData.methodCategory === 'instant_payment';
   const isCryptoCategory = formData.methodCategory === 'crypto';
@@ -362,7 +379,7 @@ export default function PaymentMethodForm({
         newErrors.providerName = 'Please select a manual payment provider';
       } else if (isCash) {
         // Cash can be instructions-only. No config required.
-      } else if (isBankTransfer) {
+     } else if (isBankTransfer) {
         if (
           !isTruthyString(config?.iban) &&
           !isTruthyString(config?.accountNumber)
@@ -376,6 +393,10 @@ export default function PaymentMethodForm({
         ) {
           newErrors.config =
             'Sort code is recommended when using an account number';
+        }
+      } else if (isSumUp) {
+        if (!isTruthyString(config?.link)) {
+          newErrors.config = 'A SumUp payment link is required';
         }
       } else if (
         !isTruthyString(config?.link) &&
@@ -438,6 +459,54 @@ export default function PaymentMethodForm({
     );
   };
 
+  const renderSumUpHelp = () => {
+    if (!shouldShowManualFields || !isSumUp) return null;
+
+    return (
+      <div className="mt-3 rounded-lg border border-teal-200 bg-teal-50 p-3 flex items-start gap-2">
+        <Info className="h-4 w-4 text-[#157f85] mt-0.5 flex-shrink-0" />
+
+        <div className="text-sm text-gray-900">
+          <div className="font-semibold mb-1">
+            How to get your SumUp payment link
+          </div>
+
+          <ol className="text-xs text-teal-800 list-decimal list-inside space-y-0.5">
+            <li>Open the SumUp app or your SumUp dashboard.</li>
+            <li>Go to Payment Links, then Create payment link.</li>
+            <li>
+              Choose <strong>Open amount</strong> if you want supporters to
+              enter their own donation amount, or{' '}
+              <strong>Fixed amount</strong> for a set donation value.
+            </li>
+            <li>Copy the link SumUp gives you and paste it below.</li>
+          </ol>
+
+          <p className="text-xs text-teal-700 mt-2">
+            The amount behaviour (open vs fixed) is set inside SumUp, not in
+            FundRaisely \u2014 so pick the option you want there before copying
+            the link.
+          </p>
+
+          <p className="text-xs text-teal-700 mt-2">
+            Payments made through this link are completed entirely on
+            SumUp\u2019s site and are not automatically confirmed in
+            FundRaisely.
+          </p>
+
+          <a
+            href="https://help.sumup.com/en-IE/articles/2rTTr92lUebQ3nY9jAAy5m-send-payment-links"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-[#157f85] underline mt-2 inline-block"
+          >
+            View SumUp's payment link guide \u2192
+          </a>
+        </div>
+      </div>
+    );
+  };
+
   const renderRevolutHelp = () => {
     if (!shouldShowManualFields || !isRevolut) return null;
 
@@ -464,6 +533,8 @@ export default function PaymentMethodForm({
       </div>
     );
   };
+
+  
 
   const renderCashHelp = () => {
     if (!shouldShowManualFields || !isCash) return null;
@@ -803,6 +874,7 @@ export default function PaymentMethodForm({
         {renderProviderHelp()}
         {renderCashHelp()}
         {renderRevolutHelp()}
+         {renderSumUpHelp()}
         {renderCryptoHelp()}
       </div>
 
