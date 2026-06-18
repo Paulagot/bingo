@@ -78,7 +78,13 @@ export default function DonateEmbedPage() {
 
   useEffect(() => {
     if (!clubId) return;
-    if (view.kind !== 'loading') return; // success/cancelled already decided above
+    // Check searchParams directly here — NOT view.kind — because view
+    // is a stale closure value at the moment this effect fires (React
+    // hasn't flushed the setView({ kind: 'success' }) call from the
+    // other effect yet). searchParams is stable and synchronous, so
+    // this correctly skips the config fetch on the success/cancel
+    // redirect-back paths without depending on effect ordering.
+    if (searchParams.get('session_id') || searchParams.get('cancelled') === '1') return;
 
     let cancelled = false;
 
@@ -102,7 +108,7 @@ export default function DonateEmbedPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clubId]);
+  }, [clubId, searchParams]);
 
   const handleDonate = async () => {
     if (!clubId || !config) return;
@@ -120,15 +126,20 @@ export default function DonateEmbedPage() {
         donorEmail: donorEmail.trim() || undefined,
       });
 
-      if (result.provider === 'stripe' || result.provider === 'sumup_api') {
-        // Full top-level navigation WITHIN the iframe — Stripe Checkout
-        // is designed to be the top-level document of whatever frame it's
-        // loaded in, and the redirect back (success_url/cancel_url) lands
-        // on this same route, still inside the iframe. The parent page
-        // never needs to know any of this happened.
-        window.location.href = result.redirectUrl;
-        return;
-      }
+  if (result.provider === 'stripe' || result.provider === 'sumup_api') {
+  // This embed may be running inside a modal iframe on the club's own website.
+  // Payment providers can be awkward inside nested frames, so open checkout
+  // as a top-level tab/window instead of trying to keep it inside the iframe.
+  window.open(result.redirectUrl, '_blank', 'noopener,noreferrer');
+
+  setView({
+    kind: 'error',
+    message:
+      'Checkout has opened in a new tab. Please complete your donation there. If nothing opened, check your pop-up blocker and try again.',
+  });
+
+  return;
+}
 
       if (result.provider === 'crypto') {
         setView({ kind: 'crypto_pending', walletAddress: result.walletAddress, amount });
