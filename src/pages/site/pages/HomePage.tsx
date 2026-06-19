@@ -228,9 +228,9 @@ const homeFaqs = [
         text="From setup to ticket sales, live payments, game play, ready to run events and activities, reconciliation and reporting, FundRaisely keeps the moving parts of a fundraiser together. Organisers can see what is planned, run the event, see who has joined, how people paid, what still needs checking and what was raised at the end.."
         slots={[
           {
-            title: 'Campaign and event dashboard',
+            title: 'Campaign and Event Dashboard',
             description: 'Lauch Events and Activities and access event managment and reports directly from the dashboard.',
-            imageKey: 'eventSetupOverviewPhotoshot',
+            imageKey: 'productdashboard',
           },
           {
             title: 'Event and Campaign pages with Supporter ticket journey',
@@ -238,20 +238,41 @@ const homeFaqs = [
             imageKey: 'ticketingPublicPageScreenshot',
             variant: 'standard',
           },
+              {
+            title: 'Payment methods for real world fundraising',
+            description: 'Every fundraiser is different, some pay cash at the door, some revolut to the coach, some buy a ticket in advance with credit card, and some like to pay with crypto. We help you handle it all, and provide you with a donation widget.',
+            imageKey: 'paymentsDonations',
+            variant: 'standard',
+          },
           {
-            title: 'Payment tracking',
-            description: 'Show expected, claimed, confirmed, late, disputed and written-off payments in one organiser view.',
+            title: 'Payment tracking and Audit Ready Records',
+            description: 'Show expected, claimed, confirmed, late, disputed and written-off payments in one organiser view. Reconcile event takings, approve and have audit ready records.',
             imageKey: 'paymentsHeroScreenshot',
           },
           {
-            title: 'Committee-ready reports',
+            title: 'Committee-ready Reports and Impact Statements',
             description: 'Final totals, payment breakdowns, prizes, sponsors and campaign outcomes and impact statements can be used for committes and supporters.',
             imageKey: 'reportsScreenshot',
           },
              {
-            title: 'Exciting in game play and supporter journeys',
-            description: 'From Quizzes, to elimination, to puzzel challanges and more. Our in game play and supporter journeys are designed to be fun, social and exciting for supporters, while keeping the organiser in control of the event.',
+            title: 'Exciting Digital Events',
+            description: 'Our quiz has been optimised for a full fundraising Event. Our in game play and supporter journeys are designed to be fun, social and exciting for supporters, while keeping the organiser in control of the event. Running an event like a dinner, coffee morning or sporting event, we have you covered with our ticketing only events.',
             imageKey: 'gamePlayScreenshot',
+          },
+               {
+            title: 'Run smaller more regular fundraising games',
+            description: 'Elimination has been designed to be a quick digital community game that can be ran in a club on a Friday night, or as part of a family day as an extra add on. You do not always have to run an event to fundraise.',
+            imageKey: 'eliminationGameplayScreenshot',
+          },
+               {
+            title: 'Generate recurring income with subscription puzzles and challenges',
+            description: 'Looking for an alternative to running a weekly lotto for reccurring income. Our puzzles and challenges offer something fun your supporters can subscribe to participate in on a weekly basis (soon).',
+            imageKey: 'puzzels',
+          },
+         {
+            title: 'Turn traditional supporter sponsorship into a digital campaign pack',
+            description: 'Stop selling stuff people dont want and give them something to participate in. You already understand door-to-door sponsorship, player cards and family-led fundraising. FundRaisely can turn that familiar behaviour into a more organised digital flow, where players and parents share links and the club has clearer records of what came in (soon).',
+            imageKey: 'tradationaldigital',
           },
         ]}
       />

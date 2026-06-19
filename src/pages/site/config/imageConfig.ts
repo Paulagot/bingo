@@ -63,6 +63,10 @@ export type ImageKey =
   | "eliminationHero"
   | "eliminationHostScreenshot"
   | "eliminationLarge"
+  | "productdashboard"
+  | "tradationaldigital"
+  | "paymentsDonations"
+  | "puzzels"
   | "doorToDoorScreenshot";
   
 
@@ -393,6 +397,22 @@ export const images: Record<ImageKey, SiteImage> = {
   gameRecon:{
       src: "/images/screenshots/gamerecon.png",
     alt: "FundRaisely end of event reconciliation screens.",
+  },
+  productdashboard: {
+       src: "/images/screenshots/productdash.png",
+    alt: "FundRaisely end of event reconciliation screens.",
+  },
+    tradationaldigital: {
+       src: "/images/screenshots/tradational.png",
+    alt: "FundRaisely digital tradational events.",
+  }, 
+  paymentsDonations: {
+       src: "/images/screenshots/paymentdonations.png",
+    alt: "FundRaisely digital tradational events.",
+  },
+    puzzels: {
+       src: "/images/screenshots/puzzle.png",
+    alt: "FundRaisely digital tradational events.",
   }
   
 };
