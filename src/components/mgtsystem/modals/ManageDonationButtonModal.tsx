@@ -1,18 +1,13 @@
 // src/components/mgtsystem/modals/ManageDonationButtonModal.tsx
 //
-// UPDATED for Phase 2. Adds:
-//   - A second "Trackable" section (Stripe/crypto) alongside the
-//     existing "Manual link" section, per explicit choice: two visually
-//     separate sections rather than one merged dropdown.
-//   - Amount-tier config (preset amounts + allow-custom-amount), shown
-//     only when a Trackable method is selected — meaningless for
-//     manual-link buttons, which go straight to an external URL.
-//   - Embed preview that's an <iframe> for Trackable, the existing <a>
-//     preview for Manual link.
-//
-// Tier selection is mutually exclusive — selecting a method in one
-// section clears the other, since a button has exactly one configured
-// method (see ResolvedDonationMethod in donationCheckout.ts for why).
+// UPDATED:
+//   - Keeps existing Manual link behaviour.
+//   - Trackable donation buttons now generate a modal-launch embed snippet:
+//       <button data-fundraisely-donate ...>Donate now</button>
+//       <script src="/embed/donate.js" async></script>
+//   - This means clubs paste a simple button into their website.
+//   - When clicked, the FundRaisely donation iframe opens in a modal on their page.
+//   - Existing save/load/payment-method logic is preserved.
 
 import { useState, useEffect, useMemo } from 'react';
 import {
@@ -49,6 +44,45 @@ function formatProviderName(providerName?: string | null) {
 }
 
 const MAX_PRESETS = 4;
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function getPublicBaseUrl(): string {
+  return window.location.origin;
+}
+
+function buildTrackableModalEmbed({
+  clubId,
+  buttonLabel,
+  buttonTitle,
+}: {
+  clubId: string;
+  buttonLabel: string;
+  buttonTitle?: string;
+}) {
+  const baseUrl = getPublicBaseUrl();
+  const safeClubId = escapeHtml(clubId);
+  const safeLabel = escapeHtml(buttonLabel || 'Donate now');
+  const safeTitle = escapeHtml(buttonTitle || 'Donate');
+
+  return `<button
+  type="button"
+  data-fundraisely-donate
+  data-club-id="${safeClubId}"
+  data-title="${safeTitle}"
+  style="background:#157f85;color:#ffffff;border:none;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;"
+>
+  ${safeLabel}
+</button>
+<script src="${baseUrl}/embed/donate.js" async></script>`;
+}
 
 export default function ManageDonationButtonModal({
   clubId,
@@ -99,7 +133,10 @@ export default function ManageDonationButtonModal({
         setButtonTitle(res.donationButton.buttonTitle || '');
 
         const savedId = res.donationButton.clubPaymentMethodId;
-        const isTrackable = (res.eligibleTrackableMethods || []).some((m) => m.clubPaymentMethodId === savedId);
+        const isTrackable = (res.eligibleTrackableMethods || []).some(
+          (m) => m.clubPaymentMethodId === savedId
+        );
+
         if (isTrackable) {
           setSelectedTrackableMethodId(savedId);
           setSelectedManualMethodId('');
@@ -131,6 +168,12 @@ export default function ManageDonationButtonModal({
     setEmbedError(null);
     setCopied(false);
   }, [donationButton]);
+
+  useEffect(() => {
+    setEmbedHtml(null);
+    setEmbedError(null);
+    setCopied(false);
+  }, [selectedManualMethodId, selectedTrackableMethodId, buttonLabel, buttonTitle]);
 
   const handleSelectManual = (id: string) => {
     setSelectedManualMethodId(id);
@@ -174,10 +217,12 @@ export default function ManageDonationButtonModal({
       setError('Please select a payment method to power the donation button.');
       return;
     }
+
     if (!buttonLabel.trim()) {
       setError('Button label is required.');
       return;
     }
+
     if (selectedTrackableMethodId && !allowCustomAmount && presetAmounts.length === 0) {
       setError('Add at least one preset amount, or allow custom amounts.');
       return;
@@ -186,6 +231,7 @@ export default function ManageDonationButtonModal({
     try {
       setSaving(true);
       setError(null);
+
       const res = await DonationButtonService.save(clubId, {
         isEnabled,
         buttonLabel: buttonLabel.trim(),
@@ -195,9 +241,13 @@ export default function ManageDonationButtonModal({
           ? { allowCustomAmount, presetAmounts }
           : {}),
       });
+
       setDonationButton(res.donationButton);
       setEligibleManualMethods(res.eligibleManualMethods || []);
       setEligibleTrackableMethods(res.eligibleTrackableMethods || []);
+      setEmbedHtml(null);
+      setEmbedError(null);
+      setCopied(false);
     } catch (err: any) {
       setError(err?.message || 'Failed to save donation button');
     } finally {
@@ -210,6 +260,28 @@ export default function ManageDonationButtonModal({
       setLoadingEmbed(true);
       setEmbedError(null);
       setCopied(false);
+
+      if (!donationButton) {
+        setEmbedError('Save the donation button before generating the embed code.');
+        return;
+      }
+
+      if (!isEnabled) {
+        setEmbedError('Enable and save the donation button before generating the embed code.');
+        return;
+      }
+
+      if (selectedTrackableMethodId) {
+        setEmbedHtml(
+          buildTrackableModalEmbed({
+            clubId,
+            buttonLabel: buttonLabel.trim() || 'Donate now',
+            buttonTitle: buttonTitle.trim() || 'Donate',
+          })
+        );
+        return;
+      }
+
       const res = await DonationButtonService.getEmbed(clubId);
       setEmbedHtml(res.embedHtml);
     } catch (err: any) {
@@ -225,6 +297,7 @@ export default function ManageDonationButtonModal({
 
   const handleCopy = async () => {
     if (!embedHtml) return;
+
     try {
       await navigator.clipboard.writeText(embedHtml);
       setCopied(true);
@@ -265,6 +338,7 @@ export default function ManageDonationButtonModal({
               </p>
             </div>
           </div>
+
           <button
             type="button"
             onClick={onClose}
@@ -307,8 +381,9 @@ export default function ManageDonationButtonModal({
                 No eligible payment methods yet
               </h3>
               <p className="text-sm text-gray-600 mb-4">
-                Connect Stripe, add a crypto wallet, or add a manual payment link (SumUp,
-                Revolut, Monzo, ZippyPay), then return here to create your donation button.
+                Connect Stripe, add a crypto wallet, or add a manual payment link such as
+                SumUp, Revolut, Monzo or ZippyPay, then return here to create your donation
+                button.
               </p>
               <button
                 type="button"
@@ -321,7 +396,6 @@ export default function ManageDonationButtonModal({
             </div>
           ) : (
             <>
-              {/* Enable toggle */}
               <section
                 className="rounded-xl p-4 flex items-center justify-between gap-4"
                 style={{ background: '#ffffff', border: '1px solid #dce1df' }}
@@ -332,6 +406,7 @@ export default function ManageDonationButtonModal({
                     When enabled, you can copy an embed snippet to paste into your website.
                   </p>
                 </div>
+
                 <button
                   type="button"
                   onClick={() => setIsEnabled((p) => !p)}
@@ -348,7 +423,6 @@ export default function ManageDonationButtonModal({
                 </button>
               </section>
 
-              {/* Button text */}
               <section
                 className="rounded-xl p-4 space-y-4"
                 style={{ background: '#ffffff', border: '1px solid #dce1df' }}
@@ -371,7 +445,7 @@ export default function ManageDonationButtonModal({
                 <div>
                   <label className="block text-sm font-semibold text-gray-600 mb-2">
                     Optional heading{' '}
-                    <span className="text-gray-400">(shown above the button — not part of the embed)</span>
+                    <span className="text-gray-400">(used as the modal title for trackable buttons)</span>
                   </label>
                   <input
                     type="text"
@@ -385,7 +459,6 @@ export default function ManageDonationButtonModal({
                 </div>
               </section>
 
-              {/* ── Trackable section ── */}
               <section
                 className="rounded-xl p-4 space-y-3"
                 style={{ background: '#ffffff', border: '1px solid #dce1df' }}
@@ -393,12 +466,13 @@ export default function ManageDonationButtonModal({
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-4 w-4" style={{ color: '#157f85' }} />
                   <label className="block text-sm font-semibold text-gray-900">
-                    Trackable (card / crypto)
+                    Trackable card / crypto
                   </label>
                 </div>
+
                 <p className="text-xs text-gray-500">
-                  Supporters see an amount picker and pay through a checkout FundRaisely
-                  tracks — donations appear in your reporting automatically.
+                  Supporters see an amount picker in a FundRaisely modal and pay through a
+                  checkout FundRaisely tracks. Donations appear in your reporting automatically.
                 </p>
 
                 {eligibleTrackableMethods.length === 0 ? (
@@ -446,6 +520,7 @@ export default function ManageDonationButtonModal({
                       <p className="text-xs font-semibold text-gray-600 mb-2">
                         Preset amounts ({presetAmounts.length}/{MAX_PRESETS})
                       </p>
+
                       <div className="flex flex-wrap gap-2 mb-2">
                         {presetAmounts.map((amount) => (
                           <span
@@ -464,6 +539,7 @@ export default function ManageDonationButtonModal({
                           </span>
                         ))}
                       </div>
+
                       {presetAmounts.length < MAX_PRESETS && (
                         <div className="flex items-center gap-2">
                           <input
@@ -490,7 +566,6 @@ export default function ManageDonationButtonModal({
                 )}
               </section>
 
-              {/* ── Manual link section ── */}
               <section
                 className="rounded-xl p-4 space-y-3"
                 style={{ background: '#ffffff', border: '1px solid #dce1df' }}
@@ -501,9 +576,10 @@ export default function ManageDonationButtonModal({
                     Manual link
                   </label>
                 </div>
+
                 <p className="text-xs text-gray-500">
-                  Links straight to an external payment page (SumUp, Revolut, Monzo,
-                  ZippyPay). No amount picker, no automatic tracking.
+                  Links straight to an external payment page such as SumUp, Revolut, Monzo or
+                  ZippyPay. No amount picker and no automatic tracking.
                 </p>
 
                 {eligibleManualMethods.length === 0 ? (
@@ -536,9 +612,8 @@ export default function ManageDonationButtonModal({
 
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-800">
-                  Choose one method from either section above — a button uses exactly one
-                  payment method at a time. Selecting a method in one section clears any
-                  selection in the other.
+                  Choose one method from either section above. A donation button uses exactly one
+                  payment method at a time. Selecting a method in one section clears the other.
                 </p>
               </div>
 
@@ -562,9 +637,11 @@ export default function ManageDonationButtonModal({
                     <div>
                       <p className="font-semibold text-gray-900">Embed code</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        Copy this and paste it into your website's HTML.
+                        Copy this and paste it into your website's HTML. Trackable buttons open
+                        a FundRaisely donation modal on the page.
                       </p>
                     </div>
+
                     <button
                       type="button"
                       onClick={handleGetEmbed}
@@ -587,11 +664,12 @@ export default function ManageDonationButtonModal({
                       <textarea
                         readOnly
                         value={embedHtml}
-                        rows={3}
+                        rows={selectedTrackableMethodId ? 9 : 3}
                         onFocus={(e) => e.currentTarget.select()}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-xs font-mono resize-none"
                       />
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={handleCopy}
@@ -610,13 +688,6 @@ export default function ManageDonationButtonModal({
                           )}
                         </button>
 
-                        {/* Test button — only meaningful for a Trackable
-                            button, since that's the only case with a real
-                            FundRaisely-hosted page to open. A manual-link
-                            button's "embed" is just an external <a> tag —
-                            opening it here would just be testing the club's
-                            own SumUp/Revolut link, not anything FundRaisely
-                            built, so there's nothing useful to preview. */}
                         {selectedTrackableMethodId && (
                           <button
                             type="button"
@@ -627,10 +698,17 @@ export default function ManageDonationButtonModal({
                             style={{ borderColor: '#157f85', color: '#157f85' }}
                           >
                             <ExternalLink className="h-4 w-4" />
-                            Test donation button
+                            Test donation page
                           </button>
                         )}
                       </div>
+
+                      {selectedTrackableMethodId && (
+                        <p className="text-xs text-gray-500">
+                          The copied code creates a button on the club's website. When clicked,
+                          it loads the FundRaisely donation form in a modal iframe.
+                        </p>
+                      )}
                     </>
                   )}
                 </section>

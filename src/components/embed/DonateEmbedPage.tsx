@@ -42,6 +42,7 @@ type ViewState =
   | { kind: 'picking_amount' }
   | { kind: 'starting_checkout' }
   | { kind: 'crypto_pending'; walletAddress: string; amount: number }
+  | { kind: 'checkout_opened'; provider: 'stripe' | 'sumup_api' }
   | { kind: 'success' }
   | { kind: 'cancelled' };
 
@@ -110,6 +111,84 @@ export default function DonateEmbedPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId, searchParams]);
 
+  // Post-success side effects: close the modal overlay (if running
+  // inside the donate.js iframe) or close the standalone tab (if Stripe
+  // redirected here directly in its own tab). This MUST sit here, above
+  // every early `return` below (loading/error/cancelled), and run on
+  // every single render regardless of view.kind — React requires the
+  // same hooks in the same order on every render. The effect's own body
+  // checks view.kind and no-ops if it isn't 'success'; that conditional
+  // logic belongs inside the effect, never around the useEffect() call
+  // itself.
+  useEffect(() => {
+    if (view.kind !== 'success') return;
+
+    // Three possible contexts this success page can be running in:
+    //   1. Inside the donate.js iframe directly — window.parent is the
+    //      club's top-level page. (Not the path we actually use anymore
+    //      for Stripe, but kept as a fallback.)
+    //   2. In a new tab opened via window.open from inside the iframe —
+    //      window.opener is the IFRAME, not the club's top-level page.
+    //      The iframe (still open, still showing picking_amount) needs
+    //      to relay this onward to ITS OWN parent — see the message
+    //      listener below.
+    //   3. Standalone, no opener and no parent — nothing to notify,
+    //      just close the tab.
+    const hasOpener = !!window.opener;
+    const isInIframe = window !== window.parent;
+
+    if (hasOpener) {
+      try {
+        window.opener.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
+      } catch (e) {}
+      const t = setTimeout(() => { try { window.close(); } catch (e) {} }, 2000);
+      return () => clearTimeout(t);
+    }
+
+    if (isInIframe) {
+      try {
+        window.parent.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
+      } catch (e) {}
+      return;
+    }
+
+    // Standalone tab, no opener relationship (e.g. opened directly by
+    // the user, or opener was severed) — just close after the pause.
+    const t = setTimeout(() => { try { window.close(); } catch (e) {} }, 2000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view.kind]);
+
+  // Relay listener: if THIS page is itself the iframe sitting inside
+  // donate.js's modal, and a child tab we spawned (via window.open)
+  // posts a success message to us, forward it up to OUR parent (the
+  // club's top-level page) so donate.js's listener there can close the
+  // modal. Without this relay, the success message only reaches the
+  // iframe and stops there — the iframe has no way to close itself
+  // from the OUTSIDE (the overlay lives on the club's page, not inside
+  // this iframe's own DOM).
+  useEffect(() => {
+    function handleChildMessage(event: MessageEvent) {
+      const data = event.data || {};
+      if (data.type !== 'FUNDRAISELY_DONATION_SUCCESS') return;
+
+      // Update this iframe's own UI too, in case there's any visible
+      // delay before donate.js's listener closes the modal overlay —
+      // better to show "thank you" than stale picking_amount/checkout_opened.
+      setView({ kind: 'success' });
+
+      const isInIframe = window !== window.parent;
+      if (isInIframe) {
+        try {
+          window.parent.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId: data.clubId }, '*');
+        } catch (e) {}
+      }
+    }
+    window.addEventListener('message', handleChildMessage);
+    return () => window.removeEventListener('message', handleChildMessage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleDonate = async () => {
     if (!clubId || !config) return;
 
@@ -126,20 +205,36 @@ export default function DonateEmbedPage() {
         donorEmail: donorEmail.trim() || undefined,
       });
 
-  if (result.provider === 'stripe' || result.provider === 'sumup_api') {
-  // This embed may be running inside a modal iframe on the club's own website.
-  // Payment providers can be awkward inside nested frames, so open checkout
-  // as a top-level tab/window instead of trying to keep it inside the iframe.
-  window.open(result.redirectUrl, '_blank', 'noopener,noreferrer');
-
-  setView({
-    kind: 'error',
-    message:
-      'Checkout has opened in a new tab. Please complete your donation there. If nothing opened, check your pop-up blocker and try again.',
-  });
-
-  return;
-}
+      if (result.provider === 'stripe' || result.provider === 'sumup_api') {
+        // Open Stripe/SumUp in a new tab rather than navigating the iframe.
+        // When the iframe tries to do window.location.href on a cross-origin
+        // parent page, browsers block it or open a new tab anyway — so we
+        // do it explicitly. The donation form (this iframe) stays visible,
+        // showing a "checkout opened" state so the supporter knows what
+        // happened. The webhook records confirmation server-side regardless
+        // of what the iframe shows afterward.
+        //
+        // Deliberately NOT passing 'noopener' here — the success page
+        // (landed on after Stripe redirects) needs window.opener to point
+        // back to THIS iframe so it can postMessage the success event
+        // back, which is how the modal gets closed automatically. Using
+        // noopener severs that relationship entirely, which is what was
+        // causing the close-the-modal flow to silently fail. Both ends of
+        // this relationship are FundRaisely's own pages (this iframe and
+        // the success page), so there's no security reason to isolate
+        // them from each other the way you would for an arbitrary
+        // third-party link.
+        const checkoutWindow = window.open(result.redirectUrl, '_blank');
+        if (!checkoutWindow) {
+          setView({
+            kind: 'error',
+            message: 'Your checkout could not open. Please allow pop-ups for this site and try again.',
+          });
+          return;
+        }
+        setView({ kind: 'checkout_opened', provider: result.provider });
+        return;
+      }
 
       if (result.provider === 'crypto') {
         setView({ kind: 'crypto_pending', walletAddress: result.walletAddress, amount });
@@ -212,6 +307,30 @@ export default function DonateEmbedPage() {
           <p className="text-xs" style={{ color: '#52636f' }}>
             Your support makes a real difference.
           </p>
+        </div>
+      </EmbedShell>
+    );
+  }
+
+  if (view.kind === 'checkout_opened') {
+    return (
+      <EmbedShell title={config?.buttonTitle ?? undefined}>
+        <div className="flex flex-col items-center gap-2 py-8 text-center">
+          <CheckCircle2 className="h-8 w-8" style={{ color: '#157f85' }} />
+          <p className="text-sm font-semibold" style={{ color: '#102532' }}>
+            Checkout opened
+          </p>
+          <p className="text-xs" style={{ color: '#52636f' }}>
+            Complete your donation in the new tab. You can close this window when done.
+          </p>
+          <button
+            type="button"
+            onClick={() => setView({ kind: 'picking_amount' })}
+            className="mt-3 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+            style={{ background: '#157f85' }}
+          >
+            Start again
+          </button>
         </div>
       </EmbedShell>
     );
