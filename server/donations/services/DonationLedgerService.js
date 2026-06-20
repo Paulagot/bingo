@@ -86,11 +86,28 @@ export async function attachExternalCheckoutId({ donationId, externalCheckoutId 
  * Looked up by externalCheckoutId (Stripe session id) OR by donationId
  * directly (crypto path, which already knows its own donationId from
  * the in-page flow and doesn't have a separate checkout id concept).
+ *
+ * The crypto* params are all optional and additive — the Stripe webhook
+ * call site passes none of them and behaves exactly as before (they
+ * stay NULL via COALESCE). THIS WAS THE BUG: an earlier version of this
+ * function never actually accepted these six params at all — they were
+ * silently dropped by JS destructuring, the three-field UPDATE below
+ * ran anyway, and confirmDonation still returned true, so nothing
+ * upstream noticed anything had gone wrong. A donation could show
+ * status='confirmed' with a real external_transaction_id while every
+ * crypto_* column stayed empty. Confirm this version is what's actually
+ * deployed — diff against the previous file rather than assuming.
  */
 export async function confirmDonation({
   donationId = null,
   externalCheckoutId = null,
   externalTransactionId = null,
+  cryptoChain = null,
+  cryptoNetwork = null,
+  cryptoSenderWallet = null,
+  cryptoTokenCode = null,
+  cryptoTokenMint = null,
+  cryptoRawAmount = null,
 }) {
   if (!donationId && !externalCheckoutId) {
     throw new Error('confirmDonation requires donationId or externalCheckoutId');
@@ -106,13 +123,29 @@ export async function confirmDonation({
     SET
       status = 'confirmed',
       external_transaction_id = COALESCE(?, external_transaction_id),
+      crypto_chain = COALESCE(?, crypto_chain),
+      crypto_network = COALESCE(?, crypto_network),
+      crypto_sender_wallet = COALESCE(?, crypto_sender_wallet),
+      crypto_token_code = COALESCE(?, crypto_token_code),
+      crypto_token_mint = COALESCE(?, crypto_token_mint),
+      crypto_raw_amount = COALESCE(?, crypto_raw_amount),
       confirmed_at = UTC_TIMESTAMP(),
       updated_at = UTC_TIMESTAMP()
     WHERE ${whereClause}
       AND status = 'pending'
   `;
 
-  const [result] = await connection.execute(sql, [externalTransactionId, whereParam]);
+  const [result] = await connection.execute(sql, [
+    externalTransactionId,
+    cryptoChain,
+    cryptoNetwork,
+    cryptoSenderWallet,
+    cryptoTokenCode,
+    cryptoTokenMint,
+    cryptoRawAmount,
+    whereParam,
+  ]);
+
   return result.affectedRows > 0;
 }
 

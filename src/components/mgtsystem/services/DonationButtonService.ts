@@ -4,6 +4,7 @@ import BaseService from './BaseService';
 
 import type {
   GetDonationButtonManageResponse,
+  SaveDonationButtonResponse,
   UpsertClubDonationButtonRequest,
   DonationButtonEmbedResponse,
 } from '../../../shared/types/donationButton';
@@ -21,9 +22,16 @@ class DonationButtonService extends BaseService {
 
   /**
    * Create or update the club's single donation button.
+   *
+   * PHASE 3b: returns SaveDonationButtonResponse, not
+   * GetDonationButtonManageResponse — the save path can report
+   * droppedMethodIds (methods that were selected but turned out to be
+   * invalid by the time the save landed), which a plain GET /manage
+   * response never carries. See donationButton.ts for why these are
+   * separate types rather than one shape with an always-optional field.
    */
   save(clubId: string, data: UpsertClubDonationButtonRequest) {
-    return this.request<GetDonationButtonManageResponse>(
+    return this.request<SaveDonationButtonResponse>(
       `/donation-buttons/${clubId}`,
       {
         method: 'PUT',
