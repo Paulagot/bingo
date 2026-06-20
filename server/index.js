@@ -92,6 +92,9 @@ import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 import frameRoutes from './quiz/api/frameRoutes.js';
 import pledgeRouter from './mgtsystem/routes/pledgesRouter.js';
 
+import donationCryptoQuoteRouter from './donations/api/donationCryptoQuoteRouter.js';
+import donationCryptoRouter from './donations/api/donationCryptoRouter.js';
+
 
 import puzzleRouter from './puzzles/routes/puzzleRoutes.js';
 import challengeRouter from './puzzles/routes/challengeRoutes.js';
@@ -117,6 +120,7 @@ import ticketedEventReconciliationRoutes from
   './ticketedEvent/api/ticketedEventReconciliationRoutes.js';
 import ticketedEventAdminsRoutes from './ticketedEvent/api/ticketedEventAdminsRoutes.js';
 import donationCheckoutRoutes from './donations/api/donationCheckoutRoutes.js';
+import donationStatusRoutes from './donations/api/donationStatusRouter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -312,7 +316,6 @@ app.use(
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   }),
 );
-
 const ALLOWED_CONNECT = [
   "'self'",
   'https:',
@@ -335,8 +338,18 @@ const ALLOWED_CONNECT = [
   'https://*.llamarpc.com',
   'wss://avalanche-fuji.drpc.org',
   'https://*.g.alchemy.com',
+  // Solana RPC — needed for the crypto donation flow's wallet/tx-sending
+  // step, which calls these directly from the browser (not proxied
+  // through our own backend). Without these, sendTransaction/getBalance
+  // etc. calls from the connected wallet would be silently blocked by
+  // CSP — looks like "the wallet doesn't work" with no obvious cause.
+  'https://api.mainnet-beta.solana.com',
+  'https://api.devnet.solana.com',
+  'https://*.solana-mainnet.g.alchemy.com',
+  'https://*.solana-devnet.g.alchemy.com',
   ...(process.env.CSP_CONNECT_EXTRA?.split(',').map((s) => s.trim()).filter(Boolean) ?? []),
 ];
+ 
 
 app.use(
   helmet.contentSecurityPolicy({
@@ -460,6 +473,9 @@ app.use('/api/quiz/web2', quizStatsRoutes);
 app.use('/api', quizPaymentMethodsRoutes);
 app.use('/api', donationButtonRoutes); 
 app.use('/api', donationCheckoutRoutes);
+app.use('/api', donationStatusRoutes);
+app.use('/api/donations', donationCryptoQuoteRouter);
+app.use('/api/donations', donationCryptoRouter);
 app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);

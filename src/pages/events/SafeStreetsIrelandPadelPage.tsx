@@ -1,5 +1,5 @@
 // src/pages/events/SafeStreetsIrelandPadelPage.tsx
-import React from 'react';
+import React from "react";
 import {
   ArrowRight,
   Bus,
@@ -7,6 +7,7 @@ import {
   Car,
   Clock,
   Copy,
+  CreditCard,
   Dumbbell,
   Facebook,
   ExternalLink,
@@ -24,51 +25,72 @@ import {
   TrainFront,
   Trophy,
   Users,
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+  Wallet,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 
-import TicketPurchaseFlow from '../../components/Quiz/tickets/TicketPurchaseFlow';
+import TicketPurchaseFlow from "../../components/Quiz/tickets/TicketPurchaseFlow";
+import DonationModal from "../../components/donationModal/DonationModal";
 
-const ROOM_ID = 'D932475520C24365';
+const ROOM_ID = (
+  (import.meta.env.VITE_safeStreets as string | undefined) ||
+  (import.meta.env.VITE_SAFE_STREETS_ROOM_ID as string | undefined) ||
+  "D932475520C24365"
+).trim();
 
-const EVENT_SLUG = '/events/safe-streets-ireland-padel';
-const EVENT_NAME = 'Safe Streets Ireland Padel Fundraiser';
-const EVENT_DATE = '27 June';
-const EVENT_YEAR = '2026';
-const EVENT_TIME = '3:00pm – 5:00pm';
-const EVENT_LOCATION = 'House of Padel';
-const EVENT_ADDRESS = '5 Old Belgard Rd, Cookstown Industrial Estate, Dublin, D24 WD00';
+const DONATION_CLUB_ID =
+  (import.meta.env.VITE_DONATION_CLUB_ID as string | undefined)?.trim() ||
+  "e14cce81-e3d0-4668-a199-5cb9e7a4539b";
+
+const EVENT_SLUG = "/events/safe-streets-ireland-padel";
+const EVENT_NAME = "Safe Streets Ireland Padel Fundraiser";
+const EVENT_DATE = "27 June";
+const EVENT_YEAR = "2026";
+const EVENT_TIME = "3:00pm – 5:00pm";
+const EVENT_LOCATION = "House of Padel";
+const EVENT_ADDRESS =
+  "5 Old Belgard Rd, Cookstown Industrial Estate, Dublin, D24 WD00";
 const EVENT_FULL_ADDRESS = `${EVENT_LOCATION}, ${EVENT_ADDRESS}`;
 
-const TOURNAMENT_TICKET_PRICE = '€25';
-const PLAY_TIME_TICKET_PRICE = '€10';
-const SPECTATOR_TICKET_PRICE = '€5';
+const TOURNAMENT_TICKET_PRICE = "€25";
+const PLAY_TIME_TICKET_PRICE = "€10";
 
-const SAFE_STREETS_URL = 'https://safestreetsireland.com/';
-const SAFE_STREETS_INSTAGRAM_URL = 'https://www.instagram.com/safestreetsireland/';
-const SAFE_STREETS_LINKEDIN_URL = 'https://www.linkedin.com/company/safe-streets-ireland/';
-const SAFE_STREETS_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61590416144888';
-const SUPERTEAM_URL = 'https://x.com/superteamIE';
-const TFI_JOURNEY_PLANNER_URL = 'https://www.transportforireland.ie/plan-a-journey/';
-const LUAS_RED_LINE_URL = 'https://www.luas.ie/luas-red-line-stops/';
+const SAFE_STREETS_URL = "https://safestreetsireland.com/";
+const SAFE_STREETS_INSTAGRAM_URL =
+  "https://www.instagram.com/safestreetsireland/";
+const SAFE_STREETS_LINKEDIN_URL =
+  "https://www.linkedin.com/company/safe-streets-ireland/";
+const SAFE_STREETS_FACEBOOK_URL =
+  "https://www.facebook.com/profile.php?id=61590416144888";
+const SUPERTEAM_URL = "https://x.com/superteamIE";
+const TFI_JOURNEY_PLANNER_URL =
+  "https://www.transportforireland.ie/plan-a-journey/";
+const LUAS_RED_LINE_URL = "https://www.luas.ie/luas-red-line-stops/";
 
-const SAFE_STREETS_LOGO = '/partner/SSI_LOGO_TRANSPARENT.png';
-const SUPERTEAM_LOGO = '/partner/superteam_ireland_logo.jpeg';
+const SAFE_STREETS_LOGO = "/partner/SSI_LOGO_TRANSPARENT.png";
+const SUPERTEAM_LOGO = "/partner/superteam_ireland_logo.jpeg";
 
 const HERO_IMAGE_SRC =
-  'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1600&q=80';
+  "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1600&q=80";
 
 const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(
-  EVENT_FULL_ADDRESS
+  EVENT_FULL_ADDRESS,
 )}&output=embed`;
 
 const MAP_DIRECTIONS_URL = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-  EVENT_FULL_ADDRESS
+  EVENT_FULL_ADDRESS,
 )}`;
 
 type PublicRoomInfo = {
   roomId: string;
-  status: 'draft' | 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled' | string;
+  status:
+    | "draft"
+    | "scheduled"
+    | "open"
+    | "live"
+    | "completed"
+    | "cancelled"
+    | string;
   capacity?: {
     ticketSalesOpen: boolean;
     ticketSalesCloseReason?: string | null;
@@ -96,7 +118,7 @@ function usePublicRoomInfo(roomId: string) {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data?.error || 'Failed to load room status');
+          throw new Error(data?.error || "Failed to load room status");
         }
 
         if (!cancelled) {
@@ -106,7 +128,9 @@ function usePublicRoomInfo(roomId: string) {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load room status');
+          setError(
+            err instanceof Error ? err.message : "Failed to load room status",
+          );
           setLoading(false);
         }
       }
@@ -127,115 +151,113 @@ function usePublicRoomInfo(roomId: string) {
 
 function useEventSeo() {
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const title = `${EVENT_NAME} | ${EVENT_DATE} ${EVENT_YEAR} | FundRaisely`;
     const description =
-      'Buy tickets for the Safe Streets Ireland padel fundraiser at House of Padel on 27 June 2026, 3pm to 5pm. Choose tournament entry, a €10 play-time ticket or a €5 spectator ticket and support safer streets, stronger communities and brighter futures.';
+      "Buy tickets or donate to the Safe Streets Ireland padel fundraiser at House of Padel on 27 June 2026, 3pm to 5pm. Choose tournament entry or a €10 play-time ticket, or support the campaign with a card, Apple Pay, Google Pay or Solana crypto donation.";
 
     document.title = title;
 
     const setMeta = (name: string, content: string) => {
-      let tag = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      let tag = document.querySelector(
+        `meta[name="${name}"]`,
+      ) as HTMLMetaElement | null;
 
       if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('name', name);
+        tag = document.createElement("meta");
+        tag.setAttribute("name", name);
         document.head.appendChild(tag);
       }
 
-      tag.setAttribute('content', content);
+      tag.setAttribute("content", content);
     };
 
     const setPropertyMeta = (property: string, content: string) => {
-      let tag = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
+      let tag = document.querySelector(
+        `meta[property="${property}"]`,
+      ) as HTMLMetaElement | null;
 
       if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('property', property);
+        tag = document.createElement("meta");
+        tag.setAttribute("property", property);
         document.head.appendChild(tag);
       }
 
-      tag.setAttribute('content', content);
+      tag.setAttribute("content", content);
     };
 
-    setMeta('description', description);
+    setMeta("description", description);
     setMeta(
-      'keywords',
-      'Safe Streets Ireland, padel fundraiser, youth crime prevention Ireland, knife crime prevention Ireland, community fundraiser, House of Padel, Cookstown Industrial Estate, Tallaght, FundRaisely, Superteam Ireland'
+      "keywords",
+      "Safe Streets Ireland, padel fundraiser, youth crime prevention Ireland, knife crime prevention Ireland, community fundraiser, House of Padel, Cookstown Industrial Estate, Tallaght, FundRaisely, Superteam Ireland",
     );
 
-    setPropertyMeta('og:title', title);
-    setPropertyMeta('og:description', description);
-    setPropertyMeta('og:type', 'event');
-    setPropertyMeta('og:image', SAFE_STREETS_LOGO);
-    setPropertyMeta('og:url', `${window.location.origin}${EVENT_SLUG}`);
+    setPropertyMeta("og:title", title);
+    setPropertyMeta("og:description", description);
+    setPropertyMeta("og:type", "event");
+    setPropertyMeta("og:image", SAFE_STREETS_LOGO);
+    setPropertyMeta("og:url", `${window.location.origin}${EVENT_SLUG}`);
 
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    let canonical = document.querySelector(
+      'link[rel="canonical"]',
+    ) as HTMLLinkElement | null;
 
     if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
 
-    canonical.setAttribute('href', `${window.location.origin}${EVENT_SLUG}`);
+    canonical.setAttribute("href", `${window.location.origin}${EVENT_SLUG}`);
 
-    const existingJsonLd = document.getElementById('safe-streets-padel-jsonld');
+    const existingJsonLd = document.getElementById("safe-streets-padel-jsonld");
     existingJsonLd?.remove();
 
-    const jsonLd = document.createElement('script');
-    jsonLd.id = 'safe-streets-padel-jsonld';
-    jsonLd.type = 'application/ld+json';
+    const jsonLd = document.createElement("script");
+    jsonLd.id = "safe-streets-padel-jsonld";
+    jsonLd.type = "application/ld+json";
     jsonLd.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'Event',
+      "@context": "https://schema.org",
+      "@type": "Event",
       name: EVENT_NAME,
       description,
-      startDate: '2026-06-27T15:00:00+01:00',
-      endDate: '2026-06-27T17:00:00+01:00',
-      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-      eventStatus: 'https://schema.org/EventScheduled',
+      startDate: "2026-06-27T15:00:00+01:00",
+      endDate: "2026-06-27T17:00:00+01:00",
+      eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+      eventStatus: "https://schema.org/EventScheduled",
       location: {
-        '@type': 'Place',
+        "@type": "Place",
         name: EVENT_LOCATION,
         address: {
-          '@type': 'PostalAddress',
-          streetAddress: '5 Old Belgard Rd, Cookstown Industrial Estate',
-          addressLocality: 'Dublin',
-          postalCode: 'D24 WD00',
-          addressCountry: 'IE',
+          "@type": "PostalAddress",
+          streetAddress: "5 Old Belgard Rd, Cookstown Industrial Estate",
+          addressLocality: "Dublin",
+          postalCode: "D24 WD00",
+          addressCountry: "IE",
         },
       },
       offers: [
         {
-          '@type': 'Offer',
-          name: 'Tournament Entry',
-          price: '25',
-          priceCurrency: 'EUR',
-          availability: 'https://schema.org/InStock',
+          "@type": "Offer",
+          name: "Tournament Entry",
+          price: "25",
+          priceCurrency: "EUR",
+          availability: "https://schema.org/InStock",
           url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
         },
         {
-          '@type': 'Offer',
-          name: 'Play Time Ticket',
-          price: '10',
-          priceCurrency: 'EUR',
-          availability: 'https://schema.org/InStock',
-          url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
-        },
-        {
-          '@type': 'Offer',
-          name: 'Spectator Ticket',
-          price: '5',
-          priceCurrency: 'EUR',
-          availability: 'https://schema.org/InStock',
+          "@type": "Offer",
+          name: "Play Time Ticket",
+          price: "10",
+          priceCurrency: "EUR",
+          availability: "https://schema.org/InStock",
           url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
         },
       ],
       organizer: {
-        '@type': 'Organization',
-        name: 'Safe Streets Ireland',
+        "@type": "Organization",
+        name: "Safe Streets Ireland",
         url: SAFE_STREETS_URL,
         sameAs: [
           SAFE_STREETS_INSTAGRAM_URL,
@@ -245,12 +267,12 @@ function useEventSeo() {
       },
       sponsor: [
         {
-          '@type': 'Organization',
-          name: 'FundRaisely',
+          "@type": "Organization",
+          name: "FundRaisely",
         },
         {
-          '@type': 'Organization',
-          name: 'Superteam Ireland',
+          "@type": "Organization",
+          name: "Superteam Ireland",
           url: SUPERTEAM_URL,
         },
       ],
@@ -268,6 +290,8 @@ function useEventSeo() {
 export default function SafeStreetsIrelandPadelPage() {
   useEventSeo();
 
+  const [isDonateModalOpen, setIsDonateModalOpen] = React.useState(false);
+
   const {
     roomInfo,
     loading: roomStatusLoading,
@@ -277,36 +301,38 @@ export default function SafeStreetsIrelandPadelPage() {
   const hasLinkedRoom = Boolean(ROOM_ID);
 
   const ticketSalesOpen = roomInfo?.capacity?.ticketSalesOpen ?? true;
-  const roomStatus = roomInfo?.status ?? 'scheduled';
+  const roomStatus = roomInfo?.status ?? "scheduled";
 
   const eventPageUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}${EVENT_SLUG}` : '';
+    typeof window !== "undefined"
+      ? `${window.location.origin}${EVENT_SLUG}`
+      : "";
 
   const ticketBuyUrl =
-    typeof window !== 'undefined'
+    typeof window !== "undefined"
       ? `${window.location.origin}/tickets/buy/${ROOM_ID}`
       : `/tickets/buy/${ROOM_ID}`;
 
   const shouldShowEnded =
-    hasLinkedRoom && (roomStatus === 'completed' || roomStatus === 'cancelled');
+    hasLinkedRoom && (roomStatus === "completed" || roomStatus === "cancelled");
 
   const shouldShowHoldTight =
     hasLinkedRoom &&
     !ticketSalesOpen &&
-    roomStatus !== 'completed' &&
-    roomStatus !== 'cancelled';
+    roomStatus !== "completed" &&
+    roomStatus !== "cancelled";
 
   const scrollToTickets = () => {
     const isDesktop =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(min-width: 1024px)').matches;
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches;
 
-    const mobileEl = document.getElementById('event-tickets-mobile');
-    const desktopEl = document.getElementById('event-tickets');
+    const mobileEl = document.getElementById("event-tickets-mobile");
+    const desktopEl = document.getElementById("event-tickets");
 
     const el = isDesktop ? desktopEl : mobileEl || desktopEl;
 
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -355,6 +381,11 @@ export default function SafeStreetsIrelandPadelPage() {
               >
                 Get Ticket
               </button>
+
+              <DonateButton
+                className="hidden sm:inline-flex"
+                onClick={() => setIsDonateModalOpen(true)}
+              />
             </div>
           </div>
 
@@ -373,12 +404,15 @@ export default function SafeStreetsIrelandPadelPage() {
               </h1>
 
               <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-white/92">
-                Join <span className="font-black">Safe Streets Ireland</span> for a padel
-                fundraiser on <span className="font-black">{EVENT_DATE}</span> at{' '}
-                <span className="font-black">{EVENT_LOCATION}</span>. The first half is the
-                tournament, followed by open play time in the second half. Choose a tournament,
-                play-time or spectator ticket and support a community-led campaign working to reduce
-                youth violence through prevention, education, action and opportunity.
+                Join <span className="font-black">Safe Streets Ireland</span>{" "}
+                for a padel fundraiser on{" "}
+                <span className="font-black">{EVENT_DATE}</span> at{" "}
+                <span className="font-black">{EVENT_LOCATION}</span>. The first
+                half is the tournament, followed by open play time in the second
+                half. Choose a tournament or play-time ticket, or donate if you
+                cannot attend, and support a community-led campaign working to
+                reduce youth violence through prevention, education, action and
+                opportunity.
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -404,7 +438,13 @@ export default function SafeStreetsIrelandPadelPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Badge>Tournament: {TOURNAMENT_TICKET_PRICE}</Badge>
                 <Badge>Play time: {PLAY_TIME_TICKET_PRICE}</Badge>
-                <Badge>Spectator: {SPECTATOR_TICKET_PRICE}</Badge>
+              </div>
+
+              <div className="mt-5 max-w-2xl">
+                <DonationPaymentCard
+                  tone="hero"
+                  onDonateClick={() => setIsDonateModalOpen(true)}
+                />
               </div>
             </div>
 
@@ -455,6 +495,7 @@ export default function SafeStreetsIrelandPadelPage() {
                   roomInfo={roomInfo}
                   ticketBuyUrl={ticketBuyUrl}
                   eventPageUrl={eventPageUrl}
+                  onDonateClick={() => setIsDonateModalOpen(true)}
                 />
               </div>
             </div>
@@ -497,7 +538,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 <InfoPanel
                   icon={<Ticket className="h-6 w-6" />}
                   title="Tickets"
-                  text={`Choose ${TOURNAMENT_TICKET_PRICE} tournament entry to compete, ${PLAY_TIME_TICKET_PRICE} play-time entry to play in the second half only, or a ${SPECTATOR_TICKET_PRICE} spectator ticket to attend and support.`}
+                  text={`Choose ${TOURNAMENT_TICKET_PRICE} tournament entry to compete, ${PLAY_TIME_TICKET_PRICE} play-time entry to play in the second half only, or donate if you cannot attend.`}
                 />
               </div>
 
@@ -509,21 +550,25 @@ export default function SafeStreetsIrelandPadelPage() {
 
                   <div>
                     <h3 className="text-lg font-black text-[#17120d]">
-                      Three ways to take part.
+                      Two ways to play, plus an option to donate.
                     </h3>
 
                     <p className="mt-2 text-sm leading-7 text-[#5f5044]">
-                      The first half of the event is the tournament. The second half is open play
-                      time. Tournament players take part in both parts, play-time ticket holders
-                      join for the second-half padel session, and spectators can come along to
-                      support without playing.
+                      The first half of the event is the tournament. The second
+                      half is open play time. Tournament players take part in
+                      both parts, play-time ticket holders join for the
+                      second-half padel session, and supporters who cannot
+                      attend can still donate online.
                     </p>
                   </div>
                 </div>
               </div>
             </SectionCard>
 
-            <SectionCard eyebrow="Ticket types" title="Choose how you want to take part">
+            <SectionCard
+              eyebrow="Ticket types"
+              title="Choose how you want to take part"
+            >
               <div className="grid gap-4">
                 <TicketTypeCard
                   icon={<Trophy className="h-6 w-6" />}
@@ -531,9 +576,9 @@ export default function SafeStreetsIrelandPadelPage() {
                   price={TOURNAMENT_TICKET_PRICE}
                   description="For players who want to compete in the first-half organised padel tournament and then stay for the second-half play time."
                   bullets={[
-                    'Compete in the tournament',
-                    'Includes second-half play time',
-                    'Best for players who want the full event experience',
+                    "Compete in the tournament",
+                    "Includes second-half play time",
+                    "Best for players who want the full event experience",
                   ]}
                   highlight
                 />
@@ -544,22 +589,16 @@ export default function SafeStreetsIrelandPadelPage() {
                   price={PLAY_TIME_TICKET_PRICE}
                   description="For people who want to play padel in the second half of the event without entering the tournament."
                   bullets={[
-                    'Second-half padel play time',
-                    'No tournament entry or scoring',
-                    'Good for casual players and beginners',
+                    "Second-half padel play time",
+                    "No tournament entry or scoring",
+                    "Good for casual players and beginners",
                   ]}
                 />
+              </div>
 
-                <TicketTypeCard
-                  icon={<Users className="h-6 w-6" />}
-                  name="Spectator Ticket"
-                  price={SPECTATOR_TICKET_PRICE}
-                  description="For supporters who want to attend, watch the tournament, cheer people on and support Safe Streets Ireland without playing padel."
-                  bullets={[
-                    'Attend and support the fundraiser',
-                    'Watch the tournament and play time',
-                    'No padel court time included',
-                  ]}
+              <div className="mt-6">
+                <DonationSupportCard
+                  onDonateClick={() => setIsDonateModalOpen(true)}
                 />
               </div>
 
@@ -585,7 +624,10 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
             </SectionCard>
 
-            <SectionCard eyebrow="How to get there" title="House of Padel, Cookstown Industrial Estate">
+            <SectionCard
+              eyebrow="How to get there"
+              title="House of Padel, Cookstown Industrial Estate"
+            >
               <div className="overflow-hidden rounded-[1.75rem] border border-[#e5d4c2] bg-[#fffaf4]">
                 <iframe
                   title="Map showing House of Padel, 5 Old Belgard Road, Cookstown Industrial Estate, Dublin"
@@ -632,24 +674,29 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
 
               <div className="mt-6 rounded-2xl border border-[#eabf99] bg-[#fff6ed] p-5">
-                <h3 className="text-lg font-black text-[#17120d]">Public transport notes</h3>
+                <h3 className="text-lg font-black text-[#17120d]">
+                  Public transport notes
+                </h3>
 
                 <ul className="mt-3 space-y-2 text-sm leading-7 text-[#5f5044]">
                   <li>
-                    <span className="font-black text-[#17120d]">Luas:</span> Red Line stops to
-                    check are Cookstown, Belgard and Tallaght. The right stop may depend on where
-                    you are travelling from and whether you are walking or connecting by bus.
+                    <span className="font-black text-[#17120d]">Luas:</span> Red
+                    Line stops to check are Cookstown, Belgard and Tallaght. The
+                    right stop may depend on where you are travelling from and
+                    whether you are walking or connecting by bus.
                   </li>
                   <li>
-                    <span className="font-black text-[#17120d]">Bus:</span> Cookstown Road and
-                    Tallaght services are the most relevant. Routes shown on public transport
-                    resources include 27, 56A and W62, but attendees should use TFI or Google Maps
-                    for live routing on the day.
+                    <span className="font-black text-[#17120d]">Bus:</span>{" "}
+                    Cookstown Road and Tallaght services are the most relevant.
+                    Routes shown on public transport resources include 27, 56A
+                    and W62, but attendees should use TFI or Google Maps for
+                    live routing on the day.
                   </li>
                   <li>
-                    <span className="font-black text-[#17120d]">Tip:</span> search for “House of
-                    Padel, D24 WD00” rather than only “Old Belgard Road” so your map app brings you
-                    to the venue entrance area.
+                    <span className="font-black text-[#17120d]">Tip:</span>{" "}
+                    search for “House of Padel, D24 WD00” rather than only “Old
+                    Belgard Road” so your map app brings you to the venue
+                    entrance area.
                   </li>
                 </ul>
               </div>
@@ -685,16 +732,20 @@ export default function SafeStreetsIrelandPadelPage() {
                     </h3>
 
                     <p className="mt-2 text-sm leading-7 text-[#5f5044]">
-                      This padel fundraiser brings people together around a positive message:
-                      safer communities are possible when people show up, support each other and
-                      create better choices for young people.
+                      This padel fundraiser brings people together around a
+                      positive message: safer communities are possible when
+                      people show up, support each other and create better
+                      choices for young people.
                     </p>
                   </div>
                 </div>
               </div>
             </SectionCard>
 
-            <SectionCard eyebrow="Event format" title="Tournament first, play time second">
+            <SectionCard
+              eyebrow="Event format"
+              title="Tournament first, play time second"
+            >
               <div className="grid gap-4 md:grid-cols-2">
                 <InfoPanel
                   icon={<Trophy className="h-6 w-6" />}
@@ -710,11 +761,14 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
             </SectionCard>
 
-            <SectionCard eyebrow="What to expect" title="Fun, friendly padel for a serious cause">
+            <SectionCard
+              eyebrow="What to expect"
+              title="Fun, friendly padel for a serious cause"
+            >
               <p className="mb-6 text-base leading-8 text-[#5f5044]">
-                This is a chance to bring people together in a positive setting, support the
-                Safe Streets Ireland campaign, and show that community action can be active,
-                social and hopeful.
+                This is a chance to bring people together in a positive setting,
+                support the Safe Streets Ireland campaign, and show that
+                community action can be active, social and hopeful.
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -744,11 +798,15 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
             </SectionCard>
 
-            <SectionCard eyebrow="Campaign storytelling" title="More than a fundraiser">
+            <SectionCard
+              eyebrow="Campaign storytelling"
+              title="More than a fundraiser"
+            >
               <p className="mb-6 text-base leading-8 text-[#5f5044]">
-                Safe Streets Ireland is not just asking people to attend an event. The campaign
-                is inviting people to stand behind a message: violence is not inevitable, and
-                communities can help create better choices for young people.
+                Safe Streets Ireland is not just asking people to attend an
+                event. The campaign is inviting people to stand behind a
+                message: violence is not inevitable, and communities can help
+                create better choices for young people.
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -778,12 +836,16 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
             </SectionCard>
 
-            <SectionCard eyebrow="Campaign message" title="Violence is not inevitable">
+            <SectionCard
+              eyebrow="Campaign message"
+              title="Violence is not inevitable"
+            >
               <div className="rounded-[1.75rem] bg-[#d66c18] p-6 text-white sm:p-8">
                 <p className="text-lg leading-8 text-white/92">
-                  Safe Streets Ireland’s message is rooted in prevention, education,
-                  community action and hope. This event is one way for supporters to stand
-                  with the campaign and help create positive opportunities for young people.
+                  Safe Streets Ireland’s message is rooted in prevention,
+                  education, community action and hope. This event is one way
+                  for supporters to stand with the campaign and help create
+                  positive opportunities for young people.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -805,8 +867,9 @@ export default function SafeStreetsIrelandPadelPage() {
                     Buy ticket
                     <Ticket className="h-4 w-4" />
                   </button>
-                </div>
 
+                  <DonateButton onClick={() => setIsDonateModalOpen(true)} />
+                </div>
               </div>
             </SectionCard>
 
@@ -820,9 +883,9 @@ export default function SafeStreetsIrelandPadelPage() {
               </h2>
 
               <p className="mt-4 text-base leading-8 text-[#5f5044]">
-                FundRaisely helps clubs, charities and community groups run fundraising
-                events, sell tickets, track payments, manage attendance and keep clearer
-                post-event records.
+                FundRaisely helps clubs, charities and community groups run
+                fundraising events, sell tickets, track payments, manage
+                attendance and keep clearer post-event records.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -860,14 +923,27 @@ export default function SafeStreetsIrelandPadelPage() {
               roomInfo={roomInfo}
               ticketBuyUrl={ticketBuyUrl}
               eventPageUrl={eventPageUrl}
+              onDonateClick={() => setIsDonateModalOpen(true)}
             />
 
             <QuickDetailsCard />
+
+            <div className="mt-4">
+              <DonationPaymentCard
+                onDonateClick={() => setIsDonateModalOpen(true)}
+              />
+            </div>
 
             <ShareEventCard eventPageUrl={eventPageUrl} />
           </aside>
         </div>
       </main>
+
+      <DonationModal
+        clubId={DONATION_CLUB_ID}
+        isOpen={isDonateModalOpen}
+        onClose={() => setIsDonateModalOpen(false)}
+      />
     </div>
   );
 }
@@ -999,8 +1075,8 @@ function TicketTypeCard({
     <div
       className={`rounded-[1.75rem] border p-6 ${
         highlight
-          ? 'border-[#df741d] bg-[#fff6ed] shadow-sm'
-          : 'border-[#eadccc] bg-[#fffdf9]'
+          ? "border-[#df741d] bg-[#fff6ed] shadow-sm"
+          : "border-[#eadccc] bg-[#fffdf9]"
       }`}
     >
       <div className="grid gap-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
@@ -1086,7 +1162,8 @@ function QuickDetailsCard() {
         <div className="flex items-start gap-3">
           <CalendarDays className="mt-0.5 h-4 w-4 text-[#df741d]" />
           <span>
-            <strong className="text-[#17120d]">Date:</strong> {EVENT_DATE} {EVENT_YEAR}
+            <strong className="text-[#17120d]">Date:</strong> {EVENT_DATE}{" "}
+            {EVENT_YEAR}
           </span>
         </div>
 
@@ -1100,16 +1177,16 @@ function QuickDetailsCard() {
         <div className="flex items-start gap-3">
           <MapPin className="mt-0.5 h-4 w-4 text-[#df741d]" />
           <span>
-            <strong className="text-[#17120d]">Venue:</strong> {EVENT_FULL_ADDRESS}
+            <strong className="text-[#17120d]">Venue:</strong>{" "}
+            {EVENT_FULL_ADDRESS}
           </span>
         </div>
 
         <div className="flex items-start gap-3">
           <Ticket className="mt-0.5 h-4 w-4 text-[#df741d]" />
           <span>
-            <strong className="text-[#17120d]">Tickets:</strong> Tournament{' '}
-            {TOURNAMENT_TICKET_PRICE}; Play Time {PLAY_TIME_TICKET_PRICE}; Spectator{' '}
-            {SPECTATOR_TICKET_PRICE}.
+            <strong className="text-[#17120d]">Tickets:</strong> Tournament{" "}
+            {TOURNAMENT_TICKET_PRICE}; Play Time {PLAY_TIME_TICKET_PRICE}.
           </span>
         </div>
       </div>
@@ -1159,7 +1236,7 @@ function PartnerLogoCard({
 
   if (!href) return content;
 
-  const isInternal = href.startsWith('/');
+  const isInternal = href.startsWith("/");
 
   if (isInternal) {
     return (
@@ -1170,7 +1247,12 @@ function PartnerLogoCard({
   }
 
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${name}`}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Open ${name}`}
+    >
       {content}
     </a>
   );
@@ -1181,7 +1263,9 @@ function FundraiselyPartnerCard() {
     <Link to="/" aria-label="Open FundRaisely">
       <div className="flex min-h-[112px] items-center justify-center rounded-2xl border border-white/20 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:shadow-sm">
         <div>
-          <p className="text-xl font-black tracking-tight text-[#17120d]">FundRaisely</p>
+          <p className="text-xl font-black tracking-tight text-[#17120d]">
+            FundRaisely
+          </p>
           <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#9f4d10]">
             Fundraising partner
           </p>
@@ -1201,6 +1285,7 @@ function MobileTicketPanel({
   roomInfo,
   ticketBuyUrl,
   eventPageUrl,
+  onDonateClick,
 }: {
   hasLinkedRoom: boolean;
   shouldShowEnded: boolean;
@@ -1211,6 +1296,7 @@ function MobileTicketPanel({
   roomInfo: PublicRoomInfo | null;
   ticketBuyUrl: string;
   eventPageUrl: string;
+  onDonateClick: () => void;
 }) {
   return (
     <div className="rounded-[1.75rem] border border-white/25 bg-white p-4 text-[#17120d] shadow-[0_18px_45px_rgba(0,0,0,0.16)]">
@@ -1229,6 +1315,7 @@ function MobileTicketPanel({
         roomInfo={roomInfo}
         ticketBuyUrl={ticketBuyUrl}
         eventPageUrl={eventPageUrl}
+        onDonateClick={onDonateClick}
       />
     </div>
   );
@@ -1244,6 +1331,7 @@ function DesktopTicketPanel({
   roomInfo,
   ticketBuyUrl,
   eventPageUrl,
+  onDonateClick,
 }: {
   hasLinkedRoom: boolean;
   shouldShowEnded: boolean;
@@ -1254,6 +1342,7 @@ function DesktopTicketPanel({
   roomInfo: PublicRoomInfo | null;
   ticketBuyUrl: string;
   eventPageUrl: string;
+  onDonateClick: () => void;
 }) {
   return (
     <>
@@ -1272,6 +1361,7 @@ function DesktopTicketPanel({
         roomInfo={roomInfo}
         ticketBuyUrl={ticketBuyUrl}
         eventPageUrl={eventPageUrl}
+        onDonateClick={onDonateClick}
       />
     </>
   );
@@ -1292,24 +1382,24 @@ function TicketIntroCard({
 
       <h3 className="mt-2 text-2xl font-black text-[#17120d]">
         {shouldShowEnded
-          ? 'Event unavailable'
+          ? "Event unavailable"
           : shouldShowHoldTight
-            ? 'Tickets opening soon'
-            : 'Get your event ticket'}
+            ? "Tickets opening soon"
+            : "Get your event ticket"}
       </h3>
 
       <p className="mt-2 text-sm leading-7 text-[#5f5044]">
         {shouldShowEnded
-          ? 'This event has ended or is no longer available.'
+          ? "This event has ended or is no longer available."
           : shouldShowHoldTight
-            ? 'Ticket sales are not open right now. Once the organiser opens the room, this panel will show the live ticket flow.'
+            ? "Ticket sales are not open right now. Once the organiser opens the room, this panel will show the live ticket flow."
             : `Book your place for the Safe Streets Ireland padel fundraiser on ${EVENT_DATE}, ${EVENT_TIME}.`}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <SmallPill>{EVENT_DATE}</SmallPill>
         <SmallPill>{EVENT_TIME}</SmallPill>
-        <SmallPill>3 ticket types</SmallPill>
+        <SmallPill>2 ticket types</SmallPill>
       </div>
     </div>
   );
@@ -1325,6 +1415,7 @@ function TicketPanelBody({
   roomInfo,
   ticketBuyUrl,
   eventPageUrl,
+  onDonateClick,
 }: {
   hasLinkedRoom: boolean;
   shouldShowEnded: boolean;
@@ -1335,6 +1426,7 @@ function TicketPanelBody({
   roomInfo: PublicRoomInfo | null;
   ticketBuyUrl: string;
   eventPageUrl: string;
+  onDonateClick: () => void;
 }) {
   if (!hasLinkedRoom) {
     return <TicketComingSoonCard eventPageUrl={eventPageUrl} />;
@@ -1346,18 +1438,36 @@ function TicketPanelBody({
 
   return (
     <>
-      {roomStatusLoading && <TicketPanelStatusNote text="Checking ticket status..." />}
+      {roomStatusLoading && (
+        <TicketPanelStatusNote text="Checking ticket status..." />
+      )}
 
       {roomStatusError && (
         <TicketPanelStatusNote
           tone="warning"
           text="We could not check the room status, but the ticket panel is still available below."
-        />
+        >
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-white/70 p-4">
+            <p className="text-sm font-black text-amber-900">
+              Can’t attend but want to support Safe Streets Ireland?
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-800">
+              You can still donate by card, Apple Pay, Google Pay or crypto on
+              Solana.
+            </p>
+            <div className="mt-3">
+              <DonateButton onClick={onDonateClick} />
+            </div>
+          </div>
+        </TicketPanelStatusNote>
       )}
 
       {shouldShowHoldTight ? (
         <HoldTightTicketCard
-          reason={roomInfo?.capacity?.ticketSalesCloseReason || roomInfo?.capacity?.message}
+          reason={
+            roomInfo?.capacity?.ticketSalesCloseReason ||
+            roomInfo?.capacity?.message
+          }
         />
       ) : (
         <TicketPurchaseFlow roomId={ROOM_ID} mode="embedded" />
@@ -1380,8 +1490,8 @@ function TicketComingSoonCard({ eventPageUrl }: { eventPageUrl: string }) {
       </h3>
 
       <p className="mt-3 text-sm leading-7 text-[#5f5044]">
-        Once the Safe Streets Ireland room is created and linked, this panel will become
-        the live ticket purchase flow.
+        Once the Safe Streets Ireland room is created and linked, this panel
+        will become the live ticket purchase flow.
       </p>
 
       {eventPageUrl && (
@@ -1395,20 +1505,23 @@ function TicketComingSoonCard({ eventPageUrl }: { eventPageUrl: string }) {
 
 function TicketPanelStatusNote({
   text,
-  tone = 'neutral',
+  tone = "neutral",
+  children,
 }: {
   text: string;
-  tone?: 'neutral' | 'warning';
+  tone?: "neutral" | "warning";
+  children?: React.ReactNode;
 }) {
   return (
     <div
       className={`mb-4 rounded-2xl border p-4 text-sm leading-6 ${
-        tone === 'warning'
-          ? 'border-amber-200 bg-amber-50 text-amber-800'
-          : 'border-[#e5d4c2] bg-white text-[#5f5044]'
+        tone === "warning"
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : "border-[#e5d4c2] bg-white text-[#5f5044]"
       }`}
     >
-      {text}
+      <p>{text}</p>
+      {children}
     </div>
   );
 }
@@ -1424,8 +1537,8 @@ function HoldTightTicketCard({ reason }: { reason?: string | null }) {
         <h3 className="mt-2 text-3xl font-black leading-tight">Hold tight</h3>
 
         <p className="mt-3 text-sm leading-7 text-white/85">
-          Ticket sales are not open right now. Once the organiser opens the room, this
-          panel will automatically show the ticket purchase flow.
+          Ticket sales are not open right now. Once the organiser opens the
+          room, this panel will automatically show the ticket purchase flow.
         </p>
       </div>
 
@@ -1439,7 +1552,7 @@ function HoldTightTicketCard({ reason }: { reason?: string | null }) {
 }
 
 function EventEndedCard({ status }: { status: string }) {
-  const label = status === 'cancelled' ? 'cancelled' : 'ended';
+  const label = status === "cancelled" ? "cancelled" : "ended";
 
   return (
     <div className="rounded-[1.75rem] border border-[#e5d4c2] bg-white p-6 shadow-sm">
@@ -1480,47 +1593,220 @@ function DirectTicketLinkCard({ ticketBuyUrl }: { ticketBuyUrl: string }) {
   );
 }
 
+function DonateButton({
+  label = "Donate now",
+  className = "",
+  onClick,
+}: {
+  label?: string;
+  className?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`items-center justify-center gap-2 rounded-[10px] px-[18px] py-3 text-sm font-black shadow-sm transition hover:brightness-110 ${className}`}
+      style={{
+        background: "#42368f",
+        color: "#ffffff",
+        border: "none",
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SolanaMark({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 397 311" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient
+          id="safe-streets-solana-gradient"
+          x1="0"
+          y1="0"
+          x2="1"
+          y2="1"
+        >
+          <stop offset="0%" stopColor="#00FFA3" />
+          <stop offset="50%" stopColor="#03E1FF" />
+          <stop offset="100%" stopColor="#DC1FFF" />
+        </linearGradient>
+      </defs>
+      <path
+        fill="url(#safe-streets-solana-gradient)"
+        d="M64.6 237.9c2.4-2.4 5.7-3.8 9.1-3.8h316.6c5.7 0 8.6 6.9 4.5 10.9l-62.5 62.5c-2.4 2.4-5.7 3.8-9.1 3.8H6.6c-5.7 0-8.6-6.9-4.5-10.9l62.5-62.5Zm0-234.1C67 1.4 70.3 0 73.7 0h316.6c5.7 0 8.6 6.9 4.5 10.9l-62.5 62.5c-2.4 2.4-5.7 3.8-9.1 3.8H6.6C.9 77.2-2 70.3 2.1 66.3L64.6 3.8Zm267.7 116.6c-2.4-2.4-5.7-3.8-9.1-3.8H6.6c-5.7 0-8.6 6.9-4.5 10.9L64.6 190c2.4 2.4 5.7 3.8 9.1 3.8h316.6c5.7 0 8.6-6.9 4.5-10.9l-62.5-62.5Z"
+      />
+    </svg>
+  );
+}
+
+function DonationPaymentCard({
+  tone = "light",
+  onDonateClick,
+}: {
+  tone?: "light" | "hero";
+  onDonateClick: () => void;
+}) {
+  const isHero = tone === "hero";
+
+  return (
+    <div
+      className={`rounded-[1.75rem] border p-5 shadow-sm ${
+        isHero
+          ? "border-white/25 bg-white/16 text-white backdrop-blur"
+          : "border-[#e5d4c2] bg-white text-[#17120d]"
+      }`}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p
+            className={`text-xs font-black uppercase tracking-[0.18em] ${
+              isHero ? "text-white/75" : "text-[#df741d]"
+            }`}
+          >
+            Donations welcome
+          </p>
+
+          <h3 className="mt-2 text-xl font-black">
+            Can’t attend? You can still support the campaign.
+          </h3>
+
+          <p
+            className={`mt-2 text-sm leading-7 ${
+              isHero ? "text-white/86" : "text-[#5f5044]"
+            }`}
+          >
+            Donate by card through Stripe, including Apple Pay and Google Pay
+            where available, or donate with crypto on Solana.
+          </p>
+        </div>
+
+        <div className="shrink-0">
+          <DonateButton label="Donate now" onClick={onDonateClick} />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div
+          className={`flex items-center gap-3 rounded-2xl border p-3 ${
+            isHero
+              ? "border-white/20 bg-white/12"
+              : "border-[#eadccc] bg-[#fffaf4]"
+          }`}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#42368f]">
+            <CreditCard className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-black">Card payments</p>
+            <p
+              className={`text-xs ${isHero ? "text-white/75" : "text-[#7a6758]"}`}
+            >
+              Stripe, Apple Pay, Google Pay
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={`flex items-center gap-3 rounded-2xl border p-3 ${
+            isHero
+              ? "border-white/20 bg-white/12"
+              : "border-[#eadccc] bg-[#fffaf4]"
+          }`}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#17120d]">
+            <SolanaMark />
+          </div>
+          <div>
+            <p className="text-sm font-black">Crypto donations</p>
+            <p
+              className={`text-xs ${isHero ? "text-white/75" : "text-[#7a6758]"}`}
+            >
+              Accepted on Solana
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DonationSupportCard({ onDonateClick }: { onDonateClick: () => void }) {
+  return (
+    <div className="rounded-[1.75rem] border border-[#d8d1ff] bg-[#f7f5ff] p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#42368f] text-white">
+            <Wallet className="h-5 w-5" />
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-[#17120d]">
+              Want to support but not play?
+            </h3>
+
+            <p className="mt-2 text-sm leading-7 text-[#5f5044]">
+              You can make a donation instead. The donation button supports card
+              payments, Apple Pay, Google Pay and crypto donations on Solana.
+            </p>
+          </div>
+        </div>
+
+        <DonateButton label="Donate instead" onClick={onDonateClick} />
+      </div>
+    </div>
+  );
+}
 
 function SafeStreetsSocialLinks({
-  tone = 'dark',
+  tone = "dark",
   showLabel = true,
 }: {
-  tone?: 'hero' | 'dark';
+  tone?: "hero" | "dark";
   showLabel?: boolean;
 }) {
   const links = [
     {
-      label: 'Instagram',
+      label: "Instagram",
       href: SAFE_STREETS_INSTAGRAM_URL,
       icon: <Instagram className="h-4 w-4" />,
     },
     {
-      label: 'LinkedIn',
+      label: "LinkedIn",
       href: SAFE_STREETS_LINKEDIN_URL,
       icon: <Linkedin className="h-4 w-4" />,
     },
     {
-      label: 'Facebook',
+      label: "Facebook",
       href: SAFE_STREETS_FACEBOOK_URL,
       icon: <Facebook className="h-4 w-4" />,
     },
   ];
 
-  const labelClass = tone === 'hero' ? 'text-white/75' : 'text-[#7a6758]';
+  const labelClass = tone === "hero" ? "text-white/75" : "text-[#7a6758]";
   const linkClass =
-    tone === 'hero'
-      ? 'border-white/30 bg-white/12 text-white hover:bg-white/22'
-      : 'border-[#e5d4c2] bg-[#fffaf4] text-[#17120d] hover:bg-[#fff3e3]';
+    tone === "hero"
+      ? "border-white/30 bg-white/12 text-white hover:bg-white/22"
+      : "border-[#e5d4c2] bg-[#fffaf4] text-[#17120d] hover:bg-[#fff3e3]";
 
   return (
     <div>
       {showLabel && (
-        <p className={`text-xs font-black uppercase tracking-[0.18em] ${labelClass}`}>
+        <p
+          className={`text-xs font-black uppercase tracking-[0.18em] ${labelClass}`}
+        >
           Follow Safe Streets Ireland
         </p>
       )}
 
-      <div className={showLabel ? 'mt-3 flex flex-wrap gap-2' : 'flex items-center gap-2'}>
+      <div
+        className={
+          showLabel ? "mt-3 flex flex-wrap gap-2" : "flex items-center gap-2"
+        }
+      >
         {links.map((link) => (
           <a
             key={link.label}
@@ -1531,7 +1817,7 @@ function SafeStreetsSocialLinks({
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${linkClass}`}
           >
             {link.icon}
-            <span className={showLabel ? '' : 'sr-only'}>{link.label}</span>
+            <span className={showLabel ? "" : "sr-only"}>{link.label}</span>
           </a>
         ))}
       </div>
@@ -1568,8 +1854,8 @@ function ShareEventCard({ eventPageUrl }: { eventPageUrl: string }) {
       </h3>
 
       <p className="mt-2 text-sm leading-7 text-[#5f5044]">
-        Share the event page with players, supporters, partners and anyone who wants to
-        support Safe Streets Ireland.
+        Share the event page with players, supporters, partners and anyone who
+        wants to support Safe Streets Ireland.
       </p>
 
       <button
@@ -1578,7 +1864,7 @@ function ShareEventCard({ eventPageUrl }: { eventPageUrl: string }) {
         disabled={!eventPageUrl}
         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#e5d4c2] bg-white px-5 py-3 text-sm font-bold text-[#17120d] transition hover:bg-[#fff6ed] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {copied ? 'Copied' : 'Copy event link'}
+        {copied ? "Copied" : "Copy event link"}
         <Copy className="h-4 w-4" />
       </button>
 
@@ -1587,7 +1873,6 @@ function ShareEventCard({ eventPageUrl }: { eventPageUrl: string }) {
           {eventPageUrl}
         </p>
       )}
-
     </div>
   );
 }

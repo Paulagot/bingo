@@ -7,6 +7,7 @@ import { Header } from './components/GeneralSite2/Header';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import { Game } from './pages/Game';
 
+
 import { Landing } from './pages/Landing';
 import WhatsNew from './pages/WhatsNew';
 import FreeTrial from './pages/FreeTrial';
@@ -90,6 +91,10 @@ import SiteTermsPage from './pages/site/pages/legal/TermsPage';
 import SiteCookiesPage from './pages/site/pages/legal/CookiesPage';
 import CheckinPage from './pages/site/pages/CheckinPage';
 import SafeStreetsIrelandPadelPage from './pages/events/SafeStreetsIrelandPadelPage';
+const StandaloneDonatePage = lazy(() => import('./pages/donations/StandaloneDonatePage'));
+
+ const WalletIframeTestPage = lazy(() => import('./pages/WalletIframeTestPage'));
+ const CryptoDonationCheckoutPage = lazy(() => import('./pages/donations/CryptoDonationCheckoutPage'));
 
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -238,6 +243,19 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Routes>
+
+        //   <Route path="/dev/wallet-iframe-test" element={
+     <Suspense fallback={null}><WalletIframeTestPage /></Suspense>
+   } />
+
+   <Route
+  path="/donate/:clubId/crypto/:donationId"
+  element={
+    <Suspense fallback={null}>
+      <CryptoDonationCheckoutPage />
+    </Suspense>
+  }
+/>
         {/* 
           NEW PUBLIC MARKETING SITE
           These replace the old public marketing pages at live URLs.
@@ -625,6 +643,22 @@ export default function App() {
   element={
     <Suspense fallback={null}>
       <DonateEmbedPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/donate-now/:clubId"
+  element={
+    <Suspense fallback={null}>
+      <StandaloneDonatePage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/donate-now/:clubId/success"
+  element={
+    <Suspense fallback={null}>
+      <StandaloneDonatePage />
     </Suspense>
   }
 />
