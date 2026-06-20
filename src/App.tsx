@@ -91,6 +91,7 @@ import SiteTermsPage from './pages/site/pages/legal/TermsPage';
 import SiteCookiesPage from './pages/site/pages/legal/CookiesPage';
 import CheckinPage from './pages/site/pages/CheckinPage';
 import SafeStreetsIrelandPadelPage from './pages/events/SafeStreetsIrelandPadelPage';
+const StandaloneDonatePage = lazy(() => import('./pages/donations/StandaloneDonatePage'));
 
  const WalletIframeTestPage = lazy(() => import('./pages/WalletIframeTestPage'));
  const CryptoDonationCheckoutPage = lazy(() => import('./pages/donations/CryptoDonationCheckoutPage'));
@@ -642,6 +643,22 @@ export default function App() {
   element={
     <Suspense fallback={null}>
       <DonateEmbedPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/donate-now/:clubId"
+  element={
+    <Suspense fallback={null}>
+      <StandaloneDonatePage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/donate-now/:clubId/success"
+  element={
+    <Suspense fallback={null}>
+      <StandaloneDonatePage />
     </Suspense>
   }
 />

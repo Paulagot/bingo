@@ -17,6 +17,15 @@
  * domain (same domain that served THIS script), so the iframe content is
  * FundRaisely's own code. The club's page is the third-party context;
  * this script runs in that context and creates the overlay.
+ *
+ * TEMPORARY DIAGNOSTIC LOGGING (search [FR-DEBUG]) — added to find why
+ * the modal closes on localhost but not on staging. The postMessage
+ * listener's origin check below is the prime suspect: it's a strict
+ * equality check (event.origin !== baseUrl) with NO logging on
+ * rejection in the original code, so any origin mismatch fails
+ * completely silently — closeModal() simply never gets called, with
+ * no error, no warning, nothing. Remove all [FR-DEBUG] lines once root
+ * cause is confirmed.
  */
 
 (function () {
@@ -29,6 +38,8 @@
   var baseUrl = scriptTag
     ? new URL(scriptTag.src).origin
     : 'https://fundraisely.ie'; // fallback if currentScript isn't available (old browsers)
+
+  console.log('[FR-DEBUG donate.js] script initialized. scriptTag.src=', scriptTag ? scriptTag.src : '(no currentScript)', 'computed baseUrl=', baseUrl, 'this page location=', window.location.href);
 
   var MODAL_ID = 'fundraisely-donation-modal';
 
@@ -110,6 +121,8 @@
     iframe.setAttribute('allow', 'payment');
     iframe.setAttribute('loading', 'eager');
 
+    console.log('[FR-DEBUG donate.js] creating modal. iframe.src=', iframe.src);
+
     container.appendChild(closeBtn);
     container.appendChild(iframe);
     overlay.appendChild(container);
@@ -125,10 +138,14 @@
   }
 
   function closeModal() {
+    console.log('[FR-DEBUG donate.js] closeModal() called.');
     var modal = document.getElementById(MODAL_ID);
     if (modal) {
       document.body.removeChild(modal);
       document.removeEventListener('keydown', handleKeyDown);
+      console.log('[FR-DEBUG donate.js] modal element removed from DOM.');
+    } else {
+      console.warn('[FR-DEBUG donate.js] closeModal() called but no modal element found in DOM (id=' + MODAL_ID + ') — already closed?');
     }
   }
 
@@ -144,11 +161,24 @@
   // origin before acting on any message.
 
   window.addEventListener('message', function (event) {
+    // [FR-DEBUG] Log EVERY message this listener sees, matched or not —
+    // the original code's rejection path (event.origin !== baseUrl)
+    // returns silently with zero log output, which is exactly the kind
+    // of failure that looks identical to "nothing happened" from the
+    // outside. This line alone should reveal whether messages are even
+    // arriving here on staging, and if so, what event.origin actually
+    // is versus what baseUrl was computed as.
+    console.log('[FR-DEBUG donate.js] message event received. event.origin=', event.origin, 'baseUrl=', baseUrl, 'origins match=', event.origin === baseUrl, 'event.data=', event.data);
+
     // Only accept messages from FundRaisely's own origin
-    if (event.origin !== baseUrl) return;
+    if (event.origin !== baseUrl) {
+      console.warn('[FR-DEBUG donate.js] REJECTED message — event.origin (' + event.origin + ') !== baseUrl (' + baseUrl + '). closeModal() will NOT be called for this message.');
+      return;
+    }
 
     var data = event.data || {};
     if (data.type === 'FUNDRAISELY_DONATION_SUCCESS') {
+      console.log('[FR-DEBUG donate.js] ACCEPTED FUNDRAISELY_DONATION_SUCCESS — calling closeModal(). clubId=', data.clubId);
       closeModal();
       // Optionally dispatch a custom event the club's page can listen to
       try {
@@ -159,6 +189,7 @@
       } catch (e) {}
     }
     if (data.type === 'FUNDRAISELY_DONATION_CLOSE') {
+      console.log('[FR-DEBUG donate.js] ACCEPTED FUNDRAISELY_DONATION_CLOSE — calling closeModal().');
       closeModal();
     }
   });

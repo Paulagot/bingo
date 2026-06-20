@@ -210,24 +210,41 @@ export default function DonateEmbedPage() {
     //      listener below.
     //   3. Standalone, no opener and no parent — nothing to notify,
     //      just close the tab.
+    //
+    // TEMPORARY DIAGNOSTIC LOGGING — added to find why this works on
+    // localhost but the modal does not close on staging. Remove once
+    // root cause is confirmed. Every branch and every catch logs, since
+    // the original catch (e) {} blocks would otherwise hide a thrown
+    // error completely with zero visible symptom.
     const hasOpener = !!window.opener;
     const isInIframe = window !== window.parent;
+    console.log('[FR-DEBUG success-effect] view=success. hasOpener=', hasOpener, 'isInIframe=', isInIframe, 'location=', window.location.href);
 
     if (hasOpener) {
       try {
         window.opener.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
-      } catch (e) {}
-      const t = setTimeout(() => { try { window.close(); } catch (e) {} }, 2000);
+        console.log('[FR-DEBUG success-effect] postMessage to window.opener SUCCEEDED (no throw). clubId=', clubId);
+      } catch (e) {
+        console.error('[FR-DEBUG success-effect] postMessage to window.opener THREW:', e);
+      }
+      const t = setTimeout(() => {
+        console.log('[FR-DEBUG success-effect] closing this tab now (hasOpener branch)');
+        try { window.close(); } catch (e) { console.error('[FR-DEBUG success-effect] window.close() threw:', e); }
+      }, 2000);
       return () => clearTimeout(t);
     }
 
     if (isInIframe) {
       try {
         window.parent.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
-      } catch (e) {}
+        console.log('[FR-DEBUG success-effect] postMessage to window.parent SUCCEEDED (no throw). clubId=', clubId);
+      } catch (e) {
+        console.error('[FR-DEBUG success-effect] postMessage to window.parent THREW:', e);
+      }
       return;
     }
 
+    console.log('[FR-DEBUG success-effect] neither hasOpener nor isInIframe — standalone tab, just closing.');
     // Standalone tab, no opener relationship (e.g. opened directly by
     // the user, or opener was severed) — just close after the pause.
     const t = setTimeout(() => { try { window.close(); } catch (e) {} }, 2000);
@@ -246,7 +263,20 @@ export default function DonateEmbedPage() {
   useEffect(() => {
     function handleChildMessage(event: MessageEvent) {
       const data = event.data || {};
-      if (data.type !== 'FUNDRAISELY_DONATION_SUCCESS') return;
+      // TEMPORARY DIAGNOSTIC LOGGING — logs EVERY message this window
+      // receives, not just ones matching our type, so we can see if
+      // staging's message even arrives here at all versus being
+      // filtered out by something upstream (e.g. never reaching this
+      // listener because the child tab's postMessage call threw before
+      // it ever got sent).
+      console.log('[FR-DEBUG relay-listener] message event received. origin=', event.origin, 'data=', data);
+
+      if (data.type !== 'FUNDRAISELY_DONATION_SUCCESS') {
+        console.log('[FR-DEBUG relay-listener] ignoring — type does not match FUNDRAISELY_DONATION_SUCCESS');
+        return;
+      }
+
+      console.log('[FR-DEBUG relay-listener] MATCHED success message. clubId=', data.clubId, '. Setting local view to success and checking isInIframe...');
 
       // Update this iframe's own UI too, in case there's any visible
       // delay before donate.js's listener closes the modal overlay —
@@ -254,13 +284,21 @@ export default function DonateEmbedPage() {
       setView({ kind: 'success' });
 
       const isInIframe = window !== window.parent;
+      console.log('[FR-DEBUG relay-listener] isInIframe=', isInIframe, 'location=', window.location.href);
+
       if (isInIframe) {
         try {
           window.parent.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId: data.clubId }, '*');
-        } catch (e) {}
+          console.log('[FR-DEBUG relay-listener] relayed to window.parent SUCCEEDED (no throw)');
+        } catch (e) {
+          console.error('[FR-DEBUG relay-listener] relay to window.parent THREW:', e);
+        }
+      } else {
+        console.log('[FR-DEBUG relay-listener] not in an iframe, nothing to relay upward');
       }
     }
     window.addEventListener('message', handleChildMessage);
+    console.log('[FR-DEBUG relay-listener] listener attached. window.location=', window.location.href);
     return () => window.removeEventListener('message', handleChildMessage);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -310,6 +348,7 @@ export default function DonateEmbedPage() {
         // them from each other the way you would for an arbitrary
         // third-party link.
         const checkoutWindow = window.open(result.redirectUrl, '_blank');
+        console.log('[FR-DEBUG handleDonate stripe] window.open returned:', !!checkoutWindow, 'redirectUrl=', result.redirectUrl, 'this window.location=', window.location.href);
         if (!checkoutWindow) {
           setView({
             kind: 'error',
@@ -343,6 +382,7 @@ export default function DonateEmbedPage() {
         // how the modal gets closed automatically. Both ends of this
         // relationship are FundRaisely's own pages.
         const checkoutWindow = window.open(checkoutUrl, '_blank');
+        console.log('[FR-DEBUG handleDonate crypto] window.open returned:', !!checkoutWindow, 'checkoutUrl=', checkoutUrl, 'this window.location=', window.location.href);
         if (!checkoutWindow) {
           setView({
             kind: 'error',
