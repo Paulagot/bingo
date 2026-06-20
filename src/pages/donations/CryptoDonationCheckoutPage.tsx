@@ -40,6 +40,12 @@
 // DonateEmbedPage iframe) -> that iframe relays to ITS parent (the
 // club's page) so donate.js can close the modal -> this tab closes
 // itself after a short pause.
+//
+// TEMPORARY DIAGNOSTIC LOGGING (search [FR-DEBUG]) — added to find why
+// the modal closes on localhost but not staging. This page's success
+// effect is hop 1 of a 3-hop relay chain (this tab -> iframe -> club
+// page -> donate.js). Logging here confirms whether hop 1 succeeds,
+// independent of later hops.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -92,27 +98,6 @@ interface ConfirmResponse {
   convertedDisplayFiat?: number | null;
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Outer component — the actual default export / route target.
-//
-// This is the fix for a real bug the previous version of this file
-// had: it called useAppKit() directly inside the main component body,
-// which runs on first render — before createAppKit() has ever been
-// invoked anywhere, since this is a fresh top-level route with nothing
-// above it in the tree that calls initAppKit() first (unlike
-// CryptoFixedFeeStep/CryptoDonationStep, which only ever mount AFTER
-// Web3Provider has already called it higher up the quiz route tree).
-// Calling an AppKit hook before createAppKit() throws
-// 'Please call "createAppKit" before using "useAppKit" hook' — exactly
-// the error this structure exists to prevent.
-//
-// Fix: same two-stage gating pattern already proven in
-// WalletIframeTestPage — await initAppKit() in an effect, hold off
-// rendering anything that calls AppKit hooks until that resolves, THEN
-// mount the real page (CryptoCheckoutInner) as a child inside
-// AppKitProvider/WagmiProvider. Nothing inside CryptoCheckoutInner
-// renders, and no AppKit hook anywhere in this file's call graph runs,
-// until createAppKit() has genuinely completed.
 export default function CryptoDonationCheckoutPage() {
   const [providers, setProviders] = useState<{
     AppKitProvider: any;
@@ -199,10 +184,6 @@ function CryptoCheckoutInner() {
   const [txResult, setTxResult] = useState<SolanaDirectDonationResult | null>(null);
   const [confirmData, setConfirmData] = useState<ConfirmResponse | null>(null);
 
-  // ── Resolve params passed in the URL from DonateEmbedPage's
-  // window.open() call — see that file's updated handleDonate for how
-  // this URL is built. No separate "get donation details" GET endpoint
-  // needed; DonateEmbedPage already has this info from startCheckout.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wallet = params.get('wallet');
@@ -221,7 +202,6 @@ function CryptoCheckoutInner() {
   const isBusy = status !== 'idle';
   const isSuccess = status === 'success';
 
-  // ── Same hooks the existing, working quiz crypto donation step uses.
   const { sendDonation, isWalletConnected, publicKey } = useSolanaDirectDonation({
     cluster: 'mainnet',
   });
@@ -250,9 +230,6 @@ function CryptoCheckoutInner() {
     }
   }, [open]);
 
-  // ── Confirm on backend — mirrors confirmCryptoDonationOnBackend in
-  // CryptoDonationStep.tsx field-for-field, with donationId in place of
-  // roomId/playerId/playerName (a club donation has neither).
   const confirmOnBackend = useCallback(async (
     result: Extract<SolanaDirectDonationResult, { success: true }>,
   ): Promise<ConfirmResponse> => {
@@ -334,17 +311,30 @@ function CryptoCheckoutInner() {
 
   // ── Success side effect: relay back to the opener (the
   // DonateEmbedPage iframe), mirroring that page's own success effect.
+  //
+  // [FR-DEBUG] See file header — this is hop 1 of the 3-hop relay
+  // chain. Logging confirms whether THIS hop succeeds, independent of
+  // whether the iframe's relay or donate.js's listener do.
   useEffect(() => {
     if (status !== 'success') return undefined;
 
     const hasOpener = !!window.opener;
+    console.log('[FR-DEBUG CryptoCheckout success-effect] status=success. hasOpener=', hasOpener, 'this window.location=', window.location.href);
+
     if (hasOpener) {
       try {
         window.opener.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
-      } catch (e) {}
-      const t = setTimeout(() => { try { window.close(); } catch (e) {} }, 2500);
+        console.log('[FR-DEBUG CryptoCheckout success-effect] postMessage to window.opener SUCCEEDED (no throw). clubId=', clubId);
+      } catch (e) {
+        console.error('[FR-DEBUG CryptoCheckout success-effect] postMessage to window.opener THREW:', e);
+      }
+      const t = setTimeout(() => {
+        console.log('[FR-DEBUG CryptoCheckout success-effect] closing this tab now.');
+        try { window.close(); } catch (e) { console.error('[FR-DEBUG CryptoCheckout success-effect] window.close() threw:', e); }
+      }, 2500);
       return () => clearTimeout(t);
     }
+    console.warn('[FR-DEBUG CryptoCheckout success-effect] hasOpener is FALSE — no opener reference at all, so nothing can be relayed back. This tab will just sit here with no way to notify the modal.');
     return undefined;
   }, [status, clubId]);
 

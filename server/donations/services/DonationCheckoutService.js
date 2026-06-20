@@ -575,6 +575,40 @@ class DonationCheckoutService {
   }
 
   /**
+   * Validates an OPTIONAL client-supplied return path override for
+   * Stripe's success_url/cancel_url base. Falls back to
+   * defaultBasePath (the existing hardcoded /embed/donate/:clubId
+   * shape) when returnPath is absent — so any caller that doesn't
+   * pass this param gets identical behavior to before this method
+   * existed.
+   *
+   * Deliberately strict: only a same-origin relative path is accepted
+   * (single leading slash, no "//" anywhere, no "://" anywhere). This
+   * keeps the redirect confined to validatedOrigin — already checked
+   * against ALLOWED_APP_ORIGINS — so a caller can pick which page on
+   * our own domain Stripe returns to, but never point Stripe at a
+   * different host through this param.
+   */
+  _validateReturnPath(returnPath, defaultBasePath) {
+    if (returnPath === undefined || returnPath === null || returnPath === '') {
+      return defaultBasePath;
+    }
+
+    const trimmed = String(returnPath).trim();
+
+    const isSingleLeadingSlash = trimmed.startsWith('/') && !trimmed.startsWith('//');
+    const hasNoProtocol = !trimmed.includes('://');
+
+    if (!isSingleLeadingSlash || !hasNoProtocol) {
+      throw new Error('returnPath must be a relative same-origin path');
+    }
+
+    // Strip any trailing slash so `${basePath}/success` doesn't end up
+    // with a double slash.
+    return trimmed.replace(/\/+$/, '');
+  }
+
+  /**
    * Entry point for POST /api/donations/:clubId/checkout.
    * Validates eligibility + amount, creates the pending ledger row,
    * then dispatches to the provider-specific handler.
@@ -602,7 +636,7 @@ class DonationCheckoutService {
    * single place that turns errors into HTTP statuses, same convention
    * as DonationButtonService/donationButtonRoutes.
    */
-  async startCheckout({ clubId, clubPaymentMethodId, amount, donorName, donorEmail, appOrigin }) {
+async startCheckout({ clubId, clubPaymentMethodId, amount, donorName, donorEmail, appOrigin, returnPath }) {
     const club = await this._getClub(clubId);
     const button = await this._getDonationButton(clubId);
     if (!button || button.is_enabled !== 1) {
@@ -645,21 +679,21 @@ class DonationCheckoutService {
       donorName: donorName || null,
       donorEmail: donorEmail || null,
     });
-
-    return this._dispatchToProvider({
+return this._dispatchToProvider({
       paymentMethod,
       donationId,
       amount: validatedAmount,
       currency,
       clubId,
       appOrigin,
+      returnPath,
     });
   }
 
-  async _dispatchToProvider({ paymentMethod, donationId, amount, currency, clubId, appOrigin }) {
+ async _dispatchToProvider({ paymentMethod, donationId, amount, currency, clubId, appOrigin, returnPath }) {
     switch (paymentMethod.method_category) {
       case 'stripe':
-        return this._startStripeCheckout({ paymentMethod, donationId, amount, currency, clubId, appOrigin });
+        return this._startStripeCheckout({ paymentMethod, donationId, amount, currency, clubId, appOrigin, returnPath });
 
       case 'crypto':
         // Crypto has no redirect concept, so appOrigin is irrelevant —
@@ -702,7 +736,7 @@ class DonationCheckoutService {
    * allowlist is rejected, so nobody can point a real Stripe session at
    * an arbitrary URL through this public endpoint.
    */
-  async _startStripeCheckout({ paymentMethod, donationId, amount, currency, clubId, appOrigin }) {
+async _startStripeCheckout({ paymentMethod, donationId, amount, currency, clubId, appOrigin, returnPath }) {
     const cfg = typeof paymentMethod.method_config === 'string'
       ? JSON.parse(paymentMethod.method_config)
       : paymentMethod.method_config;
@@ -712,7 +746,24 @@ class DonationCheckoutService {
       throw new Error('Stripe is not ready to accept payments for this club');
     }
 
-    const validatedOrigin = this._validateAppOrigin(appOrigin);
+const validatedOrigin = this._validateAppOrigin(appOrigin);
+
+    // returnPath is OPTIONAL. When absent, behavior is byte-for-byte
+    // identical to before this change — the iframe/modal flow
+    // (DonateEmbedPage.tsx) never sends it, so it keeps landing on
+    // /embed/donate/:clubId/success exactly as today.
+    //
+    // When present, it lets a different FundRaisely page (e.g. a
+    // standalone same-tab donation page) ask Stripe to come back to
+    // ITS OWN route instead. Validated as a same-origin RELATIVE path
+    // only — must start with exactly one leading slash, no protocol,
+    // no "//" (which browsers/URLs can treat as protocol-relative to
+    // another host), and no "://" anywhere in it. This is deliberately
+    // narrow: returnPath can only ever redirect within the already-
+    // validated validatedOrigin, never to an arbitrary external host,
+    // so this introduces no new open-redirect surface beyond what
+    // _validateAppOrigin already gates.
+    const basePath = this._validateReturnPath(returnPath, `/embed/donate/${clubId}`);
 
     const session = await stripe.checkout.sessions.create(
       {
@@ -728,8 +779,8 @@ class DonationCheckoutService {
             quantity: 1,
           },
         ],
-        success_url: `${validatedOrigin}/embed/donate/${clubId}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${validatedOrigin}/embed/donate/${clubId}?cancelled=1`,
+        success_url: `${validatedOrigin}${basePath}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${validatedOrigin}${basePath}?cancelled=1`,
         metadata: {
           type: 'club_donation',
           donationId: String(donationId),
