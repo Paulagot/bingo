@@ -32,6 +32,13 @@ import { Link } from "react-router-dom";
 import TicketPurchaseFlow from "../../components/Quiz/tickets/TicketPurchaseFlow";
 import DonationModal from "../../components/donationModal/DonationModal";
 
+console.log("[ENV DEBUG]", {
+  VITE_safeStreets: import.meta.env.VITE_safeStreets,
+  VITE_SAFE_STREETS_ROOM_ID: import.meta.env.VITE_SAFE_STREETS_ROOM_ID,
+  VITE_DONATION_CLUB_ID: import.meta.env.VITE_DONATION_CLUB_ID,
+  allEnv: import.meta.env,
+});
+
 const ROOM_ID = (
   (import.meta.env.VITE_safeStreets as string | undefined) ||
   (import.meta.env.VITE_SAFE_STREETS_ROOM_ID as string | undefined) ||
