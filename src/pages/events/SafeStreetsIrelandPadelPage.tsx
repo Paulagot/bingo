@@ -7,6 +7,7 @@ import {
   Car,
   Clock,
   Copy,
+  CreditCard,
   Dumbbell,
   Facebook,
   ExternalLink,
@@ -24,12 +25,21 @@ import {
   TrainFront,
   Trophy,
   Users,
+  Wallet,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import TicketPurchaseFlow from '../../components/Quiz/tickets/TicketPurchaseFlow';
 
-const ROOM_ID = 'D932475520C24365';
+const ROOM_ID = (
+  (import.meta.env.VITE_safeStreets as string | undefined) ||
+  (import.meta.env.VITE_SAFE_STREETS_ROOM_ID as string | undefined) ||
+  'D932475520C24365'
+).trim();
+
+const DONATION_CLUB_ID = 'e14cce81-e3d0-4668-a199-5cb9e7a4539b';
+const DONATION_SCRIPT_ID = 'fundraisely-donate-embed-script';
+const DONATION_SCRIPT_SRC = 'https://fundraisely-staging.up.railway.app/embed/donate.js';
 
 const EVENT_SLUG = '/events/safe-streets-ireland-padel';
 const EVENT_NAME = 'Safe Streets Ireland Padel Fundraiser';
@@ -42,7 +52,6 @@ const EVENT_FULL_ADDRESS = `${EVENT_LOCATION}, ${EVENT_ADDRESS}`;
 
 const TOURNAMENT_TICKET_PRICE = '€25';
 const PLAY_TIME_TICKET_PRICE = '€10';
-const SPECTATOR_TICKET_PRICE = '€5';
 
 const SAFE_STREETS_URL = 'https://safestreetsireland.com/';
 const SAFE_STREETS_INSTAGRAM_URL = 'https://www.instagram.com/safestreetsireland/';
@@ -131,7 +140,7 @@ function useEventSeo() {
 
     const title = `${EVENT_NAME} | ${EVENT_DATE} ${EVENT_YEAR} | FundRaisely`;
     const description =
-      'Buy tickets for the Safe Streets Ireland padel fundraiser at House of Padel on 27 June 2026, 3pm to 5pm. Choose tournament entry, a €10 play-time ticket or a €5 spectator ticket and support safer streets, stronger communities and brighter futures.';
+      'Buy tickets or donate to the Safe Streets Ireland padel fundraiser at House of Padel on 27 June 2026, 3pm to 5pm. Choose tournament entry or a €10 play-time ticket, or support the campaign with a card, Apple Pay, Google Pay or Solana crypto donation.';
 
     document.title = title;
 
@@ -224,14 +233,7 @@ function useEventSeo() {
           availability: 'https://schema.org/InStock',
           url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
         },
-        {
-          '@type': 'Offer',
-          name: 'Spectator Ticket',
-          price: '5',
-          priceCurrency: 'EUR',
-          availability: 'https://schema.org/InStock',
-          url: `${window.location.origin}/tickets/buy/${ROOM_ID}`,
-        },
+
       ],
       organizer: {
         '@type': 'Organization',
@@ -355,6 +357,8 @@ export default function SafeStreetsIrelandPadelPage() {
               >
                 Get Ticket
               </button>
+
+              <DonateButton className="hidden sm:inline-flex" />
             </div>
           </div>
 
@@ -376,9 +380,10 @@ export default function SafeStreetsIrelandPadelPage() {
                 Join <span className="font-black">Safe Streets Ireland</span> for a padel
                 fundraiser on <span className="font-black">{EVENT_DATE}</span> at{' '}
                 <span className="font-black">{EVENT_LOCATION}</span>. The first half is the
-                tournament, followed by open play time in the second half. Choose a tournament,
-                play-time or spectator ticket and support a community-led campaign working to reduce
-                youth violence through prevention, education, action and opportunity.
+                tournament, followed by open play time in the second half. Choose a tournament
+                or play-time ticket, or donate if you cannot attend, and support a community-led
+                campaign working to reduce youth violence through prevention, education, action and
+                opportunity.
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -404,7 +409,10 @@ export default function SafeStreetsIrelandPadelPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Badge>Tournament: {TOURNAMENT_TICKET_PRICE}</Badge>
                 <Badge>Play time: {PLAY_TIME_TICKET_PRICE}</Badge>
-                <Badge>Spectator: {SPECTATOR_TICKET_PRICE}</Badge>
+              </div>
+
+              <div className="mt-5 max-w-2xl">
+                <DonationPaymentCard tone="hero" />
               </div>
             </div>
 
@@ -497,7 +505,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 <InfoPanel
                   icon={<Ticket className="h-6 w-6" />}
                   title="Tickets"
-                  text={`Choose ${TOURNAMENT_TICKET_PRICE} tournament entry to compete, ${PLAY_TIME_TICKET_PRICE} play-time entry to play in the second half only, or a ${SPECTATOR_TICKET_PRICE} spectator ticket to attend and support.`}
+                  text={`Choose ${TOURNAMENT_TICKET_PRICE} tournament entry to compete, ${PLAY_TIME_TICKET_PRICE} play-time entry to play in the second half only, or donate if you cannot attend.`}
                 />
               </div>
 
@@ -509,14 +517,14 @@ export default function SafeStreetsIrelandPadelPage() {
 
                   <div>
                     <h3 className="text-lg font-black text-[#17120d]">
-                      Three ways to take part.
+                      Two ways to play, plus an option to donate.
                     </h3>
 
                     <p className="mt-2 text-sm leading-7 text-[#5f5044]">
                       The first half of the event is the tournament. The second half is open play
                       time. Tournament players take part in both parts, play-time ticket holders
-                      join for the second-half padel session, and spectators can come along to
-                      support without playing.
+                      join for the second-half padel session, and supporters who cannot attend can
+                      still donate online.
                     </p>
                   </div>
                 </div>
@@ -550,17 +558,11 @@ export default function SafeStreetsIrelandPadelPage() {
                   ]}
                 />
 
-                <TicketTypeCard
-                  icon={<Users className="h-6 w-6" />}
-                  name="Spectator Ticket"
-                  price={SPECTATOR_TICKET_PRICE}
-                  description="For supporters who want to attend, watch the tournament, cheer people on and support Safe Streets Ireland without playing padel."
-                  bullets={[
-                    'Attend and support the fundraiser',
-                    'Watch the tournament and play time',
-                    'No padel court time included',
-                  ]}
-                />
+
+              </div>
+
+              <div className="mt-6">
+                <DonationSupportCard />
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -805,6 +807,8 @@ export default function SafeStreetsIrelandPadelPage() {
                     Buy ticket
                     <Ticket className="h-4 w-4" />
                   </button>
+
+                  <DonateButton />
                 </div>
 
               </div>
@@ -863,6 +867,10 @@ export default function SafeStreetsIrelandPadelPage() {
             />
 
             <QuickDetailsCard />
+
+            <div className="mt-4">
+              <DonationPaymentCard />
+            </div>
 
             <ShareEventCard eventPageUrl={eventPageUrl} />
           </aside>
@@ -1108,8 +1116,7 @@ function QuickDetailsCard() {
           <Ticket className="mt-0.5 h-4 w-4 text-[#df741d]" />
           <span>
             <strong className="text-[#17120d]">Tickets:</strong> Tournament{' '}
-            {TOURNAMENT_TICKET_PRICE}; Play Time {PLAY_TIME_TICKET_PRICE}; Spectator{' '}
-            {SPECTATOR_TICKET_PRICE}.
+            {TOURNAMENT_TICKET_PRICE}; Play Time {PLAY_TIME_TICKET_PRICE}.
           </span>
         </div>
       </div>
@@ -1309,7 +1316,7 @@ function TicketIntroCard({
       <div className="mt-4 flex flex-wrap gap-2">
         <SmallPill>{EVENT_DATE}</SmallPill>
         <SmallPill>{EVENT_TIME}</SmallPill>
-        <SmallPill>3 ticket types</SmallPill>
+        <SmallPill>2 ticket types</SmallPill>
       </div>
     </div>
   );
@@ -1352,7 +1359,19 @@ function TicketPanelBody({
         <TicketPanelStatusNote
           tone="warning"
           text="We could not check the room status, but the ticket panel is still available below."
-        />
+        >
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-white/70 p-4">
+            <p className="text-sm font-black text-amber-900">
+              Can’t attend but want to support Safe Streets Ireland?
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-800">
+              You can still donate by card, Apple Pay, Google Pay or crypto on Solana.
+            </p>
+            <div className="mt-3">
+              <DonateButton />
+            </div>
+          </div>
+        </TicketPanelStatusNote>
       )}
 
       {shouldShowHoldTight ? (
@@ -1396,9 +1415,11 @@ function TicketComingSoonCard({ eventPageUrl }: { eventPageUrl: string }) {
 function TicketPanelStatusNote({
   text,
   tone = 'neutral',
+  children,
 }: {
   text: string;
   tone?: 'neutral' | 'warning';
+  children?: React.ReactNode;
 }) {
   return (
     <div
@@ -1408,7 +1429,8 @@ function TicketPanelStatusNote({
           : 'border-[#e5d4c2] bg-white text-[#5f5044]'
       }`}
     >
-      {text}
+      <p>{text}</p>
+      {children}
     </div>
   );
 }
@@ -1476,6 +1498,178 @@ function DirectTicketLinkCard({ ticketBuyUrl }: { ticketBuyUrl: string }) {
       <p className="mt-3 break-all text-center text-xs leading-6 text-[#7a6758]">
         {ticketBuyUrl}
       </p>
+    </div>
+  );
+}
+
+
+function useFundraiselyDonateScript() {
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const existingScript = document.getElementById(DONATION_SCRIPT_ID);
+
+    if (existingScript) return;
+
+    const script = document.createElement('script');
+    script.id = DONATION_SCRIPT_ID;
+    script.src = DONATION_SCRIPT_SRC;
+    script.async = true;
+
+    document.body.appendChild(script);
+  }, []);
+}
+
+function DonateButton({
+  label = 'Donate now',
+  className = '',
+}: {
+  label?: string;
+  className?: string;
+}) {
+  useFundraiselyDonateScript();
+
+  return (
+    <button
+      type="button"
+      data-fundraisely-donate
+      data-club-id={DONATION_CLUB_ID}
+      data-title="Donate"
+      className={`items-center justify-center gap-2 rounded-[10px] px-[18px] py-3 text-sm font-black shadow-sm transition hover:brightness-110 ${className}`}
+      style={{
+        background: '#42368f',
+        color: '#ffffff',
+        border: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SolanaMark({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 397 311" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="safe-streets-solana-gradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#00FFA3" />
+          <stop offset="50%" stopColor="#03E1FF" />
+          <stop offset="100%" stopColor="#DC1FFF" />
+        </linearGradient>
+      </defs>
+      <path
+        fill="url(#safe-streets-solana-gradient)"
+        d="M64.6 237.9c2.4-2.4 5.7-3.8 9.1-3.8h316.6c5.7 0 8.6 6.9 4.5 10.9l-62.5 62.5c-2.4 2.4-5.7 3.8-9.1 3.8H6.6c-5.7 0-8.6-6.9-4.5-10.9l62.5-62.5Zm0-234.1C67 1.4 70.3 0 73.7 0h316.6c5.7 0 8.6 6.9 4.5 10.9l-62.5 62.5c-2.4 2.4-5.7 3.8-9.1 3.8H6.6C.9 77.2-2 70.3 2.1 66.3L64.6 3.8Zm267.7 116.6c-2.4-2.4-5.7-3.8-9.1-3.8H6.6c-5.7 0-8.6 6.9-4.5 10.9L64.6 190c2.4 2.4 5.7 3.8 9.1 3.8h316.6c5.7 0 8.6-6.9 4.5-10.9l-62.5-62.5Z"
+      />
+    </svg>
+  );
+}
+
+function DonationPaymentCard({ tone = 'light' }: { tone?: 'light' | 'hero' }) {
+  const isHero = tone === 'hero';
+
+  return (
+    <div
+      className={`rounded-[1.75rem] border p-5 shadow-sm ${
+        isHero
+          ? 'border-white/25 bg-white/16 text-white backdrop-blur'
+          : 'border-[#e5d4c2] bg-white text-[#17120d]'
+      }`}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p
+            className={`text-xs font-black uppercase tracking-[0.18em] ${
+              isHero ? 'text-white/75' : 'text-[#df741d]'
+            }`}
+          >
+            Donations welcome
+          </p>
+
+          <h3 className="mt-2 text-xl font-black">
+            Can’t attend? You can still support the campaign.
+          </h3>
+
+          <p
+            className={`mt-2 text-sm leading-7 ${
+              isHero ? 'text-white/86' : 'text-[#5f5044]'
+            }`}
+          >
+            Donate by card through Stripe, including Apple Pay and Google Pay where
+            available, or donate with crypto on Solana.
+          </p>
+        </div>
+
+        <div className="shrink-0">
+          <DonateButton label="Donate now" />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div
+          className={`flex items-center gap-3 rounded-2xl border p-3 ${
+            isHero
+              ? 'border-white/20 bg-white/12'
+              : 'border-[#eadccc] bg-[#fffaf4]'
+          }`}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#42368f]">
+            <CreditCard className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-black">Card payments</p>
+            <p className={`text-xs ${isHero ? 'text-white/75' : 'text-[#7a6758]'}`}>
+              Stripe, Apple Pay, Google Pay
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={`flex items-center gap-3 rounded-2xl border p-3 ${
+            isHero
+              ? 'border-white/20 bg-white/12'
+              : 'border-[#eadccc] bg-[#fffaf4]'
+          }`}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#17120d]">
+            <SolanaMark />
+          </div>
+          <div>
+            <p className="text-sm font-black">Crypto donations</p>
+            <p className={`text-xs ${isHero ? 'text-white/75' : 'text-[#7a6758]'}`}>
+              Accepted on Solana
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DonationSupportCard() {
+  return (
+    <div className="rounded-[1.75rem] border border-[#d8d1ff] bg-[#f7f5ff] p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#42368f] text-white">
+            <Wallet className="h-5 w-5" />
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-[#17120d]">
+              Want to support but not play?
+            </h3>
+
+            <p className="mt-2 text-sm leading-7 text-[#5f5044]">
+              You can make a donation instead. The donation button supports card payments,
+              Apple Pay, Google Pay and crypto donations on Solana.
+            </p>
+          </div>
+        </div>
+
+        <DonateButton label="Donate instead" />
+      </div>
     </div>
   );
 }
