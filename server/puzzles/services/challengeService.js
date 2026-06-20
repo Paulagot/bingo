@@ -11,6 +11,43 @@ function getWeekMs() {
   return seconds * 1000;
 }
 
+/**
+ * Converts JS Date / ISO string into MySQL DATETIME format.
+ *
+ * MySQL DATETIME does not accept:
+ *   2026-06-19T20:41:00.000Z
+ *
+ * It expects:
+ *   2026-06-19 20:41:00
+ *
+ * This stores the value in UTC consistently.
+ */
+function toMysqlDateTime(value) {
+  if (!value) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid datetime value: ${value}`);
+  }
+
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/**
+ * Parses a MySQL DATETIME value as UTC.
+ * Useful because MySQL DATETIME has no timezone info.
+ */
+function fromMysqlDateTimeAsUtc(value) {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  return new Date(`${value}Z`).getTime();
+}
+
 export async function createChallenge({
   clubId,
   title,
@@ -27,9 +64,24 @@ export async function createChallenge({
   }
 
   const id = uuidv4();
-  const priceInCents = isFree ? null : Math.round(weeklyPrice);
+
+  /**
+   * Keep this as-is for now because your existing logic says weeklyPrice
+   * is already being passed in the smallest unit / cents-style value.
+   * If your frontend sends euro values like 5.99, then this should become:
+   * Math.round(Number(weeklyPrice) * 100)
+   */
+  const priceInCents = isFree ? null : Math.round(Number(weeklyPrice));
+
   const resolvedCurrency = currency ?? 'eur';
   const weekMs = getWeekMs();
+
+  const startsAtMysql = toMysqlDateTime(startsAt);
+  const startsAtMs = new Date(startsAt).getTime();
+
+  if (Number.isNaN(startsAtMs)) {
+    throw new Error(`Invalid startsAt value: ${startsAt}`);
+  }
 
   await database.connection.execute(
     `INSERT INTO fundraisely_puzzle_challenges
@@ -42,7 +94,7 @@ export async function createChallenge({
       title,
       description ?? null,
       totalWeeks,
-      startsAt,
+      startsAtMysql,
       priceInCents,
       resolvedCurrency,
       isFree ? 1 : 0,
@@ -50,10 +102,9 @@ export async function createChallenge({
   );
 
   if (puzzleSchedule?.length) {
-    const startsAtMs = new Date(startsAt).getTime();
-
     for (const entry of puzzleSchedule) {
       const unlocksAt = new Date(startsAtMs + (entry.week - 1) * weekMs);
+      const unlocksAtMysql = toMysqlDateTime(unlocksAt);
 
       await database.connection.execute(
         `INSERT INTO fundraisely_puzzle_schedule
@@ -65,7 +116,7 @@ export async function createChallenge({
           entry.week,
           entry.puzzleType,
           entry.difficulty ?? 'medium',
-          unlocksAt,
+          unlocksAtMysql,
         ]
       );
     }
@@ -88,6 +139,7 @@ export async function getChallengesByClub({ clubId }) {
      ORDER BY c.created_at DESC`,
     [clubId]
   );
+
   return rows;
 }
 
@@ -118,7 +170,10 @@ export async function getChallengeById({ challengeId, clubId }) {
 
 export async function updateChallengeStatus({ challengeId, clubId, status }) {
   const allowed = ['draft', 'active', 'completed', 'cancelled'];
-  if (!allowed.includes(status)) throw new Error(`Invalid status: ${status}`);
+
+  if (!allowed.includes(status)) {
+    throw new Error(`Invalid status: ${status}`);
+  }
 
   const [result] = await database.connection.execute(
     `UPDATE fundraisely_puzzle_challenges
@@ -128,17 +183,23 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
   );
 
   if (result.affectedRows === 0) return null;
+
   return getChallengeById({ challengeId, clubId });
 }
 
 export async function enrollPlayers({ challengeId, clubId, playerIds }) {
   const [[challenge]] = await database.connection.execute(
-    'SELECT id FROM fundraisely_puzzle_challenges WHERE id = ? AND club_id = ? LIMIT 1',
+    `SELECT id
+     FROM fundraisely_puzzle_challenges
+     WHERE id = ? AND club_id = ?
+     LIMIT 1`,
     [challengeId, clubId]
   );
+
   if (!challenge) return null;
 
   let enrolled = 0;
+
   for (const playerId of playerIds) {
     try {
       await database.connection.execute(
@@ -147,11 +208,15 @@ export async function enrollPlayers({ challengeId, clubId, playerIds }) {
          VALUES (?, ?, ?)`,
         [challengeId, playerId, clubId]
       );
+
       enrolled++;
     } catch (err) {
-      if (err.code !== 'ER_DUP_ENTRY') throw err;
+      if (err.code !== 'ER_DUP_ENTRY') {
+        throw err;
+      }
     }
   }
+
   return { enrolled };
 }
 
@@ -168,6 +233,7 @@ export async function getEnrolledPlayers({ challengeId, clubId }) {
      ORDER BY cp.enrolled_at ASC`,
     [challengeId, clubId]
   );
+
   return rows;
 }
 
@@ -181,9 +247,11 @@ export async function getLeaderboard({ challengeId }) {
      FROM fundraisely_puzzle_challenge_players cp
      JOIN fundraisely_supporters s ON s.id = cp.player_id
      LEFT JOIN fundraisely_puzzle_submissions ss
-       ON  ss.player_id   = cp.player_id
+       ON  ss.player_id = cp.player_id
        AND ss.instance_id IN (
-         SELECT id FROM fundraisely_puzzle_instances WHERE challenge_id = ?
+         SELECT id
+         FROM fundraisely_puzzle_instances
+         WHERE challenge_id = ?
        )
      WHERE cp.challenge_id = ?
      GROUP BY cp.player_id, s.name
@@ -208,8 +276,12 @@ export async function getLeaderboard({ challengeId }) {
   );
 
   const weeksByPlayer = {};
+
   for (const row of weekRows) {
-    if (!weeksByPlayer[row.player_id]) weeksByPlayer[row.player_id] = [];
+    if (!weeksByPlayer[row.player_id]) {
+      weeksByPlayer[row.player_id] = [];
+    }
+
     weeksByPlayer[row.player_id].push({
       weekNumber: row.week_number,
       puzzleType: row.puzzle_type,
@@ -224,28 +296,34 @@ export async function getLeaderboard({ challengeId }) {
     rank: index + 1,
     playerId: player.player_id,
     playerName: player.player_name,
-    totalScore: player.total_score,
-    weeksCompleted: player.weeks_completed,
+    totalScore: Number(player.total_score ?? 0),
+    weeksCompleted: Number(player.weeks_completed ?? 0),
     weeks: weeksByPlayer[player.player_id] ?? [],
   }));
 }
 
 export async function getCurrentWeek({ challengeId }) {
   const [[challenge]] = await database.connection.execute(
-    'SELECT starts_at, total_weeks FROM fundraisely_puzzle_challenges WHERE id = ? LIMIT 1',
+    `SELECT starts_at, total_weeks
+     FROM fundraisely_puzzle_challenges
+     WHERE id = ?
+     LIMIT 1`,
     [challengeId]
   );
+
   if (!challenge) return null;
 
   const weekMs = getWeekMs();
   const now = Date.now();
 
-  const startMs =
-    challenge.starts_at instanceof Date
-      ? challenge.starts_at.getTime()
-      : new Date(`${challenge.starts_at}Z`).getTime();
+  const startMs = fromMysqlDateTimeAsUtc(challenge.starts_at);
+
+  if (!startMs || Number.isNaN(startMs)) {
+    throw new Error(`Invalid starts_at value for challenge ${challengeId}`);
+  }
 
   const elapsed = now - startMs;
+
   const weekNumber = Math.max(
     1,
     Math.min(challenge.total_weeks, Math.floor(elapsed / weekMs) + 1)
@@ -260,6 +338,14 @@ export async function getCurrentWeek({ challengeId }) {
 
 function safeParseJson(value) {
   if (!value) return null;
-  if (typeof value === 'object') return value;
-  try { return JSON.parse(value); } catch { return null; }
+
+  if (typeof value === 'object') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }

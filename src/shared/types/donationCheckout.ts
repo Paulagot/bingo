@@ -10,9 +10,19 @@
 // ClubDonationButton itself (the row) is extended in-place below since
 // the same row now needs to carry amount-tier config regardless of
 // which provider it points at.
+//
+// PHASE 3b — MULTI-METHOD: a donation button can now be linked to
+// multiple Tier B payment methods (fundraisely_donation_button_methods).
+// What changes here: PublicDonationButtonConfig.method (singular)
+// becomes .methods (plural array); UpsertTierBButtonRequest takes
+// clubPaymentMethodIds (plural). A donation itself STILL resolves to
+// exactly one method — StartDonationCheckoutRequest, ResolvedDonationMethod,
+// and everything under "Checkout request/response" below is unchanged,
+// since the supporter always ends up choosing one method per donation
+// regardless of how many were on offer.
 
 import type { PaymentMethodCategory, PaymentProvider } from './payment';
-import type { ClubDonationButton } from './donationButton';
+import type { ClubDonationButton, EligibleDonationPaymentMethod } from './donationButton';
 
 /**
  * ISO currency codes currently known to the frontend's symbol map
@@ -59,7 +69,8 @@ export type InPageCheckoutProvider = 'crypto';
 // ─── Eligible methods for a given donation button (what the picker shows) ──
 
 /**
- * One selectable provider option in the amount/provider picker.
+ * One selectable provider option in the admin's "which methods to
+ * attach" picker (ManageDonationButtonModal.tsx).
  *
  * Slim by design (mirrors EligibleDonationPaymentMethod in
  * donationButton.ts) — the embed/iframe page is public and
@@ -88,6 +99,42 @@ export interface DonationAmountConfig {
 }
 
 /**
+ * Branding colors for the donation widget, stored on
+ * fundraisely_club_donation_buttons (3 new columns). Deliberately three
+ * explicit colors rather than two + an auto-computed contrast color —
+ * the club picks all three so nothing is guessed on their behalf.
+ *
+ * - primaryColor: the widget's accent color — donate button background,
+ *   selected-amount highlight, active borders.
+ * - backgroundColor: the widget card's own background (NOT the page
+ *   behind it, which the embed has no control over).
+ * - textOnPrimaryColor: text/icon color rendered ON TOP of
+ *   primaryColor (e.g. the donate button's own label).
+ *
+ * No contrast validation is performed server-side or client-side —
+ * this is a deliberate product decision (an admin's own brand colors
+ * are their call, not something to second-guess), so it's possible to
+ * save a combination that's hard to read. Hex format (#rrggbb) IS
+ * validated, since that's a correctness check, not a taste judgment.
+ *
+ * Logo upload is explicitly out of scope for this revision — a fuller
+ * club-wide branding system (colors + logo, reused across the whole
+ * product) is planned later; this is a narrower, donation-widget-only
+ * stopgap ahead of that.
+ */
+export interface DonationBrandingConfig {
+  primaryColor: string;
+  backgroundColor: string;
+  textOnPrimaryColor: string;
+}
+
+export const DEFAULT_DONATION_BRANDING: DonationBrandingConfig = {
+  primaryColor: '#157f85',
+  backgroundColor: '#ffffff',
+  textOnPrimaryColor: '#ffffff',
+};
+
+/**
  * Extends the Phase 1 button row with Phase 2 fields. Phase 1 buttons
  * (manual link methods) will have amountConfig present but unused —
  * the manual-link embed path never reads it.
@@ -97,14 +144,21 @@ export interface ClubDonationButtonV2 extends ClubDonationButton {
 }
 
 /**
- * The single resolved method a donation button is wired to, as
+ * One resolved, currently-usable method linked to a donation button, as
  * returned to the public embed page. Deliberately a different (and
- * smaller) shape than EligibleTrackableMethod, which is for the
- * admin's "pick a method" list (needs methodLabel + isEnabled to show
- * a dropdown of options). The embed page already knows it got a valid,
- * enabled method back — getPublicConfig throws before returning if it
- * weren't — so there's nothing for the embed to branch on; it just
- * needs to know the category/provider to render the right next step.
+ * smaller) shape than EligibleTrackableMethod, which is for the admin's
+ * "pick methods to attach" list (needs methodLabel + isEnabled to
+ * render checkboxes for options that might be disabled). The embed page
+ * already knows every entry it gets back is valid and enabled —
+ * getPublicConfig filters out anything that isn't before returning —
+ * so there's nothing for the embed to branch on per-item; it just needs
+ * the category/provider to render the right choice and, later, the
+ * right next step once one is chosen.
+ *
+ * PHASE 3b: this was previously the single shape under
+ * PublicDonationButtonConfig.method (singular). It's unchanged in its
+ * own fields — only its cardinality on the parent type changed, see
+ * PublicDonationButtonConfig.methods below.
  */
 export interface ResolvedDonationMethod {
   clubPaymentMethodId: string;
@@ -118,15 +172,18 @@ export interface ResolvedDonationMethod {
  * authenticated /donation-buttons/:clubId/manage, which is for the
  * club admin UI and should keep returning full management data.
  *
- * `method` is singular, not a list — a donation button has exactly
- * one configured payment method (matches Phase 1's
- * club_payment_method_id column and the fundraisely_donations table's
- * single club_payment_method_id FK). The supporter never chooses a
- * provider at click time; the admin already chose it when setting up
- * the button. If a club ever wants to offer two providers side by
- * side on one button, that's a future schema change (a join table or
- * array column), not something this type should pretend to support
- * today by being a list of one.
+ * PHASE 3b: `methods` is now a LIST, not a single `method`. A donation
+ * button can have multiple Tier B payment methods linked to it
+ * (fundraisely_donation_button_methods); the supporter picks one at
+ * checkout time if there's more than one on offer. This list is
+ * pre-filtered server-side to only methods that are currently enabled
+ * and eligible — getPublicConfig throws if the filtered list would be
+ * empty, so the embed never has to handle a zero-length methods array
+ * itself.
+ *
+ * If `methods.length === 1`, the embed page should skip any
+ * provider-choice UI and behave exactly as the old single-method flow
+ * did — there's nothing to choose between.
  */
 export interface PublicDonationButtonConfig {
   clubId: string;
@@ -134,7 +191,60 @@ export interface PublicDonationButtonConfig {
   buttonTitle?: string | null;
   currency: ReportingCurrency;
   amountConfig: DonationAmountConfig;
-  method: ResolvedDonationMethod;
+  branding: DonationBrandingConfig;
+  methods: ResolvedDonationMethod[];
+}
+
+// ─── Admin save request (PUT /donation-buttons/:clubId, Tier B branch) ─────
+
+/**
+ * Per-method save outcome reported back after upsertTierBButton.
+ * `reason` mirrors DonationCheckoutService.js's drop reasons exactly —
+ * keep these two in sync if either side adds a new one.
+ */
+export type DroppedMethodReason = 'not_found' | 'disabled' | 'not_eligible';
+
+export interface DroppedMethod {
+  clubPaymentMethodId: string;
+  reason: DroppedMethodReason;
+}
+
+/**
+ * PHASE 3b: clubPaymentMethodIds (plural) replaces the old singular
+ * clubPaymentMethodId field for the Tier B save path. Per product
+ * decision, the backend does NOT reject the whole save if some
+ * submitted ids turn out to be invalid (deleted, disabled, no longer
+ * eligible) — it saves whichever ones are still valid and reports the
+ * rest back via the response's droppedMethodIds, so the modal can
+ * surface "X was dropped because Y" instead of either silently losing
+ * the admin's other selections or blocking the save entirely over one
+ * stale id.
+ */
+export interface UpsertTierBButtonRequest {
+  isEnabled: boolean;
+  buttonLabel: string;
+  buttonTitle?: string;
+  clubPaymentMethodIds: string[];
+  allowCustomAmount: boolean;
+  presetAmounts: number[];
+  branding: DonationBrandingConfig;
+}
+
+/**
+ * Response shape for the combined PUT /donation-buttons/:clubId route
+ * when the Tier B branch was taken. `droppedMethodIds` is empty when
+ * every submitted id was valid — the modal only needs to show a
+ * warning when this is non-empty.
+ */
+export interface UpsertTierBButtonResponse {
+  ok: true;
+  donationButton: ClubDonationButton;
+  amountConfig: DonationAmountConfig;
+  branding: DonationBrandingConfig;
+  eligibleManualMethods: EligibleDonationPaymentMethod[];
+  eligibleTrackableMethods: EligibleTrackableMethod[];
+  linkedTrackableMethodIds: string[]; // which of eligibleTrackableMethods are currently attached
+  droppedMethodIds: DroppedMethod[];
 }
 
 // ─── Checkout request/response (POST /api/donations/:clubId/checkout) ──────
@@ -147,6 +257,9 @@ export interface PublicDonationButtonConfig {
 // that's a 4xx the backend route returns (mapErrorToStatus-style) and the
 // frontend catches like any other error, not a 200 the caller has to
 // branch on. Keeps one failure-handling pattern across the whole app.
+//
+// UNCHANGED by Phase 3b — the supporter still picks exactly ONE method
+// per donation, regardless of how many were offered.
 
 export interface StartDonationCheckoutRequest {
   clubPaymentMethodId: string;
