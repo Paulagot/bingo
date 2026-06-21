@@ -32,13 +32,6 @@ import { Link } from "react-router-dom";
 import TicketPurchaseFlow from "../../components/Quiz/tickets/TicketPurchaseFlow";
 import DonationModal from "../../components/donationModal/DonationModal";
 
-console.log("[ENV DEBUG]", {
-  VITE_safeStreets: import.meta.env.VITE_safeStreets,
-  VITE_SAFE_STREETS_ROOM_ID: import.meta.env.VITE_SAFE_STREETS_ROOM_ID,
-  VITE_DONATION_CLUB_ID: import.meta.env.VITE_DONATION_CLUB_ID,
-  allEnv: import.meta.env,
-});
-
 const ROOM_ID = (
   (import.meta.env.VITE_safeStreets as string | undefined) ||
   (import.meta.env.VITE_SAFE_STREETS_ROOM_ID as string | undefined) ||
@@ -343,7 +336,7 @@ export default function SafeStreetsIrelandPadelPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f3ea] text-[#17120d]">
+    <div className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-[#17120d]">
       {/* HERO */}
       <section className="relative overflow-hidden bg-[#d66c18] text-white">
         <div
@@ -356,27 +349,27 @@ export default function SafeStreetsIrelandPadelPage() {
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Top bar */}
-          <div className="flex items-center justify-between gap-5 pt-5 pb-2">
+          <div className="flex flex-col gap-4 pt-5 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
             <a
               href={SAFE_STREETS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center"
+              className="flex w-full min-w-0 items-center justify-center sm:w-auto sm:justify-start"
               aria-label="Visit Safe Streets Ireland"
             >
               <img
                 src={SAFE_STREETS_LOGO}
                 alt="Safe Streets Ireland logo"
-                className="h-16 w-auto object-contain sm:h-20 lg:h-24"
+                className="h-14 max-w-full object-contain sm:h-20 lg:h-24"
               />
             </a>
 
-            <div className="flex items-center gap-3">
+            <div className="grid w-full min-w-0 grid-cols-1 gap-2 xs:flex xs:flex-wrap xs:items-center xs:justify-center sm:w-auto sm:justify-end sm:gap-3">
               <a
                 href={SAFE_STREETS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full bg-white/18 px-5 py-3 text-sm font-black text-white ring-1 ring-white/25 transition hover:bg-white/28"
+                className="inline-flex min-w-0 items-center justify-center rounded-full bg-white/18 px-4 py-3 text-center text-xs font-black text-white ring-1 ring-white/25 transition hover:bg-white/28 sm:px-5 sm:text-sm"
               >
                 Back to Safe Streets Ireland
               </a>
@@ -384,33 +377,33 @@ export default function SafeStreetsIrelandPadelPage() {
               <button
                 type="button"
                 onClick={scrollToTickets}
-                className="hidden rounded-full bg-white px-5 py-3 text-sm font-black text-[#c96316] shadow-lg transition hover:bg-white/90 sm:inline-flex"
+                className="inline-flex min-w-0 items-center justify-center rounded-full bg-white px-4 py-3 text-xs font-black text-[#c96316] shadow-lg transition hover:bg-white/90 sm:px-5 sm:text-sm"
               >
                 Get Ticket
               </button>
 
               <DonateButton
-                className="hidden sm:inline-flex"
+                className="w-full xs:w-auto"
                 onClick={() => setIsDonateModalOpen(true)}
               />
             </div>
           </div>
 
-          <div className="grid gap-10 pb-20 pt-2 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-28 lg:pt-4">
-            <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/18 px-4 py-2 text-sm font-black ring-1 ring-white/25 backdrop-blur">
-                <span className="h-2 w-2 rounded-full bg-white" />
-                Community-Led Campaign
+          <div className="grid min-w-0 gap-8 pb-20 pt-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center lg:gap-10 lg:pb-28 lg:pt-4">
+            <div className="min-w-0">
+              <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full bg-white/18 px-4 py-2 text-xs font-black ring-1 ring-white/25 backdrop-blur sm:text-sm">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-white" />
+                <span className="min-w-0">Community-Led Campaign</span>
               </div>
 
-              <h1 className="max-w-3xl text-5xl font-black leading-[0.98] tracking-tight sm:text-6xl lg:text-7xl">
+              <h1 className="max-w-3xl text-4xl font-black leading-[0.98] tracking-tight sm:text-6xl lg:text-7xl">
                 Safer Streets.
                 <span className="block">Stronger</span>
                 <span className="block">Communities.</span>
                 <span className="block">Brighter Futures.</span>
               </h1>
 
-              <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-white/92">
+              <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-white/92 sm:mt-6 sm:text-lg">
                 Join <span className="font-black">Safe Streets Ireland</span>{" "}
                 for a padel fundraiser on{" "}
                 <span className="font-black">{EVENT_DATE}</span> at{" "}
@@ -422,7 +415,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 opportunity.
               </p>
 
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              <div className="mt-7 grid min-w-0 gap-3 sm:grid-cols-3">
                 <FactCard
                   icon={<CalendarDays className="h-5 w-5" />}
                   label="Date"
@@ -442,7 +435,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 />
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6 flex min-w-0 flex-wrap gap-3">
                 <Badge>Tournament: {TOURNAMENT_TICKET_PRICE}</Badge>
                 <Badge>Play time: {PLAY_TIME_TICKET_PRICE}</Badge>
               </div>
@@ -455,21 +448,21 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
             </div>
 
-            <div className="space-y-5 lg:pl-12">
+            <div className="min-w-0 space-y-5 lg:pl-12">
               <div className="overflow-hidden rounded-[2rem] border border-white/20 bg-white/18 p-2 shadow-[0_18px_50px_rgba(0,0,0,0.14)] backdrop-blur">
                 <img
                   src={HERO_IMAGE_SRC}
                   alt="People playing padel on an indoor court"
-                  className="h-[320px] w-full rounded-[1.5rem] object-cover sm:h-[420px]"
+                  className="h-[240px] w-full rounded-[1.5rem] object-cover sm:h-[420px]"
                 />
               </div>
 
-              <div className="rounded-[2rem] border border-white/20 bg-white/18 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur">
+              <div className="min-w-0 rounded-[2rem] border border-white/20 bg-white/18 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur sm:p-6">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-white/75">
                   Event partners
                 </p>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-3">
                   <PartnerLogoCard
                     imgSrc={SAFE_STREETS_LOGO}
                     name="Safe Streets Ireland"
@@ -486,12 +479,12 @@ export default function SafeStreetsIrelandPadelPage() {
                   />
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-white/20 bg-white/12 p-4">
+                <div className="mt-5 min-w-0 rounded-2xl border border-white/20 bg-white/12 p-4">
                   <SafeStreetsSocialLinks tone="hero" />
                 </div>
               </div>
 
-              <div id="event-tickets-mobile" className="lg:hidden">
+              <div id="event-tickets-mobile" className="min-w-0 scroll-mt-4 lg:hidden">
                 <MobileTicketPanel
                   hasLinkedRoom={hasLinkedRoom}
                   shouldShowEnded={shouldShowEnded}
@@ -522,14 +515,14 @@ export default function SafeStreetsIrelandPadelPage() {
       </section>
 
       {/* MAIN */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_520px] xl:grid-cols-[minmax(0,1fr)_560px]">
-          <div className="space-y-8">
+      <main className="mx-auto max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_520px] xl:grid-cols-[minmax(0,1fr)_560px]">
+          <div className="min-w-0 space-y-8">
             <SectionCard
               eyebrow="Event details"
               title="Padel, purpose and community action"
             >
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid min-w-0 gap-4 md:grid-cols-3">
                 <InfoPanel
                   icon={<CalendarDays className="h-6 w-6" />}
                   title="When"
@@ -550,12 +543,12 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
 
               <div className="mt-6 rounded-2xl border border-[#eabf99] bg-[#fff6ed] p-5">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#df741d] text-white">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#df741d] text-white">
                     <Info className="h-5 w-5" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-lg font-black text-[#17120d]">
                       Two ways to play, plus an option to donate.
                     </h3>
@@ -576,7 +569,7 @@ export default function SafeStreetsIrelandPadelPage() {
               eyebrow="Ticket types"
               title="Choose how you want to take part"
             >
-              <div className="grid gap-4">
+              <div className="grid min-w-0 gap-4">
                 <TicketTypeCard
                   icon={<Trophy className="h-6 w-6" />}
                   name="Tournament Entry"
@@ -609,11 +602,11 @@ export default function SafeStreetsIrelandPadelPage() {
                 />
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
                 <button
                   type="button"
                   onClick={scrollToTickets}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#df741d] px-5 py-3 text-sm font-black text-white transition hover:bg-[#c96316]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#df741d] px-5 py-3 text-sm font-black text-white transition hover:bg-[#c96316]"
                 >
                   Book your ticket
                   <ArrowRight className="h-4 w-4" />
@@ -623,7 +616,7 @@ export default function SafeStreetsIrelandPadelPage() {
                   href={MAP_DIRECTIONS_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-[#e5d4c2] bg-[#fffaf4] px-5 py-3 text-sm font-black text-[#17120d] transition hover:bg-[#fff3e3]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#e5d4c2] bg-[#fffaf4] px-5 py-3 text-sm font-black text-[#17120d] transition hover:bg-[#fff3e3]"
                 >
                   Get directions
                   <Navigation className="h-4 w-4" />
@@ -639,14 +632,14 @@ export default function SafeStreetsIrelandPadelPage() {
                 <iframe
                   title="Map showing House of Padel, 5 Old Belgard Road, Cookstown Industrial Estate, Dublin"
                   src={MAP_EMBED_SRC}
-                  className="h-[360px] w-full border-0"
+                  className="h-[320px] w-full border-0 sm:h-[360px]"
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
                   allowFullScreen
                 />
               </div>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div className="mt-5 grid min-w-0 gap-4 md:grid-cols-2">
                 <TravelCard
                   icon={<Navigation className="h-6 w-6" />}
                   title="Address for maps"
@@ -713,7 +706,7 @@ export default function SafeStreetsIrelandPadelPage() {
               eyebrow="Why it matters"
               title="A community event for safer streets and brighter futures"
             >
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <FeatureCard
                   icon={<Shield className="h-6 w-6" />}
                   title="Prevention first"
@@ -728,12 +721,12 @@ export default function SafeStreetsIrelandPadelPage() {
               </div>
 
               <div className="mt-4 rounded-2xl border border-[#eabf99] bg-[#fff6ed] p-5">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#df741d] text-white">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#df741d] text-white">
                     <Sparkles className="h-5 w-5" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-lg font-black text-[#17120d]">
                       Sport, community and action in one event.
                     </h3>
@@ -753,7 +746,7 @@ export default function SafeStreetsIrelandPadelPage() {
               eyebrow="Event format"
               title="Tournament first, play time second"
             >
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <InfoPanel
                   icon={<Trophy className="h-6 w-6" />}
                   title="First half: tournament"
@@ -778,7 +771,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 community action can be active, social and hopeful.
               </p>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <FeatureCard
                   icon={<Trophy className="h-6 w-6" />}
                   title="A friendly competition"
@@ -816,7 +809,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 create better choices for young people.
               </p>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <FeatureCard
                   icon={<Megaphone className="h-6 w-6" />}
                   title="A clear message"
@@ -855,12 +848,12 @@ export default function SafeStreetsIrelandPadelPage() {
                   positive opportunities for young people.
                 </p>
 
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
                   <a
                     href={SAFE_STREETS_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-[#c96316] transition hover:bg-white/90"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-[#c96316] transition hover:bg-white/90"
                   >
                     Back to Safe Streets Ireland
                     <ExternalLink className="h-4 w-4" />
@@ -869,7 +862,7 @@ export default function SafeStreetsIrelandPadelPage() {
                   <button
                     type="button"
                     onClick={scrollToTickets}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/70 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20"
                   >
                     Buy ticket
                     <Ticket className="h-4 w-4" />
@@ -895,10 +888,10 @@ export default function SafeStreetsIrelandPadelPage() {
                 attendance and keep clearer post-event records.
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
                 <Link
                   to="/"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#17120d] px-5 py-3 text-sm font-black text-white transition hover:bg-[#2a2119]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#17120d] px-5 py-3 text-sm font-black text-white transition hover:bg-[#2a2119]"
                 >
                   FundRaisely Home
                   <ArrowRight className="h-4 w-4" />
@@ -906,7 +899,7 @@ export default function SafeStreetsIrelandPadelPage() {
 
                 <Link
                   to="/event-formats/ticketed-events"
-                  className="inline-flex items-center gap-2 rounded-full border border-[#e5d4c2] bg-[#fffaf4] px-5 py-3 text-sm font-black text-[#17120d] transition hover:bg-[#fff3e3]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#e5d4c2] bg-[#fffaf4] px-5 py-3 text-sm font-black text-[#17120d] transition hover:bg-[#fff3e3]"
                 >
                   Ticketed events
                   <ExternalLink className="h-4 w-4" />
@@ -918,7 +911,7 @@ export default function SafeStreetsIrelandPadelPage() {
           {/* DESKTOP TICKET COLUMN */}
           <aside
             id="event-tickets"
-            className="hidden w-full scroll-mt-6 lg:sticky lg:top-6 lg:block lg:self-start"
+            className="hidden w-full min-w-0 scroll-mt-6 lg:sticky lg:top-6 lg:block lg:self-start"
           >
             <DesktopTicketPanel
               hasLinkedRoom={hasLinkedRoom}
@@ -965,7 +958,7 @@ function FactCard({
   value: string;
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-white/25 bg-white p-5 text-[#17120d] shadow-[0_18px_45px_rgba(0,0,0,0.10)]">
+    <div className="min-w-0 rounded-[1.75rem] border border-white/25 bg-white p-5 text-[#17120d] shadow-[0_18px_45px_rgba(0,0,0,0.10)]">
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eafff3] text-[#268b69]">
         {icon}
       </div>
@@ -974,14 +967,16 @@ function FactCard({
         {label}
       </div>
 
-      <div className="mt-2 text-lg font-black text-[#17120d]">{value}</div>
+      <div className="mt-2 break-words text-lg font-black text-[#17120d]">
+        {value}
+      </div>
     </div>
   );
 }
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-white/40 bg-white px-5 py-3 text-sm font-black text-[#242045] shadow-sm">
+    <span className="max-w-full rounded-full border border-white/40 bg-white px-5 py-3 text-sm font-black text-[#242045] shadow-sm">
       {children}
     </span>
   );
@@ -1005,16 +1000,16 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[2rem] border border-[#e5d4c2] bg-white p-6 shadow-sm sm:p-8">
+    <section className="min-w-0 rounded-[2rem] border border-[#e5d4c2] bg-white p-5 shadow-sm sm:p-8">
       <p className="text-xs font-black uppercase tracking-[0.2em] text-[#df741d]">
         {eyebrow}
       </p>
 
-      <h2 className="mt-2 text-3xl font-black leading-tight text-[#17120d]">
+      <h2 className="mt-2 text-2xl font-black leading-tight text-[#17120d] sm:text-3xl">
         {title}
       </h2>
 
-      <div className="mt-6">{children}</div>
+      <div className="mt-6 min-w-0">{children}</div>
     </section>
   );
 }
@@ -1029,7 +1024,7 @@ function FeatureCard({
   text: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#eadccc] bg-[#fffaf4] p-5">
+    <div className="min-w-0 rounded-2xl border border-[#eadccc] bg-[#fffaf4] p-5">
       <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff0df] text-[#df741d]">
         {icon}
       </div>
@@ -1051,7 +1046,7 @@ function InfoPanel({
   text: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#eadccc] bg-[#fffdf9] p-5">
+    <div className="min-w-0 rounded-2xl border border-[#eadccc] bg-[#fffdf9] p-5">
       <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff0df] text-[#df741d]">
         {icon}
       </div>
@@ -1080,30 +1075,30 @@ function TicketTypeCard({
 }) {
   return (
     <div
-      className={`rounded-[1.75rem] border p-6 ${
+      className={`min-w-0 rounded-[1.75rem] border p-5 sm:p-6 ${
         highlight
           ? "border-[#df741d] bg-[#fff6ed] shadow-sm"
           : "border-[#eadccc] bg-[#fffdf9]"
       }`}
     >
-      <div className="grid gap-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
-        <div>
-          <div className="flex items-start justify-between gap-4 md:block">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff0df] text-[#df741d]">
+      <div className="grid min-w-0 gap-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-start justify-between gap-4 md:block">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#fff0df] text-[#df741d]">
               {icon}
             </div>
 
-            <div className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#17120d] ring-1 ring-[#eadccc] md:mt-5 md:inline-flex">
+            <div className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-black text-[#17120d] ring-1 ring-[#eadccc] md:mt-5 md:inline-flex">
               {price}
             </div>
           </div>
 
-          <h3 className="mt-5 text-2xl font-black text-[#17120d] md:max-w-[190px]">
+          <h3 className="mt-5 break-words text-2xl font-black text-[#17120d] md:max-w-[190px]">
             {name}
           </h3>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <p className="text-sm leading-7 text-[#5f5044] md:text-base md:leading-8">
             {description}
           </p>
@@ -1136,7 +1131,7 @@ function TravelCard({
   href: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#eadccc] bg-[#fffdf9] p-5">
+    <div className="min-w-0 rounded-2xl border border-[#eadccc] bg-[#fffdf9] p-5">
       <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff0df] text-[#df741d]">
         {icon}
       </div>
@@ -1160,14 +1155,14 @@ function TravelCard({
 
 function QuickDetailsCard() {
   return (
-    <div className="mt-4 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
+    <div className="mt-4 min-w-0 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#df741d]">
         Event quick details
       </p>
 
       <div className="mt-4 space-y-3 text-sm leading-6 text-[#5f5044]">
         <div className="flex items-start gap-3">
-          <CalendarDays className="mt-0.5 h-4 w-4 text-[#df741d]" />
+          <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#df741d]" />
           <span>
             <strong className="text-[#17120d]">Date:</strong> {EVENT_DATE}{" "}
             {EVENT_YEAR}
@@ -1175,22 +1170,22 @@ function QuickDetailsCard() {
         </div>
 
         <div className="flex items-start gap-3">
-          <Clock className="mt-0.5 h-4 w-4 text-[#df741d]" />
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#df741d]" />
           <span>
             <strong className="text-[#17120d]">Time:</strong> {EVENT_TIME}
           </span>
         </div>
 
         <div className="flex items-start gap-3">
-          <MapPin className="mt-0.5 h-4 w-4 text-[#df741d]" />
-          <span>
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#df741d]" />
+          <span className="min-w-0 break-words">
             <strong className="text-[#17120d]">Venue:</strong>{" "}
             {EVENT_FULL_ADDRESS}
           </span>
         </div>
 
         <div className="flex items-start gap-3">
-          <Ticket className="mt-0.5 h-4 w-4 text-[#df741d]" />
+          <Ticket className="mt-0.5 h-4 w-4 shrink-0 text-[#df741d]" />
           <span>
             <strong className="text-[#17120d]">Tickets:</strong> Tournament{" "}
             {TOURNAMENT_TICKET_PRICE}; Play Time {PLAY_TIME_TICKET_PRICE}.
@@ -1225,7 +1220,7 @@ function PartnerLogoCard({
   const [failed, setFailed] = React.useState(false);
 
   const content = (
-    <div className="flex min-h-[112px] items-center justify-center rounded-2xl border border-white/20 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:shadow-sm">
+    <div className="flex min-h-[112px] min-w-0 items-center justify-center rounded-2xl border border-white/20 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:shadow-sm">
       {failed ? (
         <p className="text-sm font-black uppercase tracking-[0.12em] text-[#17120d]">
           {fallback || name}
@@ -1235,7 +1230,7 @@ function PartnerLogoCard({
           src={imgSrc}
           alt={name}
           onError={() => setFailed(true)}
-          className="max-h-16 w-auto max-w-[170px] object-contain"
+          className="max-h-16 max-w-full object-contain"
         />
       )}
     </div>
@@ -1247,7 +1242,7 @@ function PartnerLogoCard({
 
   if (isInternal) {
     return (
-      <Link to={href} aria-label={`Open ${name}`}>
+      <Link to={href} aria-label={`Open ${name}`} className="min-w-0">
         {content}
       </Link>
     );
@@ -1259,6 +1254,7 @@ function PartnerLogoCard({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Open ${name}`}
+      className="min-w-0"
     >
       {content}
     </a>
@@ -1267,10 +1263,10 @@ function PartnerLogoCard({
 
 function FundraiselyPartnerCard() {
   return (
-    <Link to="/" aria-label="Open FundRaisely">
-      <div className="flex min-h-[112px] items-center justify-center rounded-2xl border border-white/20 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:shadow-sm">
-        <div>
-          <p className="text-xl font-black tracking-tight text-[#17120d]">
+    <Link to="/" aria-label="Open FundRaisely" className="min-w-0">
+      <div className="flex min-h-[112px] min-w-0 items-center justify-center rounded-2xl border border-white/20 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:shadow-sm">
+        <div className="min-w-0">
+          <p className="break-words text-xl font-black tracking-tight text-[#17120d]">
             FundRaisely
           </p>
           <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#9f4d10]">
@@ -1306,24 +1302,26 @@ function MobileTicketPanel({
   onDonateClick: () => void;
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-white/25 bg-white p-4 text-[#17120d] shadow-[0_18px_45px_rgba(0,0,0,0.16)]">
+    <div className="min-w-0 overflow-hidden rounded-[1.75rem] border border-white/25 bg-white p-3 text-[#17120d] shadow-[0_18px_45px_rgba(0,0,0,0.16)] sm:p-4">
       <TicketIntroCard
         shouldShowEnded={shouldShowEnded}
         shouldShowHoldTight={shouldShowHoldTight}
       />
 
-      <TicketPanelBody
-        hasLinkedRoom={hasLinkedRoom}
-        shouldShowEnded={shouldShowEnded}
-        shouldShowHoldTight={shouldShowHoldTight}
-        roomStatus={roomStatus}
-        roomStatusLoading={roomStatusLoading}
-        roomStatusError={roomStatusError}
-        roomInfo={roomInfo}
-        ticketBuyUrl={ticketBuyUrl}
-        eventPageUrl={eventPageUrl}
-        onDonateClick={onDonateClick}
-      />
+      <div className="min-w-0 overflow-x-auto">
+        <TicketPanelBody
+          hasLinkedRoom={hasLinkedRoom}
+          shouldShowEnded={shouldShowEnded}
+          shouldShowHoldTight={shouldShowHoldTight}
+          roomStatus={roomStatus}
+          roomStatusLoading={roomStatusLoading}
+          roomStatusError={roomStatusError}
+          roomInfo={roomInfo}
+          ticketBuyUrl={ticketBuyUrl}
+          eventPageUrl={eventPageUrl}
+          onDonateClick={onDonateClick}
+        />
+      </div>
     </div>
   );
 }
@@ -1382,7 +1380,7 @@ function TicketIntroCard({
   shouldShowHoldTight: boolean;
 }) {
   return (
-    <div className="mb-4 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
+    <div className="mb-4 min-w-0 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-[#df741d]">
         Reserve your place
       </p>
@@ -1477,7 +1475,9 @@ function TicketPanelBody({
           }
         />
       ) : (
-        <TicketPurchaseFlow roomId={ROOM_ID} mode="embedded" />
+        <div className="min-w-0">
+          <TicketPurchaseFlow roomId={ROOM_ID} mode="embedded" />
+        </div>
       )}
 
       <DirectTicketLinkCard ticketBuyUrl={ticketBuyUrl} />
@@ -1487,7 +1487,7 @@ function TicketPanelBody({
 
 function TicketComingSoonCard({ eventPageUrl }: { eventPageUrl: string }) {
   return (
-    <div className="rounded-[1.75rem] border border-[#e5d4c2] bg-white p-6 shadow-sm">
+    <div className="min-w-0 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-6 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#df741d]">
         Ticket panel
       </p>
@@ -1521,7 +1521,7 @@ function TicketPanelStatusNote({
 }) {
   return (
     <div
-      className={`mb-4 rounded-2xl border p-4 text-sm leading-6 ${
+      className={`mb-4 min-w-0 rounded-2xl border p-4 text-sm leading-6 ${
         tone === "warning"
           ? "border-amber-200 bg-amber-50 text-amber-800"
           : "border-[#e5d4c2] bg-white text-[#5f5044]"
@@ -1535,7 +1535,7 @@ function TicketPanelStatusNote({
 
 function HoldTightTicketCard({ reason }: { reason?: string | null }) {
   return (
-    <div className="rounded-[1.75rem] border border-[#e5d4c2] bg-white p-6 shadow-sm">
+    <div className="min-w-0 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-6 shadow-sm">
       <div className="rounded-2xl bg-[#d66c18] p-5 text-white">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/75">
           Tickets not open
@@ -1551,7 +1551,9 @@ function HoldTightTicketCard({ reason }: { reason?: string | null }) {
 
       {reason && (
         <div className="mt-5 rounded-2xl border border-[#eabf99] bg-[#fff6ed] p-4">
-          <p className="text-xs leading-6 text-[#5f5044]">Status: {reason}</p>
+          <p className="break-words text-xs leading-6 text-[#5f5044]">
+            Status: {reason}
+          </p>
         </div>
       )}
     </div>
@@ -1562,7 +1564,7 @@ function EventEndedCard({ status }: { status: string }) {
   const label = status === "cancelled" ? "cancelled" : "ended";
 
   return (
-    <div className="rounded-[1.75rem] border border-[#e5d4c2] bg-white p-6 shadow-sm">
+    <div className="min-w-0 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-6 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#df741d]">
         Event unavailable
       </p>
@@ -1580,14 +1582,14 @@ function EventEndedCard({ status }: { status: string }) {
 
 function DirectTicketLinkCard({ ticketBuyUrl }: { ticketBuyUrl: string }) {
   return (
-    <div className="mt-4 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
+    <div className="mt-4 min-w-0 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
       <p className="text-sm leading-7 text-[#5f5044]">
         Having trouble with the embedded ticket panel?
       </p>
 
       <a
         href={ticketBuyUrl}
-        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#df741d] px-5 py-4 text-base font-black text-white transition hover:bg-[#c96316]"
+        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#df741d] px-5 py-4 text-center text-base font-black text-white transition hover:bg-[#c96316]"
       >
         Open ticket page
         <ArrowRight className="h-5 w-5" />
@@ -1613,7 +1615,7 @@ function DonateButton({
     <button
       type="button"
       onClick={onClick}
-      className={`items-center justify-center gap-2 rounded-[10px] px-[18px] py-3 text-sm font-black shadow-sm transition hover:brightness-110 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-[10px] px-[18px] py-3 text-center text-sm font-black shadow-sm transition hover:brightness-110 ${className}`}
       style={{
         background: "#42368f",
         color: "#ffffff",
@@ -1661,14 +1663,14 @@ function DonationPaymentCard({
 
   return (
     <div
-      className={`rounded-[1.75rem] border p-5 shadow-sm ${
+      className={`min-w-0 rounded-[1.75rem] border p-5 shadow-sm ${
         isHero
           ? "border-white/25 bg-white/16 text-white backdrop-blur"
           : "border-[#e5d4c2] bg-white text-[#17120d]"
       }`}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p
             className={`text-xs font-black uppercase tracking-[0.18em] ${
               isHero ? "text-white/75" : "text-[#df741d]"
@@ -1692,25 +1694,31 @@ function DonationPaymentCard({
         </div>
 
         <div className="shrink-0">
-          <DonateButton label="Donate now" onClick={onDonateClick} />
+          <DonateButton
+            label="Donate now"
+            onClick={onDonateClick}
+            className="w-full sm:w-auto"
+          />
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
         <div
-          className={`flex items-center gap-3 rounded-2xl border p-3 ${
+          className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${
             isHero
               ? "border-white/20 bg-white/12"
               : "border-[#eadccc] bg-[#fffaf4]"
           }`}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#42368f]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#42368f]">
             <CreditCard className="h-5 w-5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-black">Card payments</p>
             <p
-              className={`text-xs ${isHero ? "text-white/75" : "text-[#7a6758]"}`}
+              className={`text-xs ${
+                isHero ? "text-white/75" : "text-[#7a6758]"
+              }`}
             >
               Stripe, Apple Pay, Google Pay
             </p>
@@ -1718,19 +1726,21 @@ function DonationPaymentCard({
         </div>
 
         <div
-          className={`flex items-center gap-3 rounded-2xl border p-3 ${
+          className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${
             isHero
               ? "border-white/20 bg-white/12"
               : "border-[#eadccc] bg-[#fffaf4]"
           }`}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#17120d]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#17120d]">
             <SolanaMark />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-black">Crypto donations</p>
             <p
-              className={`text-xs ${isHero ? "text-white/75" : "text-[#7a6758]"}`}
+              className={`text-xs ${
+                isHero ? "text-white/75" : "text-[#7a6758]"
+              }`}
             >
               Accepted on Solana
             </p>
@@ -1743,14 +1753,14 @@ function DonationPaymentCard({
 
 function DonationSupportCard({ onDonateClick }: { onDonateClick: () => void }) {
   return (
-    <div className="rounded-[1.75rem] border border-[#d8d1ff] bg-[#f7f5ff] p-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-start gap-3">
+    <div className="min-w-0 rounded-[1.75rem] border border-[#d8d1ff] bg-[#f7f5ff] p-5">
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#42368f] text-white">
             <Wallet className="h-5 w-5" />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h3 className="text-lg font-black text-[#17120d]">
               Want to support but not play?
             </h3>
@@ -1762,7 +1772,11 @@ function DonationSupportCard({ onDonateClick }: { onDonateClick: () => void }) {
           </div>
         </div>
 
-        <DonateButton label="Donate instead" onClick={onDonateClick} />
+        <DonateButton
+          label="Donate instead"
+          onClick={onDonateClick}
+          className="w-full md:w-auto"
+        />
       </div>
     </div>
   );
@@ -1800,7 +1814,7 @@ function SafeStreetsSocialLinks({
       : "border-[#e5d4c2] bg-[#fffaf4] text-[#17120d] hover:bg-[#fff3e3]";
 
   return (
-    <div>
+    <div className="min-w-0">
       {showLabel && (
         <p
           className={`text-xs font-black uppercase tracking-[0.18em] ${labelClass}`}
@@ -1811,7 +1825,9 @@ function SafeStreetsSocialLinks({
 
       <div
         className={
-          showLabel ? "mt-3 flex flex-wrap gap-2" : "flex items-center gap-2"
+          showLabel
+            ? "mt-3 flex min-w-0 flex-wrap gap-2"
+            : "flex min-w-0 flex-wrap items-center gap-2"
         }
       >
         {links.map((link) => (
@@ -1851,7 +1867,7 @@ function ShareEventCard({ eventPageUrl }: { eventPageUrl: string }) {
   };
 
   return (
-    <div className="mt-4 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
+    <div className="mt-4 min-w-0 rounded-[1.75rem] border border-[#e5d4c2] bg-white p-5 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#df741d]">
         Share event
       </p>
