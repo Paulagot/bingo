@@ -284,10 +284,13 @@ function CryptoCheckoutInner() {
 
       setStatus('paying');
 
+   const token = SOLANA_TOKENS[selectedToken];
+      const safeDisplayAmount = quote.tokenAmount.toFixed(token.decimals);
+
       const result = await sendDonation({
         recipientWalletAddress: recipientWallet,
         tokenCode: selectedToken,
-        displayAmount: quote.tokenAmount,
+        displayAmount: safeDisplayAmount,
       });
 
       setTxResult(result);

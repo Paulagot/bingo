@@ -278,11 +278,14 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
 
       setStatus('paying');
 
-      const result = await sendDonation({
-        recipientWalletAddress: walletAddress,
-        tokenCode:              selectedToken,
-        displayAmount:          quote.tokenAmount,
-      });
+     const token = SOLANA_TOKENS[selectedToken];
+const safeDisplayAmount = quote.tokenAmount.toFixed(token.decimals);
+
+const result = await sendDonation({
+  recipientWalletAddress: walletAddress,
+  tokenCode: selectedToken,
+  displayAmount: safeDisplayAmount,
+});
 
       setTxResult(result);
 

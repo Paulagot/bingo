@@ -167,7 +167,7 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
   JTO: {
     code: 'JTO',
     name: 'JITO',
-    mint: 'jtojtomepa8b1E2XlyriygzsChXTrqE73RM4BdWUGEm',
+    mint: 'jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL',
     decimals: 9,
     isNative: false,
     tgbCode: 'JTO',
