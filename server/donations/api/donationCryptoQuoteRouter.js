@@ -93,7 +93,7 @@ router.post('/:clubId/crypto/quote', async (req, res) => {
         fiatAmount,
         fiatCurrency: clubCurrency,
         tokenCode: String(token),
-        tokenAmount: Math.round(tokenAmount * 1e8) / 1e8,
+        tokenAmount: Math.round(tokenAmount * 1e6) / 1e6,
         rawAmount,
         pricePerToken: Math.round(pricePerToken * 1e6) / 1e6,
         quotedAt: quotedAt.toISOString(),
