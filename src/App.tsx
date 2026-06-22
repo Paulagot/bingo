@@ -7,6 +7,8 @@ import { Header } from './components/GeneralSite2/Header';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import { Game } from './pages/Game';
 
+import SummerQuestApp from './summerquest/src/SummerQuestApp';
+
 
 import { Landing } from './pages/Landing';
 import WhatsNew from './pages/WhatsNew';
@@ -821,6 +823,8 @@ export default function App() {
             </Suspense>
           }
         />
+
+        <Route path="/summer-quest/*" element={<SummerQuestApp />} />
         
 
         {/* Final app 404 */}
