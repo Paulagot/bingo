@@ -101,6 +101,8 @@ import challengeRouter from './puzzles/routes/challengeRoutes.js';
 import supporterAuthRouter from './supporters/routes/supporterAuthRoutes.js';
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
 
+import { mountSummerQuestRoutes, setupSummerQuestDatabase } from './summerquest/server/index.js';
+
 // Campaign Product Builder imports
 import authenticateToken from './middleware/auth.js';
 import campaignProductMgmtRoutes from './campaigns/api/campaignProductMgmtRoutes.js';
@@ -151,6 +153,8 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stri
 
 app.use(express.json({ limit: '100kb', strict: true }));
 app.use(express.text({ type: 'text/*', limit: '100kb' }));
+
+mountSummerQuestRoutes(app, connection);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC ROUTES — mounted here, BEFORE any auth middleware or helmet.
@@ -840,6 +844,11 @@ httpServer.on('error', (error) => {
     isDatabaseReady = true;
     console.log('🗄️ Database connected and ready');
     startStripeCleanupJob();
+
+    // Summer Quest module — creates its own tables/seed data on first
+    // boot if they don't exist yet, then mounts its routes.
+   await setupSummerQuestDatabase(connection);
+    console.log('🗄️ Summer Quest ready');
   } catch (dbError) {
     console.error('❌ Database initialization failed:', dbError?.message || dbError);
     process.exit(1);
