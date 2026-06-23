@@ -44,7 +44,7 @@ const DONATION_CLUB_ID =
 
 const EVENT_SLUG = "/events/safe-streets-ireland-padel";
 const EVENT_NAME = "Safe Streets Ireland Padel Fundraiser";
-const EVENT_DATE = "27 June";
+const EVENT_DATE = "18 July";
 const EVENT_YEAR = "2026";
 const EVENT_TIME = "3:00pm – 5:00pm";
 const EVENT_LOCATION = "House of Padel";

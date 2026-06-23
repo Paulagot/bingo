@@ -129,10 +129,11 @@ router.get('/donations/:clubId/list', authenticateToken, async (req, res) => {
     }
 
     const status = req.query.status || null;
+    const all = req.query.all === 'true';
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize, 10) || 25));
 
-    const result = await listDonationsForClub({ clubId, status, page, pageSize });
+    const result = await listDonationsForClub({ clubId, status, page, pageSize, all });
 
     return res.json({
       ok: true,
