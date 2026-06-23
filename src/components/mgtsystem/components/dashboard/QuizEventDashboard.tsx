@@ -12,6 +12,7 @@ import ScheduleTicketedEventModal from '../../modals/ScheduleTicketedEventModal'
 import ticketedEventMgmtService from '../../services/TicketedEventMgmtService';
 import { DashboardFundraisingSummary } from '../progress/DashboardFundraisingSummary';
 import ManageDonationButtonModal from '../../modals/ManageDonationButtonModal'; 
+import TotalIncomeReportButton from './TotalIncomeReportButton';
 
 import {
   CreditCard, Calendar, PlusCircle, RefreshCw,
@@ -605,6 +606,7 @@ setLinkedEventsMap(leMap);
                 <span className="sm:hidden">Payments</span>
               </button>
             )}
+               <TotalIncomeReportButton clubId={clubId} clubName={clubName} />
 
             {featureAccess.quizPayments && (
               <button type="button" onClick={() => setManageDonationButtonOpen(true)}

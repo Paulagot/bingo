@@ -102,6 +102,7 @@ import supporterAuthRouter from './supporters/routes/supporterAuthRoutes.js';
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
 
 import { mountSummerQuestRoutes, setupSummerQuestDatabase } from './summerquest/server/index.js';
+import ticketsSummaryRouter from './quiz/api/ticketsSummaryRouter.js'
 
 // Campaign Product Builder imports
 import authenticateToken from './middleware/auth.js';
@@ -443,18 +444,18 @@ app.use((req, res, next) => {
 /* ──────────────────────────────────────────────────────────
    Request logging
    ────────────────────────────────────────────────────────── */
-app.use((req, res, next) => {
-  if (req.path.startsWith('/quiz/api') || req.path.startsWith('/api')) {
-    console.log(`📥 ${req.method} ${req.url}`);
-    console.log('📥 Headers:', {
-      'content-type': req.headers['content-type'],
-      'content-length': req.headers['content-length'],
-      'user-agent': req.headers['user-agent']?.substring(0, 50),
-    });
-  }
+// app.use((req, res, next) => {
+//   if (req.path.startsWith('/quiz/api') || req.path.startsWith('/api')) {
+//     console.log(`📥 ${req.method} ${req.url}`);
+//     console.log('📥 Headers:', {
+//       'content-type': req.headers['content-type'],
+//       'content-length': req.headers['content-length'],
+//       'user-agent': req.headers['user-agent']?.substring(0, 50),
+//     });
+//   }
 
-  next();
-});
+//   next();
+// });
 
 /* ──────────────────────────────────────────────────────────
    API routers — auth-gated routes (auth enforced per-router)
@@ -467,6 +468,7 @@ app.use('/api/impact-campaign/leaderboard', impact_campaign_leaderboard);
 app.use('/quiz/api', web2RoomsApi);
 app.use('/', eventIntegrationsApi);
 app.use('/api/payment-methods', paymentMethodsApi);
+app.use('/api/tickets', ticketsSummaryRouter);
 
 app.use('/api/quiz-reconciliation', reconciliationRoutes);
 app.use('/api/quiz/tickets/crypto-donation', quizTicketCryptoDonationRoutes);
