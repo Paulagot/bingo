@@ -180,9 +180,15 @@ export async function markDonationStatus({ donationId = null, externalCheckoutId
  * Club-facing "donations received" list (spec section 8). Paginated,
  * optionally filtered by status. Newest first.
  */
-export async function listDonationsForClub({ clubId, status = null, page = 1, pageSize = 25 }) {
-  const offset = Math.max(0, (page - 1) * pageSize);
-
+/**
+ * Club-facing "donations received" list (spec section 8). Paginated,
+ * optionally filtered by status. Newest first.
+ *
+ * Pass `all: true` to skip pagination entirely and return every matching
+ * row in one query (used by reporting views that need full totals, e.g.
+ * the dashboard income report — not for paginated UI lists).
+ */
+export async function listDonationsForClub({ clubId, status = null, page = 1, pageSize = 25, all = false }) {
   const whereParts = ['club_id = ?'];
   const params = [clubId];
   if (status) {
@@ -190,6 +196,18 @@ export async function listDonationsForClub({ clubId, status = null, page = 1, pa
     params.push(status);
   }
   const whereSql = whereParts.join(' AND ');
+
+  if (all) {
+    const [rows] = await connection.execute(
+      `SELECT * FROM ${DONATIONS_TABLE}
+       WHERE ${whereSql}
+       ORDER BY created_at DESC`,
+      params
+    );
+    return { donations: rows, total: rows.length, page: 1, pageSize: rows.length };
+  }
+
+  const offset = Math.max(0, (page - 1) * pageSize);
 
   const [rows] = await connection.execute(
     `SELECT * FROM ${DONATIONS_TABLE}

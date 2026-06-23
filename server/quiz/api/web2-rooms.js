@@ -3,9 +3,11 @@ import express from 'express';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { authenticateToken } from '../../middleware/auth.js';
 
+const DEBUG = false
+
 const router = express.Router();
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
-console.log('[web2-rooms API] ✅ web2-rooms router file loaded');
+if (DEBUG) console.log('[web2-rooms API] ✅ web2-rooms router file loaded');
 
 
 function isAllowedStatus(s) {
@@ -61,7 +63,7 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
     const status = String(req.query.status || 'scheduled');
     const time = String(req.query.time || 'upcoming');
 
-    console.log('[web2-rooms API] 📊 Request params:', { clubId, status, time });
+    if (DEBUG) console.log('[web2-rooms API] 📊 Request params:', { clubId, status, time });
 
     const where = ['club_id = ?'];
     const params = [clubId];
@@ -282,7 +284,7 @@ router.post('/web2/rooms/:roomId/cancel', authenticateToken, async (req, res) =>
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    console.log('[web2-rooms API] ✅ Cancel handler matched:', { roomId, clubId });
+    if (DEBUG) console.log('[web2-rooms API] ✅ Cancel handler matched:', { roomId, clubId });
 
     const sql = `
       UPDATE ${WEB2_ROOMS_TABLE}
