@@ -779,8 +779,8 @@ const validatedOrigin = this._validateAppOrigin(appOrigin);
             quantity: 1,
           },
         ],
-        success_url: `${validatedOrigin}${basePath}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${validatedOrigin}${basePath}?cancelled=1`,
+      success_url: `${validatedOrigin}${basePath}?session_id={CHECKOUT_SESSION_ID}`,
+cancel_url: `${validatedOrigin}${basePath}?cancelled=1`,
         metadata: {
           type: 'club_donation',
           donationId: String(donationId),
