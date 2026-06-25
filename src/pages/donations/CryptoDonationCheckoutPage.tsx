@@ -322,17 +322,17 @@ function CryptoCheckoutInner() {
     if (status !== 'success') return undefined;
 
     const hasOpener = !!window.opener;
-    console.log('[FR-DEBUG CryptoCheckout success-effect] status=success. hasOpener=', hasOpener, 'this window.location=', window.location.href);
+    // console.log('[FR-DEBUG CryptoCheckout success-effect] status=success. hasOpener=', hasOpener, 'this window.location=', window.location.href);
 
     if (hasOpener) {
       try {
         window.opener.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
-        console.log('[FR-DEBUG CryptoCheckout success-effect] postMessage to window.opener SUCCEEDED (no throw). clubId=', clubId);
+        // console.log('[FR-DEBUG CryptoCheckout success-effect] postMessage to window.opener SUCCEEDED (no throw). clubId=', clubId);
       } catch (e) {
         console.error('[FR-DEBUG CryptoCheckout success-effect] postMessage to window.opener THREW:', e);
       }
       const t = setTimeout(() => {
-        console.log('[FR-DEBUG CryptoCheckout success-effect] closing this tab now.');
+        // console.log('[FR-DEBUG CryptoCheckout success-effect] closing this tab now.');
         try { window.close(); } catch (e) { console.error('[FR-DEBUG CryptoCheckout success-effect] window.close() threw:', e); }
       }, 2500);
       return () => clearTimeout(t);
