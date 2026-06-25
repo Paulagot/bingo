@@ -1,6 +1,10 @@
 // src/components/embed/DonateEmbedPage.tsx
 //
-// Rendered at /embed/donate/:clubId (and /embed/donate/:clubId/success).
+// Rendered at /embed/donate/:clubId. Success is detected via
+// ?session_id=... query param on this SAME route (Stripe's
+// success_url points back here, NOT at a separate /success path —
+// see DonationCheckoutService.js's _startStripeCheckout fix).
+//
 // This is the page that goes INSIDE the <iframe> a club pastes on their
 // own site — no app header/nav, no auth, nothing that assumes a logged-in
 // user. Mount this as its own lazy-loaded route in your router so it
@@ -17,15 +21,29 @@
 // provider's hosted checkout; 'crypto' opens a new tab to
 // CryptoDonationCheckoutPage (this app's own page) rather than
 // connecting a wallet inline inside this iframe — see that page's
-// header comment for why (AppKit's connect modal was confirmed working
-// in-iframe for injected wallets, but WalletConnect's mobile deep-link
-// return inside this iframe nesting was deliberately left untested;
-// opening a full tab sidesteps that open question, same structural
-// reason Stripe already uses a new tab). Once a method is chosen, the
-// amount picker shows a "change payment method" link that returns to
-// the choice step — see the 'picking_amount' render branch below.
+// header comment for why. Once a method is chosen, the amount picker
+// shows a "change payment method" link that returns to the choice
+// step — see the 'picking_amount' render branch below.
+//
+// CONFIRMATION ARCHITECTURE (revised):
+// The PRIMARY confirmation mechanism is polling — see
+// useDonationStatusPoll below. While in 'checkout_opened', this page
+// polls GET /api/donations/:clubId/:donationId/status, which only ever
+// reflects what a verified Stripe webhook or verified on-chain confirm
+// wrote to the ledger. That's a deliberate choice: this is real
+// donation money for real charities, and "did the payment actually go
+// through" should never depend on a client-asserted postMessage making
+// it across a 3-hop relay (popup tab -> this iframe -> club's page ->
+// donate.js) through an arbitrary third-party site we don't control.
+//
+// The postMessage relay (the handleChildMessage listener below, and
+// donate.js's listener on the club's page) still exists, but its job
+// changed: it's now a UI-courtesy fast-path that can close the modal
+// overlay a little sooner when it happens to work, NOT the source of
+// truth for whether the donation succeeded. Polling reaches 'success'
+// independently regardless of whether any postMessage ever arrives.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Heart, AlertCircle, Loader2, CheckCircle2, CreditCard, Coins, ChevronLeft } from 'lucide-react';
 
@@ -62,29 +80,19 @@ const FALLBACK_BACKGROUND_COLOR = '#ffffff';
 /**
  * Converts a #rrggbb hex color to an rgba() string at the given alpha,
  * for the translucent icon-background wash behind the provider-choice
- * icons (previously a hardcoded rgba(21,127,133,0.12) tied to the old
- * fixed teal). Falls back to the fixed teal's own translucent value if
- * given anything malformed, rather than producing an invalid CSS value.
+ * icons. Falls back to the fixed teal's own translucent value if given
+ * anything malformed, rather than producing an invalid CSS value.
  */
 function hexToRgba(hex: string, alpha: number): string {
   const match = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex.trim());
   if (!match) return `rgba(21,127,133,${alpha})`;
-  // Non-null assertions are safe here: none of this regex's three
-  // groups are optional, and `!match` above already guarantees the
-  // whole pattern matched — TypeScript just can't infer that capture
-  // groups on a successful match are non-undefined on its own.
   const r = parseInt(match[1]!, 16);
   const g = parseInt(match[2]!, 16);
   const b = parseInt(match[3]!, 16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-// Display metadata for the provider-choice cards. Icon + label per the
-// design decision — Stripe gets a card icon, crypto gets a coin icon.
-// sumup_api isn't built yet (DonationCheckoutService.js's dispatcher has
-// no case for it) but is included here defensively so the picker
-// doesn't render a blank/unlabeled card if it ever shows up in
-// `methods` ahead of the backend actually supporting it.
+// Display metadata for the provider-choice cards.
 const PROVIDER_DISPLAY: Record<TrackableDonationProvider, { label: string; Icon: typeof CreditCard }> = {
   stripe: { label: 'Card', Icon: CreditCard },
   crypto: { label: 'Crypto', Icon: Coins },
@@ -97,9 +105,89 @@ type ViewState =
   | { kind: 'picking_method' }
   | { kind: 'picking_amount' }
   | { kind: 'starting_checkout' }
-  | { kind: 'checkout_opened'; provider: 'stripe' | 'sumup_api' | 'crypto' }
+  | { kind: 'checkout_opened'; provider: 'stripe' | 'sumup_api' | 'crypto'; donationId: string }
   | { kind: 'success' }
   | { kind: 'cancelled' };
+
+/**
+ * Polls GET /api/donations/:clubId/:donationId/status while a checkout
+ * tab is open. This is the PRIMARY confirmation mechanism — not the
+ * postMessage relay. Polling only ever believes what the backend's
+ * donations table says, which is itself only ever written by a
+ * verified Stripe webhook or a verified on-chain confirm. There is no
+ * client-asserted "trust me, it succeeded" step anywhere in this path.
+ *
+ * Stops polling on: success, unmount, a terminal failed/expired status,
+ * or a 5-minute timeout (webhooks can occasionally lag — after 5
+ * minutes we stop hammering the endpoint; the checkout_opened view's
+ * own "Start again" affordance still lets the supporter retry or check
+ * their email).
+ */
+function useDonationStatusPoll({
+  clubId,
+  donationId,
+  enabled,
+  onConfirmed,
+}: {
+  clubId: string | undefined;
+  donationId: string | null;
+  enabled: boolean;
+  onConfirmed: () => void;
+}) {
+  useEffect(() => {
+    if (!enabled || !clubId || !donationId) return;
+
+    let cancelled = false;
+    const POLL_INTERVAL_MS = 3000;
+    const TIMEOUT_MS = 5 * 60 * 1000;
+    const startedAt = Date.now();
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    async function poll() {
+      if (cancelled) return;
+
+      if (Date.now() - startedAt > TIMEOUT_MS) {
+        console.warn(
+          '[DonationStatusPoll] timed out after 5 minutes without confirmation. donationId=',
+          donationId
+        );
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/donations/${clubId}/${donationId}/status`);
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (res.ok && data?.ok && data.status === 'confirmed') {
+          onConfirmed();
+          return;
+        }
+
+        if (data?.status === 'failed' || data?.status === 'expired') {
+          console.warn(
+            '[DonationStatusPoll] terminal non-confirmed status:', data.status, 'donationId=', donationId
+          );
+          return;
+        }
+      } catch (err) {
+        // Network hiccup — don't stop polling for a single failed
+        // request, the next interval retries naturally.
+        console.warn('[DonationStatusPoll] poll request failed, will retry:', err);
+      }
+
+      timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
+    }
+
+    poll();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [clubId, donationId, enabled, onConfirmed]);
+}
 
 export default function DonateEmbedPage() {
   const { clubId } = useParams<{ clubId: string }>();
@@ -135,12 +223,6 @@ export default function DonateEmbedPage() {
 
   useEffect(() => {
     if (!clubId) return;
-    // Check searchParams directly here — NOT view.kind — because view
-    // is a stale closure value at the moment this effect fires (React
-    // hasn't flushed the setView({ kind: 'success' }) call from the
-    // other effect yet). searchParams is stable and synchronous, so
-    // this correctly skips the config fetch on the success/cancel
-    // redirect-back paths without depending on effect ordering.
     if (searchParams.get('session_id') || searchParams.get('cancelled') === '1') return;
 
     let cancelled = false;
@@ -150,18 +232,6 @@ export default function DonateEmbedPage() {
         if (cancelled) return;
         setConfig(res);
 
-        // PHASE 3b: if there's exactly one method, skip the
-        // provider-choice step entirely — select it immediately and go
-        // straight to the amount picker, identical to the old
-        // single-method flow. If there's more than one, show the
-        // choice step first per the chosen flow (method before amount).
-        //
-        // res.methods[0] is checked explicitly here (not just inferred
-        // from the .length === 1 check) because TypeScript can't narrow
-        // an array-index access to non-undefined purely from a separate
-        // .length comparison — under strict/noUncheckedIndexedAccess
-        // settings, res.methods[0] is still typed as
-        // ResolvedDonationMethod | undefined until checked directly.
         const onlyMethod = res.methods.length === 1 ? res.methods[0] : undefined;
         if (onlyMethod) {
           setSelectedMethod(onlyMethod);
@@ -187,49 +257,43 @@ export default function DonateEmbedPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId, searchParams]);
 
+  // PRIMARY confirmation path. Polls the backend's own ledger — which is
+  // only ever written by a verified webhook/on-chain confirm — regardless
+  // of whether the popup tab's postMessage relay makes it back. This is
+  // what actually decides "the donation succeeded."
+  const checkoutDonationId = view.kind === 'checkout_opened' ? view.donationId : null;
+  const handleConfirmed = useCallback(() => {
+    setView({ kind: 'success' });
+  }, []);
+  useDonationStatusPoll({
+    clubId,
+    donationId: checkoutDonationId,
+    enabled: view.kind === 'checkout_opened',
+    onConfirmed: handleConfirmed,
+  });
+
   // Post-success side effects: close the modal overlay (if running
   // inside the donate.js iframe) or close the standalone tab (if Stripe
-  // redirected here directly in its own tab). This MUST sit here, above
-  // every early `return` below (loading/error/cancelled), and run on
-  // every single render regardless of view.kind — React requires the
-  // same hooks in the same order on every render. The effect's own body
-  // checks view.kind and no-ops if it isn't 'success'; that conditional
-  // logic belongs inside the effect, never around the useEffect() call
-  // itself.
+  // redirected here directly in its own tab). This is now a UI-courtesy
+  // notification, not a confirmation signal — polling above already
+  // independently decided 'success'. This MUST sit here, above every
+  // early `return` below (loading/error/cancelled), and run on every
+  // single render regardless of view.kind — React requires the same
+  // hooks in the same order on every render.
   useEffect(() => {
     if (view.kind !== 'success') return;
 
-    // Three possible contexts this success page can be running in:
-    //   1. Inside the donate.js iframe directly — window.parent is the
-    //      club's top-level page. (Not the path we actually use anymore
-    //      for Stripe/crypto, but kept as a fallback.)
-    //   2. In a new tab opened via window.open from inside the iframe —
-    //      window.opener is the IFRAME, not the club's top-level page.
-    //      The iframe (still open, still showing picking_amount) needs
-    //      to relay this onward to ITS OWN parent — see the message
-    //      listener below.
-    //   3. Standalone, no opener and no parent — nothing to notify,
-    //      just close the tab.
-    //
-    // TEMPORARY DIAGNOSTIC LOGGING — added to find why this works on
-    // localhost but the modal does not close on staging. Remove once
-    // root cause is confirmed. Every branch and every catch logs, since
-    // the original catch (e) {} blocks would otherwise hide a thrown
-    // error completely with zero visible symptom.
     const hasOpener = !!window.opener;
     const isInIframe = window !== window.parent;
-    console.log('[FR-DEBUG success-effect] view=success. hasOpener=', hasOpener, 'isInIframe=', isInIframe, 'location=', window.location.href);
 
     if (hasOpener) {
       try {
         window.opener.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
-        console.log('[FR-DEBUG success-effect] postMessage to window.opener SUCCEEDED (no throw). clubId=', clubId);
       } catch (e) {
-        console.error('[FR-DEBUG success-effect] postMessage to window.opener THREW:', e);
+        console.error('[DonateEmbedPage] postMessage to window.opener threw:', e);
       }
       const t = setTimeout(() => {
-        console.log('[FR-DEBUG success-effect] closing this tab now (hasOpener branch)');
-        try { window.close(); } catch (e) { console.error('[FR-DEBUG success-effect] window.close() threw:', e); }
+        try { window.close(); } catch (e) { /* nothing further to do if this fails */ }
       }, 2000);
       return () => clearTimeout(t);
     }
@@ -237,68 +301,43 @@ export default function DonateEmbedPage() {
     if (isInIframe) {
       try {
         window.parent.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId }, '*');
-        console.log('[FR-DEBUG success-effect] postMessage to window.parent SUCCEEDED (no throw). clubId=', clubId);
       } catch (e) {
-        console.error('[FR-DEBUG success-effect] postMessage to window.parent THREW:', e);
+        console.error('[DonateEmbedPage] postMessage to window.parent threw:', e);
       }
       return;
     }
 
-    console.log('[FR-DEBUG success-effect] neither hasOpener nor isInIframe — standalone tab, just closing.');
-    // Standalone tab, no opener relationship (e.g. opened directly by
-    // the user, or opener was severed) — just close after the pause.
-    const t = setTimeout(() => { try { window.close(); } catch (e) {} }, 2000);
+    // Standalone tab, no opener relationship — just close after a pause.
+    const t = setTimeout(() => { try { window.close(); } catch (e) { /* ignore */ } }, 2000);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.kind]);
 
-  // Relay listener: if THIS page is itself the iframe sitting inside
-  // donate.js's modal, and a child tab we spawned (via window.open)
-  // posts a success message to us, forward it up to OUR parent (the
-  // club's top-level page) so donate.js's listener there can close the
-  // modal. Without this relay, the success message only reaches the
-  // iframe and stops there — the iframe has no way to close itself
-  // from the OUTSIDE (the overlay lives on the club's page, not inside
-  // this iframe's own DOM).
+  // Relay listener: UI-courtesy fast-path only. If a child tab we
+  // spawned (via window.open) posts a success message to us, forward it
+  // up to OUR parent (the club's top-level page) so donate.js's listener
+  // there can close the modal a little sooner. NOTE: this is NOT the
+  // confirmation source of truth — useDonationStatusPoll above
+  // independently reaches 'success' by polling the backend ledger
+  // regardless of whether this message ever arrives. This listener just
+  // lets the UI update sooner when the relay happens to work.
   useEffect(() => {
     function handleChildMessage(event: MessageEvent) {
       const data = event.data || {};
-      // TEMPORARY DIAGNOSTIC LOGGING — logs EVERY message this window
-      // receives, not just ones matching our type, so we can see if
-      // staging's message even arrives here at all versus being
-      // filtered out by something upstream (e.g. never reaching this
-      // listener because the child tab's postMessage call threw before
-      // it ever got sent).
-      console.log('[FR-DEBUG relay-listener] message event received. origin=', event.origin, 'data=', data);
+      if (data.type !== 'FUNDRAISELY_DONATION_SUCCESS') return;
 
-      if (data.type !== 'FUNDRAISELY_DONATION_SUCCESS') {
-        console.log('[FR-DEBUG relay-listener] ignoring — type does not match FUNDRAISELY_DONATION_SUCCESS');
-        return;
-      }
-
-      console.log('[FR-DEBUG relay-listener] MATCHED success message. clubId=', data.clubId, '. Setting local view to success and checking isInIframe...');
-
-      // Update this iframe's own UI too, in case there's any visible
-      // delay before donate.js's listener closes the modal overlay —
-      // better to show "thank you" than stale picking_amount/checkout_opened.
       setView({ kind: 'success' });
 
       const isInIframe = window !== window.parent;
-      console.log('[FR-DEBUG relay-listener] isInIframe=', isInIframe, 'location=', window.location.href);
-
       if (isInIframe) {
         try {
           window.parent.postMessage({ type: 'FUNDRAISELY_DONATION_SUCCESS', clubId: data.clubId }, '*');
-          console.log('[FR-DEBUG relay-listener] relayed to window.parent SUCCEEDED (no throw)');
         } catch (e) {
-          console.error('[FR-DEBUG relay-listener] relay to window.parent THREW:', e);
+          console.error('[DonateEmbedPage] relay to window.parent threw:', e);
         }
-      } else {
-        console.log('[FR-DEBUG relay-listener] not in an iframe, nothing to relay upward');
       }
     }
     window.addEventListener('message', handleChildMessage);
-    console.log('[FR-DEBUG relay-listener] listener attached. window.location=', window.location.href);
     return () => window.removeEventListener('message', handleChildMessage);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -329,26 +368,13 @@ export default function DonateEmbedPage() {
       });
 
       if (result.provider === 'stripe' || result.provider === 'sumup_api') {
-        // Open Stripe/SumUp in a new tab rather than navigating the iframe.
-        // When the iframe tries to do window.location.href on a cross-origin
-        // parent page, browsers block it or open a new tab anyway — so we
-        // do it explicitly. The donation form (this iframe) stays visible,
-        // showing a "checkout opened" state so the supporter knows what
-        // happened. The webhook records confirmation server-side regardless
-        // of what the iframe shows afterward.
-        //
-        // Deliberately NOT passing 'noopener' here — the success page
-        // (landed on after Stripe redirects) needs window.opener to point
-        // back to THIS iframe so it can postMessage the success event
-        // back, which is how the modal gets closed automatically. Using
-        // noopener severs that relationship entirely, which is what was
-        // causing the close-the-modal flow to silently fail. Both ends of
-        // this relationship are FundRaisely's own pages (this iframe and
-        // the success page), so there's no security reason to isolate
-        // them from each other the way you would for an arbitrary
-        // third-party link.
+        // Open Stripe/SumUp in a new tab rather than navigating the
+        // iframe. Deliberately NOT passing 'noopener' — the success page
+        // (landed on after Stripe redirects) keeps window.opener pointing
+        // back to THIS iframe so the UI-courtesy postMessage notify can
+        // still fire, even though confirmation itself now comes from
+        // polling, not from this relationship surviving.
         const checkoutWindow = window.open(result.redirectUrl, '_blank');
-        console.log('[FR-DEBUG handleDonate stripe] window.open returned:', !!checkoutWindow, 'redirectUrl=', result.redirectUrl, 'this window.location=', window.location.href);
         if (!checkoutWindow) {
           setView({
             kind: 'error',
@@ -356,18 +382,11 @@ export default function DonateEmbedPage() {
           });
           return;
         }
-        setView({ kind: 'checkout_opened', provider: result.provider });
+        setView({ kind: 'checkout_opened', provider: result.provider, donationId: result.donationId });
         return;
       }
 
       if (result.provider === 'crypto') {
-        // Same window.open() pattern as the stripe/sumup_api branch
-        // above, for the same structural reason — see this file's top
-        // comment and CryptoDonationCheckoutPage.tsx's header comment.
-        //
-        // config.currency comes from PublicDonationButtonConfig (already
-        // loaded into `config` state above) — the club's reporting
-        // currency, same value used for the amount picker's symbol.
         const params = new URLSearchParams({
           wallet: result.walletAddress,
           amount: String(amount),
@@ -375,14 +394,7 @@ export default function DonateEmbedPage() {
         });
         const checkoutUrl = `/donate/${clubId}/crypto/${result.donationId}?${params.toString()}`;
 
-        // Deliberately NOT passing 'noopener' — same reasoning as the
-        // stripe/sumup_api branch above: CryptoDonationCheckoutPage's
-        // success state needs window.opener to point back to THIS
-        // iframe so it can postMessage the success event back, which is
-        // how the modal gets closed automatically. Both ends of this
-        // relationship are FundRaisely's own pages.
         const checkoutWindow = window.open(checkoutUrl, '_blank');
-        console.log('[FR-DEBUG handleDonate crypto] window.open returned:', !!checkoutWindow, 'checkoutUrl=', checkoutUrl, 'this window.location=', window.location.href);
         if (!checkoutWindow) {
           setView({
             kind: 'error',
@@ -390,7 +402,7 @@ export default function DonateEmbedPage() {
           });
           return;
         }
-        setView({ kind: 'checkout_opened', provider: 'crypto' });
+        setView({ kind: 'checkout_opened', provider: 'crypto', donationId: result.donationId });
         return;
       }
     } catch (err: any) {
@@ -489,7 +501,8 @@ export default function DonateEmbedPage() {
             Checkout opened
           </p>
           <p className="text-xs" style={{ color: '#52636f' }}>
-            Complete your donation in the new tab. You can close this window when done.
+            Complete your donation in the new tab. This page will update
+            automatically once your payment is confirmed.
           </p>
           <button
             type="button"
@@ -554,7 +567,7 @@ export default function DonateEmbedPage() {
   }
 
   // view.kind === 'picking_amount' | 'starting_checkout', selectedMethod is set
-  if (!selectedMethod) return null; // unreachable in practice — picking_amount is never entered without a selected method
+  if (!selectedMethod) return null; // unreachable in practice
 
   const sym = symbolFor(config.currency);
   const presets = config.amountConfig.presetAmounts;
@@ -676,12 +689,7 @@ export default function DonateEmbedPage() {
 /**
  * Minimal shell — intentionally plain. This renders inside an arbitrary
  * club's own page design, so it should look like a self-contained widget,
- * not bring its own competing branding/header. Matches the existing
- * dashboard's color tokens (#157f85 teal, #f6f1e8 cream, #dce1df borders)
- * as a DEFAULT, but primaryColor/backgroundColor are now driven by the
- * button's saved branding once config has loaded — see PublicDonationButtonConfig.branding.
- * Both props are optional (defaulting to the original fixed colors) since
- * the loading/error views render this shell before config exists.
+ * not bring its own competing branding/header.
  */
 function EmbedShell({
   title,
