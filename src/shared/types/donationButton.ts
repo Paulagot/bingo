@@ -21,6 +21,24 @@
 import type { PaymentProvider } from './payment';
 import type { DonationAmountConfig, DonationBrandingConfig, EligibleTrackableMethod, DroppedMethod } from './donationCheckout';
 
+/**
+ * One domain a club has registered as a legitimate place for their
+ * donate.js widget to render. Stored in fundraisely_club_allowed_domains.
+ * This is a short-term, button-level field ahead of the planned proper
+ * club onboarding flow, where domain registration will move to entity
+ * setup — see migration 001_club_allowed_domains.sql.
+ */
+export interface AllowedDomain {
+  hostname: string;
+}
+ 
+export type DroppedDomainReason = 'invalid';
+ 
+export interface DroppedDomain {
+  input: string;
+  reason: DroppedDomainReason;
+}
+
 export interface ClubDonationButton {
   id: string;
   clubId: string;
@@ -78,6 +96,7 @@ export interface UpsertClubDonationButtonRequest {
   isEnabled: boolean;
   buttonLabel: string;
   buttonTitle?: string | null;
+  allowedDomains?: string[]; 
   /**
    * PHASE 3b: plural for the Tier B save path
    * (DonationCheckoutService.upsertTierBButton). Tier A's own upsert
@@ -153,6 +172,7 @@ export interface GetDonationButtonManageResponse {
   eligibleManualMethods: EligibleDonationPaymentMethod[];
   eligibleTrackableMethods: EligibleTrackableMethod[];
   linkedTrackableMethodIds: string[];
+  allowedDomains: string[]; 
 }
 
 /**
@@ -168,6 +188,7 @@ export interface GetDonationButtonManageResponse {
  */
 export interface SaveDonationButtonResponse extends GetDonationButtonManageResponse {
   droppedMethodIds: DroppedMethod[];
+   droppedDomains: DroppedDomain[]; 
 }
 
 export interface DonationButtonEmbedResponse {

@@ -797,14 +797,7 @@ export default function App() {
           }
         />
 
-        <Route
-          path="/join/puzzle/:joinCode"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-              <PuzzleJoinPage />
-            </Suspense>
-          }
-        />
+    
 
         <Route
           path="/puzzle-check-email"

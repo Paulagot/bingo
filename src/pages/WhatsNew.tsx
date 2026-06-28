@@ -20,7 +20,7 @@ function getOrigin(): string {
   const env = (import.meta as any)?.env?.VITE_SITE_ORIGIN as string | undefined;
   if (env) return env.replace(/\/$/, '');
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin.replace(/\/$/, '');
-  return 'https://fundraisely.co.uk';
+  return 'https://fundraisely.ie';
 }
 function abs(path: string) {
   const p = path.startsWith('/') ? path : `/${path}`;

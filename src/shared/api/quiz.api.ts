@@ -65,6 +65,21 @@ export interface ParsedConfig {
   fundraisingPrices?: Record<string, number>;
 }
 
+// ── Payment methods ──────────────────────────────────────────────────────────
+// Mirrors the JSON shape written by QuizPaymentMethodsService /
+// eliminationMgmtService on the backend. Set at the ACTIVITY level (the
+// room itself) — not copied down from the event. See
+// PaymentMethodSelector.tsx for the full reasoning, and
+// EliminationMgmtService.ts's LinkedPaymentMethods for the equivalent type
+// on the elimination side (kept as a separate type here since this file
+// covers quiz/generic web2 rooms, not elimination specifically).
+export interface LinkedPaymentMethods {
+  ticket_method_ids?:  number[];
+  onnight_method_ids?: number[];
+  updated_at?:         string | null;
+  updated_by?:         string | null;
+}
+
 export type Web2RoomListItem = {
   room_id: string;
   host_id: string;
@@ -76,6 +91,12 @@ export type Web2RoomListItem = {
   room_caps_json?: string | RoomCaps | null;
   prize_description?: string | null;
   prize_value?: number | null;
+  // Set at schedule time by the activity itself — read here so any edit
+  // modal built on top of Web2RoomListItem (e.g. via the SetupTab cast)
+  // can hydrate current payment-method selections. May be string (raw
+  // JSON) or already-parsed object depending on the MySQL driver, same
+  // quirk config_json already has.
+  linked_payment_methods_json?: LinkedPaymentMethods | string | null;
   created_at: string;
   updated_at: string;
   ended_at?: string | null;

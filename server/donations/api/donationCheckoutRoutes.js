@@ -8,31 +8,31 @@
 // pattern as donation-buttons/:clubId/manage.
 //
 // GET /donations/:clubId/config is PUBLIC/unauthenticated — fetched by
-// the embed page on load. THIS ROUTE WAS MISSING from a previously
-// copied version of this file (confirmed via curl: the request was
-// falling through to the SPA catch-all because nothing was registered
-// at this path) — added back in below.
+// the embed page on load. Now rate-limited (configLimiter, below) —
+// previously had no limiter at all, which meant anyone could hammer it
+// to scrape club config or enumerate club ids at will. Low severity
+// (the response is just branding/preset amounts, nothing sensitive)
+// but cheap to close.
+//
+// GET /donations/:clubId/domain-check is PUBLIC/unauthenticated — called
+// by donate.js before it renders a club's button, to confirm the
+// current page's hostname is one the club registered. See
+// DonationButtonService.isHostnameAllowed.
 
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 import authenticateToken from '../../middleware/auth.js';
 import DonationCheckoutService from '../services/DonationCheckoutService.js';
+import DonationButtonService from '../../mgtsystem/services/DonationButtonService.js';
 import { listDonationsForClub } from '../services/DonationLedgerService.js';
+import {
+  checkoutLimiter,
+  donationConfigLimiter,
+  donationDomainCheckLimiter,
+} from '../../middleware/rateLimit.js';
 
 const router = express.Router();
 const svc = new DonationCheckoutService();
-
-// Tighter than the crypto-confirm limiter (8/10min) since this creates
-// real provider checkout sessions, not just verifies an already-signed
-// on-chain tx — a real session has more abuse surface (e.g. spamming
-// Stripe session creation against a club's connected account).
-const checkoutLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many donation attempts. Please wait a few minutes and try again.' },
-});
+const buttonSvc = new DonationButtonService();
 
 function mapErrorToStatus(message) {
   if (!message) return 500;
@@ -65,11 +65,9 @@ function mapErrorToStatus(message) {
 /**
  * GET /donations/:clubId/config
  * Public — no auth. Fetched by the embed page on load to render the
- * amount picker and know which single provider this button is wired
- * to (see ResolvedDonationMethod in donationCheckout.ts for why this
- * is one method, not a list).
+ * amount picker and know which method(s) this button is wired to.
  */
-router.get('/donations/:clubId/config', async (req, res) => {
+router.get('/donations/:clubId/config', donationConfigLimiter, async (req, res) => {
   try {
     const { clubId } = req.params;
     const config = await svc.getPublicConfig({ clubId });
@@ -78,6 +76,35 @@ router.get('/donations/:clubId/config', async (req, res) => {
     console.error('[donations] GET config error:', err);
     const status = mapErrorToStatus(err?.message);
     return res.status(status).json({ error: err?.message || 'Failed to load donation button' });
+  }
+});
+
+/**
+ * GET /donations/:clubId/domain-check?hostname=clubsite.com
+ * Public — no auth. Called by donate.js before it renders the donate
+ * button, to confirm the page it's running on is one this club has
+ * registered. Always returns 200 with { ok: true, allowed: boolean }
+ * — an unregistered hostname is a normal "no," not an error status,
+ * since this is queried for arbitrary club/hostname pairs by design
+ * (donate.js can't know in advance whether it'll pass).
+ */
+router.get('/donations/:clubId/domain-check', donationDomainCheckLimiter, async (req, res) => {
+  try {
+    const { clubId } = req.params;
+    const hostname = req.query.hostname;
+
+    if (!hostname) {
+      return res.status(400).json({ ok: false, allowed: false, error: 'hostname is required' });
+    }
+
+    const allowed = await buttonSvc.isHostnameAllowed({ clubId, hostname });
+    return res.json({ ok: true, allowed });
+  } catch (err) {
+    console.error('[donations] GET domain-check error:', err);
+    // Fail CLOSED on unexpected errors (club not found, DB hiccup,
+    // etc.) — a widget that can't confirm its domain is allowed should
+    // not render, rather than defaulting open on any backend error.
+    return res.status(200).json({ ok: false, allowed: false });
   }
 });
 

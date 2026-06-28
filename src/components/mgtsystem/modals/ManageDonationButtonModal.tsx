@@ -49,6 +49,7 @@ import {
   Trash2,
   ExternalLink,
   Palette,
+  Globe2,
 } from 'lucide-react';
 
 import DonationButtonService from '../services/DonationButtonService';
@@ -207,6 +208,14 @@ export default function ManageDonationButtonModal({
   const [loadingEmbed, setLoadingEmbed] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Allowed domains — short-term, button-level domain registration
+  // ahead of the planned proper club onboarding flow. donate.js checks
+  // window.location.hostname against this list before rendering a
+  // working button on any given page.
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([]);
+  const [newDomainValue, setNewDomainValue] = useState('');
+  const [droppedDomains, setDroppedDomains] = useState<{ input: string; reason: string }[]>([]);
+
   const load = async () => {
     try {
       setLoadingList(true);
@@ -220,6 +229,7 @@ export default function ManageDonationButtonModal({
       setPrimaryColor(res.branding?.primaryColor ?? DEFAULT_BRANDING.primaryColor);
       setBackgroundColor(res.branding?.backgroundColor ?? DEFAULT_BRANDING.backgroundColor);
       setTextOnPrimaryColor(res.branding?.textOnPrimaryColor ?? DEFAULT_BRANDING.textOnPrimaryColor);
+      setAllowedDomains(res.allowedDomains || []);
 
       // linkedTrackableMethodIds is the authoritative "what's actually
       // checked" list from the backend — using it directly (rather than
@@ -316,6 +326,25 @@ export default function ManageDonationButtonModal({
     setPresetAmounts(presetAmounts.filter((p) => p !== value));
   };
 
+  const handleAddDomain = () => {
+    const value = newDomainValue.trim();
+    if (!value) return;
+    // Lightweight client-side normalize for the chip display only —
+    // the backend is the real source of truth for validation/dedup
+    // and will reject/drop anything malformed on save.
+    const stripped = value.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+    if (allowedDomains.includes(stripped)) {
+      setNewDomainValue('');
+      return;
+    }
+    setAllowedDomains([...allowedDomains, stripped]);
+    setNewDomainValue('');
+  };
+
+  const handleRemoveDomain = (hostname: string) => {
+    setAllowedDomains(allowedDomains.filter((d) => d !== hostname));
+  };
+
   const handleSave = async () => {
     const isTrackableSelection = selectedTrackableMethodIds.length > 0;
     const selectedMethodIds = isTrackableSelection
@@ -348,6 +377,7 @@ export default function ManageDonationButtonModal({
       setSaving(true);
       setError(null);
       setDroppedMethods([]);
+      setDroppedDomains([]);
 
       // branding is required on every save regardless of tier — see
       // UpsertClubDonationButtonRequest in donationButton.ts. Sends the
@@ -362,6 +392,7 @@ export default function ManageDonationButtonModal({
           backgroundColor: backgroundColor.trim().toLowerCase(),
           textOnPrimaryColor: textOnPrimaryColor.trim().toLowerCase(),
         },
+        allowedDomains,
         ...(isTrackableSelection ? { allowCustomAmount, presetAmounts } : {}),
       });
 
@@ -373,6 +404,8 @@ export default function ManageDonationButtonModal({
         setBackgroundColor(res.branding.backgroundColor);
         setTextOnPrimaryColor(res.branding.textOnPrimaryColor);
       }
+      setAllowedDomains(res.allowedDomains || allowedDomains);
+      setDroppedDomains(res.droppedDomains || []);
 
       // After a Tier B save, re-sync the checkbox selection to exactly
       // what the backend actually kept — if anything was dropped, the
@@ -711,6 +744,84 @@ export default function ManageDonationButtonModal({
                     </div>
                   </div>
                 </div>
+              </section>
+
+              <section
+                className="rounded-xl p-4 space-y-3"
+                style={{ background: '#ffffff', border: '1px solid #dce1df' }}
+              >
+                <div className="flex items-center gap-2">
+                  <Globe2 className="h-4 w-4" style={{ color: '#157f85' }} />
+                  <label className="block text-sm font-semibold text-gray-900">
+                    Authorized websites
+                  </label>
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  Add every domain where this donation button will be embedded — your main
+                  website and any subdomains you use (e.g. <code>yourclub.com</code> and{' '}
+                  <code>events.yourclub.com</code> are separate entries). The button won't work
+                  on a domain that isn't listed here.
+                </p>
+
+                {allowedDomains.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {allowedDomains.map((domain) => (
+                      <span
+                        key={domain}
+                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                        style={{ background: 'rgba(21,127,133,0.1)', color: '#157f85' }}
+                      >
+                        {domain}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDomain(domain)}
+                          aria-label={`Remove ${domain}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newDomainValue}
+                    onChange={(e) => setNewDomainValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddDomain();
+                      }
+                    }}
+                    placeholder="yourclub.com"
+                    className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDomain}
+                    className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-gray-50 flex-shrink-0"
+                    style={{ borderColor: '#dce1df', color: '#157f85' }}
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                </div>
+
+                {allowedDomains.length === 0 && (
+                  <p className="text-xs text-amber-700">
+                    No websites are authorized yet — the embed code will be generated, but the
+                    button won't activate anywhere until you add at least one domain here.
+                  </p>
+                )}
+
+                {droppedDomains.length > 0 && (
+                  <p className="text-xs text-amber-700">
+                    {droppedDomains.map((d) => d.input).join(', ')} could not be saved — please
+                    check the spelling and try again.
+                  </p>
+                )}
               </section>
 
               <section

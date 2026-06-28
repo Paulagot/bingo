@@ -7,6 +7,7 @@ import { useAuthStore } from '../../../features/auth';
 import eliminationMgmtService, { type EliminationRoomListItem } from '../services/EliminationMgmtService';
 import { currencySymbol } from '../shared/CurrencySelect';
 import type { Event } from '../types/event';
+import PaymentMethodSelector, { type PaymentMethodSelection } from '../shared/PaymentMethodSelector';
 
 interface Props {
   onClose:       () => void;
@@ -83,6 +84,21 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
     existingPrize?.sponsor ?? '',
   );
 
+  // ── Payment methods ──────────────────────────────────────────────────────────
+  // Hydrated from the room's own linked_payment_methods_json on edit (NOT
+  // from the event — payment methods are an activity-level concern now,
+  // see PaymentMethodSelector.tsx for the full reasoning).
+  const rawLinkedPaymentMethods = existingRoom?.linked_payment_methods_json;
+  const existingPaymentMethods =
+    typeof rawLinkedPaymentMethods === 'string'
+      ? (() => { try { return JSON.parse(rawLinkedPaymentMethods); } catch { return null; } })()
+      : (rawLinkedPaymentMethods ?? null);
+
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSelection>({
+    ticketMethodIds:  existingPaymentMethods?.ticket_method_ids  ?? [],
+    onnightMethodIds: existingPaymentMethods?.onnight_method_ids ?? [],
+  });
+
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -124,6 +140,11 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
         // Flat fields kept for backend compatibility during migration
         prizeDescription: prizeDescription.trim(),
         prizeValue:       prizeValue ? Number(prizeValue) : undefined,
+        // Payment methods are now set at the activity level, written
+        // directly onto the room — nothing copies these down from the
+        // event anymore. See eliminationMgmtService.js.
+        ticketMethodIds:  paymentMethods.ticketMethodIds,
+        onnightMethodIds: paymentMethods.onnightMethodIds,
       };
 
       if (isEditMode && existingRoom) {
@@ -296,6 +317,14 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
 
             </div>
           </Section>
+
+          {/* ── Payment Methods ── */}
+          <PaymentMethodSelector
+            mode="split"
+            value={paymentMethods}
+            onChange={setPaymentMethods}
+            disabled={loading}
+          />
 
         </div>
 

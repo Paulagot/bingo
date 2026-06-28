@@ -28,7 +28,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
     const weekNum = parseInt(weekNumber, 10);
 
     const [[challenge]] = await database.connection.execute(
-      'SELECT club_id FROM fundraisely_puzzle_challenges WHERE id = ? LIMIT 1',
+      'SELECT club_id, is_free FROM fundraisely_puzzle_challenges WHERE id = ? LIMIT 1',
       [challengeId]
     );
 
@@ -84,6 +84,28 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
         error: 'Week not yet unlocked',
         unlocksAt: schedule.unlocks_at,
       });
+    }
+
+    // Payment gate for paid challenges. Free challenges skip this entirely —
+    // matches existing behaviour exactly (only unlocks_at gates access).
+    if (!challenge.is_free) {
+      if (!playerId) {
+        return res.status(401).json({ error: 'Sign in required to access this week.' });
+      }
+
+      const [[subscription]] = await database.connection.execute(
+        `SELECT status FROM fundraisely_puzzle_subscriptions
+         WHERE challenge_id = ? AND player_id = ?
+         LIMIT 1`,
+        [challengeId, playerId]
+      );
+
+      if (!subscription || subscription.status !== 'active') {
+        return res.status(402).json({
+          error: 'payment_required',
+          message: 'An active subscription is required to access this week.',
+        });
+      }
     }
 
     const instance = await generatePuzzleForWeek({
