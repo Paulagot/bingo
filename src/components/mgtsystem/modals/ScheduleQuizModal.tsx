@@ -3,6 +3,14 @@
 // Handles both scheduling (create) and editing a quiz room.
 // Pass `existingRoom` to enter edit mode — fields pre-fill, submit calls PATCH.
 // Without `existingRoom` the modal is in create mode — submit calls POST /create-room.
+//
+// Payment methods are set here too now (see PaymentMethodSelector below) —
+// kept as a SEPARATE top-level concern from config_json. Unlike entry fee /
+// prizes / extras (which all live inside config_json), payment methods are
+// their own flat room column (linked_payment_methods_json), validated and
+// written via QuizPaymentMethodsService — folding them into config_json
+// would bypass that validation and the room→event sync that depends on
+// reading that column directly.
 
 import { useState, useEffect } from 'react';
 import {
@@ -20,6 +28,7 @@ import type { Prize, Web2FundraisingMode } from '@/components/Quiz/types/quiz';
 import type { Event } from '../types/event';
 import type { Web2RoomListItem as Room } from '../../../shared/api/quiz.api';
 import { utcToLocalInput, detectTimezone } from '../../../utils/dateUtils';
+import PaymentMethodSelector, { type PaymentMethodSelection } from '../shared/PaymentMethodSelector';
 
 interface Props {
   onClose: () => void;
@@ -83,20 +92,34 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
   const clubCurrencyISO = club?.reporting_currency ?? 'EUR';
   const clubCurrencySym = currencySymbol(clubCurrencyISO);
 
+  // ── Payment methods ──────────────────────────────────────────────────────────
+  // Hydrated from the room's own linked_payment_methods_json on edit — NOT
+  // from the event. See header comment for why this is kept separate from
+  // config_json. Quiz has the same advance/on-the-night distinction as
+  // elimination (tickets sold ahead of time vs paid at the door), so mode
+  // is "split" here too.
+  const rawLinkedPaymentMethods = existingRoom?.linked_payment_methods_json;
+  const initialPaymentMethods: PaymentMethodSelection = (() => {
+    const parsed = typeof rawLinkedPaymentMethods === 'string'
+      ? (() => { try { return JSON.parse(rawLinkedPaymentMethods); } catch { return null; } })()
+      : (rawLinkedPaymentMethods ?? null);
+    return {
+      ticketMethodIds:  parsed?.ticket_method_ids  ?? [],
+      onnightMethodIds: parsed?.onnight_method_ids ?? [],
+    };
+  })();
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSelection>(initialPaymentMethods);
+
   // ── Seed store on mount ────────────────────────────────────────────────────
   useEffect(() => {
     if (isEditMode && existingRoom) {
-      // Parse existing config — could be string or object depending on how the
-      // room was fetched (DB row vs hydrated memory room)
       const cfg: any =
         typeof existingRoom.config_json === 'string'
           ? JSON.parse(existingRoom.config_json)
           : (existingRoom.config_json ?? {});
 
-      // Always reset first to clear any stale wizard state
       hardReset({ flow: 'web2' });
 
-      // Seed every editable field from the stored config
       updateSetupConfig({
         fundraisingMode:    cfg.fundraisingMode    ?? 'fixed_fee',
         entryFee:           cfg.entryFee           ?? '',
@@ -107,18 +130,15 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
         skipRoundConfiguration: true,
         prizes:             cfg.prizes             ?? [],
         currencySymbol:     clubCurrencySym,
-        // preserve time fields in case they're needed
         eventDateTime:      cfg.eventDateTime      ?? null,
         timeZone:           cfg.timeZone           ?? detectTimezone(),
       } as any);
 
-      // If a template was already selected, collapse the template picker
       if (cfg.selectedTemplate) {
         setTemplateOpen(false);
       }
 
     } else {
-      // Create mode — fresh reset, same as before
       hardReset({ flow: 'web2' });
 
       const tz = event.time_zone || detectTimezone();
@@ -151,7 +171,6 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
     quizApi.getEntitlements().then(setEntitlements).catch(() => setEntitlements(null));
   }, []);
 
-  // Seed price inputs from existing config so they render correctly
   useEffect(() => {
     if (isEditMode && setupConfig.fundraisingPrices) {
       const initial: Record<string, string> = {};
@@ -163,7 +182,7 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
       setPriceInputs(initial);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once after mount, store is already seeded by first useEffect
+  }, []);
 
   const fundraisingMode: Web2FundraisingMode = (setupConfig.fundraisingMode as Web2FundraisingMode) ?? 'fixed_fee';
   const isDonation       = fundraisingMode === 'donation';
@@ -247,8 +266,6 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
 
     try {
       if (isEditMode && existingRoom) {
-        // ── EDIT MODE: PATCH existing room ──────────────────────────────────
-        // Build updated config by merging new form values over the existing config
         const existingCfg: any =
           typeof existingRoom.config_json === 'string'
             ? JSON.parse(existingRoom.config_json)
@@ -266,21 +283,36 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
           currencySymbol:     clubCurrencySym,
         };
 
+        // Payment methods sent as their OWN top-level fields, separate from
+        // config_json. The backend PATCH /web2/rooms/:roomId route handles
+        // these as a distinct write path (QuizPaymentMethodsService), not
+        // a config_json merge.
         await quizApi.updateWeb2Room(existingRoom.room_id, {
-          config_json: updatedConfig,
-        });
+          config_json:      updatedConfig,
+          ticketMethodIds:  paymentMethods.ticketMethodIds,
+          onnightMethodIds: paymentMethods.onnightMethodIds,
+        } as any);
 
         onSaved(existingRoom.room_id);
         onClose();
 
       } else {
-        // ── CREATE MODE: unchanged from original ────────────────────────────
         const state = useQuizSetupStore.getState();
         const { generateRoomId, generateHostId } = await import('@/components/Quiz/utils/idUtils');
         const roomId = state.roomId || generateRoomId();
         const hostId = state.hostId || generateHostId();
         useQuizSetupStore.getState().setRoomIds(roomId, hostId);
-        const data = await roomApi.createRoom({ config: state.setupConfig, roomId, hostId });
+        // Payment methods passed alongside config/roomId/hostId — POST
+        // /create-room reads these as top-level body fields, NOT as part
+        // of config, and writes them to linked_payment_methods_json
+        // directly (same pattern as scheduleEliminationRoom).
+        const data = await roomApi.createRoom({
+          config: state.setupConfig,
+          roomId,
+          hostId,
+          ticketMethodIds:  paymentMethods.ticketMethodIds,
+          onnightMethodIds: paymentMethods.onnightMethodIds,
+        } as any);
         const finalRoomId = useQuizSetupStore.getState().roomId || data?.roomId;
         onSaved(finalRoomId ?? undefined);
         onClose();
@@ -656,13 +688,20 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
             </div>
           </Section>
 
+          {/* ── 6. Payment Methods ── */}
+          <PaymentMethodSelector
+            mode="split"
+            value={paymentMethods}
+            onChange={setPaymentMethods}
+            disabled={submitting}
+          />
+
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderTop: '1px solid #dce1df', background: '#fbf8f2' }}>
           <p className="text-xs" style={{ color: '#8a9bab' }}>
-            {/* Only show credits in create mode — editing doesn't consume credits */}
             {!isEditMode && entitlements
               ? `${entitlements.game_credits_remaining ?? 0} credits remaining`
               : isEditMode

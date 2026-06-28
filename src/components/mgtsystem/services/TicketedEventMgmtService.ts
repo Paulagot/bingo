@@ -52,6 +52,18 @@ export interface TicketedEventConfig {
   };
 }
 
+// ── Payment methods ──────────────────────────────────────────────────────────
+// Mirrors the JSON shape QuizPaymentMethodsService writes. Ticketed events
+// DO have an advance/on-the-night split — tickets can be bought ahead of
+// time online (ticket_method_ids) or at the door on the night
+// (onnight_method_ids) — same shape as quiz/elimination.
+export interface LinkedPaymentMethods {
+  ticket_method_ids?:  number[];
+  onnight_method_ids?: number[];
+  updated_at?:         string | null;
+  updated_by?:         string | null;
+}
+
 export interface TicketedEventRoomListItem {
   room_id:               string;
   host_id:               string;
@@ -66,6 +78,10 @@ export interface TicketedEventRoomListItem {
   prize_description:     string | null;
   prize_value:           number | null;
   reconciliation_status: string;
+  // Set at schedule time, read back here so the edit modal can hydrate
+  // current selections. May be string (raw JSON) or already-parsed object
+  // depending on the MySQL driver, same quirk config_json already has.
+  linked_payment_methods_json: LinkedPaymentMethods | string | null;
   created_at:            string;
   updated_at:            string;
 }
@@ -86,6 +102,12 @@ export interface ScheduleTicketedEventPayload {
   venueCapacity?:  number;
   eventTitle?:     string | null;
   eventLocation?:  string | null;
+  // Ticketed events DO have an advance/on-the-night split — tickets can be
+  // bought ahead of time online, or at the door on the night. Optional:
+  // an empty array is a valid choice (no methods yet), so default to []
+  // at the call site rather than omitting either field.
+  ticketMethodIds?:  number[];
+  onnightMethodIds?: number[];
 }
 
 export interface UpdateTicketedEventPayload {
@@ -98,6 +120,10 @@ export interface UpdateTicketedEventPayload {
   ticketTypes?:     TicketType[];
   prizes?:          TicketedEventPrize[];
   eventSponsors?:   TicketedEventSponsor[];
+  // undefined = don't touch payment methods, [] = clear all selections.
+  // Same convention as UpdateEliminationPayload / UpdateWeb2RoomPatch.
+  ticketMethodIds?:  number[];
+  onnightMethodIds?: number[];
 }
 
 export interface ScheduleTicketedEventResponse {

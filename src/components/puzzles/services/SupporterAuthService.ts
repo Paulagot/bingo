@@ -90,9 +90,15 @@ class SupporterAuthService extends BaseService {
     });
   }
 
-  async verifyToken(token: string): Promise<{ accessToken: string; supporter: SupporterProfile }> {
+  async verifyToken(
+    token: string,
+    challengeId?: string
+  ): Promise<{ accessToken: string; supporter: SupporterProfile }> {
+    const params = new URLSearchParams({ token });
+    if (challengeId) params.set('challengeId', challengeId);
+
     const result = await this.request<{ accessToken: string; supporter: SupporterProfile }>(
-      `/supporter-auth/verify?token=${encodeURIComponent(token)}`
+      `/supporter-auth/verify?${params.toString()}`
     );
     this.setSupporterToken(result.accessToken);
     return result;
@@ -127,6 +133,44 @@ class SupporterAuthService extends BaseService {
       '/puzzle-subscriptions/join-free',
       { method: 'POST', body: JSON.stringify({ challengeId }) }
     );
+  }
+
+  /**
+   * Start Stripe Checkout (subscription mode) for a paid challenge.
+   * Public endpoint — no supporter token needed up front, since the
+   * backend creates the supporter record as part of this call. Returns
+   * a Stripe Checkout URL; the caller is responsible for redirecting to
+   * it (this service never does window.location itself, consistent
+   * with every other method here just returning data).
+   */
+  createCheckoutSession(payload: {
+    challengeId: string;
+    name:        string;
+    email:       string;
+  }) {
+    return this.request<{ url: string }>(
+      '/puzzle-subscriptions/checkout',
+      { method: 'POST', body: JSON.stringify(payload) }
+    );
+  }
+
+  /**
+   * Exchange a Stripe Checkout Session id for a supporter token, once
+   * the player lands back from Stripe on /challenges/:id/play. Stores
+   * the returned token exactly like verifyToken does, so isAuthenticated()
+   * becomes true immediately after this resolves — no separate login
+   * step needed post-payment.
+   */
+  async exchangeSession(
+    sessionId: string,
+    challengeId: string
+  ): Promise<{ accessToken: string; supporter: SupporterProfile }> {
+    const result = await this.request<{ accessToken: string; supporter: SupporterProfile }>(
+      '/puzzle-subscriptions/exchange-session',
+      { method: 'POST', body: JSON.stringify({ sessionId, challengeId }) }
+    );
+    this.setSupporterToken(result.accessToken);
+    return result;
   }
 
   getEnrollmentStatus(challengeId: string) {

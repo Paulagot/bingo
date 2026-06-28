@@ -2,9 +2,13 @@
 // UPDATED: normaliseTicketTypes preserves isEnabled, quantity, saleEndsAt.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
+import QuizPaymentMethodsService from '../../mgtsystem/services/QuizPaymentMethodsService.js';
+import EventIntegrationsService from '../../mgtsystem/services/EventIntegrationsService.js';
 
 const TABLE     = `${TABLE_PREFIX}web2_quiz_rooms`;
 const GAME_TYPE = 'ticketed_event';
+const paymentMethodsService = new QuizPaymentMethodsService();
+const eventIntegrationsService = new EventIntegrationsService();
 
 function toMysqlUtcDateTime(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -69,6 +73,11 @@ export async function scheduleTicketedEvent({
   prizes, eventSponsors,
   roomCaps, venueCapacity,
   eventTitle, eventLocation,
+  // Payment methods — ticketed events DO have an advance/onnight split,
+  // same as quiz/elimination. ticket_method_ids = bought online ahead of
+  // time, onnight_method_ids = paid at the door on the night.
+  ticketMethodIds  = [],
+  onnightMethodIds = [],
 }) {
   if (!clubId) throw Object.assign(new Error('clubId required'), { statusCode: 400 });
   if (!roomId) throw Object.assign(new Error('roomId required'), { statusCode: 400 });
@@ -145,6 +154,25 @@ export async function scheduleTicketedEvent({
   );
 
   console.log(`[ticketedEventMgmtService] 📅 Scheduled ${roomId} — ${normalisedTicketTypes.length} ticket type(s)`);
+
+  // ── Write payment methods directly onto the room ────────────────────────
+  // Same gap-closing pattern as scheduleEliminationRoom / insertWeb2RoomRecord
+  // — a freshly-created room previously had NO payment methods until later
+  // linked to an event. Non-fatal: the room is created either way.
+  if (ticketMethodIds.length > 0 || onnightMethodIds.length > 0) {
+    try {
+      await paymentMethodsService.updateLinkedPaymentMethods({
+        roomId,
+        clubId,
+        ticketMethodIds,
+        onnightMethodIds,
+        userId: hostId,
+      });
+    } catch (err) {
+      console.warn(`[ticketedEventMgmtService] ⚠️ Failed to set payment methods for ${roomId}:`, err.message);
+    }
+  }
+
   return { roomId, hostId, status: 'scheduled', scheduledAt: scheduledAt ?? null };
 }
 
@@ -226,6 +254,10 @@ export async function updateTicketedEvent({
   currency, currencySymbol,
   ticketTypes,
   prizes, eventSponsors,
+  // undefined = don't touch payment methods, [] = clear all selections.
+  // Same convention as updateEliminationRoom / web2-rooms.js PATCH route.
+  ticketMethodIds,
+  onnightMethodIds,
 }) {
   if (!clubId) throw Object.assign(new Error('clubId required'), { statusCode: 400 });
   if (!roomId) throw Object.assign(new Error('roomId required'), { statusCode: 400 });
@@ -305,6 +337,32 @@ export async function updateTicketedEvent({
       new Error('room_not_editable — only scheduled events can be edited'),
       { statusCode: 409, currentStatus: rows[0].status }
     );
+  }
+
+  // ── Payment methods — separate write, separate from the column UPDATE above ──
+  // undefined means "don't touch", [] means "clear all selections" — see
+  // the param comment above for why this distinction matters (defaulting
+  // to [] here would wrongly wipe out existing selections on every edit
+  // that doesn't touch the payment step, e.g. just adding a ticket type).
+  const hasPaymentMethodsUpdate =
+    ticketMethodIds !== undefined || onnightMethodIds !== undefined;
+
+  if (hasPaymentMethodsUpdate) {
+    try {
+      await paymentMethodsService.updateLinkedPaymentMethods({
+        roomId,
+        clubId,
+        ticketMethodIds:  ticketMethodIds  ?? [],
+        onnightMethodIds: onnightMethodIds ?? [],
+      });
+    } catch (err) {
+      console.warn(`[ticketedEventMgmtService] ⚠️ Failed to update payment methods for ${roomId}:`, err.message);
+    }
+
+    // Editing payment methods on an already-linked room must also refresh
+    // the event's denormalized copy — same fix already applied to
+    // updateEliminationRoom and the quiz web2-rooms.js PATCH route.
+    await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId });
   }
 
   return getTicketedEvent({ clubId, roomId });

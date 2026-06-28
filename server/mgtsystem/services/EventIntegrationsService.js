@@ -1,7 +1,10 @@
 // server/mgtsystem/services/EventIntegrationsService.js
 
 import database from '../../config/database.js';
-import QuizPaymentMethodsService from './QuizPaymentMethodsService.js';
+// NOTE: QuizPaymentMethodsService is no longer imported here. Payment
+// methods now flow room → event (read directly via a plain SELECT below),
+// not event → room, so the update helper from that service isn't needed
+// in this file anymore.
 
 const VALID_TYPES = ['quiz_web2', 'elimination', 'ticketed_event']; // add more later: quiz_web3, bingo_web2, etc.
 
@@ -33,12 +36,13 @@ class EventIntegrationsService {
   }
 
   /**
-   * Load the event's scheduling + payment data so we can push it to the
-   * room at link time.
+   * Load the event's scheduling data so we can push it to the room at link
+   * time. Payment methods are NOT loaded here anymore — they flow the other
+   * direction now (room → event), handled inline in addIntegration().
    */
   async _loadEventSyncData({ eventId }) {
     const [rows] = await database.connection.execute(
-      `SELECT start_datetime, event_date, time_zone, payment_methods_json
+      `SELECT start_datetime, event_date, time_zone
        FROM fundraisely_events
        WHERE id = ? LIMIT 1`,
       [eventId]
@@ -119,12 +123,16 @@ class EventIntegrationsService {
   /**
    * Link a quiz/elimination room to an event.
    *
-   * On link we do a two-way sync:
+   * On link we do a two-way sync, but each direction now carries different
+   * data than before:
    *   • Cache the room's current status/scheduling in event_integrations (existing behaviour)
-   *   • Push the event's start_datetime, time_zone and payment_methods_json → room (new)
-   *
-   * The event is the source of truth for scheduling + payments; the room
-   * inherits from it at link time and on every subsequent event update.
+   *   • Push the event's start_datetime / time_zone → room (UNCHANGED — dates
+   *     genuinely belong to the event, so this direction stays as-is)
+   *   • Pull the room's linked_payment_methods_json → event (FLIPPED — the
+   *     activity is now the source of truth for its own payment methods,
+   *     set once at schedule time. The event just keeps a denormalized
+   *     copy for display/reporting. Editing the event later never writes
+   *     payment methods back down to the room — see EventService.js.)
    */
   async addIntegration({ eventId, clubId, integration_type, external_ref }) {
     if (!VALID_TYPES.includes(integration_type)) {
@@ -141,7 +149,7 @@ class EventIntegrationsService {
       time_zone:    null,
     };
 
-    if (integration_type === 'quiz_web2' || integration_type === 'elimination') {
+    if (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event') {
       const room = await this._loadQuizWeb2Room({ roomId: external_ref, clubId });
       cached = {
         status:       room.status       || null,
@@ -170,16 +178,16 @@ class EventIntegrationsService {
 
     const insertedId = result?.insertId;
 
-    // ── Push event's scheduling + payment methods → room ──────────────────
-    // The event is the source of truth; sync it to the room now that they're linked.
+    // ── Sync scheduling event → room, and payment methods room → event ────
     try {
       const eventData = await this._loadEventSyncData({ eventId });
 
-      if (eventData && (integration_type === 'quiz_web2' || integration_type === 'elimination')) {
+      if (eventData && (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event')) {
         const scheduledAt = eventData.start_datetime || eventData.event_date || null;
         const timeZone    = eventData.time_zone || null;
 
-        // 1. Sync scheduling + timezone to the quiz room
+        // 1. Sync scheduling + timezone to the quiz room — UNCHANGED.
+        //    Dates genuinely belong to the event, so this direction is correct.
         if (scheduledAt || timeZone) {
           const setClauses = [];
           const params = [];
@@ -211,28 +219,46 @@ class EventIntegrationsService {
           }
         }
 
-        // 2. Sync payment methods to the quiz room
-        if (eventData.payment_methods_json) {
-          const pm = typeof eventData.payment_methods_json === 'string'
-            ? JSON.parse(eventData.payment_methods_json)
-            : eventData.payment_methods_json;
+        // 2. Pull the ROOM's payment methods and push them UP onto the event.
+        //    FLIPPED from the old event → room direction. The activity is
+        //    the source of truth for its own payment methods — set once at
+        //    schedule time (see eliminationMgmtService.scheduleEliminationRoom
+        //    and the quiz equivalent). The event just keeps a denormalized
+        //    copy for display/reporting; nothing reads
+        //    event.payment_methods_json to drive room behaviour anymore.
+        const [[room]] = await database.connection.execute(
+          `SELECT linked_payment_methods_json
+           FROM fundraisely_web2_quiz_rooms
+           WHERE room_id = ? AND club_id = ?
+           LIMIT 1`,
+          [external_ref, clubId]
+        );
 
-          if (pm?.ticket_method_ids || pm?.onnight_method_ids) {
-            const pmService = new QuizPaymentMethodsService();
-            await pmService.updateLinkedPaymentMethods({
-              roomId:          external_ref,
+        if (room?.linked_payment_methods_json) {
+          const linked = typeof room.linked_payment_methods_json === 'string'
+            ? JSON.parse(room.linked_payment_methods_json)
+            : room.linked_payment_methods_json;
+
+          await database.connection.execute(
+            `UPDATE fundraisely_events
+             SET payment_methods_json = ?
+             WHERE id = ? AND club_id = ?`,
+            [
+              JSON.stringify({
+                ticket_method_ids:  linked.ticket_method_ids  ?? [],
+                onnight_method_ids: linked.onnight_method_ids ?? [],
+              }),
+              eventId,
               clubId,
-              ticketMethodIds:  pm.ticket_method_ids  || [],
-              onnightMethodIds: pm.onnight_method_ids || [],
-            });
-          }
+            ]
+          );
         }
 
-        console.log(`[EventIntegrationsService] Synced event ${eventId} → room ${external_ref} at link time`);
+        console.log(`[EventIntegrationsService] Synced event ${eventId} ← room ${external_ref} at link time (scheduling event→room, payments room→event)`);
       }
     } catch (err) {
       // Non-fatal — the integration row was created, sync failure shouldn't block the link
-      console.warn(`[EventIntegrationsService] Sync to room ${external_ref} failed at link time:`, err.message);
+      console.warn(`[EventIntegrationsService] Sync for room ${external_ref} failed at link time:`, err.message);
     }
 
     const [rows] = await database.connection.execute(
@@ -254,7 +280,71 @@ class EventIntegrationsService {
 
     return (result?.affectedRows || 0) > 0;
   }
+
+  /**
+   * Re-sync a room's CURRENT linked_payment_methods_json up to whichever
+   * event(s) it's linked to.
+   *
+   * addIntegration() only runs this push once, at the moment of linking.
+   * If a club edits payment methods on an already-linked room afterward
+   * (e.g. via updateEliminationRoom), nothing re-syncs that change to the
+   * event on its own — the event's denormalized copy would go stale.
+   *
+   * Call this from any activity's update path right after it writes its
+   * own linked_payment_methods_json, passing the room/activity id. Safe to
+   * call even if the room isn't linked to anything yet — it's just a no-op.
+   *
+   * Non-fatal by design: a sync failure here should never roll back the
+   * activity's own update. Callers should wrap this in try/catch (or rely
+   * on this method's own internal try/catch) and log rather than throw.
+   */
+  async syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId }) {
+    try {
+      const [integrations] = await database.connection.execute(
+        `SELECT event_id
+         FROM fundraisely_event_integrations
+         WHERE external_ref = ? AND club_id = ?
+           AND integration_type IN ('quiz_web2', 'elimination', 'ticketed_event')`,
+        [roomId, clubId]
+      );
+
+      if (!integrations?.length) return; // not linked to any event — nothing to do
+
+      const [[room]] = await database.connection.execute(
+        `SELECT linked_payment_methods_json
+         FROM fundraisely_web2_quiz_rooms
+         WHERE room_id = ? AND club_id = ?
+         LIMIT 1`,
+        [roomId, clubId]
+      );
+
+      if (!room?.linked_payment_methods_json) return;
+
+      const linked = typeof room.linked_payment_methods_json === 'string'
+        ? JSON.parse(room.linked_payment_methods_json)
+        : room.linked_payment_methods_json;
+
+      const pmJson = JSON.stringify({
+        ticket_method_ids:  linked.ticket_method_ids  ?? [],
+        onnight_method_ids: linked.onnight_method_ids ?? [],
+      });
+
+      // A room could in principle be linked to more than one event row —
+      // update every one of them, not just the first.
+      for (const { event_id } of integrations) {
+        await database.connection.execute(
+          `UPDATE fundraisely_events
+           SET payment_methods_json = ?
+           WHERE id = ? AND club_id = ?`,
+          [pmJson, event_id, clubId]
+        );
+      }
+
+      console.log(`[EventIntegrationsService] Re-synced payment methods room ${roomId} → ${integrations.length} linked event(s)`);
+    } catch (err) {
+      console.warn(`[EventIntegrationsService] syncRoomPaymentMethodsToLinkedEvents failed for room ${roomId}:`, err.message);
+    }
+  }
 }
 
 export default EventIntegrationsService;
-

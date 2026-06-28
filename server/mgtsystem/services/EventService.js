@@ -2,7 +2,10 @@
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
-import QuizPaymentMethodsService from './QuizPaymentMethodsService.js';
+// NOTE: QuizPaymentMethodsService is no longer imported here. Payment methods
+// are now set at the ACTIVITY level (scheduleEliminationRoom / quiz equivalent)
+// and flow UP to the event via EventIntegrationsService.addIntegration —
+// this file no longer pushes payment methods DOWN to rooms.
 
 function getComputedEventStatus(event) {
   if (!event || !event.event_date) return 'upcoming';
@@ -50,13 +53,22 @@ class EventService {
 }
 
   /**
-   * After any event create/update that touches scheduling or payment methods,
-   * push the relevant fields to every linked quiz/elimination room.
+   * After any event create/update that touches scheduling, push the relevant
+   * fields to every linked quiz/elimination room.
    *
    * Synced fields:
-   *   scheduled_at              ← event.start_datetime ?? event.event_date
-   *   time_zone                 ← event.time_zone
-   *   linked_payment_methods_json ← event.payment_methods_json
+   *   scheduled_at ← event.start_datetime ?? event.event_date
+   *   time_zone    ← event.time_zone
+   *
+   * Payment methods are NO LONGER synced here. The activity (room) is now
+   * the source of truth for its own payment methods, set once at the point
+   * it's scheduled (see eliminationMgmtService.scheduleEliminationRoom and
+   * the quiz/ticketed-event equivalents). The value flows the other way —
+   * room → event — handled in EventIntegrationsService.addIntegration,
+   * purely so the event keeps a denormalized copy for display/reporting.
+   * Editing the event afterward must never overwrite what was chosen at
+   * the activity level, which is why this method no longer touches
+   * linked_payment_methods_json at all.
    *
    * Only fields present in `changes` are synced — so a title-only edit
    * won't touch the quiz room at all.
@@ -65,9 +77,8 @@ class EventService {
     // Nothing to sync?
     const hasSchedule = 'start_datetime' in changes || 'event_date' in changes;
     const hasTimezone = 'time_zone' in changes;
-    const hasPayments = 'payment_methods_json' in changes;
 
-    if (!hasSchedule && !hasTimezone && !hasPayments) return;
+    if (!hasSchedule && !hasTimezone) return;
 
     // Find all linked quiz / elimination rooms for this event
     const [integrations] = await connection.execute(
@@ -83,7 +94,7 @@ class EventService {
     for (const integration of integrations) {
       const roomId = integration.external_ref;
       try {
-        // ── 1. Sync scheduling / timezone ────────────────────────────────
+        // ── Sync scheduling / timezone only ──────────────────────────────
         if (hasSchedule || hasTimezone) {
           const scheduledAt = hasSchedule
             ? this._nullIfEmpty(changes.start_datetime ?? changes.event_date)
@@ -132,23 +143,6 @@ class EventService {
                WHERE event_id = ? AND club_id = ? AND external_ref = ?`,
               eiParams
             );
-          }
-        }
-
-        // ── 2. Sync payment methods ───────────────────────────────────────
-        if (hasPayments && changes.payment_methods_json) {
-          const pm = typeof changes.payment_methods_json === 'string'
-            ? JSON.parse(changes.payment_methods_json)
-            : changes.payment_methods_json;
-
-          if (pm) {
-            const pmService = new QuizPaymentMethodsService();
-            await pmService.updateLinkedPaymentMethods({
-              roomId,
-              clubId,
-              ticketMethodIds:  pm.ticket_method_ids  || [],
-              onnightMethodIds: pm.onnight_method_ids || [],
-            });
           }
         }
 
@@ -300,7 +294,8 @@ time_zone || null,
 
     if (result.affectedRows === 0) throw new Error('Event not found or no changes made');
 
-    // ── Sync scheduling + payment methods to any linked quiz rooms ──────────
+    // ── Sync scheduling to any linked quiz/elimination rooms (payment
+    //    methods are no longer synced from here — see _syncLinkedRooms) ──────
     await this._syncLinkedRooms(eventId, clubId, updateData);
 
     return await this.getEventById(eventId, clubId);

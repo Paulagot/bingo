@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import database from '../../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
 import { sendEmailSafe } from '../../utils/mailer.js';
+import { joinFree } from '../../puzzles/services/puzzleSubscriptionService.js';
 
 const JWT_SECRET        = process.env.JWT_SECRET || 'fallback-dev-secret';
 const JWT_TTL           = '90d';
@@ -72,7 +73,7 @@ export async function sendMagicLink({ supporterId, clubId, email, name, challeng
   return { ok: true };
 }
 
-export async function verifyMagicLink({ token }) {
+export async function verifyMagicLink({ token, challengeId }) {
   // Expiry check done in MySQL with UTC_TIMESTAMP() — timezone safe
   const [[authRow]] = await database.connection.execute(
     `SELECT
@@ -105,6 +106,30 @@ export async function verifyMagicLink({ token }) {
      WHERE supporter_id = ?`,
     [authRow.supporter_id]
   );
+
+  // Auto-enroll in the challenge the magic link was sent for, if it's free.
+  // This is the actual moment the player has proven ownership of the email
+  // and is about to land on the challenge page — equivalent to them
+  // clicking "Join Free" themselves, just without the redundant extra step.
+  // Request time (sendMagicLink) is deliberately NOT where this happens —
+  // at that point we don't yet know they'll ever open the email, so
+  // enrolling then would create challenge_players rows for people who
+  // never came back. Paid challenges are never touched here — joinFree
+  // itself throws if the challenge isn't free, and that failure is
+  // swallowed (logged, not re-thrown) so a sign-in never fails just
+  // because auto-enrollment wasn't applicable (wrong challenge type,
+  // challenge cancelled, etc).
+  if (challengeId) {
+    try {
+      await joinFree({
+        challengeId,
+        supporterId: authRow.supporter_id,
+        clubId: authRow.club_id,
+      });
+    } catch (enrollErr) {
+      console.warn('[supporter-auth] auto-enroll on verify skipped:', enrollErr.message);
+    }
+  }
 
   const jwtPayload = {
     supporterId: authRow.supporter_id,

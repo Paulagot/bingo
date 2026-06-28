@@ -8,8 +8,12 @@
 //   live      → ended : saveEliminationGameStats (end of game)
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
+import QuizPaymentMethodsService from '../../mgtsystem/services/QuizPaymentMethodsService.js';
+import EventIntegrationsService from '../../mgtsystem/services/EventIntegrationsService.js';
 
 const TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
+const paymentMethodsService = new QuizPaymentMethodsService();
+const eventIntegrationsService = new EventIntegrationsService();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +89,12 @@ export async function scheduleEliminationRoom({
   prizeDescription: prizeDescriptionRaw,
   prizeValue:       prizeValueRaw,
   roomCaps,
+  // Payment methods chosen at the activity level (this is now the source of
+  // truth — see EventIntegrationsService.addIntegration, which reads this
+  // value back OFF the room and pushes it UP to the linked event, not the
+  // other way around).
+  ticketMethodIds  = [],
+  onnightMethodIds = [],
 }) {
   if (!clubId) throw Object.assign(new Error('clubId required'),         { statusCode: 400 });
   if (!roomId) throw Object.assign(new Error('roomId required'),         { statusCode: 400 });
@@ -140,6 +150,32 @@ export async function scheduleEliminationRoom({
 
   console.log(`[eliminationMgmtService] 📅 Scheduled elimination room ${roomId} — club: ${clubId} maxPlayers: ${max} plan: ${roomCaps?.planCode ?? 'unknown'}`);
 
+  // ── Write payment methods directly onto the room at schedule time ─────────
+  // This closes the gap where a freshly-scheduled room had NO payment methods
+  // until it was later linked to an event. The activity is now the source of
+  // truth for its own payment methods — nothing pushes this value down from
+  // the event anymore.
+  if (ticketMethodIds.length > 0 || onnightMethodIds.length > 0) {
+    try {
+      await paymentMethodsService.updateLinkedPaymentMethods({
+        roomId,
+        clubId,
+        ticketMethodIds,
+        onnightMethodIds,
+        userId: hostId,
+      });
+    } catch (err) {
+      // Non-fatal — the room is created either way. Surface a clear log so
+      // a bad method ID doesn't silently disappear.
+      console.warn(`[eliminationMgmtService] ⚠️ Failed to set payment methods for ${roomId}:`, err.message);
+    }
+
+    // If this room is already linked to an event (unusual at create time,
+    // but cheap to check and a no-op if not linked), keep the event's
+    // denormalized copy in sync too.
+    await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId });
+  }
+
   return {
     roomId,
     hostId,
@@ -178,6 +214,7 @@ export async function listEliminationRooms({ clubId, status = 'all', time = 'all
        scheduled_at, time_zone, config_json,
        prize_description, prize_value,
        reconciliation_status,
+       linked_payment_methods_json,
        created_at, updated_at
      FROM ${TABLE}
      WHERE ${where.join(' AND ')}
@@ -190,6 +227,9 @@ export async function listEliminationRooms({ clubId, status = 'all', time = 'all
     config_json: typeof row.config_json === 'string'
       ? JSON.parse(row.config_json)
       : (row.config_json ?? {}),
+    linked_payment_methods_json: typeof row.linked_payment_methods_json === 'string'
+      ? JSON.parse(row.linked_payment_methods_json)
+      : (row.linked_payment_methods_json ?? null),
   }));
 }
 
@@ -206,6 +246,7 @@ export async function getEliminationRoom({ clubId, roomId }) {
        room_caps_json,
        prize_description, prize_value,
        reconciliation_status,
+       linked_payment_methods_json,
        created_at, updated_at
      FROM ${TABLE}
      WHERE club_id = ? AND room_id = ? AND game_type = 'elimination'
@@ -216,11 +257,17 @@ export async function getEliminationRoom({ clubId, roomId }) {
   const row = rows?.[0];
   if (!row) return null;
 
+  const linkedPaymentMethods =
+    typeof row.linked_payment_methods_json === 'string'
+      ? JSON.parse(row.linked_payment_methods_json)
+      : (row.linked_payment_methods_json ?? null);
+
   return {
     ...row,
     config_json: typeof row.config_json === 'string'
       ? JSON.parse(row.config_json)
       : (row.config_json ?? {}),
+    linked_payment_methods_json: linkedPaymentMethods,
   };
 }
 
@@ -233,6 +280,11 @@ export async function updateEliminationRoom({
   prizeDescription: prizeDescriptionRaw,
   prizeValue:       prizeValueRaw,
   configJson,
+  // Payment methods are optional on update — only sent when the modal's
+  // selector value actually changed. undefined (not []) means "don't touch
+  // this", since [] is a valid "clear all methods" state.
+  ticketMethodIds,
+  onnightMethodIds,
 }) {
   if (!clubId) throw Object.assign(new Error('clubId required'), { statusCode: 400 });
   if (!roomId) throw Object.assign(new Error('roomId required'), { statusCode: 400 });
@@ -323,33 +375,63 @@ export async function updateEliminationRoom({
     params.push(typeof configJson === 'string' ? configJson : JSON.stringify(configJson));
   }
 
-  if (sets.length === 0) {
+  // Payment methods are written to a separate column via a separate
+  // service call (see below), so they don't count toward `sets` — but a
+  // payment-methods-only edit is still a valid update and must not be
+  // rejected as "nothing to update".
+  const hasPaymentMethodsUpdate =
+    ticketMethodIds !== undefined || onnightMethodIds !== undefined;
+
+  if (sets.length === 0 && !hasPaymentMethodsUpdate) {
     throw Object.assign(new Error('no_fields_to_update'), { statusCode: 400 });
   }
 
-  sets.push('updated_at = UTC_TIMESTAMP()');
-  params.push(clubId, roomId);
+  if (sets.length > 0) {
+    sets.push('updated_at = UTC_TIMESTAMP()');
+    params.push(clubId, roomId);
 
-  const [result] = await connection.execute(
-    `UPDATE ${TABLE}
-     SET ${sets.join(', ')}
-     WHERE club_id = ? AND room_id = ? AND game_type = 'elimination'
-       AND status = 'scheduled'
-     LIMIT 1`,
-    params
-  );
+    const [result] = await connection.execute(
+      `UPDATE ${TABLE}
+       SET ${sets.join(', ')}
+       WHERE club_id = ? AND room_id = ? AND game_type = 'elimination'
+         AND status = 'scheduled'
+       LIMIT 1`,
+      params
+    );
 
-  if (!result?.affectedRows) {
-    const [rows] = await connection.execute(
-      `SELECT status FROM ${TABLE}
-       WHERE club_id = ? AND room_id = ? AND game_type = 'elimination' LIMIT 1`,
-      [clubId, roomId]
-    );
-    if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
-    throw Object.assign(
-      new Error('room_not_editable — only scheduled rooms can be edited'),
-      { statusCode: 409, currentStatus: rows[0].status }
-    );
+    if (!result?.affectedRows) {
+      const [rows] = await connection.execute(
+        `SELECT status FROM ${TABLE}
+         WHERE club_id = ? AND room_id = ? AND game_type = 'elimination' LIMIT 1`,
+        [clubId, roomId]
+      );
+      if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
+      throw Object.assign(
+        new Error('room_not_editable — only scheduled rooms can be edited'),
+        { statusCode: 409, currentStatus: rows[0].status }
+      );
+    }
+  }
+
+  // ── Payment methods — separate column, separate write ──────────────────────
+  // Reuses the same validated update path scheduleEliminationRoom uses, so
+  // method-ID ownership checks stay in one place.
+  if (hasPaymentMethodsUpdate) {
+    try {
+      await paymentMethodsService.updateLinkedPaymentMethods({
+        roomId,
+        clubId,
+        ticketMethodIds:  ticketMethodIds  ?? [],
+        onnightMethodIds: onnightMethodIds ?? [],
+      });
+    } catch (err) {
+      console.warn(`[eliminationMgmtService] ⚠️ Failed to update payment methods for ${roomId}:`, err.message);
+    }
+
+    // Editing payment methods on an already-linked room must also refresh
+    // the event's denormalized copy — otherwise the event silently goes
+    // stale the moment someone changes methods after the initial link.
+    await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId });
   }
 
   return getEliminationRoom({ clubId, roomId });

@@ -28,7 +28,7 @@ export default function PuzzleAuthPage() {
     }
 
     supporterAuthService
-      .verifyToken(token)
+      .verifyToken(token, challengeId ?? undefined)
       .then(result => {
         setName(result.supporter.name);
         setStatus('success');

@@ -6,9 +6,12 @@
  *
  * What it does:
  *   1. Finds any <button data-fundraisely-donate> on the page
- *   2. On click, injects a full-screen modal overlay into the club's page
- *   3. Loads the FundRaisely donation form inside an <iframe> in that modal
- *   4. Closes the modal on overlay-click, Esc key, or postMessage from iframe
+ *   2. Checks with the backend that this page's hostname is registered
+ *      for the button's club id — if not, the button is left disabled
+ *      with a clear inline notice instead of silently working anywhere
+ *   3. On click, injects a full-screen modal overlay into the club's page
+ *   4. Loads the FundRaisely donation form inside an <iframe> in that modal
+ *   5. Closes the modal on overlay-click, Esc key, or postMessage from iframe
  *
  * Deliberately plain JS (no build step, no dependencies) since this file
  * is served statically and loaded by arbitrary third-party websites.
@@ -18,30 +21,59 @@
  * FundRaisely's own code. The club's page is the third-party context;
  * this script runs in that context and creates the overlay.
  *
- * TEMPORARY DIAGNOSTIC LOGGING (search [FR-DEBUG]) — added to find why
- * the modal closes on localhost but not on staging. The postMessage
- * listener's origin check below is the prime suspect: it's a strict
- * equality check (event.origin !== baseUrl) with NO logging on
- * rejection in the original code, so any origin mismatch fails
- * completely silently — closeModal() simply never gets called, with
- * no error, no warning, nothing. Remove all [FR-DEBUG] lines once root
- * cause is confirmed.
+ * Domain check: each club registers the hostname(s) their button is
+ * allowed to render on (see ManageDonationButtonModal.tsx's domain
+ * field). This is checked client-side here AND re-checked server-side
+ * on the actual checkout call — this client-side check is about not
+ * rendering a working button on an unauthorized page at all, not the
+ * only line of defense.
  */
 
 (function () {
   'use strict';
 
-  // The base URL for the iframe src is the same origin that served this
-  // script — that way it works correctly on both fundraisely.ie and
-  // fundraisely.co.uk without hardcoding either domain.
   var scriptTag = document.currentScript;
   var baseUrl = scriptTag
     ? new URL(scriptTag.src).origin
     : 'https://fundraisely.ie'; // fallback if currentScript isn't available (old browsers)
 
-  // console.log('[FR-DEBUG donate.js] script initialized. scriptTag.src=', scriptTag ? scriptTag.src : '(no currentScript)', 'computed baseUrl=', baseUrl, 'this page location=', window.location.href);
-
   var MODAL_ID = 'fundraisely-donation-modal';
+
+  // Per-clubId cache of the domain-check result, so multiple buttons
+  // for the same club on one page only trigger one network call.
+  var domainCheckCache = {};
+
+  // ── Domain check ─────────────────────────────────────────────────────
+
+  function checkDomainAllowed(clubId) {
+    if (domainCheckCache[clubId]) return domainCheckCache[clubId];
+
+    var url =
+      baseUrl +
+      '/api/donations/' +
+      encodeURIComponent(clubId) +
+      '/domain-check?hostname=' +
+      encodeURIComponent(window.location.hostname);
+
+    var promise = fetch(url)
+      .then(function (res) { return res.json(); })
+      .then(function (data) { return !!(data && data.allowed); })
+      .catch(function () {
+        // Network failure: fail closed, same as the backend's own
+        // fail-closed behavior on unexpected errors.
+        return false;
+      });
+
+    domainCheckCache[clubId] = promise;
+    return promise;
+  }
+
+  function showNotAuthorizedNotice(btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    btn.title = 'This donation button is not authorized for this website.';
+  }
 
   // ── Modal creation ───────────────────────────────────────────────────
 
@@ -121,8 +153,6 @@
     iframe.setAttribute('allow', 'payment');
     iframe.setAttribute('loading', 'eager');
 
-    // console.log('[FR-DEBUG donate.js] creating modal. iframe.src=', iframe.src);
-
     container.appendChild(closeBtn);
     container.appendChild(iframe);
     overlay.appendChild(container);
@@ -138,14 +168,10 @@
   }
 
   function closeModal() {
-    // console.log('[FR-DEBUG donate.js] closeModal() called.');
     var modal = document.getElementById(MODAL_ID);
     if (modal) {
       document.body.removeChild(modal);
       document.removeEventListener('keydown', handleKeyDown);
-      // console.log('[FR-DEBUG donate.js] modal element removed from DOM.');
-    } else {
-      console.warn('[FR-DEBUG donate.js] closeModal() called but no modal element found in DOM (id=' + MODAL_ID + ') — already closed?');
     }
   }
 
@@ -158,29 +184,16 @@
   // successful checkout redirect back to /success). The iframe and this
   // script are on different origins (fundraisely.ie vs club's site), so
   // postMessage is the only way they can communicate — and we check the
-  // origin before acting on any message.
+  // origin before acting on any message. This is a UI-courtesy fast path
+  // only; the embed page's own polling against the server ledger is the
+  // real source of truth for whether a donation succeeded.
 
   window.addEventListener('message', function (event) {
-    // [FR-DEBUG] Log EVERY message this listener sees, matched or not —
-    // the original code's rejection path (event.origin !== baseUrl)
-    // returns silently with zero log output, which is exactly the kind
-    // of failure that looks identical to "nothing happened" from the
-    // outside. This line alone should reveal whether messages are even
-    // arriving here on staging, and if so, what event.origin actually
-    // is versus what baseUrl was computed as.
-    // console.log('[FR-DEBUG donate.js] message event received. event.origin=', event.origin, 'baseUrl=', baseUrl, 'origins match=', event.origin === baseUrl, 'event.data=', event.data);
-
-    // Only accept messages from FundRaisely's own origin
-    if (event.origin !== baseUrl) {
-      console.warn('[FR-DEBUG donate.js] REJECTED message — event.origin (' + event.origin + ') !== baseUrl (' + baseUrl + '). closeModal() will NOT be called for this message.');
-      return;
-    }
+    if (event.origin !== baseUrl) return;
 
     var data = event.data || {};
     if (data.type === 'FUNDRAISELY_DONATION_SUCCESS') {
-      // console.log('[FR-DEBUG donate.js] ACCEPTED FUNDRAISELY_DONATION_SUCCESS — calling closeModal(). clubId=', data.clubId);
       closeModal();
-      // Optionally dispatch a custom event the club's page can listen to
       try {
         document.dispatchEvent(new CustomEvent('fundraisely:donation-success', {
           detail: { clubId: data.clubId },
@@ -189,7 +202,6 @@
       } catch (e) {}
     }
     if (data.type === 'FUNDRAISELY_DONATION_CLOSE') {
-      // console.log('[FR-DEBUG donate.js] ACCEPTED FUNDRAISELY_DONATION_CLOSE — calling closeModal().');
       closeModal();
     }
   });
@@ -202,14 +214,26 @@
       (function (btn) {
         if (btn._fundraiselyWired) return; // don't double-wire
         btn._fundraiselyWired = true;
-        btn.addEventListener('click', function () {
-          var clubId = btn.getAttribute('data-club-id');
-          var title = btn.getAttribute('data-title') || 'Make a donation';
-          if (!clubId) {
-            console.warn('[FundRaisely] data-club-id is missing on the donate button');
+
+        var clubId = btn.getAttribute('data-club-id');
+        var title = btn.getAttribute('data-title') || 'Make a donation';
+
+        if (!clubId) {
+          console.warn('[FundRaisely] data-club-id is missing on the donate button');
+          return;
+        }
+
+        // Check domain authorization before wiring the click handler.
+        // The button stays present but inert (and visibly disabled)
+        // until/unless this resolves true.
+        checkDomainAllowed(clubId).then(function (allowed) {
+          if (!allowed) {
+            showNotAuthorizedNotice(btn);
             return;
           }
-          createModal(clubId, title);
+          btn.addEventListener('click', function () {
+            createModal(clubId, title);
+          });
         });
       })(buttons[i]);
     }

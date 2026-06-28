@@ -95,7 +95,17 @@ router.patch('/:challengeId/status', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (err) {
     console.error('[challenges] PATCH status error:', err);
-    if (err.message?.startsWith('Invalid status')) return res.status(400).json({ error: err.message });
+    const msg = err.message || '';
+    if (msg.startsWith('Invalid status')) return res.status(400).json({ error: msg });
+    if (msg === 'stripe_not_connected') {
+      return res.status(422).json({
+        error: msg,
+        message: 'Connect Stripe before activating a paid challenge.',
+      });
+    }
+    if (msg === 'invalid_weekly_price') {
+      return res.status(400).json({ error: msg, message: 'This challenge has no valid weekly price set.' });
+    }
     res.status(500).json({ error: 'Failed to update status.' });
   }
 });

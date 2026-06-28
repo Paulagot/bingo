@@ -87,6 +87,11 @@ router.post('/schedule', async (req, res) => {
       entryFee, currency, maxPlayers,
       prizeDescription: _legacyDesc, prizeValue: _legacyVal,
       prizes,
+      // Payment methods chosen at the activity level — see
+      // PaymentMethodSelector.tsx on the frontend. Default to [] so a club
+      // that hasn't picked anything yet doesn't crash scheduleEliminationRoom.
+      ticketMethodIds  = [],
+      onnightMethodIds = [],
     } = req.body;
 
     // Extract from prizes array, falling back to legacy flat fields
@@ -153,6 +158,8 @@ const result = await scheduleEliminationRoom({
   prizeDescription,
   prizeValue,
   roomCaps,
+  ticketMethodIds,
+  onnightMethodIds,
 });
 
     // ── 7. Consume credit — only after successful DB insert ──────────────────
@@ -227,6 +234,12 @@ router.patch('/rooms/:roomId', async (req, res) => {
       entryFee, currency, maxPlayers,
       prizeDescription: _legacyDesc, prizeValue: _legacyVal,
       prizes,
+      // Payment methods — left as undefined if not sent, NOT defaulted to
+      // [] here. updateEliminationRoom treats undefined as "don't touch
+      // payment methods" and [] as "clear all selections", so defaulting
+      // would wrongly clear methods on every edit that doesn't touch them.
+      ticketMethodIds,
+      onnightMethodIds,
     } = req.body;
 
     // Extract from prizes array, falling back to legacy flat fields
@@ -238,6 +251,7 @@ router.patch('/rooms/:roomId', async (req, res) => {
     const updated = await updateEliminationRoom({
       clubId, roomId, scheduledAt, timeZone, entryFee, currency,
       maxPlayers, prizes, prizeDescription, prizeValue,
+      ticketMethodIds, onnightMethodIds,
     });
 
     return res.status(200).json({ room: updated });

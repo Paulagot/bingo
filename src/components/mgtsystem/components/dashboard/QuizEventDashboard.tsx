@@ -445,33 +445,42 @@ setLinkedEventsMap(leMap);
     gameType: 'quiz' | 'elimination' | 'ticketed_event' = 'quiz'
   ) => {
     if (roomId && pendingActivityEventId) {
-      try {
-        await eventIntegrationsService.link(pendingActivityEventId, {
-          integration_type:
-            gameType === 'elimination'
-              ? 'elimination'
-              : gameType === 'ticketed_event'
-                ? 'ticketed_event'
-                : 'quiz_web2',
-          external_ref: roomId,
-        });
-      } catch (e) {
-        console.error('Failed to auto-link activity to event:', e);
+      // Only link if this event doesn't already have this room linked.
+      // Without this check, EVERY edit of an already-linked room re-fires
+      // the link call and hits a 409 ("already linked") from the backend —
+      // harmless to the room's own data, but noisy and masked a real bug
+      // (see below) for a while.
+      const alreadyLinked = activityMap[pendingActivityEventId]?.room_id === roomId;
+
+      if (!alreadyLinked) {
+        try {
+          await eventIntegrationsService.link(pendingActivityEventId, {
+            integration_type:
+              gameType === 'elimination'
+                ? 'elimination'
+                : gameType === 'ticketed_event'
+                  ? 'ticketed_event'
+                  : 'quiz_web2',
+            external_ref: roomId,
+          });
+        } catch (e) {
+          console.error('Failed to auto-link activity to event:', e);
+        }
       }
 
-      try {
-        const pendingEvent = events.find(e => e.id === pendingActivityEventId);
-        const pm = pendingEvent?.payment_methods_json;
-        if (pm && (pm.ticket_method_ids?.length || pm.onnight_method_ids?.length)) {
-          await quizPaymentMethodsService.updateLinkedPaymentMethods(
-            roomId,
-            pm.ticket_method_ids  || [],
-            pm.onnight_method_ids || [],
-          );
-        }
-      } catch (e) {
-        console.error('Failed to apply payment methods to room:', e);
-      }
+      // NOTE: there used to be a second step here that read the EVENT's
+      // payment_methods_json and pushed it DOWN onto the room. That was
+      // leftover from the old architecture, before payment methods were
+      // flipped to flow room → event instead of event → room (see
+      // PaymentMethodSelector.tsx / EventIntegrationsService.js for the
+      // current design). It has been removed — it was overwriting the
+      // room's just-saved payment methods with the event's stale cached
+      // copy, which is what caused "removing methods doesn't stick"
+      // (the event's old non-empty cache would get pushed back down,
+      // undoing the removal — adding methods often didn't show this
+      // because the overwrite happened to overlap with what was added).
+      // The room already wrote its own payment methods correctly inside
+      // its own create/update handler — nothing here should touch them.
     }
     setPendingActivityEventId(null);
     await loadEvents();

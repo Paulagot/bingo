@@ -1,3 +1,21 @@
+// server/donations/services/DonationButtonService.js
+//
+// Tier A (manual-link) donation button service — handles buttons backed
+// by a static external payment link (SumUp, Revolut, Monzo, ZippyPay).
+// Tier B (Stripe/crypto/sumup_api trackable checkout) lives in
+// DonationCheckoutService.js — the two are kept independent by design,
+// each owning its own small copies of shared-shape queries rather than
+// importing across services (see that file's header comment).
+//
+// THIS REVISION adds club-level domain registration
+// (fundraisely_club_allowed_domains): which website hostnames a club's
+// donate.js embed is allowed to actually render its button on. This is
+// a short-term measure ahead of a planned proper club onboarding flow
+// (where domain registration will move into entity setup) — for now
+// it's surfaced as a field on this same donation-button management
+// modal, since that's the only place clubs currently interact with the
+// embed at all.
+
 import database from '../../config/database.js';
 
 // Providers eligible to power the embeddable donation button.
@@ -8,6 +26,7 @@ import database from '../../config/database.js';
 const ELIGIBLE_DONATION_PROVIDERS = ['sumup', 'revolut', 'monzo', 'zippypay'];
 
 const BUTTON_METHODS_TABLE = 'fundraisely_donation_button_methods';
+const ALLOWED_DOMAINS_TABLE = 'fundraisely_club_allowed_domains';
 
 /**
  * Validates a #rrggbb hex color string. Deliberately duplicated from
@@ -66,6 +85,43 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/**
+ * Normalizes a club-submitted domain into a bare hostname: lowercase,
+ * no protocol, no path, no port, no trailing slash, no surrounding
+ * whitespace. Accepts either a bare hostname ("clubsite.com") or a
+ * full URL ("https://clubsite.com/events") from the admin UI, since
+ * copy-pasting a full URL from the browser bar is a likely real-world
+ * input even though the field asks for a domain.
+ *
+ * Returns null if the input can't be reduced to a sane hostname (e.g.
+ * empty, or unparseable) — callers treat null as "reject this entry,"
+ * not as a different valid hostname.
+ */
+function normalizeHostname(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+
+  try {
+    const url = new URL(candidate);
+    return url.hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+// Conservative hostname shape check, applied AFTER normalizeHostname.
+// Allows 'localhost' explicitly (no dot) since that's a legitimate dev
+// value; otherwise requires at least one dot and only hostname-legal
+// characters.
+const HOSTNAME_PATTERN = /^(localhost|[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+)$/;
+
+function isValidHostname(hostname) {
+  return typeof hostname === 'string' && HOSTNAME_PATTERN.test(hostname);
 }
 
 class DonationButtonService {
@@ -184,6 +240,100 @@ class DonationButtonService {
     );
   }
 
+  // ── Allowed domains ──────────────────────────────────────────────────
+
+  /**
+   * All hostnames this club has registered as legitimate places for
+   * their donate.js widget to render. Used both by the admin
+   * management response (so the modal can show/edit the list) and by
+   * the public domain-check endpoint donate.js calls before rendering.
+   */
+  async listAllowedDomains({ clubId }) {
+    const [rows] = await database.connection.execute(
+      `SELECT hostname FROM ${ALLOWED_DOMAINS_TABLE}
+       WHERE club_id = ?
+       ORDER BY created_at ASC`,
+      [clubId]
+    );
+    return (rows || []).map((r) => r.hostname);
+  }
+
+  /**
+   * Replaces a club's full allowed-domain list in one call —
+   * delete-then-reinsert, same pattern as _setLinkedMethod and
+   * upsertTierBButton's method-list save. Used by the donation button
+   * modal's "save" action, which submits the complete intended list
+   * rather than diffing client-side.
+   *
+   * Invalid entries are DROPPED rather than failing the whole save —
+   * same convention as upsertTierBButton's droppedMethodIds — since one
+   * mistyped domain shouldn't block saving the rest of the button
+   * config. Returns { domains, droppedDomains } so the modal can warn
+   * about anything that didn't make it through.
+   *
+   * Deliberately allows an EMPTY list to be saved — a club with zero
+   * registered domains just means donate.js will refuse to render
+   * anywhere until they add one. This is a valid (if non-functional)
+   * state, not an error, since a club might be mid-setup.
+   */
+  async replaceAllowedDomains({ clubId, rawHostnames }) {
+    await this._assertClubExists(clubId);
+
+    const inputArray = Array.isArray(rawHostnames) ? rawHostnames : [];
+    const seen = new Set();
+    const validHostnames = [];
+    const droppedDomains = [];
+
+    for (const raw of inputArray) {
+      const hostname = normalizeHostname(raw);
+      if (!hostname || !isValidHostname(hostname)) {
+        droppedDomains.push({ input: String(raw), reason: 'invalid' });
+        continue;
+      }
+      if (seen.has(hostname)) continue; // silent dedupe, not worth reporting
+      seen.add(hostname);
+      validHostnames.push(hostname);
+    }
+
+    await database.connection.execute(
+      `DELETE FROM ${ALLOWED_DOMAINS_TABLE} WHERE club_id = ?`,
+      [clubId]
+    );
+
+    for (const hostname of validHostnames) {
+      await database.connection.execute(
+        `INSERT INTO ${ALLOWED_DOMAINS_TABLE} (club_id, hostname) VALUES (?, ?)`,
+        [clubId, hostname]
+      );
+    }
+
+    return { domains: validHostnames, droppedDomains };
+  }
+
+  /**
+   * Public, unauthenticated check: is `hostname` an allowed domain for
+   * `clubId`? Used by GET /donations/:clubId/domain-check, which
+   * donate.js calls before rendering the button. Returns a plain
+   * boolean rather than throwing on "not found" — an unregistered
+   * hostname is an expected, common outcome here (anyone can call this
+   * with any club id + any hostname), not an error condition worth a
+   * stack trace or a 4xx-mapped exception.
+   */
+  async isHostnameAllowed({ clubId, hostname }) {
+    const normalized = String(hostname || '').trim().toLowerCase();
+    if (!normalized) return false;
+
+    const [rows] = await database.connection.execute(
+      `SELECT 1 FROM ${ALLOWED_DOMAINS_TABLE}
+       WHERE club_id = ? AND hostname = ?
+       LIMIT 1`,
+      [clubId, normalized]
+    );
+    return rows.length > 0;
+  }
+
+  // ── Row mapping ───────────────────────────────────────────────────────
+
   /**
    * PHASE 3b: returns the plural shape (clubPaymentMethodIds,
    * paymentMethods) per the updated donationButton.ts types, even
@@ -220,6 +370,8 @@ class DonationButtonService {
     };
   }
 
+  // ── Management read ───────────────────────────────────────────────────
+
   async getForManagement({ clubId }) {
     await this._assertClubExists(clubId);
 
@@ -236,6 +388,7 @@ class DonationButtonService {
     }
 
     const eligiblePaymentMethods = await this._listEligiblePaymentMethods({ clubId });
+    const allowedDomains = await this.listAllowedDomains({ clubId });
 
     return {
       ok: true,
@@ -254,10 +407,13 @@ class DonationButtonService {
           }
         : { primaryColor: '#157f85', backgroundColor: '#ffffff', textOnPrimaryColor: '#ffffff' },
       eligiblePaymentMethods,
+      allowedDomains,
     };
   }
 
-  async upsert({ clubId, isEnabled, buttonLabel, buttonTitle, clubPaymentMethodId, userId, branding }) {
+  // ── Save (Tier A upsert) ──────────────────────────────────────────────
+
+  async upsert({ clubId, isEnabled, buttonLabel, buttonTitle, clubPaymentMethodId, userId, branding, allowedDomains }) {
     await this._assertClubExists(clubId);
 
     const trimmedLabel = String(buttonLabel || '').trim();
@@ -351,8 +507,21 @@ class DonationButtonService {
 
     await this._setLinkedMethod({ buttonId, clubPaymentMethodId: methodIdNum });
 
-    return this.getForManagement({ clubId });
+    // allowedDomains is OPTIONAL on the request — undefined means
+    // "don't touch the saved domain list," not "clear it." Only call
+    // replaceAllowedDomains when the caller actually sent something
+    // (including an explicit empty array, which DOES mean "clear it").
+    let droppedDomains = [];
+    if (allowedDomains !== undefined) {
+      const domainResult = await this.replaceAllowedDomains({ clubId, rawHostnames: allowedDomains });
+      droppedDomains = domainResult.droppedDomains;
+    }
+
+    const managementData = await this.getForManagement({ clubId });
+    return { ...managementData, droppedDomains };
   }
+
+  // ── Embed code generation ─────────────────────────────────────────────
 
   async getEmbed({ clubId }) {
     await this._assertClubExists(clubId);
