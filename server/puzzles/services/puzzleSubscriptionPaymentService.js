@@ -19,7 +19,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import database from '../../config/database.js';
 import { getReadyStripeForClub } from '../../stripe/stripeTicketCheckoutService.js';
-import { findOrCreateSupporter } from '../../supporters/services/supporterAuthService.js';
+import { findOrCreateSupporter, sendMagicLink } from '../../supporters/services/supporterAuthService.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -370,6 +370,16 @@ export async function exchangeSessionForSupporterToken({ sessionId, challengeId 
  * still get the full total_weeks of access from when THEY started
  * paying, not have their access window already partly elapsed by the
  * challenge's calendar.
+ *
+ * Also sends the player a real magic-link email here — exchangeSessionForSupporterToken
+ * already gets them straight into the challenge the instant they land
+ * back from Stripe, but that's a one-off token exchange, not a durable
+ * way back in. Without this email, a paid player who switches devices or
+ * clears their browser would have no way to sign back in later at all —
+ * unlike the free flow, nothing about paying via Stripe checkout proves
+ * email ownership the way clicking an emailed link does. Sending the
+ * same magic link here gives paid subscribers the exact same durable
+ * "Already joined? Sign in" path free players already have.
  */
 export async function confirmSubscriptionCheckout({ subscriptionId, challengeId, playerId, clubId, stripeSubscriptionId, stripeCustomerId }) {
   await database.connection.execute(
@@ -389,6 +399,8 @@ export async function confirmSubscriptionCheckout({ subscriptionId, challengeId,
      VALUES (?, ?, ?, UTC_TIMESTAMP(), 'active')`,
     [challengeId, playerId, clubId]
   );
+
+  await sendPaidConfirmationMagicLink({ playerId, clubId, challengeId });
 
   await applyCancelAtForSubscription({ challengeId, clubId, stripeSubscriptionId });
 
@@ -435,6 +447,45 @@ async function applyCancelAtForSubscription({ challengeId, clubId, stripeSubscri
     }
   } catch (err) {
     console.warn('[puzzleSubscriptionPayment] ⚠️ failed to set cancel_at:', err.message);
+  }
+}
+
+/**
+ * Look up the player's name/email and send them the same magic link
+ * email the free-flow join uses, so a paid subscriber has a durable way
+ * to sign back in later — not just the one-off token they got from
+ * exchangeSessionForSupporterToken at the moment they landed back from
+ * Stripe. sendMagicLink already embeds challengeId in the link, so
+ * clicking it lands them straight back on this challenge's play page,
+ * same as any free-flow magic link.
+ *
+ * Swallows errors rather than throwing, same reasoning as
+ * applyCancelAtForSubscription — a failed confirmation email is not a
+ * reason to fail the whole checkout confirmation; the player still has
+ * working access via the token they already received, this is purely
+ * about their ability to come back later.
+ */
+async function sendPaidConfirmationMagicLink({ playerId, clubId, challengeId }) {
+  try {
+    const [[supporter]] = await database.connection.execute(
+      `SELECT name, email FROM fundraisely_supporters WHERE id = ? LIMIT 1`,
+      [playerId]
+    );
+    if (!supporter?.email) return;
+
+    await sendMagicLink({
+      supporterId: playerId,
+      clubId,
+      email: supporter.email,
+      name: supporter.name,
+      challengeId,
+    });
+
+    if (DEBUG) {
+      console.log('[puzzleSubscriptionPayment] ✅ Confirmation magic link sent:', { playerId, challengeId });
+    }
+  } catch (err) {
+    console.warn('[puzzleSubscriptionPayment] ⚠️ failed to send confirmation magic link:', err.message);
   }
 }
 
