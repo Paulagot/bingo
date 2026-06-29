@@ -94,7 +94,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       }
 
       const [[subscription]] = await database.connection.execute(
-        `SELECT status FROM fundraisely_puzzle_subscriptions
+        `SELECT status, paid_cycles FROM fundraisely_puzzle_subscriptions
          WHERE challenge_id = ? AND player_id = ?
          LIMIT 1`,
         [challengeId, playerId]
@@ -104,6 +104,22 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
         return res.status(402).json({
           error: 'payment_required',
           message: 'An active subscription is required to access this week.',
+        });
+      }
+
+      // Pay-per-unlock gate: access to week N requires this player to
+      // have personally paid for N cycles, not just "be a subscriber in
+      // good standing." This is what makes a player who joins late only
+      // ever see as many weeks as they've actually paid for — their own
+      // cycle count is anchored to when THEY started paying
+      // (first_period_started_at), independent of how many weeks the
+      // challenge's own calendar has unlocked for everyone else.
+      // unlocks_at above still has to pass too — paying ahead doesn't
+      // let a player binge weeks the club hasn't released content for.
+      if (subscription.paid_cycles < weekNum) {
+        return res.status(402).json({
+          error: 'cycle_not_paid',
+          message: 'This week unlocks once your next payment cycle completes.',
         });
       }
     }

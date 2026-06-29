@@ -555,6 +555,7 @@ export async function stripeWebhookHandler(req, res) {
         const updated = await updateSubscriptionPeriodEnd({
           stripeSubscriptionId,
           currentPeriodEnd: invoice.period_end ?? invoice.lines?.data?.[0]?.period?.end ?? null,
+          billingReason: invoice.billing_reason,
         });
 
         if (DEBUG) {

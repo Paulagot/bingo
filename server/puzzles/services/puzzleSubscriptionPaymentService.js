@@ -351,13 +351,34 @@ export async function exchangeSessionForSupporterToken({ sessionId, challengeId 
 /**
  * checkout.session.completed → activate the subscription row and enroll
  * the player in the challenge.
+ *
+ * Also: this is cycle 1 under the pay-per-unlock access model (see
+ * paid_cycles below) — set immediately here rather than waiting for the
+ * separate invoice.payment_succeeded event for this same first invoice,
+ * so week 1 access is available the instant checkout completes, not
+ * delayed behind a second webhook round-trip. invoice.payment_succeeded
+ * is still relied on for cycle 2 onward (see updateSubscriptionPeriodEnd)
+ * — it distinguishes the first invoice from renewals via billing_reason,
+ * so this first cycle is never double-counted.
+ *
+ * Also computes and applies this player's own cancel_at on the Stripe
+ * subscription: first_period_started_at + total_weeks. This has to be
+ * per-player and set reactively here (not baked into the Checkout
+ * Session at creation time) because under the pay-per-unlock model each
+ * player's own billing clock starts from THEIR first payment, not from
+ * the challenge's shared starts_at — a player joining a week late should
+ * still get the full total_weeks of access from when THEY started
+ * paying, not have their access window already partly elapsed by the
+ * challenge's calendar.
  */
 export async function confirmSubscriptionCheckout({ subscriptionId, challengeId, playerId, clubId, stripeSubscriptionId, stripeCustomerId }) {
   await database.connection.execute(
     `UPDATE fundraisely_puzzle_subscriptions
      SET status = 'active',
          stripe_subscription_id = ?,
-         stripe_customer_id = COALESCE(stripe_customer_id, ?)
+         stripe_customer_id = COALESCE(stripe_customer_id, ?),
+         paid_cycles = 1,
+         first_period_started_at = COALESCE(first_period_started_at, UTC_TIMESTAMP())
      WHERE id = ?`,
     [stripeSubscriptionId, stripeCustomerId, subscriptionId]
   );
@@ -369,25 +390,76 @@ export async function confirmSubscriptionCheckout({ subscriptionId, challengeId,
     [challengeId, playerId, clubId]
   );
 
+  await applyCancelAtForSubscription({ challengeId, clubId, stripeSubscriptionId });
+
   if (DEBUG) {
     console.log('[puzzleSubscriptionPayment] ✅ Subscription activated:', { subscriptionId, stripeSubscriptionId });
   }
 }
 
 /**
- * invoice.payment_succeeded → bump current_period_end.
- * Looked up by stripe_subscription_id since the invoice object itself
- * carries no challengeId/playerId metadata directly.
+ * Compute first_period_started_at + total_weeks for this challenge and
+ * push it to Stripe as the subscription's cancel_at, so it auto-cancels
+ * after exactly the number of weeks the challenge runs for, anchored to
+ * when THIS player started paying. Idempotent in effect — re-setting the
+ * same cancel_at on an already-cancel_at-set subscription is harmless,
+ * Stripe just overwrites it with the same value.
+ *
+ * Swallows errors rather than throwing — failing to set an auto-cancel
+ * date is not a reason to fail the whole checkout confirmation; worst
+ * case the subscription just needs cancelling manually later, which is
+ * recoverable, whereas failing confirmSubscriptionCheckout itself would
+ * leave the player unable to access content they already paid for.
  */
-export async function updateSubscriptionPeriodEnd({ stripeSubscriptionId, currentPeriodEnd }) {
+async function applyCancelAtForSubscription({ challengeId, clubId, stripeSubscriptionId }) {
+  try {
+    const [[challenge]] = await database.connection.execute(
+      `SELECT total_weeks FROM fundraisely_puzzle_challenges WHERE id = ? LIMIT 1`,
+      [challengeId]
+    );
+    if (!challenge?.total_weeks) return;
+
+    const stripeConn = await getReadyStripeForClub(clubId);
+    if (!stripeConn) return;
+
+    const cancelAtUnix = Math.floor(Date.now() / 1000) + challenge.total_weeks * 7 * 24 * 60 * 60;
+
+    await stripe.subscriptions.update(
+      stripeSubscriptionId,
+      { cancel_at: cancelAtUnix },
+      { stripeAccount: stripeConn.accountId }
+    );
+
+    if (DEBUG) {
+      console.log('[puzzleSubscriptionPayment] ✅ cancel_at set:', { stripeSubscriptionId, cancelAtUnix });
+    }
+  } catch (err) {
+    console.warn('[puzzleSubscriptionPayment] ⚠️ failed to set cancel_at:', err.message);
+  }
+}
+
+/**
+ * invoice.payment_succeeded → bump current_period_end, and — for
+ * genuine renewals only — increment paid_cycles.
+ *
+ * billing_reason distinguishes the first invoice (subscription_create,
+ * already counted as cycle 1 by confirmSubscriptionCheckout above) from
+ * a real renewal (subscription_cycle). Only subscription_cycle
+ * increments here — without this check, the first invoice's own
+ * payment_succeeded event would double-count cycle 1 as cycle 2.
+ */
+export async function updateSubscriptionPeriodEnd({ stripeSubscriptionId, currentPeriodEnd, billingReason }) {
   const periodEndMysql = currentPeriodEnd
     ? new Date(currentPeriodEnd * 1000).toISOString().slice(0, 19).replace('T', ' ')
     : null;
+
+  const incrementCycle = billingReason === 'subscription_cycle';
 
   const [result] = await database.connection.execute(
     `UPDATE fundraisely_puzzle_subscriptions
      SET current_period_end = ?,
          status = IF(status = 'past_due', 'active', status)
+         ${incrementCycle ? ', paid_cycles = paid_cycles + 1' : ''}
      WHERE stripe_subscription_id = ?`,
     [periodEndMysql, stripeSubscriptionId]
   );
