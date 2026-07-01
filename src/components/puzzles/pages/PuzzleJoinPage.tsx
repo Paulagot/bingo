@@ -87,20 +87,37 @@ export default function PuzzleJoinPage() {
     setSubmitting(true);
 
     try {
-      await supporterAuthService.requestMagicLink({
-        email,
-        name,
+      if (challengeIsFree) {
+        await supporterAuthService.requestMagicLink({
+          email,
+          name,
+          challengeId: challenge.id,
+          clubId: challenge.club_id ?? '',
+        });
+
+        navigate('/puzzle-check-email', {
+          state: {
+            email,
+            challengeId: challenge.id,
+            clubId: challenge.club_id,
+          },
+        });
+        return;
+      }
+
+      // Paid challenge — go straight to Stripe Checkout rather than the
+      // magic-link form. The backend creates the supporter record and a
+      // pending subscription row as part of this call; the player is
+      // redirected to Stripe's hosted checkout page, which is outside
+      // the SPA, so a full-page redirect (not react-router navigate) is
+      // correct here.
+      const result = await supporterAuthService.createCheckoutSession({
         challengeId: challenge.id,
-        clubId: challenge.club_id ?? '',
+        name,
+        email,
       });
 
-      navigate('/puzzle-check-email', {
-        state: {
-          email,
-          challengeId: challenge.id,
-          clubId: challenge.club_id,
-        },
-      });
+      window.location.href = result.url;
     } catch (err) {
       setFormError((err as Error).message);
     } finally {
@@ -159,7 +176,7 @@ export default function PuzzleJoinPage() {
             Puzzle access
           </p>
           <p className="text-xs text-[#5F7D6A]">
-            Magic link sign in
+            {challengeIsFree ? 'Magic link sign in' : 'Secure subscription checkout'}
           </p>
         </div>
       }
@@ -175,8 +192,9 @@ export default function PuzzleJoinPage() {
           </h1>
 
           <p className="mt-4 max-w-xl text-base leading-relaxed text-[#5F5A54]">
-            Enter your details and we&apos;ll send you a secure magic link. No
-            password needed — just open the email and start playing.
+            {challengeIsFree
+              ? "Enter your details and we'll send you a secure magic link. No password needed — just open the email and start playing."
+              : "Enter your details to subscribe and start playing. You'll be taken to a secure checkout to set up your weekly payment."}
           </p>
 
           <div className="mt-7 rounded-[30px] border border-[#E8E0D3] bg-[#FBF8F3] p-5">
@@ -226,8 +244,12 @@ export default function PuzzleJoinPage() {
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <FeatureCard
               emoji="📧"
-              title="Magic link"
-              text="Secure email access with no password to remember."
+              title={challengeIsFree ? 'Magic link' : 'Secure checkout'}
+              text={
+                challengeIsFree
+                  ? 'Secure email access with no password to remember.'
+                  : 'Set up your weekly subscription via secure Stripe checkout.'
+              }
             />
 
             <FeatureCard
@@ -255,7 +277,9 @@ export default function PuzzleJoinPage() {
             </h2>
 
             <p className="mt-2 text-sm text-[#6E6A63]">
-              We&apos;ll email your private access link.
+              {challengeIsFree
+                ? "We'll email your private access link."
+                : "You'll be taken to a secure checkout to start your subscription."}
             </p>
           </div>
 
@@ -298,8 +322,9 @@ export default function PuzzleJoinPage() {
               />
 
               <p className="mt-2 text-xs leading-relaxed text-[#8A847B]">
-                Your link is emailed to this address. You&apos;ll use it to
-                access your puzzles during the challenge.
+                {challengeIsFree
+                  ? "Your link is emailed to this address. You'll use it to access your puzzles during the challenge."
+                  : "Used for your Stripe receipt and to access your puzzles during the challenge."}
               </p>
             </div>
 
@@ -321,8 +346,9 @@ export default function PuzzleJoinPage() {
                 >
                   Privacy Policy
                 </a>{' '}
-                and consent to receiving puzzle access emails from{' '}
-                <strong>{challenge.club_name ?? 'the organiser'}</strong>.
+                {challengeIsFree
+                  ? <>and consent to receiving puzzle access emails from{' '}<strong>{challenge.club_name ?? 'the organiser'}</strong>.</>
+                  : <>and consent to receiving puzzle access and billing emails from{' '}<strong>{challenge.club_name ?? 'the organiser'}</strong>.</>}
               </span>
             </label>
 
@@ -340,7 +366,9 @@ export default function PuzzleJoinPage() {
               disabled={submitting}
               className="mt-2"
             >
-              {submitting ? 'Sending link…' : 'Send my access link →'}
+              {challengeIsFree
+                ? (submitting ? 'Sending link…' : 'Send my access link →')
+                : (submitting ? 'Redirecting to checkout…' : `Pay & join${weeklyAmount ? ` — ${weeklyAmount}` : ''} →`)}
             </PuzzlePrimaryButton>
           </form>
 

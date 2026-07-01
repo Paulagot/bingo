@@ -68,7 +68,7 @@ const lastmodMap = {
 const UK_HOST = 'fundraisely.co.uk';
 const IE_HOST = 'fundraisely.ie';
 
-const DEFAULT_DOMAIN = (process.env.SEO_DEFAULT_DOMAIN || 'uk').toLowerCase();
+const DEFAULT_DOMAIN = 'fundraisely.ie';
 
 function dateFor(path) {
   return lastmodMap[path] || new Date().toISOString().split('T')[0];

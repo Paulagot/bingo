@@ -28,7 +28,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
     const weekNum = parseInt(weekNumber, 10);
 
     const [[challenge]] = await database.connection.execute(
-      'SELECT club_id FROM fundraisely_puzzle_challenges WHERE id = ? LIMIT 1',
+      'SELECT club_id, is_free FROM fundraisely_puzzle_challenges WHERE id = ? LIMIT 1',
       [challengeId]
     );
 
@@ -84,6 +84,44 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
         error: 'Week not yet unlocked',
         unlocksAt: schedule.unlocks_at,
       });
+    }
+
+    // Payment gate for paid challenges. Free challenges skip this entirely —
+    // matches existing behaviour exactly (only unlocks_at gates access).
+    if (!challenge.is_free) {
+      if (!playerId) {
+        return res.status(401).json({ error: 'Sign in required to access this week.' });
+      }
+
+      const [[subscription]] = await database.connection.execute(
+        `SELECT status, paid_cycles FROM fundraisely_puzzle_subscriptions
+         WHERE challenge_id = ? AND player_id = ?
+         LIMIT 1`,
+        [challengeId, playerId]
+      );
+
+      if (!subscription || subscription.status !== 'active') {
+        return res.status(402).json({
+          error: 'payment_required',
+          message: 'An active subscription is required to access this week.',
+        });
+      }
+
+      // Pay-per-unlock gate: access to week N requires this player to
+      // have personally paid for N cycles, not just "be a subscriber in
+      // good standing." This is what makes a player who joins late only
+      // ever see as many weeks as they've actually paid for — their own
+      // cycle count is anchored to when THEY started paying
+      // (first_period_started_at), independent of how many weeks the
+      // challenge's own calendar has unlocked for everyone else.
+      // unlocks_at above still has to pass too — paying ahead doesn't
+      // let a player binge weeks the club hasn't released content for.
+      if (subscription.paid_cycles < weekNum) {
+        return res.status(402).json({
+          error: 'cycle_not_paid',
+          message: 'This week unlocks once your next payment cycle completes.',
+        });
+      }
     }
 
     const instance = await generatePuzzleForWeek({

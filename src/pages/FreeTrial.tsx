@@ -11,8 +11,8 @@ const ListItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 const FreeTrial: React.FC = () => {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://fundraisely.co.uk';
-  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : 'fundraisely.co.uk';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://fundraisely.ie';
+  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : 'fundraisely.ie';
   const currency = host.includes('co.uk') ? 'GBP' : 'EUR';
   const currencySymbol = currency === 'GBP' ? '£' : '€';
 

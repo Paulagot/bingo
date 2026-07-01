@@ -1,7 +1,7 @@
 // src/components/puzzles/pages/PlayerChallengePage.tsx
 
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   supporterAuthService,
   type PublicChallenge,
@@ -44,6 +44,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 export default function PlayerChallengePage() {
   const { challengeId } = useParams<{ challengeId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [challenge, setChallenge] = useState<PublicChallenge | null>(null);
   const [weeks, setWeeks] = useState<WeekState[]>([]);
@@ -53,7 +54,14 @@ export default function PlayerChallengePage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const isAuth = supporterAuthService.isAuthenticated();
+  // isAuthenticated() reads a token from localStorage, so it isn't
+  // reactive on its own — this is re-evaluated explicitly below, after
+  // any Stripe session exchange has had a chance to set a fresh token,
+  // rather than captured once and frozen for the lifetime of the
+  // component.
+  const [isAuth, setIsAuth] = useState(() => supporterAuthService.isAuthenticated());
+
+  const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
     if (!challengeId) {
@@ -69,11 +77,52 @@ export default function PlayerChallengePage() {
       setPageError(null);
       setActionError(null);
 
+      // Landed here from Stripe Checkout (success_url carries
+      // ?session_id=... deliberately with no token in it — see
+      // exchangeSessionForSupporterToken for why). Exchange it for a
+      // real supporter token before deciding anything about auth/
+      // enrollment state below, so a just-paid player doesn't briefly
+      // (or permanently, if they don't reload) see "Join challenge"
+      // for a challenge they already paid for.
+      let authNow = supporterAuthService.isAuthenticated();
+
+      // True once we have independent proof of enrollment that doesn't
+      // depend on the webhook having landed yet — exchangeSession
+      // succeeding already means Stripe confirmed this exact session
+      // as paid for this exact challenge, which is a stronger and
+      // faster signal than waiting on getEnrollmentStatus to agree
+      // (that query depends on confirmSubscriptionCheckout having
+      // already run off the webhook, which is a separate, slower path
+      // that may not have completed yet when this page first loads).
+      let provenEnrolledByCheckout = false;
+
+      if (sessionId && !authNow) {
+        try {
+          await supporterAuthService.exchangeSession(sessionId, currentChallengeId);
+          authNow = true;
+          provenEnrolledByCheckout = true;
+          setIsAuth(true);
+        } catch (err) {
+          // Don't fail the whole page over this — fall through to the
+          // normal unauthenticated view. The most common real cause is
+          // the player reloading this URL much later after the token
+          // they'd otherwise already have has naturally been used, or
+          // a session that doesn't match this challenge.
+          console.warn('Stripe session exchange failed:', (err as Error).message);
+        } finally {
+          // Strip session_id from the URL once consumed (or once we've
+          // given up on it) so a refresh/bookmark of this page doesn't
+          // keep re-attempting the exchange on every load.
+          searchParams.delete('session_id');
+          setSearchParams(searchParams, { replace: true });
+        }
+      }
+
       try {
         const data = await supporterAuthService.getPublicChallenge(currentChallengeId);
         setChallenge(data);
 
-        if (isAuth) {
+        if (authNow) {
           const [scheduleData, enrollmentData] = await Promise.all([
             supporterAuthService
               .getSchedule(currentChallengeId)
@@ -83,7 +132,7 @@ export default function PlayerChallengePage() {
               .catch(() => null),
           ]);
 
-          setEnrolled(enrollmentData?.enrolled ?? false);
+          setEnrolled((enrollmentData?.enrolled ?? false) || provenEnrolledByCheckout);
 
           if (scheduleData.length) {
             setWeeks(mapScheduleToWeekState(scheduleData));
@@ -100,7 +149,7 @@ export default function PlayerChallengePage() {
     }
 
     load();
-  }, [challengeId, isAuth]);
+  }, [challengeId]);
 
   async function handleJoinFree() {
     if (!challengeId) return;

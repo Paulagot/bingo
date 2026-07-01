@@ -87,7 +87,7 @@ function getOrigin(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin.replace(/\/$/, '');
   }
-  return 'https://fundraisely.co.uk';
+  return 'https://fundraisely.ie';
 }
 function abs(path: string) {
   const p = path.startsWith('/') ? path : `/${path}`;

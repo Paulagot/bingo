@@ -567,7 +567,7 @@ function getCanonicalInfo(canonical) {
       locale: isIE ? 'en_IE' : 'en_GB',
       ukUrl: `https://fundraisely.co.uk${pathOnly}`,
       ieUrl: `https://fundraisely.ie${pathOnly}`,
-      xDefaultUrl: `https://fundraisely.co.uk${pathOnly}`,
+      xDefaultUrl: `https://fundraisely.ie${pathOnly}`,
     };
   } catch (error) {
     console.warn('⚠️ Invalid canonical URL for SEO head tags:', canonical);

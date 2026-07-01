@@ -18,6 +18,12 @@ import { deleteExpiredTicket } from './stripeExpiredTicketService.js';
 import { confirmOrderByStripeIntent } from '../campaigns/services/campaignOrderService.js';
 import { addPlayerWithId } from '../elimination/services/eliminationRoomManager.js';
 import { confirmDonation, markDonationStatus } from '../donations/services/DonationLedgerService.js';
+import {
+  confirmSubscriptionCheckout,
+  updateSubscriptionPeriodEnd,
+  markSubscriptionPastDue,
+  markSubscriptionCancelled,
+} from '../puzzles/services/puzzleSubscriptionPaymentService.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -360,6 +366,36 @@ export async function stripeWebhookHandler(req, res) {
           }
         }
 
+      // ── Puzzle subscription (weekly Puzzle Challenge) ──────────────────
+      } else if (type === 'puzzle_subscription') {
+        const { subscriptionId, challengeId, clubId, playerId } = session.metadata || {};
+
+        if (!subscriptionId || !challengeId || !playerId) {
+          console.warn('[StripeWebhook] ⚠️ puzzle_subscription missing metadata', {
+            sessionId, subscriptionId, challengeId, playerId,
+          });
+        } else {
+          // session.subscription is the Stripe Subscription id created by
+          // checkout in `mode: 'subscription'`. session.customer is the
+          // Stripe Customer id — already known to us, but written again
+          // here via COALESCE so this is safe even if it were ever missing
+          // at pending-row creation time.
+          await confirmSubscriptionCheckout({
+            subscriptionId,
+            challengeId,
+            playerId,
+            clubId,
+            stripeSubscriptionId: session.subscription,
+            stripeCustomerId:     session.customer,
+          });
+
+          if (DEBUG) {
+            console.log('[StripeWebhook] ✅ Puzzle subscription confirmed:', {
+              subscriptionId, challengeId, playerId, stripeSubscriptionId: session.subscription,
+            });
+          }
+        }
+
       // ── Elimination walk-in payment ──────────────────────────────────────
       } else if (type === 'elimination_walkin_payment') {
         const {
@@ -498,6 +534,69 @@ export async function stripeWebhookHandler(req, res) {
 
       } else {
         console.warn('[StripeWebhook] ⚠️ checkout.session.expired — unknown type:', type, { sessionId });
+      }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // invoice.payment_succeeded — puzzle subscription renewal
+    // ─────────────────────────────────────────────────────────────────────────
+    } else if (event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data.object;
+      const stripeSubscriptionId = invoice.subscription;
+
+      if (!stripeSubscriptionId) {
+        if (DEBUG) console.log('[StripeWebhook] ℹ️ invoice.payment_succeeded with no subscription — ignoring', { invoiceId: invoice.id });
+      } else {
+        // Looked up by stripe_subscription_id, not metadata — invoices for
+        // renewal cycles don't carry our custom metadata the way the
+        // initial Checkout Session did. If no row matches, this invoice
+        // isn't for a puzzle subscription (could be any other Stripe
+        // subscription product on this connected account), so this is a
+        // silent no-op rather than a warning.
+        const updated = await updateSubscriptionPeriodEnd({
+          stripeSubscriptionId,
+          currentPeriodEnd: invoice.period_end ?? invoice.lines?.data?.[0]?.period?.end ?? null,
+          billingReason: invoice.billing_reason,
+        });
+
+        if (DEBUG) {
+          console.log('[StripeWebhook] ✅ invoice.payment_succeeded processed:', {
+            stripeSubscriptionId, matched: updated,
+          });
+        }
+      }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // invoice.payment_failed — puzzle subscription renewal failed
+    // ─────────────────────────────────────────────────────────────────────────
+    } else if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      const stripeSubscriptionId = invoice.subscription;
+
+      if (!stripeSubscriptionId) {
+        if (DEBUG) console.log('[StripeWebhook] ℹ️ invoice.payment_failed with no subscription — ignoring', { invoiceId: invoice.id });
+      } else {
+        const updated = await markSubscriptionPastDue({ stripeSubscriptionId });
+
+        if (DEBUG) {
+          console.log('[StripeWebhook] ⚠️ invoice.payment_failed processed:', {
+            stripeSubscriptionId, matched: updated,
+          });
+        }
+      }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // customer.subscription.deleted — puzzle subscription cancelled
+    // ─────────────────────────────────────────────────────────────────────────
+    } else if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const stripeSubscriptionId = subscription.id;
+
+      const updated = await markSubscriptionCancelled({ stripeSubscriptionId });
+
+      if (DEBUG) {
+        console.log('[StripeWebhook] ✅ customer.subscription.deleted processed:', {
+          stripeSubscriptionId, matched: updated,
+        });
       }
 
     } else {

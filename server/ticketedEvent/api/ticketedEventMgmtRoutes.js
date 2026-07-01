@@ -76,6 +76,11 @@ router.post('/schedule', async (req, res) => {
       venueCapacity,
       eventTitle,
       eventLocation,
+      // Payment methods — ticketed events DO have an advance/onnight
+      // split, same as quiz/elimination. See PaymentMethodSelector.tsx
+      // (mode="split").
+      ticketMethodIds  = [],
+      onnightMethodIds = [],
     } = req.body;
 
     const roomId = providedRoomId || uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
@@ -120,6 +125,8 @@ router.post('/schedule', async (req, res) => {
       roomCaps,
       eventTitle,
       eventLocation,
+      ticketMethodIds,
+      onnightMethodIds,
     });
 
     const creditResult = await consumeCredit(clubId, 'ticketed_event', ents.plan_code);
@@ -185,6 +192,13 @@ router.patch('/rooms/:roomId', async (req, res) => {
       currency, currencySymbol,
       ticketTypes,      // ← new
       prizes, eventSponsors,
+      // Left undefined if not sent — undefined means "don't touch payment
+      // methods", [] means "clear all selections". NOT defaulted to [] here,
+      // unlike the POST /schedule route, since defaulting would wrongly
+      // wipe out existing selections on every edit that doesn't touch the
+      // payment step.
+      ticketMethodIds,
+      onnightMethodIds,
     } = req.body;
 
     console.log(`[ticketedEventMgmtRoutes] ✏️  Update ticketed event ${roomId} — club: ${clubId} — ticket types: ${Array.isArray(ticketTypes) ? ticketTypes.length : 'unchanged'}`);
@@ -195,6 +209,8 @@ router.patch('/rooms/:roomId', async (req, res) => {
       currency, currencySymbol,
       ticketTypes,      // ← new
       prizes, eventSponsors,
+      ticketMethodIds,
+      onnightMethodIds,
     });
 
     return res.status(200).json({ room: updated });

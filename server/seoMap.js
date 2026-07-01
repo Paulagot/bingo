@@ -1,6 +1,6 @@
 // server/seoMap.js
 
-const DEFAULT_IMAGE_PATH = 'git /social/fundraisely-og.jpg';
+const DEFAULT_IMAGE_PATH = '/social/fundraisely-og.jpg';
 
 const ABS = (hostOrigin, path) =>
   `${hostOrigin}${path.startsWith('/') ? path : `/${path}`}`;
@@ -469,6 +469,17 @@ export function getSeoForPath(reqPath, hostOrigin) {
       canonical: ABS(hostOrigin, '/web3/fundraisersdashboard'),
       robots: 'noindex, nofollow',
     },
+    '/events/safe-streets-ireland-padel': {
+  title: 'Safe Streets Ireland Padel Fundraiser | FundRaisely',
+  description:
+    'Safer Streets. Stronger Communities. Brighter Futures. Supported by FundRaisely.',
+  canonical: ABS(hostOrigin, '/events/safe-streets-ireland-padel'),
+  image: ABS(hostOrigin, '/partners/SSI_LOGO_Transparent.png'),
+  type: 'event',
+  robots: 'index, follow',
+  keywords:
+    'Safe Streets Ireland, padel fundraiser, House of Padel, community fundraiser, youth violence prevention, FundRaisely',
+},
 
     // Existing public campaign page.
     '/campaigns/clubs-league': {

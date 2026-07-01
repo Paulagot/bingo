@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Calendar, MapPin, Globe, Layers,
-  DollarSign, FileText, Clock, AlertCircle, CreditCard, CheckSquare, Square,
+  DollarSign, FileText, Clock, AlertCircle,
 } from 'lucide-react';
 
 import { useCurrency } from '../../hooks/useCurrency';
@@ -17,8 +17,15 @@ import type {
 } from '../../types/event';
 
 import { LOCATION_TYPE_META } from '../../types/event';
-import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
-import type { PaymentMethod } from '../../services/QuizPaymentMethodsService';
+// NOTE: payment method selection has moved OUT of this form entirely.
+// It now lives in each Schedule*Modal (Elimination/Quiz/TicketedEvent/
+// Drop), via the shared <PaymentMethodSelector> component, because the
+// activity type — and therefore which payment-method rules apply — isn't
+// known yet at the point this form is filled in. See
+// src/components/mgtsystem/shared/PaymentMethodSelector.tsx for the full
+// reasoning, and EventIntegrationsService.addIntegration on the backend
+// for how a room's chosen methods get copied UP to the event afterward
+// for display purposes only.
 
 interface Campaign { id: string; name: string; }
 
@@ -96,21 +103,6 @@ function utcToLocalInput(utcString: string, timeZone: string): string {
 
 function isValidUrl(url: string): boolean {
   try { new URL(url); return true; } catch { return false; }
-}
-
-function isOnnightOnly(method: PaymentMethod): boolean {
-  const provider = String(method.provider_name || '').toLowerCase();
-  return provider === 'cash' || provider === 'card_tap';
-}
-
-function getMethodSubtitle(method: PaymentMethod): string {
-  const cat = method.method_category;
-  if (cat === 'stripe') return 'Online card payment via Stripe';
-  if (cat === 'crypto') return 'Crypto / Web3 payment';
-  if (cat === 'instant_payment') return method.player_instructions || 'Instant transfer (Revolut, bank, etc.)';
-  if (method.provider_name === 'cash') return 'Collected at the door';
-  if (method.provider_name === 'card_tap') return 'Card tap on the night';
-  return method.provider_name || '';
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -216,42 +208,12 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
   const [errors, setErrors]         = useState<EventValidationErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethod[]>([]);
-  const [ticketMethodIds, setTicketMethodIds]   = useState<number[]>([]);
-  const [onnightMethodIds, setOnnightMethodIds] = useState<number[]>([]);
-  const [pmLoading, setPmLoading]               = useState(false);
-  const [pmError, setPmError]                   = useState<string | null>(null);
   const { sym } = useCurrency();
 
   useEffect(() => {
     if (editMode && existingEvent) setForm(getInitialData());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode, existingEvent?.id]);
-
-  useEffect(() => {
-    if (editMode && existingEvent?.payment_methods_json) {
-      const pm = existingEvent.payment_methods_json;
-      setTicketMethodIds(pm.ticket_method_ids   || []);
-      setOnnightMethodIds(pm.onnight_method_ids || []);
-    }
-  }, [editMode, existingEvent?.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setPmLoading(true);
-    setPmError(null);
-    quizPaymentMethodsService.listAvailablePaymentMethods()
-      .then(res => {
-        if (cancelled) return;
-        setAvailablePaymentMethods((res.payment_methods || []).filter((m: PaymentMethod) => m.is_enabled));
-      })
-      .catch(() => { if (!cancelled) setPmError('Could not load payment methods.'); })
-      .finally(() => { if (!cancelled) setPmLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
-
-  const toggleTicket  = (id: number) => setTicketMethodIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const toggleOnnight = (id: number) => setOnnightMethodIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const set = (field: keyof CreateEventFormData, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -318,10 +280,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
         campaign_id:          form.campaign_id || undefined,
         start_datetime:       utcStartDatetime,     // ← UTC ISO string, correct for DB storage
         event_date:           localEventDate,        // ← local date (YYYY-MM-DD)
-        ticket_method_ids:    ticketMethodIds,
-        onnight_method_ids:   onnightMethodIds,
-        payment_methods_json: { ticket_method_ids: ticketMethodIds, onnight_method_ids: onnightMethodIds },
-      } as CreateEventFormData & { ticket_method_ids: number[]; onnight_method_ids: number[]; payment_methods_json: any };
+      } as CreateEventFormData;
 
       await onSubmit(payload);
       onCancel();
@@ -504,79 +463,6 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
                   className={`${inputClass(errors.goal_amount)} pl-7`} disabled={submitting} />
               </div>
             </Field>
-          </Section>
-
-          {/* ── 5. Payment Methods ── */}
-          <Section>
-            <SectionHeader icon={<CreditCard className="h-4 w-4" />}
-              title="Payment Methods"
-              subtitle="Choose which methods players can use for tickets and on the night" />
-
-            {pmLoading && (
-              <div className="flex items-center gap-2 text-sm py-4" style={{ color: '#8a9bab' }}>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Loading payment methods…
-              </div>
-            )}
-            {pmError && (
-              <p className="text-sm flex items-center gap-1.5 py-2" style={{ color: '#e9574f' }}>
-                <AlertCircle className="h-4 w-4 flex-shrink-0" /> {pmError}
-              </p>
-            )}
-            {!pmLoading && !pmError && availablePaymentMethods.length === 0 && (
-              <div className="rounded-lg border border-dashed px-4 py-5 text-center text-sm"
-                style={{ borderColor: '#dce1df', color: '#8a9bab' }}>
-                No payment methods set up yet. You can add them from the dashboard.
-              </div>
-            )}
-            {!pmLoading && availablePaymentMethods.length > 0 && (
-              <div className="rounded-xl border overflow-hidden" style={{ borderColor: '#dce1df' }}>
-                <div className="grid grid-cols-[1fr_90px_110px] text-xs font-semibold px-4 py-2.5"
-                  style={{ background: '#f6f1e8', color: '#52636f', borderBottom: '1px solid #dce1df' }}>
-                  <span>Method</span>
-                  <span className="text-center">Tickets</span>
-                  <span className="text-center">On the Night</span>
-                </div>
-                {availablePaymentMethods.map((method, i) => {
-                  const onnightOnly    = isOnnightOnly(method);
-                  const ticketChecked  = ticketMethodIds.includes(method.id);
-                  const onnightChecked = onnightMethodIds.includes(method.id);
-                  const isLast = i === availablePaymentMethods.length - 1;
-                  return (
-                    <div key={method.id}
-                      className="grid grid-cols-[1fr_90px_110px] items-center px-4 py-3"
-                      style={{ borderBottom: isLast ? 'none' : '1px solid #f1f0ee', background: '#ffffff' }}>
-                      <div>
-                        <p className="text-sm font-semibold" style={{ color: '#102532' }}>{method.method_label}</p>
-                        <p className="text-xs mt-0.5" style={{ color: '#8a9bab' }}>{getMethodSubtitle(method)}</p>
-                      </div>
-                      <div className="flex justify-center">
-                        <button type="button" disabled={onnightOnly || submitting}
-                          onClick={() => toggleTicket(method.id)}
-                          title={onnightOnly ? 'Cash and card-tap payments can only be collected on the night' : ''}
-                          className="flex items-center justify-center transition"
-                          style={{ opacity: onnightOnly ? 0.3 : 1, cursor: onnightOnly ? 'not-allowed' : 'pointer' }}>
-                          {ticketChecked && !onnightOnly
-                            ? <CheckSquare className="h-5 w-5" style={{ color: '#157f85' }} />
-                            : <Square className="h-5 w-5" style={{ color: '#b8c6b0' }} />}
-                        </button>
-                      </div>
-                      <div className="flex justify-center">
-                        <button type="button" disabled={submitting}
-                          onClick={() => toggleOnnight(method.id)}
-                          className="flex items-center justify-center transition"
-                          style={{ cursor: 'pointer' }}>
-                          {onnightChecked
-                            ? <CheckSquare className="h-5 w-5" style={{ color: '#157f85' }} />
-                            : <Square className="h-5 w-5" style={{ color: '#b8c6b0' }} />}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-       
           </Section>
 
         </div>

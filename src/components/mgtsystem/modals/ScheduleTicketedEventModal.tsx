@@ -14,6 +14,7 @@ import { currencySymbol } from '../shared/CurrencySelect';
 import ticketedEventMgmtService from '../services/TicketedEventMgmtService';
 import type { Event } from '../types/event';
 import type { TicketedEventRoomListItem } from '../services/TicketedEventMgmtService';
+import PaymentMethodSelector, { type PaymentMethodSelection } from '../shared/PaymentMethodSelector';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -181,6 +182,22 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
   const [prizes, setPrizes]               = useState<Prize[]>([]);
   const [eventSponsors, setEventSponsors] = useState<EventSponsor[]>([{ name: '', role: '' }]);
   const [venueCapacity, setVenueCapacity] = useState('');
+
+  // ── Payment methods ──────────────────────────────────────────────────────────
+  // Ticketed events DO have an advance/on-the-night split — tickets can be
+  // bought ahead of time online, or at the door on the night. Same shape
+  // as quiz/elimination, mode="split".
+  const rawLinkedPaymentMethods = existingRoom?.linked_payment_methods_json;
+  const initialPaymentMethods: PaymentMethodSelection = (() => {
+    const parsed = typeof rawLinkedPaymentMethods === 'string'
+      ? (() => { try { return JSON.parse(rawLinkedPaymentMethods); } catch { return null; } })()
+      : (rawLinkedPaymentMethods ?? null);
+    return {
+      ticketMethodIds:  parsed?.ticket_method_ids  ?? [],
+      onnightMethodIds: parsed?.onnight_method_ids ?? [],
+    };
+  })();
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSelection>(initialPaymentMethods);
 
   const fundraisingMode = 'fixed_fee' as const;
 
@@ -366,6 +383,10 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
           ticketTypes:    validTicketTypes,
           prizes:         prizes.filter(p => p.description.trim()),
           eventSponsors:  eventSponsors.filter(s => s.name.trim()),
+          // Always sent explicitly, including [] when a club clears every
+          // selection in either column (undefined would mean "don't touch").
+          ticketMethodIds:  paymentMethods.ticketMethodIds,
+          onnightMethodIds: paymentMethods.onnightMethodIds,
         });
         onSaved(existingRoom.room_id);
         onClose();
@@ -389,6 +410,8 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
           venueCapacity:  venueCapacity ? parseInt(venueCapacity) : undefined,
           eventTitle:     event.title          || null,
           eventLocation:  event.location_label || null,
+          ticketMethodIds:  paymentMethods.ticketMethodIds,
+          onnightMethodIds: paymentMethods.onnightMethodIds,
         };
 
         const data = await ticketedEventMgmtService.scheduleEvent(payload);
@@ -760,6 +783,14 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
               )}
             </div>
           </Section>
+
+          {/* ── 5. Payment Methods ── */}
+          <PaymentMethodSelector
+            mode="split"
+            value={paymentMethods}
+            onChange={setPaymentMethods}
+            disabled={submitting}
+          />
 
         </div>
 

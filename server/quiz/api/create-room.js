@@ -140,6 +140,14 @@ async function insertWeb2RoomRecord({
   hostId,
   setupConfig,
   roomCaps,
+  // Payment methods chosen at the activity level — see
+  // PaymentMethodSelector.tsx on the frontend. Default to [] so a club
+  // that hasn't picked anything yet doesn't crash this function. Same
+  // gap-closing logic as eliminationMgmtService.scheduleEliminationRoom —
+  // a freshly-created room previously had NO payment methods until later
+  // linked to an event.
+  ticketMethodIds  = [],
+  onnightMethodIds = [],
 }) {
   const scheduledAt = setupConfig?.eventDateTime ? new Date(setupConfig.eventDateTime) : null;
   const timeZone = setupConfig?.timeZone || null;
@@ -170,6 +178,28 @@ const params = [
   'quiz',                              // ← hardcoded since this file only creates quiz rooms
 ];
   await connection.execute(sql, params);
+
+  // ── Write payment methods directly onto the room ────────────────────────
+  // Non-fatal: the room is created either way, even if a method ID is bad.
+  // Dynamic import here (rather than a top-of-file import) deliberately
+  // avoids touching this file's existing import block given how large and
+  // sensitive the surrounding Web3 flows are.
+  if (ticketMethodIds.length > 0 || onnightMethodIds.length > 0) {
+    try {
+      const { default: QuizPaymentMethodsService } =
+        await import('../../mgtsystem/services/QuizPaymentMethodsService.js');
+      const pmService = new QuizPaymentMethodsService();
+      await pmService.updateLinkedPaymentMethods({
+        roomId,
+        clubId,
+        ticketMethodIds,
+        onnightMethodIds,
+        userId: hostId,
+      });
+    } catch (err) {
+      console.warn(`[create-room] ⚠️ Failed to set payment methods for ${roomId}:`, err.message);
+    }
+  }
 
   return { status, scheduledAt, timeZone };
 }
@@ -1130,7 +1160,13 @@ router.use((req, res, next) => {
 
 // Standard Web2 room creation (credits, caps, etc.)
 router.post('/create-room', async (req, res) => {
-  let { config: setupConfig, roomId, hostId } = req.body;
+  let {
+    config: setupConfig, roomId, hostId,
+    // Payment methods chosen at the activity level — see
+    // PaymentMethodSelector.tsx on the frontend.
+    ticketMethodIds = [],
+    onnightMethodIds = [],
+  } = req.body;
 
   if (debug) console.log('--------------------------------------');
   if (debug) console.log('[API] 🟢 Received create-room request');
@@ -1263,6 +1299,8 @@ if (!creditResult.ok) {
         hostId,
         setupConfig,
         roomCaps,
+        ticketMethodIds,
+        onnightMethodIds,
       });
       if (debug) console.log(`[API] 💾 Saved WEB2 room config to DB: roomId=${roomId}`);
     } catch (dbErr) {

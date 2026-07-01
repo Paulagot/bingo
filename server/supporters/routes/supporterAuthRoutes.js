@@ -67,15 +67,19 @@ router.post('/magic-link', async (req, res) => {
 });
 
 /**
- * GET /api/supporter-auth/verify?token=...
+ * GET /api/supporter-auth/verify?token=...&challengeId=...
  * Public. Called when player clicks magic link.
+ * challengeId is optional — when present, and the challenge is free,
+ * the player is auto-enrolled as part of verification (see
+ * verifyMagicLink / joinFree). Absent for generic logins with no
+ * specific challenge context.
  */
 router.get('/verify', async (req, res) => {
   try {
-    const { token } = req.query;
+    const { token, challengeId } = req.query;
     if (!token) return res.status(400).json({ error: 'token is required' });
 
-    const result = await verifyMagicLink({ token });
+    const result = await verifyMagicLink({ token, challengeId });
     res.json(result);
   } catch (err) {
     console.error('[supporter-auth] verify error:', err);

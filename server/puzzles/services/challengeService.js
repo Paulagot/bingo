@@ -5,6 +5,7 @@
 
 import database from '../../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
+import { ensureStripeProductAndPrice } from './puzzleSubscriptionPaymentService.js';
 
 function getWeekMs() {
   const seconds = parseInt(process.env.PUZZLE_WEEK_DURATION_SECONDS ?? '604800', 10);
@@ -173,6 +174,28 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
 
   if (!allowed.includes(status)) {
     throw new Error(`Invalid status: ${status}`);
+  }
+
+  // Paid challenges going 'active' must have a working Stripe checkout
+  // behind them first. This is a hard precondition, not a best-effort
+  // step — if Stripe provisioning fails (most commonly because the club
+  // hasn't connected Stripe yet), the status flip must not happen, so a
+  // club can never "activate" a paid challenge with no working payment
+  // path. ensureStripeProductAndPrice throws 'stripe_not_connected' in
+  // that case, and that error is allowed to propagate up to the route.
+  if (status === 'active') {
+    const [[challenge]] = await database.connection.execute(
+      `SELECT is_free FROM fundraisely_puzzle_challenges
+       WHERE id = ? AND club_id = ?
+       LIMIT 1`,
+      [challengeId, clubId]
+    );
+
+    if (!challenge) return null;
+
+    if (!challenge.is_free) {
+      await ensureStripeProductAndPrice({ challengeId, clubId });
+    }
   }
 
   const [result] = await database.connection.execute(

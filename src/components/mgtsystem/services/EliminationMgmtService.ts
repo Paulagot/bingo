@@ -26,6 +26,20 @@ export interface EliminationPrize {
   sponsor:     string | null;
 }
 
+// ── Payment methods ──────────────────────────────────────────────────────────
+// Mirrors the JSON shape already written by QuizPaymentMethodsService on the
+// backend: { ticket_method_ids, onnight_method_ids, updated_at, updated_by }.
+// Payment methods are now set at the ACTIVITY level (this service), not
+// copied down from the event — see PaymentMethodSelector.tsx on the
+// frontend and eliminationMgmtService.js on the backend for the full
+// reasoning.
+export interface LinkedPaymentMethods {
+  ticket_method_ids?:  number[];
+  onnight_method_ids?: number[];
+  updated_at?:         string | null;
+  updated_by?:         string | null;
+}
+
 export interface EliminationRoomListItem {
   room_id:           string;
   host_id:           string;
@@ -40,6 +54,10 @@ export interface EliminationRoomListItem {
   // Legacy flat fields — kept for backward compat with old rooms
   prize_description: string | null;
   prize_value:       number | null;
+  // Set at schedule time, read back here so the edit modal can hydrate
+  // current selections. May be string (raw JSON) or already-parsed object
+  // depending on the MySQL driver — same quirk config_json already has.
+  linked_payment_methods_json: LinkedPaymentMethods | string | null;
   created_at:        string;
   updated_at:        string;
 }
@@ -77,6 +95,12 @@ export interface ScheduleEliminationPayload {
   currency:     string;
   // prizes replaces the old prizeDescription/prizeValue flat fields
   prizes: EliminationPrize[];
+  // Payment methods, set at the activity level — written directly onto
+  // the room at schedule time. Optional: an empty array is a valid choice
+  // (no methods enabled yet), so default to [] at the call site rather
+  // than omitting the field.
+  ticketMethodIds?:  number[];
+  onnightMethodIds?: number[];
 }
 
 export interface UpdateEliminationPayload {
@@ -85,6 +109,11 @@ export interface UpdateEliminationPayload {
   entryFee?:     number;
   currency?:     string;
   prizes?:       EliminationPrize[];
+  // Optional — undefined means "don't touch payment methods", [] means
+  // "clear all selections". See updateEliminationRoom on the backend,
+  // which treats these the same way.
+  ticketMethodIds?:  number[];
+  onnightMethodIds?: number[];
 }
 
 export interface ScheduleEliminationResponse {

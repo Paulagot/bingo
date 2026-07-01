@@ -2,11 +2,15 @@
 import express from 'express';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { authenticateToken } from '../../middleware/auth.js';
+import QuizPaymentMethodsService from '../../mgtsystem/services/QuizPaymentMethodsService.js';
+import EventIntegrationsService from '../../mgtsystem/services/EventIntegrationsService.js';
 
 const DEBUG = false
 
 const router = express.Router();
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
+const paymentMethodsService = new QuizPaymentMethodsService();
+const eventIntegrationsService = new EventIntegrationsService();
 if (DEBUG) console.log('[web2-rooms API] ✅ web2-rooms router file loaded');
 
 
@@ -103,6 +107,7 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
         room_caps_json,
         prize_description,
         prize_value,
+        linked_payment_methods_json,
         created_at,
         updated_at
       FROM ${WEB2_ROOMS_TABLE}
@@ -144,6 +149,7 @@ router.get('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
         room_caps_json,
         prize_description,
         prize_value,
+        linked_payment_methods_json,
         created_at,
         updated_at
       FROM ${WEB2_ROOMS_TABLE}
@@ -201,6 +207,18 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'invalid_room_caps_json' });
     }
 
+    // Payment methods — separate from config_json/room_caps_json, written
+    // via the same validated QuizPaymentMethodsService.updateLinkedPaymentMethods
+    // call eliminationMgmtService uses, so method-ID ownership checks stay
+    // in one place. Left undefined if not sent — undefined means "don't
+    // touch payment methods", [] means "clear all selections". Defaulting
+    // to [] here would wrongly wipe out existing selections on every edit
+    // that doesn't touch the payment step (e.g. just changing the entry fee).
+    const ticketMethodIds  = req.body?.ticketMethodIds;
+    const onnightMethodIds = req.body?.onnightMethodIds;
+    const hasPaymentMethodsUpdate =
+      ticketMethodIds !== undefined || onnightMethodIds !== undefined;
+
     const sets = [];
     const params = [];
 
@@ -224,24 +242,48 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       params.push(roomCapsJson === null ? null : roomCapsJson);
     }
 
-    if (sets.length === 0) {
+    // A payment-methods-only edit is still a valid update — don't reject
+    // it just because `sets` (the column-based fields) happens to be empty.
+    if (sets.length === 0 && !hasPaymentMethodsUpdate) {
       return res.status(400).json({ error: 'no_fields_to_update' });
     }
 
-    sets.push(`updated_at = UTC_TIMESTAMP()`);
+    if (sets.length > 0) {
+      sets.push(`updated_at = UTC_TIMESTAMP()`);
 
-    const updateSql = `
-      UPDATE ${WEB2_ROOMS_TABLE}
-      SET ${sets.join(', ')}
-      WHERE club_id = ? AND room_id = ? AND status = 'scheduled'
-      LIMIT 1
-    `;
+      const updateSql = `
+        UPDATE ${WEB2_ROOMS_TABLE}
+        SET ${sets.join(', ')}
+        WHERE club_id = ? AND room_id = ? AND status = 'scheduled'
+        LIMIT 1
+      `;
 
-    const updateParams = [...params, clubId, roomId];
-    const [updateRes] = await connection.execute(updateSql, updateParams);
+      const updateParams = [...params, clubId, roomId];
+      const [updateRes] = await connection.execute(updateSql, updateParams);
 
-    if (!updateRes || updateRes.affectedRows !== 1) {
-      return res.status(409).json({ error: 'update_failed_or_room_changed' });
+      if (!updateRes || updateRes.affectedRows !== 1) {
+        return res.status(409).json({ error: 'update_failed_or_room_changed' });
+      }
+    }
+
+    // ── Payment methods — separate write, separate from the column UPDATE above ──
+    if (hasPaymentMethodsUpdate) {
+      try {
+        await paymentMethodsService.updateLinkedPaymentMethods({
+          roomId,
+          clubId,
+          ticketMethodIds:  ticketMethodIds  ?? [],
+          onnightMethodIds: onnightMethodIds ?? [],
+        });
+      } catch (err) {
+        console.warn(`[web2-rooms API] ⚠️ Failed to update payment methods for ${roomId}:`, err.message);
+      }
+
+      // Editing payment methods on an already-linked room must also refresh
+      // the event's denormalized copy — otherwise the event silently goes
+      // stale the moment someone changes methods after the initial link.
+      // Same fix already applied to updateEliminationRoom.
+      await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId });
     }
 
     const [rows] = await connection.execute(
@@ -258,6 +300,7 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
          room_caps_json,
          prize_description,
          prize_value,
+         linked_payment_methods_json,
          created_at,
          updated_at
        FROM ${WEB2_ROOMS_TABLE}
