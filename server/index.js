@@ -575,16 +575,18 @@ function getCanonicalInfo(canonical) {
   }
 }
 
-function buildHeadTags(seo) {
-  const {
-    title,
-    description,
-    image,
-    type = 'website',
-    canonical,
-    keywords,
-    robots: robotsFromSeo = 'index, follow',
-  } = seo;
+const {
+  title,
+  description,
+  image,
+  imageAlt = title,
+  imageWidth = '1200',
+  imageHeight = '630',
+  type = 'website',
+  canonical,
+  keywords,
+  robots: robotsFromSeo = 'index, follow',
+} = seo;
 
   const isStaging = process.env.APP_ENV === 'staging';
   const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
@@ -598,7 +600,11 @@ function buildHeadTags(seo) {
 
     `<meta id="og-title" property="og:title" content="${escapeHtml(title)}">`,
     `<meta id="og-description" property="og:description" content="${escapeHtml(description)}">`,
-    `<meta id="og-image" property="og:image" content="${escapeHtml(image)}">`,
+`<meta id="og-image" property="og:image" content="${escapeHtml(image)}">`,
+`<meta id="og-image-secure" property="og:image:secure_url" content="${escapeHtml(image)}">`,
+`<meta id="og-image-width" property="og:image:width" content="${escapeHtml(imageWidth)}">`,
+`<meta id="og-image-height" property="og:image:height" content="${escapeHtml(imageHeight)}">`,
+`<meta id="og-image-alt" property="og:image:alt" content="${escapeHtml(imageAlt)}">`,
     `<meta id="og-type" property="og:type" content="${escapeHtml(type)}">`,
     canonical ? `<meta id="og-url" property="og:url" content="${escapeHtml(canonical)}">` : '',
     `<meta id="og-site" property="og:site_name" content="FundRaisely">`,
@@ -608,6 +614,7 @@ function buildHeadTags(seo) {
     `<meta id="tw-title" name="twitter:title" content="${escapeHtml(title)}">`,
     `<meta id="tw-description" name="twitter:description" content="${escapeHtml(description)}">`,
     `<meta id="tw-image" name="twitter:image" content="${escapeHtml(image)}">`,
+    `<meta id="tw-image-alt" name="twitter:image:alt" content="${escapeHtml(imageAlt)}">`,
 
     canonical ? `<link id="link-canonical" rel="canonical" href="${escapeHtml(canonical)}">` : '',
     canonicalInfo
