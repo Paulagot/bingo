@@ -576,15 +576,18 @@ function getCanonicalInfo(canonical) {
 }
 
 function buildHeadTags(seo) {
-  const {
-    title,
-    description,
-    image,
-    type = 'website',
-    canonical,
-    keywords,
-    robots: robotsFromSeo = 'index, follow',
-  } = seo;
+const {
+  title,
+  description,
+  image,
+  imageAlt = title,
+  imageWidth = '1200',
+  imageHeight = '630',
+  type = 'website',
+  canonical,
+  keywords,
+  robots: robotsFromSeo = 'index, follow',
+} = seo;
 
   const isStaging = process.env.APP_ENV === 'staging';
   const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
