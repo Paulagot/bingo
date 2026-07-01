@@ -336,7 +336,7 @@ export default function SafeStreetsIrelandPadelPage() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-[#17120d]">
+  <div className="min-h-screen bg-[#f8f3ea] text-[#17120d]">
       {/* HERO */}
       <section className="relative overflow-hidden bg-[#d66c18] text-white">
         <div
@@ -515,8 +515,8 @@ export default function SafeStreetsIrelandPadelPage() {
       </section>
 
       {/* MAIN */}
-      <main className="mx-auto max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_520px] xl:grid-cols-[minmax(0,1fr)_560px]">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+       <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_520px] lg:items-start xl:grid-cols-[minmax(0,1fr)_560px]">
           <div className="min-w-0 space-y-8">
             <SectionCard
               eyebrow="Event details"
@@ -909,33 +909,31 @@ export default function SafeStreetsIrelandPadelPage() {
           </div>
 
           {/* DESKTOP TICKET COLUMN */}
-          <aside
-            id="event-tickets"
-            className="hidden w-full min-w-0 scroll-mt-6 lg:sticky lg:top-6 lg:block lg:self-start"
-          >
-            <DesktopTicketPanel
-              hasLinkedRoom={hasLinkedRoom}
-              shouldShowEnded={shouldShowEnded}
-              shouldShowHoldTight={shouldShowHoldTight}
-              roomStatus={roomStatus}
-              roomStatusLoading={roomStatusLoading}
-              roomStatusError={roomStatusError}
-              roomInfo={roomInfo}
-              ticketBuyUrl={ticketBuyUrl}
-              eventPageUrl={eventPageUrl}
-              onDonateClick={() => setIsDonateModalOpen(true)}
-            />
+         <aside
+  id="event-tickets"
+  className="hidden w-full min-w-0 scroll-mt-6 lg:sticky lg:top-6 lg:block lg:self-start"
+>
+  <DesktopTicketPanel
+    hasLinkedRoom={hasLinkedRoom}
+    shouldShowEnded={shouldShowEnded}
+    shouldShowHoldTight={shouldShowHoldTight}
+    roomStatus={roomStatus}
+    roomStatusLoading={roomStatusLoading}
+    roomStatusError={roomStatusError}
+    roomInfo={roomInfo}
+    ticketBuyUrl={ticketBuyUrl}
+    eventPageUrl={eventPageUrl}
+    onDonateClick={() => setIsDonateModalOpen(true)}
+  />
 
-            <QuickDetailsCard />
+  <QuickDetailsCard />
 
-            <div className="mt-4">
-              <DonationPaymentCard
-                onDonateClick={() => setIsDonateModalOpen(true)}
-              />
-            </div>
+  <div className="mt-4">
+    <DonationPaymentCard onDonateClick={() => setIsDonateModalOpen(true)} />
+  </div>
 
-            <ShareEventCard eventPageUrl={eventPageUrl} />
-          </aside>
+  <ShareEventCard eventPageUrl={eventPageUrl} />
+</aside>
         </div>
       </main>
 
@@ -1266,7 +1264,7 @@ function FundraiselyPartnerCard() {
     <Link to="/" aria-label="Open FundRaisely" className="min-w-0">
       <div className="flex min-h-[112px] min-w-0 items-center justify-center rounded-2xl border border-white/20 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:shadow-sm">
         <div className="min-w-0">
-          <p className="break-words text-xl font-black tracking-tight text-[#17120d]">
+          <p className="break-words text-l font-black tracking-tight text-[#17120d]">
             FundRaisely
           </p>
           <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#9f4d10]">
