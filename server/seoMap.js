@@ -474,7 +474,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
   description:
     'Safer Streets. Stronger Communities. Brighter Futures. Supported by FundRaisely.',
   canonical: ABS(hostOrigin, '/events/safe-streets-ireland-padel'),
-  image: ABS(hostOrigin, '/social/ssi-og.png'),
+  image: ABS(hostOrigin, '/social/ssi-og_v1.png'),
   imageAlt:
     'Safe Streets Ireland padel fundraiser supported by FundRaisely',
   imageWidth: '1200',
