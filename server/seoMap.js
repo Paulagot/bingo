@@ -479,7 +479,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
     'Safe Streets Ireland padel fundraiser supported by FundRaisely',
   imageWidth: '1200',
   imageHeight: '630',
-  type: 'event',
+  type: 'website',
   robots: 'index, follow',
   keywords:
     'Safe Streets Ireland, padel fundraiser, House of Padel, community fundraiser, youth violence prevention, FundRaisely',
