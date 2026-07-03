@@ -9,6 +9,10 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/auth.js';
 import {
+  resolveEntitlements,
+  consumeCredit,
+} from '../../policy/entitlements.js';
+import {
   createChallenge,
   getChallengesByClub,
   getChallengeById,
@@ -20,6 +24,11 @@ import {
 } from '../services/challengeService.js';
 
 const router = express.Router();
+
+// Fallback cap used only if a plan somehow has no puzzle_sub caps row
+// (shouldn't happen after migration 004, but keeps this endpoint from
+// exploding rather than blocking on missing config).
+const DEFAULT_MAX_WEEKS = 6;
 
 // ─── POST /api/puzzle-challenges ──────────────────────────────────────────────
 // Create a new challenge with its week schedule
@@ -39,12 +48,53 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'weeklyPrice is required for paid challenges' });
     }
 
+    // ── Entitlements gate ──────────────────────────────────────────────────
+    // Mirrors the pattern in ticketedEventMgmtRoutes.js POST /schedule:
+    // resolve entitlements, block on no credits, enforce plan caps, create,
+    // then consume the credit (non-fatal if the consume step itself fails —
+    // the challenge has already been created at that point).
+    const ents = await resolveEntitlements({ userId: clubId, scope: 'puzzle_sub' });
+
+    console.log(`[challenges] 🔑 Entitlements — plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
+
+    if ((ents.game_credits_remaining ?? 0) <= 0) {
+      return res.status(402).json({
+        error: 'no_credits',
+        message: ents.plan_code === 'FREE'
+          ? "You've used your one free Puzzle Challenge. Upgrade your plan to run more."
+          : "You've used all your activity credits this month. Upgrade for more.",
+        upgradeUrl: '/settings/billing',
+      });
+    }
+
+    const maxWeeks = Number(ents.game_caps?.maxWeeks ?? DEFAULT_MAX_WEEKS);
+    if (Number(totalWeeks) > maxWeeks) {
+      return res.status(400).json({
+        error: 'weeks_cap_exceeded',
+        message: `Your plan allows challenges up to ${maxWeeks} weeks long.`,
+        upgradeUrl: ents.plan_code === 'FREE' ? '/settings/billing' : undefined,
+      });
+    }
+
     const challenge = await createChallenge({
-      clubId, title, description, totalWeeks, startsAt, puzzleSchedule,
+      clubId,
+      hostId:   req.user?.id   ?? clubId,
+      hostName: req.user?.name ?? null,
+      title, description, totalWeeks, startsAt, puzzleSchedule,
       isFree: Boolean(isFree),
       weeklyPrice,
       currency,
     });
+
+    const creditResult = await consumeCredit(clubId, 'puzzle_sub', ents.plan_code);
+    if (!creditResult.ok) {
+      console.error(
+        `[challenges] ⚠️ Credit consume failed after challenge creation — club: ${clubId} challenge: ${challenge.id}`,
+      );
+    } else {
+      console.log(`[challenges] ✅ Credit consumed — club: ${clubId}`);
+    }
+
     res.status(201).json(challenge);
   } catch (err) {
     console.error('[challenges] POST error:', err);

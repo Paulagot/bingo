@@ -93,6 +93,7 @@ import SiteTermsPage from './pages/site/pages/legal/TermsPage';
 import SiteCookiesPage from './pages/site/pages/legal/CookiesPage';
 import CheckinPage from './pages/site/pages/CheckinPage';
 import SafeStreetsIrelandPadelPage from './pages/events/SafeStreetsIrelandPadelPage';
+import PuzzleNotifyPage from './components/puzzles/pages/PuzzleNotifyPage';
 const StandaloneDonatePage = lazy(() => import('./pages/donations/StandaloneDonatePage'));
 
  const WalletIframeTestPage = lazy(() => import('./pages/WalletIframeTestPage'));
@@ -796,6 +797,15 @@ export default function App() {
             </Suspense>
           }
         />
+
+        <Route
+  path="/puzzle-notify"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleNotifyPage />
+    </Suspense>
+  }
+/>
 
     
 
