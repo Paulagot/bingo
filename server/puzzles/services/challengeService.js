@@ -6,6 +6,12 @@
 import database from '../../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ensureStripeProductAndPrice } from './puzzleSubscriptionPaymentService.js';
+import {
+  createPuzzleSubRoom,
+  openPuzzleSubRoom,
+  cancelPuzzleSubRoom,
+  completePuzzleSubRoom,
+} from './puzzleSubRoomService.js';
 
 function getWeekMs() {
   const seconds = parseInt(process.env.PUZZLE_WEEK_DURATION_SECONDS ?? '604800', 10);
@@ -51,6 +57,8 @@ function fromMysqlDateTimeAsUtc(value) {
 
 export async function createChallenge({
   clubId,
+  hostId,
+  hostName,
   title,
   description,
   totalWeeks,
@@ -66,12 +74,6 @@ export async function createChallenge({
 
   const id = uuidv4();
 
-  /**
-   * Keep this as-is for now because your existing logic says weeklyPrice
-   * is already being passed in the smallest unit / cents-style value.
-   * If your frontend sends euro values like 5.99, then this should become:
-   * Math.round(Number(weeklyPrice) * 100)
-   */
   const priceInCents = isFree ? null : Math.round(Number(weeklyPrice));
 
   const resolvedCurrency = currency ?? 'eur';
@@ -121,6 +123,35 @@ export async function createChallenge({
         ]
       );
     }
+  }
+
+  // Create the management-system room row for this challenge so it
+  // appears in the club dashboard, event linking, and reporting
+  // infrastructure alongside quiz/elimination/ticketed_event rooms.
+  // Non-fatal: if room creation fails the challenge itself is still
+  // created — the club can still use it, they just won't see it in the
+  // room management view until the room is created (which could be
+  // retried later). Room_id is written back onto the challenge row so
+  // the two tables stay linked.
+  try {
+    const roomId = await createPuzzleSubRoom({
+      challengeId:  id,
+      clubId,
+      hostId:       hostId ?? clubId,
+      hostName:     hostName ?? null,
+      title,
+      weeklyPrice:  priceInCents,
+      currency:     resolvedCurrency,
+      totalWeeks,
+      startsAt,
+    });
+
+    await database.connection.execute(
+      `UPDATE fundraisely_puzzle_challenges SET room_id = ? WHERE id = ?`,
+      [roomId, id]
+    );
+  } catch (roomErr) {
+    console.warn('[challengeService] ⚠️ Room creation failed for challenge', id, ':', roomErr.message);
   }
 
   return getChallengeById({ challengeId: id, clubId });
@@ -176,13 +207,6 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
     throw new Error(`Invalid status: ${status}`);
   }
 
-  // Paid challenges going 'active' must have a working Stripe checkout
-  // behind them first. This is a hard precondition, not a best-effort
-  // step — if Stripe provisioning fails (most commonly because the club
-  // hasn't connected Stripe yet), the status flip must not happen, so a
-  // club can never "activate" a paid challenge with no working payment
-  // path. ensureStripeProductAndPrice throws 'stripe_not_connected' in
-  // that case, and that error is allowed to propagate up to the route.
   if (status === 'active') {
     const [[challenge]] = await database.connection.execute(
       `SELECT is_free FROM fundraisely_puzzle_challenges
@@ -206,6 +230,26 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
   );
 
   if (result.affectedRows === 0) return null;
+
+  // Mirror the status change through to the management-system room row
+  // so the club dashboard, event linking, and reporting stay in sync.
+  // Non-fatal — the challenge status has already been updated; a room
+  // sync failure is logged but doesn't roll back the challenge update.
+  try {
+    if (status === 'active') {
+      await openPuzzleSubRoom({ challengeId, clubId });
+    } else if (status === 'cancelled') {
+      await cancelPuzzleSubRoom({ challengeId, clubId });
+    } else if (status === 'completed') {
+      await completePuzzleSubRoom({ challengeId, clubId });
+    }
+    // 'draft' has no direct room equivalent — a challenge going back to
+    // draft (e.g. after a failed activation attempt) leaves the room as
+    // 'scheduled', which is correct: the room was always at 'scheduled'
+    // until activation, so reverting to draft just means "don't open it."
+  } catch (roomErr) {
+    console.warn('[challengeService] ⚠️ Room status sync failed for challenge', challengeId, ':', roomErr.message);
+  }
 
   return getChallengeById({ challengeId, clubId });
 }

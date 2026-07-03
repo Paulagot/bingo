@@ -149,6 +149,54 @@ export async function verifyMagicLink({ token, challengeId }) {
   };
 }
 
+/**
+ * Send a "your next puzzle is ready" notification email, triggered when
+ * a paid player's own cycle count advances (see
+ * puzzleSubscriptionPaymentService.updateSubscriptionPeriodEnd, called
+ * from invoice.payment_succeeded for billing_reason: subscription_cycle).
+ *
+ * Deliberately NOT built on the same mechanism as sendMagicLink. That
+ * token is designed to be used within 15 minutes of being sent and is
+ * single-use (a fresh request overwrites any unused prior token, since
+ * fundraisely_supporter_auth.supporter_id is a primary key — one slot
+ * per supporter). A renewal notification might sit unread for days, so
+ * reusing that mechanism would mean most of these links are already
+ * dead by the time anyone actually clicks them.
+ *
+ * Instead, this embeds a full long-lived (90-day, same JWT_TTL as every
+ * other supporter token in this system) JWT directly in the link. This
+ * is intentional, not a shortcut: the email itself is the credential
+ * delivery channel here, exactly the same trust model the magic-link
+ * flow already relies on (anyone with the link can act as this
+ * supporter) — the only difference is duration, chosen to match how
+ * long the email itself realistically needs to stay useful.
+ */
+export async function sendWeekReadyNotification({ supporterId, clubId, email, name, challengeId, weekNumber }) {
+  const accessToken = jwt.sign(
+    { supporterId, clubId, role: 'supporter' },
+    JWT_SECRET,
+    { expiresIn: JWT_TTL }
+  );
+
+  const params = new URLSearchParams({ token: accessToken, challengeId });
+  const playLink = `${APP_URL}/puzzle-notify?${params.toString()}`;
+
+  const [[club]] = await database.connection.execute(
+    'SELECT name FROM fundraisely_clubs WHERE id = ? LIMIT 1',
+    [clubId]
+  );
+  const clubName = club?.name ?? 'your club';
+
+  const html = buildWeekReadyEmail({ name, playLink, clubName, weekNumber });
+  await sendEmailSafe({
+    to: email,
+    subject: `🧩 Week ${weekNumber} is ready — ${clubName}`,
+    html,
+  });
+
+  return { ok: true };
+}
+
 function buildMagicLinkEmail({ name, magicLink, clubName }) {
   return `
     <!DOCTYPE html>
@@ -187,6 +235,51 @@ function buildMagicLinkEmail({ name, magicLink, clubName }) {
               ⚠️ If you didn't request this link, you can safely ignore this email.
             </p>
           </div>
+        </div>
+        <div style="background:#f9fafb;border-top:1px solid #f0f0f0;padding:16px 24px;text-align:center;">
+          <p style="color:#aaa;font-size:12px;margin:0;">
+            Powered by FundRaisely &bull; 🍀
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function buildWeekReadyEmail({ name, playLink, clubName, weekNumber }) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
+      <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:32px 24px;text-align:center;">
+          <div style="font-size:40px;margin-bottom:8px;">🧩</div>
+          <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;">Week ${weekNumber} is ready!</h1>
+          <p style="color:#c7d2fe;margin:8px 0 0;font-size:15px;">${clubName}</p>
+        </div>
+        <div style="padding:28px 24px;">
+          <p style="color:#333;font-size:16px;margin-top:0;">
+            Hi <strong>${name}</strong>,
+          </p>
+          <p style="color:#555;font-size:15px;line-height:1.6;">
+            Your payment for this week went through, and a brand new puzzle is
+            waiting for you. Click below to jump straight in.
+          </p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${playLink}"
+               style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;padding:16px 36px;border-radius:8px;font-size:16px;font-weight:700;">
+              Play Week ${weekNumber} →
+            </a>
+          </div>
+          <p style="text-align:center;color:#888;font-size:12px;">
+            Or paste this link into your browser:<br>
+            <a href="${playLink}" style="color:#4f46e5;word-break:break-all;">${playLink}</a>
+          </p>
         </div>
         <div style="background:#f9fafb;border-top:1px solid #f0f0f0;padding:16px 24px;text-align:center;">
           <p style="color:#aaa;font-size:12px;margin:0;">

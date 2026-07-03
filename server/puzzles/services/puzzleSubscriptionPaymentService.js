@@ -540,6 +540,46 @@ export async function markSubscriptionCancelled({ stripeSubscriptionId }) {
   return result.affectedRows > 0;
 }
 
+/**
+ * Look up everything a caller needs to write a quiz_payment_ledger row for
+ * a puzzle subscription, keyed by Stripe subscription id.
+ *
+ * Joins fundraisely_puzzle_subscriptions → fundraisely_puzzle_challenges →
+ * fundraisely_supporters so the webhook handler doesn't need to know this
+ * table's shape or duplicate the join — same reasoning as every other
+ * write to fundraisely_puzzle_subscriptions living in this file: exactly
+ * one place that understands this table.
+ *
+ * Used for the invoice.payment_succeeded (renewal) ledger write, where
+ * the webhook only has a stripeSubscriptionId to start from. The
+ * checkout.session.completed (first-cycle) ledger write doesn't need
+ * this — challengeId/clubId/playerId already arrive in session.metadata.
+ *
+ * Returns null if no matching subscription row exists (e.g. the
+ * subscription isn't a puzzle subscription at all).
+ */
+export async function getSubscriptionBillingContext({ stripeSubscriptionId }) {
+  const [[row]] = await database.connection.execute(
+    `SELECT
+       s.id          AS subscription_id,
+       s.challenge_id,
+       s.player_id,
+       s.club_id,
+       c.room_id,
+       c.weekly_price,
+       c.currency,
+       c.title,
+       sup.name      AS player_name
+     FROM fundraisely_puzzle_subscriptions s
+     JOIN fundraisely_puzzle_challenges c ON c.id = s.challenge_id
+     JOIN fundraisely_supporters sup      ON sup.id = s.player_id
+     WHERE s.stripe_subscription_id = ?
+     LIMIT 1`,
+    [stripeSubscriptionId]
+  );
+  return row ?? null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────

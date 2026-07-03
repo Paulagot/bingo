@@ -575,11 +575,14 @@ function getCanonicalInfo(canonical) {
   }
 }
 
-function buildHeadTags(seo) {
+function buildHeadTags(seo = {}) {
   const {
-    title,
-    description,
-    image,
+    title = 'FundRaisely',
+    description = 'FundRaisely helps clubs, schools, charities and community groups run fundraising events, ticketing, payment tracking and reports.',
+    image = '',
+    imageAlt = title,
+    imageWidth = '1200',
+    imageHeight = '630',
     type = 'website',
     canonical,
     keywords,
@@ -598,7 +601,11 @@ function buildHeadTags(seo) {
 
     `<meta id="og-title" property="og:title" content="${escapeHtml(title)}">`,
     `<meta id="og-description" property="og:description" content="${escapeHtml(description)}">`,
-    `<meta id="og-image" property="og:image" content="${escapeHtml(image)}">`,
+    image ? `<meta id="og-image" property="og:image" content="${escapeHtml(image)}">` : '',
+    image ? `<meta id="og-image-secure" property="og:image:secure_url" content="${escapeHtml(image)}">` : '',
+    image ? `<meta id="og-image-width" property="og:image:width" content="${escapeHtml(imageWidth)}">` : '',
+    image ? `<meta id="og-image-height" property="og:image:height" content="${escapeHtml(imageHeight)}">` : '',
+    image ? `<meta id="og-image-alt" property="og:image:alt" content="${escapeHtml(imageAlt)}">` : '',
     `<meta id="og-type" property="og:type" content="${escapeHtml(type)}">`,
     canonical ? `<meta id="og-url" property="og:url" content="${escapeHtml(canonical)}">` : '',
     `<meta id="og-site" property="og:site_name" content="FundRaisely">`,
@@ -607,7 +614,8 @@ function buildHeadTags(seo) {
     `<meta id="tw-card" name="twitter:card" content="summary_large_image">`,
     `<meta id="tw-title" name="twitter:title" content="${escapeHtml(title)}">`,
     `<meta id="tw-description" name="twitter:description" content="${escapeHtml(description)}">`,
-    `<meta id="tw-image" name="twitter:image" content="${escapeHtml(image)}">`,
+    image ? `<meta id="tw-image" name="twitter:image" content="${escapeHtml(image)}">` : '',
+    image ? `<meta id="tw-image-alt" name="twitter:image:alt" content="${escapeHtml(imageAlt)}">` : '',
 
     canonical ? `<link id="link-canonical" rel="canonical" href="${escapeHtml(canonical)}">` : '',
     canonicalInfo
