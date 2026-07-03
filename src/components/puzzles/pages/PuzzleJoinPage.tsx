@@ -34,6 +34,16 @@ export default function PuzzleJoinPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // "Already joined?" inline sign-in — sends the same magic link the
+  // free-flow join form sends. Deliberately NOT a separate /puzzle-login
+  // route: login here is scoped to (supporter, club), not to any one
+  // challenge or to free-vs-paid, so all it ever needs is an email
+  // address — which this page already knows how to collect and send.
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInSubmitting, setSignInSubmitting] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
+
   useEffect(() => {
     const currentJoinCode = joinCode;
     const currentChallengeId = challengeId;
@@ -122,6 +132,35 @@ export default function PuzzleJoinPage() {
       setFormError((err as Error).message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleSignIn(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSignInError(null);
+
+    if (!challenge) return;
+
+    setSignInSubmitting(true);
+
+    try {
+      await supporterAuthService.requestMagicLink({
+        email: signInEmail,
+        challengeId: challenge.id,
+        clubId: challenge.club_id ?? '',
+      });
+
+      navigate('/puzzle-check-email', {
+        state: {
+          email: signInEmail,
+          challengeId: challenge.id,
+          clubId: challenge.club_id,
+        },
+      });
+    } catch (err) {
+      setSignInError((err as Error).message);
+    } finally {
+      setSignInSubmitting(false);
     }
   }
 
@@ -373,23 +412,65 @@ export default function PuzzleJoinPage() {
           </form>
 
           <div className="mt-6 border-t border-[#E8E0D3] pt-5 text-center">
-            <p className="text-sm text-[#6E6A63]">
-              Already joined?{' '}
-              <button
-                type="button"
-                onClick={() =>
-                  navigate('/puzzle-login', {
-                    state: {
-                      challengeId: challenge.id,
-                      clubId: challenge.club_id,
-                    },
-                  })
-                }
-                className="font-semibold text-[#071A44] underline"
-              >
-                Sign in with magic link
-              </button>
-            </p>
+            {!signInOpen ? (
+              <p className="text-sm text-[#6E6A63]">
+                Already joined?{' '}
+                <button
+                  type="button"
+                  onClick={() => setSignInOpen(true)}
+                  className="font-semibold text-[#071A44] underline"
+                >
+                  Sign in with magic link
+                </button>
+              </p>
+            ) : (
+              <form onSubmit={handleSignIn} className="text-left">
+                <label
+                  htmlFor="puzzle-signin-email"
+                  className="mb-1.5 block text-sm font-semibold text-[#071A44]"
+                >
+                  Email address
+                </label>
+
+                <div className="flex gap-2">
+                  <input
+                    id="puzzle-signin-email"
+                    type="email"
+                    value={signInEmail}
+                    onChange={e => setSignInEmail(e.target.value)}
+                    required
+                    autoFocus
+                    placeholder="you@example.com"
+                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={signInSubmitting}
+                    className="shrink-0 rounded-2xl bg-[#157F85] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0F6469] disabled:opacity-60"
+                  >
+                    {signInSubmitting ? 'Sending…' : 'Send link'}
+                  </button>
+                </div>
+
+                {signInError ? (
+                  <p className="mt-2 text-sm font-medium text-rose-700">
+                    {signInError}
+                  </p>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignInOpen(false);
+                    setSignInError(null);
+                  }}
+                  className="mt-3 text-xs font-semibold text-[#8A847B] underline"
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
           </div>
         </section>
       </div>
