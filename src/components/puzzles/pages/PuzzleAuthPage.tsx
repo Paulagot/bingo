@@ -130,7 +130,13 @@ export default function PuzzleAuthPage() {
               <PuzzlePrimaryButton
                 type="button"
                 fullWidth
-                onClick={() => navigate(-1)}
+                onClick={() =>
+                  navigate(
+                    challengeId
+                      ? `/join/puzzle/challenge/${challengeId}`
+                      : '/'
+                  )
+                }
                 className="mt-5"
               >
                 Request a new link
