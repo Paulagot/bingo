@@ -2,162 +2,239 @@
  * Sliding Tile Puzzle Engine
  * server/puzzles/engines/slidingTileEngine.js
  *
- * Classic 15-puzzle: 4×4 grid, tiles 1–15, one empty space (0).
- * Scrambled by applying N valid random moves from the solved state —
- * this guarantees the puzzle is always solvable.
+ * Image-based sliding puzzle.
+ *
+ * The backend does NOT physically cut the image into tiles.
+ * It sends one square image URL plus the shuffled grid.
+ * The frontend uses CSS background-position to show the correct image slice
+ * on each numbered tile.
+ *
+ * Scrambled by applying valid random moves from the solved state.
+ * This guarantees the puzzle is always solvable.
  */
 
 import { createSeededRandom, calcTimeBonus } from '../utils/puzzleHelpers.js';
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 
 // ---------------------------------------------------------------------------
-// Constants
+// Difficulty config
 // ---------------------------------------------------------------------------
 
-const SIZE = 4; // 4×4 grid
+const SIZE_BY_DIFFICULTY = {
+  [Difficulty.EASY]: 3,
+  [Difficulty.MEDIUM]: 4,
+  [Difficulty.HARD]: 4,
+};
 
 const SCRAMBLE_MOVES = {
-  [Difficulty.EASY]:   20,
-  [Difficulty.MEDIUM]: 50,
-  [Difficulty.HARD]:   100,
+  [Difficulty.EASY]: 14,
+  [Difficulty.MEDIUM]: 40,
+  [Difficulty.HARD]: 75,
+};
+
+// These files should exist in:
+// public/images/puzzles/sliding/
+//
+// Example:
+// public/images/puzzles/sliding/castle.webp
+//
+// In the frontend they are referenced as:
+// /images/puzzles/sliding/castle.webp
+
+const IMAGE_BANK = {
+  [Difficulty.EASY]: [
+    {
+      title: 'Rebuild the balloons',
+      imageUrl: '/images/puzzles/sliding/balloons.webp',
+    },
+    {
+      title: 'Rebuild the ice cream van',
+      imageUrl: '/images/puzzles/sliding/ice-cream-van.webp',
+    },
+    {
+      title: 'Rebuild the puppy picture',
+      imageUrl: '/images/puzzles/sliding/puppy.webp',
+    },
+  ],
+
+  [Difficulty.MEDIUM]: [
+    {
+      title: 'Rebuild the treasure map',
+      imageUrl: '/images/puzzles/sliding/treasure-map.webp',
+    },
+    {
+      title: 'Rebuild the football pitch',
+      imageUrl: '/images/puzzles/sliding/football-pitch.webp',
+    },
+    {
+      title: 'Rebuild the castle',
+      imageUrl: '/images/puzzles/sliding/castle.webp',
+    },
+  ],
+
+  [Difficulty.HARD]: [
+    {
+      title: 'Rebuild the jungle path',
+      imageUrl: '/images/puzzles/sliding/jungle-path.webp',
+    },
+    {
+      title: 'Rebuild the space scene',
+      imageUrl: '/images/puzzles/sliding/space-scene.webp',
+    },
+    {
+      title: 'Rebuild the city skyline',
+      imageUrl: '/images/puzzles/sliding/city-skyline.webp',
+    },
+  ],
 };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Build the solved grid: tiles 1–15 left-to-right, top-to-bottom, 0 at end.
- * Returns a flat array of 16 numbers for easy manipulation.
- */
-function buildSolvedFlat() {
-  return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0];
+function buildSolvedFlat(size) {
+  const solved = Array.from({ length: size * size - 1 }, (_, index) => index + 1);
+  solved.push(0);
+  return solved;
 }
 
-/** Convert flat array to 4×4 2D grid */
-function flatToGrid(flat) {
+function flatToGrid(flat, size) {
   const grid = [];
-  for (let r = 0; r < SIZE; r++) {
-    grid.push(flat.slice(r * SIZE, r * SIZE + SIZE));
+
+  for (let r = 0; r < size; r++) {
+    grid.push(flat.slice(r * size, r * size + size));
   }
+
   return grid;
 }
 
-/** Convert 4×4 2D grid to flat array */
 function gridToFlat(grid) {
   return grid.flat();
 }
 
-/** Find the index of the empty tile (0) in a flat array */
 function findEmpty(flat) {
   return flat.indexOf(0);
 }
 
-/**
- * Return valid neighbour indices for the empty space.
- * A neighbour is any tile directly above/below/left/right.
- */
-function getNeighbours(emptyIdx) {
-  const row = Math.floor(emptyIdx / SIZE);
-  const col = emptyIdx % SIZE;
+function getNeighbours(emptyIdx, size) {
+  const row = Math.floor(emptyIdx / size);
+  const col = emptyIdx % size;
   const neighbours = [];
 
-  if (row > 0)          neighbours.push(emptyIdx - SIZE); // above
-  if (row < SIZE - 1)   neighbours.push(emptyIdx + SIZE); // below
-  if (col > 0)          neighbours.push(emptyIdx - 1);    // left
-  if (col < SIZE - 1)   neighbours.push(emptyIdx + 1);    // right
+  if (row > 0) neighbours.push(emptyIdx - size);
+  if (row < size - 1) neighbours.push(emptyIdx + size);
+  if (col > 0) neighbours.push(emptyIdx - 1);
+  if (col < size - 1) neighbours.push(emptyIdx + 1);
 
   return neighbours;
 }
 
-/**
- * Apply one move: swap the empty space with the tile at `tileIdx`.
- * Returns a new flat array (does not mutate input).
- */
 function applyMove(flat, tileIdx) {
   const next = [...flat];
   const emptyIdx = findEmpty(next);
-  [next[emptyIdx], next[tileIdx]] = [next[tileIdx], next[emptyIdx]];
+
+  if (emptyIdx < 0 || tileIdx < 0 || tileIdx >= next.length) {
+    return next;
+  }
+
+  const emptyValue = next[emptyIdx];
+  const tileValue = next[tileIdx];
+
+  next[emptyIdx] = tileValue;
+  next[tileIdx] = emptyValue;
+
   return next;
 }
 
-/**
- * Scramble the solved state by applying N valid random moves.
- * We track the last move to avoid immediately undoing it (makes scrambles better).
- */
-function scramble(flat, moves, rng) {
-  let current     = [...flat];
-  let lastMoved   = -1; // tile index that was last swapped into empty
+function scramble(flat, moves, rng, size) {
+  let current = [...flat];
+  let lastEmptyIdx = -1;
 
   for (let i = 0; i < moves; i++) {
-    const emptyIdx   = findEmpty(current);
-    const neighbours = getNeighbours(emptyIdx);
+    const emptyIdx = findEmpty(current);
+    const neighbours = getNeighbours(emptyIdx, size);
 
-    // Exclude the tile we just moved to avoid trivial back-and-forth
-    const candidates = neighbours.filter(n => n !== lastMoved);
-    const pick       = candidates.length > 0 ? candidates : neighbours;
+    // Avoid immediately undoing the previous move where possible.
+    const candidates = neighbours.filter(index => index !== lastEmptyIdx);
+    const pick = candidates.length > 0 ? candidates : neighbours;
 
     const chosen = pick[Math.floor(rng() * pick.length)];
-    lastMoved    = emptyIdx; // the empty space moves to where chosen was
-    current      = applyMove(current, chosen);
+
+    lastEmptyIdx = emptyIdx;
+    current = applyMove(current, chosen);
   }
 
   return current;
 }
 
-/**
- * Compare two flat grids for equality.
- */
 function gridsEqual(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
   if (a.length !== b.length) return false;
+
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false;
   }
+
   return true;
+}
+
+function pickImage(difficulty, rng) {
+  const bank = IMAGE_BANK[difficulty] ?? IMAGE_BANK[Difficulty.MEDIUM];
+  return bank[Math.floor(rng() * bank.length)];
 }
 
 // ---------------------------------------------------------------------------
 // generate
 // ---------------------------------------------------------------------------
 
-/**
- * @param {{ difficulty: string, seed?: string }} config
- * @returns {GeneratedPuzzleInstance}
- */
 export function generate(config) {
   const { difficulty = Difficulty.MEDIUM } = config;
+
   const seed = config.seed
     ?? `slidingTile-${difficulty}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const rng        = createSeededRandom(seed);
-  const moves      = SCRAMBLE_MOVES[difficulty] ?? SCRAMBLE_MOVES[Difficulty.MEDIUM];
-  const solvedFlat = buildSolvedFlat();
-  const solvedGrid = flatToGrid(solvedFlat);
+  const rng = createSeededRandom(seed);
 
-  // Scramble — ensure the result isn't accidentally already solved
-  let scrambledFlat = scramble(solvedFlat, moves, rng);
+  const size = SIZE_BY_DIFFICULTY[difficulty] ?? SIZE_BY_DIFFICULTY[Difficulty.MEDIUM];
+  const moves = SCRAMBLE_MOVES[difficulty] ?? SCRAMBLE_MOVES[Difficulty.MEDIUM];
+  const image = pickImage(difficulty, rng);
+
+  const solvedFlat = buildSolvedFlat(size);
+  const solvedGrid = flatToGrid(solvedFlat, size);
+
+  let scrambledFlat = scramble(solvedFlat, moves, rng, size);
+
+  // Very unlikely, but do not let it start solved.
   if (gridsEqual(scrambledFlat, solvedFlat)) {
-    // Apply one extra valid move to guarantee it's not solved
-    const emptyIdx   = findEmpty(scrambledFlat);
-    const neighbours = getNeighbours(emptyIdx);
-    scrambledFlat    = applyMove(scrambledFlat, neighbours[0]);
+    const emptyIdx = findEmpty(scrambledFlat);
+    const neighbours = getNeighbours(emptyIdx, size);
+    scrambledFlat = applyMove(scrambledFlat, neighbours[0]);
   }
 
   return {
-    puzzleType:   PuzzleType.SLIDING_TILE,
+    puzzleType: PuzzleType.SLIDING_TILE,
     difficulty,
     seed,
+
     puzzleData: {
-      grid:  flatToGrid(scrambledFlat),
-      size:  SIZE,
-      moves, // how many scramble moves were applied (informational)
+      title: image.title,
+      mode: 'image',
+      grid: flatToGrid(scrambledFlat, size),
+      size,
+      imageUrl: image.imageUrl,
+      moves,
     },
+
     solutionData: {
       solvedGrid,
+      size,
     },
+
     meta: {
-      size:         SIZE,
+      mode: 'image',
+      size,
       scrambleMoves: moves,
+      imageUrl: image.imageUrl,
     },
   };
 }
@@ -166,31 +243,31 @@ export function generate(config) {
 // validate
 // ---------------------------------------------------------------------------
 
-/**
- * @param {{ grid: number[][] }} playerAnswer
- * @param {{ solvedGrid: number[][] }} solutionData
- * @returns {{ valid: boolean, reason?: string }}
- */
 export function validate(playerAnswer, solutionData) {
   const submitted = playerAnswer?.grid;
-  const solution  = solutionData?.solvedGrid;
+  const solution = solutionData?.solvedGrid;
+  const size = solutionData?.size ?? solution?.length;
 
   if (!submitted || !Array.isArray(submitted)) {
     return { valid: false, reason: 'No grid submitted.' };
   }
 
-  if (submitted.length !== SIZE) {
-    return { valid: false, reason: `Grid must have ${SIZE} rows.` };
+  if (!solution || !Array.isArray(solution)) {
+    return { valid: false, reason: 'No solution grid found.' };
   }
 
-  for (let r = 0; r < SIZE; r++) {
-    if (!Array.isArray(submitted[r]) || submitted[r].length !== SIZE) {
+  if (!size || submitted.length !== size) {
+    return { valid: false, reason: `Grid must have ${size} rows.` };
+  }
+
+  for (let r = 0; r < size; r++) {
+    if (!Array.isArray(submitted[r]) || submitted[r].length !== size) {
       return { valid: false, reason: `Row ${r} is invalid.` };
     }
   }
 
   const submittedFlat = gridToFlat(submitted);
-  const solutionFlat  = gridToFlat(solution);
+  const solutionFlat = gridToFlat(solution);
 
   if (!gridsEqual(submittedFlat, solutionFlat)) {
     return { valid: false, reason: 'Grid does not match the solved state.' };
@@ -203,32 +280,27 @@ export function validate(playerAnswer, solutionData) {
 // score
 // ---------------------------------------------------------------------------
 
-/**
- * @param {{ validationResult: object, submission: { timeTakenSeconds: number } }} args
- * @returns {PuzzleScoreResult}
- */
 export function score({ validationResult, submission }) {
   if (!validationResult.valid) {
     return {
-      completed:    false,
-      correct:      false,
-      baseScore:    0,
-      bonusScore:   0,
+      completed: false,
+      correct: false,
+      baseScore: 0,
+      bonusScore: 0,
       penaltyScore: 0,
-      totalScore:   0,
+      totalScore: 0,
     };
   }
 
-  // Time bonus: full 30 pts within 60s, decays to 0 at 300s
   const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 30, 60, 300);
 
   return {
-    completed:    true,
-    correct:      true,
-    baseScore:    100,
+    completed: true,
+    correct: true,
+    baseScore: 100,
     bonusScore,
     penaltyScore: 0,
-    totalScore:   100 + bonusScore,
+    totalScore: 100 + bonusScore,
   };
 }
 

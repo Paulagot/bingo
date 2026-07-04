@@ -133,7 +133,7 @@ export default function PuzzleAuthPage() {
                 onClick={() =>
                   navigate(
                     challengeId
-                      ? `/join/puzzle/challenge/${challengeId}`
+                      ? `/join/puzzle/challenge/${challengeId}?mode=signin`
                       : '/'
                   )
                 }

@@ -552,4 +552,66 @@ router.patch('/:ticketId/confirm', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/quiz/tickets/stripe/checkout
+ */
+router.post('/stripe/checkout', async (req, res) => {
+  try {
+    const {
+      roomId,
+      purchaserName,
+      purchaserEmail,
+      purchaserPhone,
+      playerName,
+      selectedExtras,
+      donationAmount,
+      appOrigin,
+      ticketTypeId,     // ← new
+      ticketTypeName,   // ← new
+      checkoutContext,  // ← new: 'embedded_new_tab' | 'page' — see TicketPurchaseFlow.tsx
+    } = req.body;
+
+    if (!roomId || !purchaserName || !purchaserEmail) {
+      return res.status(400).json({ error: 'missing_required_fields' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(purchaserEmail)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    const result = await createTicketAndStripeSession({
+      roomId,
+      purchaserName:  purchaserName.trim(),
+      purchaserEmail: purchaserEmail.trim(),
+      purchaserPhone: purchaserPhone?.trim() || null,
+      playerName:     playerName?.trim() || null,
+      selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+      donationAmount,
+      appOrigin,
+      ticketTypeId:   ticketTypeId   || null,
+      ticketTypeName: ticketTypeName || null,
+      // Passed straight through so the service can decide whether to
+      // append ?embed=1 onto the Stripe success_url. See
+      // stripeQuizTicketSuccess.tsx for why this matters: that page
+      // only attempts window.close() on itself when this flag is
+      // present, so it never touches a normally-navigated tab on the
+      // existing (non-embedded) pages.
+      checkoutContext: checkoutContext === 'embedded_new_tab' ? 'embedded_new_tab' : 'page',
+    });
+
+    return res.status(200).json({ ok: true, url: result.url, ticketId: result.ticketId });
+  } catch (err) {
+    const msg = err?.message || 'stripe_checkout_failed';
+    if (isInvalidTicketPaymentMethodError(msg)) {
+      return res.status(400).json({ error: 'invalid_payment_method_for_ticket', message: msg });
+    }
+    if (msg.includes('ticket_type_unavailable') || msg.includes('ticket_type_not_found')) {
+      return res.status(409).json({ error: 'ticket_type_unavailable', message: msg });
+    }
+    if (msg.includes('SOLD OUT') || msg.includes('capacity') || msg.includes('Ticket sales closed')) {
+      return res.status(409).json({ error: 'capacity_exceeded', message: msg });
+    }
+    return res.status(500).json({ error: 'stripe_checkout_failed', message: msg });
+  }
+});
+
 export default router;

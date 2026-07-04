@@ -95,6 +95,7 @@ import CheckinPage from './pages/site/pages/CheckinPage';
 import SafeStreetsIrelandPadelPage from './pages/events/SafeStreetsIrelandPadelPage';
 import PuzzleNotifyPage from './components/puzzles/pages/PuzzleNotifyPage';
 const StandaloneDonatePage = lazy(() => import('./pages/donations/StandaloneDonatePage'));
+const TicketEmbedPage = lazy(() => import('./components/embed/TicketEmbedPage'));
 
  const WalletIframeTestPage = lazy(() => import('./pages/WalletIframeTestPage'));
  const CryptoDonationCheckoutPage = lazy(() => import('./pages/donations/CryptoDonationCheckoutPage'));
@@ -827,6 +828,14 @@ export default function App() {
           }
         />
 
+<Route
+  path="/embed/tickets/:roomId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading tickets..." />}>
+      <TicketEmbedPage />
+    </Suspense>
+  }
+/>
         <Route path="/summer-quest/*" element={<SummerQuestApp />} />
         
 
