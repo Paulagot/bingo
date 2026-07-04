@@ -189,13 +189,23 @@
   // crypto, or the existing manual-confirm path for instant payments).
   // This listener does not itself decide anything — it just lets the
   // modal close a little sooner when the message happens to arrive.
+  //
+  // IMPORTANT: on FUNDRAISELY_TICKET_SUCCESS, we deliberately do NOT
+  // close the modal. The 'complete' step's confirmation UI (ticket
+  // details, join token, etc.) is already rendered inside the iframe
+  // at the exact moment this message fires — auto-closing here would
+  // tear that down before the buyer ever sees it, for every payment
+  // method (Stripe, crypto, instant_payment/Revolut alike), not just
+  // some. Same behavior the inline (no-button, no-modal) embed already
+  // has: nothing closes it automatically, the buyer reads their
+  // confirmation and closes it themselves (X button, Esc, or clicking
+  // outside — all still work below).
 
   window.addEventListener('message', function (event) {
     if (event.origin !== baseUrl) return;
 
     var data = event.data || {};
     if (data.type === 'FUNDRAISELY_TICKET_SUCCESS') {
-      closeModal();
       try {
         document.dispatchEvent(new CustomEvent('fundraisely:ticket-success', {
           detail: { roomId: data.roomId, ticketId: data.ticketId },
