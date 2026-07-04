@@ -5,6 +5,18 @@
 //     returns only available types to buyers.
 //   - POST /create-with-payment and POST /stripe/checkout pass
 //     ticketTypeId + ticketTypeName to service layer.
+//   - POST /stripe/checkout also passes checkoutContext through, so
+//     the backend can mark the success_url with ?embed=1 for the
+//     embedded ticket widget flow. See TicketPurchaseFlow.tsx and
+//     stripeTicketCheckoutService.js.
+//
+// FIXED: this file previously had TWO 'POST /stripe/checkout' route
+// handlers (a leftover original plus the updated one appended below
+// it). Express matches routes in registration order and the first
+// handler that sends a response wins — the original, checkoutContext-
+// unaware handler was silently swallowing every request, and the
+// updated one below it never ran at all. There is now only ONE
+// '/stripe/checkout' handler, in its original file position.
 //
 // Everything else (auth routes, confirm, status) is UNCHANGED.
 
@@ -326,6 +338,9 @@ router.post('/create-with-payment', async (req, res) => {
 
 /**
  * POST /api/quiz/tickets/stripe/checkout
+ *
+ * (Previously duplicated — see file header. This is now the ONLY
+ * handler for this route.)
  */
 router.post('/stripe/checkout', async (req, res) => {
   try {
@@ -338,8 +353,9 @@ router.post('/stripe/checkout', async (req, res) => {
       selectedExtras,
       donationAmount,
       appOrigin,
-      ticketTypeId,    // ← new
-      ticketTypeName,  // ← new
+      ticketTypeId,     // ← new
+      ticketTypeName,   // ← new
+      checkoutContext,  // ← new: 'embedded_new_tab' | 'page' — see TicketPurchaseFlow.tsx
     } = req.body;
 
     if (!roomId || !purchaserName || !purchaserEmail) {
@@ -360,6 +376,13 @@ router.post('/stripe/checkout', async (req, res) => {
       appOrigin,
       ticketTypeId:   ticketTypeId   || null,
       ticketTypeName: ticketTypeName || null,
+      // Passed straight through so the service can decide whether to
+      // append ?embed=1 onto the Stripe success_url. See
+      // stripeQuizTicketSuccess.tsx for why this matters: that page
+      // only attempts window.close() on itself when this flag is
+      // present, so it never touches a normally-navigated tab on the
+      // existing (non-embedded) pages.
+      checkoutContext: checkoutContext === 'embedded_new_tab' ? 'embedded_new_tab' : 'page',
     });
 
     return res.status(200).json({ ok: true, url: result.url, ticketId: result.ticketId });
@@ -549,68 +572,6 @@ router.patch('/:ticketId/confirm', async (req, res) => {
   } catch (err) {
     console.error('[Tickets API] ❌ Error confirming payment:', err);
     return res.status(500).json({ error: 'Failed to confirm payment', message: err.message });
-  }
-});
-
-/**
- * POST /api/quiz/tickets/stripe/checkout
- */
-router.post('/stripe/checkout', async (req, res) => {
-  try {
-    const {
-      roomId,
-      purchaserName,
-      purchaserEmail,
-      purchaserPhone,
-      playerName,
-      selectedExtras,
-      donationAmount,
-      appOrigin,
-      ticketTypeId,     // ← new
-      ticketTypeName,   // ← new
-      checkoutContext,  // ← new: 'embedded_new_tab' | 'page' — see TicketPurchaseFlow.tsx
-    } = req.body;
-
-    if (!roomId || !purchaserName || !purchaserEmail) {
-      return res.status(400).json({ error: 'missing_required_fields' });
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(purchaserEmail)) {
-      return res.status(400).json({ error: 'Invalid email address' });
-    }
-
-    const result = await createTicketAndStripeSession({
-      roomId,
-      purchaserName:  purchaserName.trim(),
-      purchaserEmail: purchaserEmail.trim(),
-      purchaserPhone: purchaserPhone?.trim() || null,
-      playerName:     playerName?.trim() || null,
-      selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
-      donationAmount,
-      appOrigin,
-      ticketTypeId:   ticketTypeId   || null,
-      ticketTypeName: ticketTypeName || null,
-      // Passed straight through so the service can decide whether to
-      // append ?embed=1 onto the Stripe success_url. See
-      // stripeQuizTicketSuccess.tsx for why this matters: that page
-      // only attempts window.close() on itself when this flag is
-      // present, so it never touches a normally-navigated tab on the
-      // existing (non-embedded) pages.
-      checkoutContext: checkoutContext === 'embedded_new_tab' ? 'embedded_new_tab' : 'page',
-    });
-
-    return res.status(200).json({ ok: true, url: result.url, ticketId: result.ticketId });
-  } catch (err) {
-    const msg = err?.message || 'stripe_checkout_failed';
-    if (isInvalidTicketPaymentMethodError(msg)) {
-      return res.status(400).json({ error: 'invalid_payment_method_for_ticket', message: msg });
-    }
-    if (msg.includes('ticket_type_unavailable') || msg.includes('ticket_type_not_found')) {
-      return res.status(409).json({ error: 'ticket_type_unavailable', message: msg });
-    }
-    if (msg.includes('SOLD OUT') || msg.includes('capacity') || msg.includes('Ticket sales closed')) {
-      return res.status(409).json({ error: 'capacity_exceeded', message: msg });
-    }
-    return res.status(500).json({ error: 'stripe_checkout_failed', message: msg });
   }
 });
 
