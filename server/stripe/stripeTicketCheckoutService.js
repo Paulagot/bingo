@@ -80,6 +80,13 @@ export async function createTicketAndStripeSession({
   appOrigin,
   ticketTypeId   = null,   // ← new
   ticketTypeName = null,   // ← new
+  // ── embed support ──────────────────────────────────────────────────────
+  // 'embedded_new_tab' | 'page'. Only 'embedded_new_tab' appends
+  // ?embed=1 to success_url below — see stripeQuizTicketSuccess.tsx,
+  // which only attempts window.close() on itself when it sees that
+  // flag. Defaults to 'page' so nothing changes for any existing
+  // caller of this function that doesn't pass it.
+  checkoutContext = 'page',
 }) {
   // 0) Capacity check
   const cap = await canPurchaseTickets(roomId, 1);
@@ -234,6 +241,13 @@ export async function createTicketAndStripeSession({
     productName = `${gameType === 'elimination' ? 'Elimination' : 'Quiz'} Ticket`;
   }
 
+  // Only appended when this checkout was created for the embedded
+  // new-tab flow — see stripeQuizTicketSuccess.tsx, which gates its
+  // auto-close behavior on this exact flag being present. Absent
+  // entirely for every existing (non-embedded) page, so nothing about
+  // their behavior changes.
+  const embedSuffix = checkoutContext === 'embedded_new_tab' ? '&embed=1' : '';
+
   const session = await stripe.checkout.sessions.create(
     {
       mode: 'payment',
@@ -245,8 +259,8 @@ export async function createTicketAndStripeSession({
           product_data: { name: productName },
         },
       }],
-      success_url: `${origin}/tickets/${ticketId}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${origin}/tickets/${ticketId}/cancel?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/tickets/${ticketId}/success?session_id={CHECKOUT_SESSION_ID}${embedSuffix}`,
+      cancel_url:  `${origin}/tickets/${ticketId}/cancel?session_id={CHECKOUT_SESSION_ID}${embedSuffix}`,
       metadata: {
         type:             'ticket_purchase',
         ticketId,

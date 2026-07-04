@@ -16,6 +16,12 @@ const FALLBACK_FREE_PLAN = {
   extras_allowed: ['*'],
   concurrent_rooms: 1,
   game_credits_remaining: 0,
+  // Raw caps passthrough for scope-specific keys not in the v1 shape
+  // (e.g. puzzle_sub's maxWeeks). Empty here — the restrictive fallback
+  // path has no plan to read caps from, so callers reading
+  // ents.game_caps?.maxWeeks get undefined and should apply their own
+  // conservative default, same as if the key were simply absent.
+  game_caps: {},
 };
 
 /**
@@ -116,6 +122,12 @@ function buildEntitlementsFromRows(rows, scope) {
     max_players_per_game: Number(gameCaps.maxPlayers     ?? FALLBACK_FREE_PLAN.max_players_per_game),
     max_rounds:           Number(gameCaps.maxRounds      ?? FALLBACK_FREE_PLAN.max_rounds),
     concurrent_rooms:     Number(gameCaps.concurrentRooms ?? FALLBACK_FREE_PLAN.concurrent_rooms),
+
+    // Raw caps passthrough for scope-specific keys not in the v1 field
+    // names above (e.g. puzzle_sub's maxWeeks). Callers read this as
+    // ents.game_caps?.maxWeeks rather than needing a new named field
+    // added here every time a new scope introduces its own cap.
+    game_caps: gameCaps,
 
     // Allowed types / extras
     round_types_allowed: isWildcardArray(roundTypes) ? ['*'] : roundTypes,
@@ -252,6 +264,10 @@ export async function resolveEntitlements({ userId: clubId, scope = 'quiz' }) {
         concurrent_rooms:     Number(p?.concurrent_rooms     ?? FALLBACK_FREE_PLAN.concurrent_rooms),
         round_types_allowed:  parseSafe(p?.round_types_allowed, FALLBACK_FREE_PLAN.round_types_allowed),
         extras_allowed:       parseSafe(p?.extras_allowed,      FALLBACK_FREE_PLAN.extras_allowed),
+        // This legacy columns-only shape predates per-scope caps JSON
+        // entirely, so there's nothing scope-specific to read here —
+        // same empty-object contract as the other two branches.
+        game_caps:            {},
         quiz_features:        {},
         game_features:        {},
         game_permissions:     {},
