@@ -148,7 +148,14 @@
     ].join(';');
     // Allow payment APIs inside the iframe (Apple Pay / Google Pay via
     // Stripe's Payment Request button, if/when enabled).
-    iframe.setAttribute('allow', 'payment');
+    // Allow payment APIs (Apple Pay / Google Pay via Stripe's Payment
+    // Request button) AND clipboard-write — without the latter,
+    // navigator.clipboard.writeText() inside the iframe silently fails
+    // for any cross-origin iframe (this is a Permissions Policy the
+    // BROWSER enforces; only the embedding page granting it here can
+    // delegate it inward). This is what powers the "copy reference"
+    // step for Revolut/bank-transfer/manual payment methods.
+    iframe.setAttribute('allow', 'payment; clipboard-write');
     iframe.setAttribute('loading', 'eager');
 
     container.appendChild(closeBtn);
