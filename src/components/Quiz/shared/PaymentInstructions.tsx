@@ -60,30 +60,126 @@ function ProviderBadge({ providerName }: { providerName: string | null | undefin
   );
 }
 
+/**
+ * Copies `text` using the legacy execCommand('copy') technique via a
+ * temporary offscreen textarea. Deliberately kept as a SEPARATE
+ * fallback rather than the only method, because:
+ *
+ *   - navigator.clipboard.writeText() is the modern, preferred API,
+ *     but is gated by a Permissions Policy that a cross-origin iframe
+ *     does NOT get by default — the embedding page's <iframe> tag has
+ *     to explicitly delegate it via allow="clipboard-write" (see
+ *     tickets.js). Without that, writeText() throws.
+ *
+ *   - execCommand('copy') predates that Permissions Policy entirely,
+ *     so it still works inside a cross-origin iframe even when
+ *     clipboard-write was never delegated — making it a genuinely
+ *     useful fallback here, not just a redundant old API.
+ *
+ * Returns false (never throws) so callers can always fall through to
+ * a manual, user-driven option as the final safety net.
+ */
+function copyViaExecCommand(text: string): boolean {
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    // Keep it out of the visible layout and off-screen, but still a
+    // real focusable/selectable element — execCommand('copy') only
+    // works on the current selection, so it needs to actually exist
+    // in the DOM and be selected first.
+    textarea.style.position = 'fixed';
+    textarea.style.top = '0';
+    textarea.style.left = '-9999px';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return successful;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * UPDATED: previously this only tried navigator.clipboard.writeText()
+ * and silently swallowed any failure — inside a cross-origin iframe
+ * without clipboard-write delegated, that failure was the NORMAL case,
+ * not an edge case, and it permanently stranded the buyer at "Step 1"
+ * with zero indication why (onCopied() never fired, so hasEverCopied
+ * never became true, so the rest of the payment flow stayed locked
+ * forever). This version tries three things in order, and always
+ * leaves the buyer with a way forward:
+ *
+ *   1. navigator.clipboard.writeText() — modern API, works once
+ *      clipboard-write is delegated by the embedding iframe.
+ *   2. execCommand('copy') — legacy fallback, unaffected by that
+ *      Permissions Policy, so it covers the iframe-without-delegation
+ *      case too.
+ *   3. A visible "couldn't copy automatically" state with a manual
+ *      "I've copied it manually" acknowledgement — same trust model
+ *      already used elsewhere in this flow (e.g. bank transfer's
+ *      "I've noted the bank details" button), not a new weaker
+ *      precedent.
+ */
 function CopyButton({ value, label = 'Copy', onCopied }: { value: string; label?: string; onCopied?: () => void }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
+      setState('copied');
       onCopied?.();
-      setTimeout(() => setCopied(false), 1500);
+      setTimeout(() => setState('idle'), 1500);
+      return;
     } catch {
-      // silent
+      // Expected whenever clipboard-write hasn't been delegated by a
+      // cross-origin iframe, an older browser lacks the Clipboard API,
+      // or the user denied a permission prompt — fall through below.
     }
+
+    if (copyViaExecCommand(value)) {
+      setState('copied');
+      onCopied?.();
+      setTimeout(() => setState('idle'), 1500);
+      return;
+    }
+
+    // Both methods failed — never pretend nothing happened.
+    setState('failed');
   };
+
+  if (state === 'failed') {
+    return (
+      <div className="flex flex-col items-start gap-1.5">
+        <p className="text-xs text-red-600">
+          Couldn't copy automatically — select the reference text above and copy it manually.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setState('copied');
+            onCopied?.();
+          }}
+          className="text-xs font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+        >
+          I've copied it manually
+        </button>
+      </div>
+    );
+  }
 
   return (
     <button
       type="button"
       onClick={onCopy}
       className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-colors ${
-        copied ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'
+        state === 'copied' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'
       }`}
     >
-      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      {copied ? 'Copied' : label}
+      {state === 'copied' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+      {state === 'copied' ? 'Copied' : label}
     </button>
   );
 }
@@ -281,7 +377,13 @@ export const PaymentInstructionsContent: React.FC<{
           <CopyButton value={paymentReference} label="Copy" onCopied={onCopied} />
         </div>
 
-        <div className="mt-3 rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-base font-extrabold text-gray-900 tracking-wider">
+        {/*
+          select-all: makes tap-and-hold / triple-click select the
+          WHOLE reference in one action, so the manual "I've copied it
+          manually" fallback above is actually easy to use, not just a
+          theoretical escape hatch.
+        */}
+        <div className="mt-3 select-all rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-base font-extrabold text-gray-900 tracking-wider">
           {paymentReference}
         </div>
 
