@@ -43,7 +43,7 @@
 // truth for whether the donation succeeded. Polling reaches 'success'
 // independently regardless of whether any postMessage ever arrives.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Heart, AlertCircle, Loader2, CheckCircle2, CreditCard, Coins, ChevronLeft } from 'lucide-react';
 
@@ -53,6 +53,13 @@ import type {
   ResolvedDonationMethod,
   TrackableDonationProvider,
 } from '../../shared/types/donationCheckout';
+import { isMobileOrTablet } from '../../utils/deviceDetection';
+import type { DonationCryptoConfirmResponse } from '../donationModal/services/DonationCryptoPaymentStep';
+
+const Web3Provider = lazy(() =>
+  import('../Web3Provider').then((m) => ({ default: m.Web3Provider }))
+);
+const DonationCryptoPaymentStep = lazy(() => import('../donationModal/services/DonationCryptoPaymentStep'));
 
 // Matches the symbol map in useCurrency.ts — duplicated here (rather than
 // importing the hook) because useCurrency reads from useAuthStore, which
@@ -106,6 +113,22 @@ type ViewState =
   | { kind: 'picking_amount' }
   | { kind: 'starting_checkout' }
   | { kind: 'checkout_opened'; provider: 'stripe' | 'sumup_api' | 'crypto'; donationId: string }
+  // NEW: desktop-only crypto path — the wallet-connect/pay UI renders
+  // directly inside THIS iframe, no third tab. Desktop wallet
+  // connection (extension, or a QR scanned by a separate device) never
+  // needs the app-switch-and-return that makes iframe nesting risky —
+  // see the header comment above handleDonate's crypto branch. Mobile
+  // (and anything ambiguous) keeps the existing 'checkout_opened' path
+  // unchanged: window.open() always creates a real top-level tab, even
+  // when called from inside an iframe, which is exactly the un-nested
+  // context mobile's wallet app-switch needs.
+  | {
+      kind: 'paying_crypto_inline';
+      donationId: string;
+      recipientWallet: string;
+      fiatAmount: number;
+      fiatCurrency: string;
+    }
   | { kind: 'success' }
   | { kind: 'cancelled' };
 
@@ -387,6 +410,42 @@ export default function DonateEmbedPage() {
       }
 
       if (result.provider === 'crypto') {
+        // [FR-DEBUG] Temporary diagnostic logging — remove once we've
+        // confirmed the desktop-inline crypto path is actually live on
+        // staging and taking effect. If this log never appears at all,
+        // staging is still serving an older build. If it appears but
+        // isMobileDevice logs `true` on a real desktop browser, the
+        // device check itself is the problem, not the deploy.
+        const isMobileDevice = isMobileOrTablet();
+        console.log('[FR-DEBUG DonateEmbedPage] crypto branch reached. isMobileOrTablet() =', isMobileDevice, '| navigator.userAgent =', navigator.userAgent);
+
+        // Desktop: render the wallet-connect/pay flow directly in THIS
+        // iframe — no third tab at all. Safe because desktop wallet
+        // connection (extension, or QR scanned by a separate device)
+        // never triggers the app-switch-and-return that makes iframe
+        // nesting risky in the first place — already proven safe via
+        // the ticket embed's own testing.
+        //
+        // Mobile (and anything ambiguous — isMobileOrTablet() fails
+        // closed toward "treat as mobile") keeps the EXACT existing
+        // code below, unchanged: window.open() always creates a real,
+        // un-nested top-level tab even when called from inside an
+        // iframe — exactly the context mobile's wallet app-switch
+        // needs, and exactly why this path has always worked correctly
+        // on mobile already, for every device, until now.
+        if (!isMobileDevice) {
+          console.log('[FR-DEBUG DonateEmbedPage] taking DESKTOP branch — rendering paying_crypto_inline.');
+          setView({
+            kind: 'paying_crypto_inline',
+            donationId: result.donationId,
+            recipientWallet: result.walletAddress,
+            fiatAmount: amount,
+            fiatCurrency: config.currency,
+          });
+          return;
+        }
+
+        console.log('[FR-DEBUG DonateEmbedPage] taking MOBILE branch — opening new tab.');
         const params = new URLSearchParams({
           wallet: result.walletAddress,
           amount: String(amount),
@@ -484,6 +543,44 @@ export default function DonateEmbedPage() {
             Your support makes a real difference.
           </p>
         </div>
+      </EmbedShell>
+    );
+  }
+
+  if (view.kind === 'paying_crypto_inline') {
+    return (
+      <EmbedShell
+        title={config?.buttonTitle ?? undefined}
+        primaryColor={config?.branding.primaryColor}
+        backgroundColor={config?.branding.backgroundColor}
+      >
+        <Suspense
+          fallback={
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <Loader2 className="h-6 w-6 animate-spin" style={{ color: config?.branding.primaryColor ?? FALLBACK_PRIMARY_COLOR }} />
+              <p className="text-sm" style={{ color: '#52636f' }}>Loading wallet connection…</p>
+            </div>
+          }
+        >
+          <Web3Provider force>
+            <DonationCryptoPaymentStep
+              clubId={clubId!}
+              donationId={view.donationId}
+              recipientWallet={view.recipientWallet}
+              fiatAmount={view.fiatAmount}
+              fiatCurrency={view.fiatCurrency}
+              onSuccess={(_confirmed: DonationCryptoConfirmResponse) => {
+                // No polling needed here — confirmOnBackend inside
+                // DonationCryptoPaymentStep already got a definitive,
+                // verified response synchronously. Setting 'success'
+                // triggers the existing post-success effect above
+                // unchanged, which already generically checks
+                // isInIframe and notifies the parent page accordingly.
+                setView({ kind: 'success' });
+              }}
+            />
+          </Web3Provider>
+        </Suspense>
       </EmbedShell>
     );
   }

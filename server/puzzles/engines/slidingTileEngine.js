@@ -45,45 +45,45 @@ const IMAGE_BANK = {
   [Difficulty.EASY]: [
     {
       title: 'Rebuild the balloons',
-      imageUrl: '/images/puzzles/sliding/balloons.webp',
+      imageUrl: '/images/puzzles/sliding/balloons.png',
     },
     {
       title: 'Rebuild the ice cream van',
-      imageUrl: '/images/puzzles/sliding/ice-cream-van.webp',
+      imageUrl: '/images/puzzles/sliding/ice-cream-van.png',
     },
     {
       title: 'Rebuild the puppy picture',
-      imageUrl: '/images/puzzles/sliding/puppy.webp',
+      imageUrl: '/images/puzzles/sliding/puppy.png',
     },
   ],
 
   [Difficulty.MEDIUM]: [
     {
       title: 'Rebuild the treasure map',
-      imageUrl: '/images/puzzles/sliding/treasure-map.webp',
+      imageUrl: '/images/puzzles/sliding/treasure-map.png',
     },
     {
       title: 'Rebuild the football pitch',
-      imageUrl: '/images/puzzles/sliding/football-pitch.webp',
+      imageUrl: '/images/puzzles/sliding/football-pitch.png',
     },
     {
       title: 'Rebuild the castle',
-      imageUrl: '/images/puzzles/sliding/castle.webp',
+      imageUrl: '/images/puzzles/sliding/castle.png',
     },
   ],
 
   [Difficulty.HARD]: [
     {
       title: 'Rebuild the jungle path',
-      imageUrl: '/images/puzzles/sliding/jungle-path.webp',
+      imageUrl: '/images/puzzles/sliding/jungle-path.png',
     },
     {
       title: 'Rebuild the space scene',
-      imageUrl: '/images/puzzles/sliding/space-scene.webp',
+      imageUrl: '/images/puzzles/sliding/space-scene.png',
     },
     {
       title: 'Rebuild the city skyline',
-      imageUrl: '/images/puzzles/sliding/city-skyline.webp',
+      imageUrl: '/images/puzzles/sliding/city-skyline.png',
     },
   ],
 };

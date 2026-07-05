@@ -939,6 +939,7 @@ setLinkedEventsMap(leMap);
         <DigitalEventDrawer
           open={drawerOpen}
           room={drawerRoom}
+          clubId={clubId}
           config={drawerConfig}
           stats={drawerStats}
           hasLinkedPaymentMethods={drawerHasPayments}
@@ -1070,4 +1071,3 @@ setLinkedEventsMap(leMap);
     </div>
   );
 }
-

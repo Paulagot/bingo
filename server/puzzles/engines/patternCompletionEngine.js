@@ -2,186 +2,551 @@
  * Pattern Completion Puzzle Engine
  * server/puzzles/engines/patternCompletionEngine.js
  *
- * Generates a 3×3 matrix puzzle where the bottom-right cell is missing.
- * The player picks the correct missing piece from 4–6 options.
+ * Generates visual pattern-completion puzzles.
  *
- * Pattern rules are template-based:
- *   - Easy:   single attribute progression (colour OR shape)
- *   - Medium: two attribute progressions (colour AND shape)
- *   - Hard:   rotation or count-based progressions
+ * Difficulty:
+ *   Easy   = 3x3, one visual rule, 4 options
+ *   Medium = 3x3, two visual rules, 5 options
+ *   Hard   = 4x4, richer visual rules, 6 options
+ *
+ * Cell format:
+ * {
+ *   shape: 'circle' | 'square' | 'triangle' | 'diamond' | 'star' | 'hexagon',
+ *   color: 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange',
+ *   rotation: 0 | 90 | 180 | 270,
+ *   count: 1 | 2 | 3,
+ *   fill: 'solid' | 'outline',
+ *   size: 'small' | 'medium' | 'large'
+ * }
  */
 
 import { createSeededRandom, shuffleArray, pickRandom } from '../utils/puzzleHelpers.js';
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 
 // ---------------------------------------------------------------------------
-// Shape / colour vocabulary
+// Visual vocabulary
 // ---------------------------------------------------------------------------
 
 const SHAPES = ['circle', 'square', 'triangle', 'diamond', 'star', 'hexagon'];
+const ROTATABLE_SHAPES = ['triangle', 'diamond', 'star', 'hexagon'];
 const COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+const ROTATIONS = [0, 90, 180, 270];
+const COUNTS = [1, 2, 3];
+const FILLS = ['solid', 'outline'];
+const SIZES = ['small', 'medium', 'large'];
+
+const GRID_SIZE_BY_DIFFICULTY = {
+  [Difficulty.EASY]: 3,
+  [Difficulty.MEDIUM]: 3,
+  [Difficulty.HARD]: 4,
+};
+
+const OPTION_COUNT_BY_DIFFICULTY = {
+  [Difficulty.EASY]: 4,
+  [Difficulty.MEDIUM]: 5,
+  [Difficulty.HARD]: 6,
+};
 
 // ---------------------------------------------------------------------------
-// Pattern templates
-// Each template describes how to derive cell values for a 3×3 grid.
-// `build(rng)` returns a 3×3 array of cell strings e.g. "circle-red"
+// Cell helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Template: colour changes across columns, shape stays constant per row.
- * Easy difficulty.
- */
-function templateShapeRowColorCol(rng) {
-  const shapes = pickRandom(SHAPES, rng);
-  const colors = shuffleArray(COLORS, rng).slice(0, 3);
-  const matrix = [];
-  for (let r = 0; r < 3; r++) {
-    const row = [];
-    for (let c = 0; c < 3; c++) {
-      row.push(`${shapes}-${colors[c]}`);
-    }
-    matrix.push(row);
-  }
-  return matrix;
+function makeCell({
+  shape = 'circle',
+  color = 'blue',
+  rotation = 0,
+  count = 1,
+  fill = 'solid',
+  size = 'medium',
+}) {
+  return {
+    shape,
+    color,
+    rotation,
+    count,
+    fill,
+    size,
+  };
 }
 
-/**
- * Template: shape changes across columns, colour changes across rows.
- * Medium difficulty — two attributes progressing simultaneously.
- */
-function templateShapeColColorRow(rng) {
-  const shapes = shuffleArray(SHAPES, rng).slice(0, 3);
-  const colors = shuffleArray(COLORS, rng).slice(0, 3);
-  const matrix = [];
-  for (let r = 0; r < 3; r++) {
-    const row = [];
-    for (let c = 0; c < 3; c++) {
-      row.push(`${shapes[c]}-${colors[r]}`);
-    }
-    matrix.push(row);
-  }
-  return matrix;
+function cloneCell(cell) {
+  return {
+    shape: cell.shape,
+    color: cell.color,
+    rotation: cell.rotation,
+    count: cell.count,
+    fill: cell.fill,
+    size: cell.size,
+  };
 }
 
-/**
- * Template: shape cycles through a fixed set per row, colour constant per row.
- * Easy — shape progression only.
- */
-function templateShapeCyclePerRow(rng) {
-  const shapeSets = [
-    shuffleArray(SHAPES, rng).slice(0, 3),
-    shuffleArray(SHAPES, rng).slice(0, 3),
-    shuffleArray(SHAPES, rng).slice(0, 3),
-  ];
-  const colors = shuffleArray(COLORS, rng).slice(0, 3);
-  const matrix = [];
-  for (let r = 0; r < 3; r++) {
-    const row = [];
-    for (let c = 0; c < 3; c++) {
-      row.push(`${shapeSets[r][c]}-${colors[r]}`);
-    }
-    matrix.push(row);
-  }
-  return matrix;
+function cellKey(cell) {
+  if (!cell) return 'null';
+
+  return [
+    cell.shape,
+    cell.color,
+    cell.rotation,
+    cell.count,
+    cell.fill,
+    cell.size,
+  ].join('|');
 }
 
-/**
- * Template: diagonal colour progression, shape constant throughout.
- * Hard — less obvious rule.
- */
-function templateDiagonalColor(rng) {
-  const shape  = pickRandom(SHAPES, rng);
-  const colors = shuffleArray(COLORS, rng).slice(0, 3);
-  // Colour index = (row + col) % 3
-  const matrix = [];
-  for (let r = 0; r < 3; r++) {
-    const row = [];
-    for (let c = 0; c < 3; c++) {
-      row.push(`${shape}-${colors[(r + c) % 3]}`);
-    }
-    matrix.push(row);
-  }
-  return matrix;
+function sameCell(a, b) {
+  if (!a || !b) return false;
+  return cellKey(a) === cellKey(b);
 }
 
-/**
- * Template: each row is a full set of 3 different shapes, each col a full set
- * of 3 different colours — like a latin square.
- * Hard — both attributes form a complete set in every row AND column.
- */
-function templateLatinSquare(rng) {
-  const shapes = shuffleArray(SHAPES, rng).slice(0, 3);
-  const colors = shuffleArray(COLORS, rng).slice(0, 3);
+function pickN(values, count, rng) {
+  const shuffled = shuffleArray(values, rng);
 
-  // Build shape and color rotation offsets
-  const matrix = [];
-  for (let r = 0; r < 3; r++) {
-    const row = [];
-    for (let c = 0; c < 3; c++) {
-      const s = shapes[(r + c) % 3];
-      const k = colors[(r + c * 2) % 3];
-      row.push(`${s}-${k}`);
-    }
-    matrix.push(row);
+  if (shuffled.length >= count) {
+    return shuffled.slice(0, count);
   }
-  return matrix;
+
+  const result = [...shuffled];
+
+  while (result.length < count) {
+    result.push(shuffled[result.length % shuffled.length]);
+  }
+
+  return result;
+}
+
+function safeIndex(values, index) {
+  return values[index % values.length];
 }
 
 // ---------------------------------------------------------------------------
-// Template registry by difficulty
+// Templates
+// ---------------------------------------------------------------------------
+
+/**
+ * Easy:
+ * Shape changes across columns.
+ * Colour stays the same.
+ */
+function templateEasyShapeAcross(rng, gridSize) {
+  const shapes = pickN(SHAPES, gridSize, rng);
+  const color = pickRandom(COLORS, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape: shapes[c],
+        color,
+        rotation: 0,
+        count: 1,
+        fill: 'solid',
+        size: 'medium',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'easy-shape-across',
+    ruleLabel: 'Shape changes across each row.',
+  };
+}
+
+/**
+ * Easy:
+ * Colour changes across columns.
+ * Shape stays the same.
+ */
+function templateEasyColorAcross(rng, gridSize) {
+  const shape = pickRandom(SHAPES, rng);
+  const colors = pickN(COLORS, gridSize, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape,
+        color: colors[c],
+        rotation: 0,
+        count: 1,
+        fill: 'solid',
+        size: 'medium',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'easy-color-across',
+    ruleLabel: 'Colour changes across each row.',
+  };
+}
+
+/**
+ * Easy:
+ * Count increases across columns.
+ */
+function templateEasyCountAcross(rng, gridSize) {
+  const shape = pickRandom(['circle', 'square', 'star'], rng);
+  const color = pickRandom(COLORS, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape,
+        color,
+        rotation: 0,
+        count: Math.min(c + 1, 3),
+        fill: 'solid',
+        size: 'small',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'easy-count-across',
+    ruleLabel: 'Number of symbols increases across each row.',
+  };
+}
+
+/**
+ * Medium:
+ * Shape changes across columns.
+ * Colour changes down rows.
+ */
+function templateMediumShapeColColorRow(rng, gridSize) {
+  const shapes = pickN(SHAPES, gridSize, rng);
+  const colors = pickN(COLORS, gridSize, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape: shapes[c],
+        color: colors[r],
+        rotation: 0,
+        count: 1,
+        fill: 'solid',
+        size: 'medium',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'medium-shape-column-color-row',
+    ruleLabel: 'Shape changes across, colour changes down.',
+  };
+}
+
+/**
+ * Medium:
+ * Rotation changes across columns.
+ * Colour changes down rows.
+ */
+function templateMediumRotationAcrossColorRow(rng, gridSize) {
+  const shape = pickRandom(ROTATABLE_SHAPES, rng);
+  const colors = pickN(COLORS, gridSize, rng);
+  const rotations = pickN(ROTATIONS, gridSize, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape,
+        color: colors[r],
+        rotation: rotations[c],
+        count: 1,
+        fill: 'solid',
+        size: 'medium',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'medium-rotation-across-color-row',
+    ruleLabel: 'Rotation changes across, colour changes down.',
+  };
+}
+
+/**
+ * Medium:
+ * Size changes across columns.
+ * Shape changes down rows.
+ */
+function templateMediumSizeAcrossShapeRow(rng, gridSize) {
+  const sizes = ['small', 'medium', 'large'];
+  const shapes = pickN(SHAPES, gridSize, rng);
+  const color = pickRandom(COLORS, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape: shapes[r],
+        color,
+        rotation: 0,
+        count: 1,
+        fill: 'solid',
+        size: safeIndex(sizes, c),
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'medium-size-across-shape-row',
+    ruleLabel: 'Size changes across, shape changes down.',
+  };
+}
+
+/**
+ * Hard:
+ * 4x4 latin square.
+ * Shape and colour both cycle, but at different offsets.
+ */
+function templateHardLatinSquare(rng, gridSize) {
+  const shapes = pickN(SHAPES, gridSize, rng);
+  const colors = pickN(COLORS, gridSize, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape: shapes[(r + c) % gridSize],
+        color: colors[(r + c * 2) % gridSize],
+        rotation: 0,
+        count: 1,
+        fill: 'solid',
+        size: 'medium',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'hard-latin-square',
+    ruleLabel: 'Each row and column completes a set.',
+  };
+}
+
+/**
+ * Hard:
+ * Shape cycles diagonally.
+ * Colour cycles diagonally.
+ * Rotation changes across columns.
+ */
+function templateHardShapeColorRotation(rng, gridSize) {
+  const shapes = pickN(ROTATABLE_SHAPES, gridSize, rng);
+  const colors = pickN(COLORS, gridSize, rng);
+  const rotations = pickN(ROTATIONS, gridSize, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape: shapes[(r + c) % gridSize],
+        color: colors[(r + c) % gridSize],
+        rotation: rotations[c],
+        count: 1,
+        fill: 'solid',
+        size: 'medium',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'hard-shape-color-rotation',
+    ruleLabel: 'Shape, colour and rotation all change together.',
+  };
+}
+
+/**
+ * Hard:
+ * Count changes across columns.
+ * Fill alternates.
+ * Colour cycles by row and column.
+ */
+function templateHardCountFillColor(rng, gridSize) {
+  const shape = pickRandom(['circle', 'square', 'star'], rng);
+  const colors = pickN(COLORS, gridSize, rng);
+
+  const matrix = [];
+
+  for (let r = 0; r < gridSize; r++) {
+    const row = [];
+
+    for (let c = 0; c < gridSize; c++) {
+      row.push(makeCell({
+        shape,
+        color: colors[(r + c) % gridSize],
+        rotation: 0,
+        count: (c % 3) + 1,
+        fill: (r + c) % 2 === 0 ? 'solid' : 'outline',
+        size: 'small',
+      }));
+    }
+
+    matrix.push(row);
+  }
+
+  return {
+    matrix,
+    ruleType: 'hard-count-fill-color',
+    ruleLabel: 'Count, fill and colour all follow a pattern.',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Template registry
 // ---------------------------------------------------------------------------
 
 const TEMPLATES = {
-  [Difficulty.EASY]:   [templateShapeRowColorCol, templateShapeCyclePerRow],
-  [Difficulty.MEDIUM]: [templateShapeColColorRow],
-  [Difficulty.HARD]:   [templateDiagonalColor, templateLatinSquare],
+  [Difficulty.EASY]: [
+    templateEasyShapeAcross,
+    templateEasyColorAcross,
+    templateEasyCountAcross,
+  ],
+
+  [Difficulty.MEDIUM]: [
+    templateMediumShapeColColorRow,
+    templateMediumRotationAcrossColorRow,
+    templateMediumSizeAcrossShapeRow,
+  ],
+
+  [Difficulty.HARD]: [
+    templateHardLatinSquare,
+    templateHardShapeColorRotation,
+    templateHardCountFillColor,
+  ],
 };
 
 // ---------------------------------------------------------------------------
 // Distractor generation
-// Build wrong options that look plausible but don't fit the pattern.
 // ---------------------------------------------------------------------------
 
-/**
- * Generate `count` distractors that are NOT the correct answer.
- * Strategy: swap either the shape or the colour of the correct answer.
- */
-function generateDistractors(correct, allCells, count, rng) {
-  const [correctShape, correctColor] = correct.split('-');
-  const distractors                  = new Set();
+function mutateCell(cell, rng) {
+  const mutationTypes = shuffleArray(
+    ['shape', 'color', 'rotation', 'count', 'fill', 'size'],
+    rng
+  );
 
-  // Collect all shapes and colours present in the puzzle
-  const usedShapes = new Set();
-  const usedColors = new Set();
-  for (const cell of allCells) {
-    if (!cell) continue;
-    const [s, k] = cell.split('-');
-    usedShapes.add(s);
-    usedColors.add(k);
-  }
+  const mutated = cloneCell(cell);
 
-  // Wrong colour, correct shape
-  for (const k of usedColors) {
-    if (k !== correctColor) distractors.add(`${correctShape}-${k}`);
-  }
+  for (const mutation of mutationTypes) {
+    if (mutation === 'shape') {
+      const alternatives = SHAPES.filter(value => value !== cell.shape);
+      mutated.shape = pickRandom(alternatives, rng);
+      return mutated;
+    }
 
-  // Correct colour, wrong shape
-  for (const s of usedShapes) {
-    if (s !== correctShape) distractors.add(`${s}-${correctColor}`);
-  }
+    if (mutation === 'color') {
+      const alternatives = COLORS.filter(value => value !== cell.color);
+      mutated.color = pickRandom(alternatives, rng);
+      return mutated;
+    }
 
-  // Wrong shape, wrong colour (from used vocab)
-  for (const s of usedShapes) {
-    for (const k of usedColors) {
-      if (s !== correctShape && k !== correctColor) distractors.add(`${s}-${k}`);
+    if (mutation === 'rotation') {
+      const alternatives = ROTATIONS.filter(value => value !== cell.rotation);
+      mutated.rotation = pickRandom(alternatives, rng);
+      return mutated;
+    }
+
+    if (mutation === 'count') {
+      const alternatives = COUNTS.filter(value => value !== cell.count);
+      mutated.count = pickRandom(alternatives, rng);
+      return mutated;
+    }
+
+    if (mutation === 'fill') {
+      mutated.fill = cell.fill === 'solid' ? 'outline' : 'solid';
+      return mutated;
+    }
+
+    if (mutation === 'size') {
+      const alternatives = SIZES.filter(value => value !== cell.size);
+      mutated.size = pickRandom(alternatives, rng);
+      return mutated;
     }
   }
 
-  // Remove correct answer from distractor pool just in case
-  distractors.delete(correct);
+  return mutated;
+}
 
-  const pool    = shuffleArray([...distractors], rng);
-  return pool.slice(0, count);
+function generateDistractors(correct, fullMatrix, count, rng) {
+  const distractors = new Map();
+
+  const existingCells = fullMatrix
+    .flat()
+    .filter(cell => cell && !sameCell(cell, correct));
+
+  // First use plausible cells from the same puzzle.
+  for (const cell of shuffleArray(existingCells, rng)) {
+    distractors.set(cellKey(cell), cloneCell(cell));
+
+    if (distractors.size >= count) {
+      return [...distractors.values()].slice(0, count);
+    }
+  }
+
+  // Then mutate the correct answer until enough unique distractors exist.
+  let safety = 0;
+
+  while (distractors.size < count && safety < 150) {
+    const mutated = mutateCell(correct, rng);
+
+    if (!sameCell(mutated, correct)) {
+      distractors.set(cellKey(mutated), mutated);
+    }
+
+    safety++;
+  }
+
+  return [...distractors.values()].slice(0, count);
 }
 
 // ---------------------------------------------------------------------------
@@ -190,45 +555,58 @@ function generateDistractors(correct, allCells, count, rng) {
 
 export function generate(config) {
   const { difficulty = Difficulty.MEDIUM } = config;
+
   const seed = config.seed
     ?? `patternCompletion-${difficulty}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const rng       = createSeededRandom(seed);
+  const rng = createSeededRandom(seed);
+
+  const gridSize = GRID_SIZE_BY_DIFFICULTY[difficulty] ?? 3;
+  const optionCount = OPTION_COUNT_BY_DIFFICULTY[difficulty] ?? 4;
+
   const templates = TEMPLATES[difficulty] ?? TEMPLATES[Difficulty.MEDIUM];
-  const template  = templates[Math.floor(rng() * templates.length)];
+  const template = templates[Math.floor(rng() * templates.length)];
 
-  // Build the full 3×3 matrix
-  const fullMatrix = template(rng);
+  const built = template(rng, gridSize);
+  const fullMatrix = built.matrix;
 
-  // The answer is always the bottom-right cell [2][2]
-  const correctAnswer = fullMatrix[2][2];
+  const missingRow = gridSize - 1;
+  const missingCol = gridSize - 1;
+  const correctAnswer = fullMatrix[missingRow][missingCol];
 
-  // Build puzzle matrix with null at [2][2]
   const puzzleMatrix = fullMatrix.map((row, r) =>
-    row.map((cell, c) => (r === 2 && c === 2 ? null : cell))
+    row.map((cell, c) =>
+      r === missingRow && c === missingCol ? null : cell
+    )
   );
 
-  // All cells except the missing one (for distractor generation)
-  const allCells = fullMatrix.flat();
-
-  // 3 distractors + 1 correct = 4 options total
-  const distractorCount = 3;
-  const distractors     = generateDistractors(correctAnswer, allCells, distractorCount, rng);
-  const options         = shuffleArray([correctAnswer, ...distractors], rng);
+  const distractorCount = optionCount - 1;
+  const distractors = generateDistractors(correctAnswer, fullMatrix, distractorCount, rng);
+  const options = shuffleArray([correctAnswer, ...distractors], rng);
 
   return {
     puzzleType: PuzzleType.PATTERN_COMPLETION,
     difficulty,
     seed,
+
     puzzleData: {
-      matrix:  puzzleMatrix,   // 3×3, null at [2][2]
-      options,                 // shuffled array of strings
+      matrix: puzzleMatrix,
+      options,
+      gridSize,
+      optionCount: options.length,
+      ruleType: built.ruleType,
     },
+
     solutionData: {
       correctOption: correctAnswer,
     },
+
     meta: {
       templateName: template.name,
+      ruleType: built.ruleType,
+      ruleLabel: built.ruleLabel,
+      gridSize,
+      optionCount: options.length,
     },
   };
 }
@@ -239,15 +617,15 @@ export function generate(config) {
 
 export function validate(playerAnswer, solutionData) {
   const submitted = playerAnswer?.selectedOption;
-  const correct   = solutionData?.correctOption;
+  const correct = solutionData?.correctOption;
 
   if (!submitted) {
     return { valid: false, reason: 'No option selected.' };
   }
 
   return {
-    valid:  submitted === correct,
-    reason: submitted !== correct ? 'Incorrect option selected.' : undefined,
+    valid: sameCell(submitted, correct),
+    reason: !sameCell(submitted, correct) ? 'Incorrect option selected.' : undefined,
   };
 }
 
@@ -258,29 +636,30 @@ export function validate(playerAnswer, solutionData) {
 export function score({ validationResult, submission }) {
   if (!validationResult.valid) {
     return {
-      completed:    false,
-      correct:      false,
-      baseScore:    0,
-      bonusScore:   0,
+      completed: false,
+      correct: false,
+      baseScore: 0,
+      bonusScore: 0,
       penaltyScore: 0,
-      totalScore:   0,
+      totalScore: 0,
     };
   }
 
-  // Full bonus within 20s, decays to 0 at 120s
-  const bonusScore = submission.timeTakenSeconds <= 20
+  const timeTakenSeconds = Number(submission.timeTakenSeconds ?? 0);
+
+  const bonusScore = timeTakenSeconds <= 20
     ? 20
-    : submission.timeTakenSeconds >= 120
+    : timeTakenSeconds >= 120
       ? 0
-      : Math.round(20 * (1 - (submission.timeTakenSeconds - 20) / 100));
+      : Math.round(20 * (1 - (timeTakenSeconds - 20) / 100));
 
   return {
-    completed:    true,
-    correct:      true,
-    baseScore:    80,
+    completed: true,
+    correct: true,
+    baseScore: 80,
     bonusScore,
     penaltyScore: 0,
-    totalScore:   80 + bonusScore,
+    totalScore: 80 + bonusScore,
   };
 }
 

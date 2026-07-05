@@ -37,7 +37,7 @@
 // expects, with a different (working) mechanism for the one part that's
 // currently broken.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { X, Heart, AlertCircle, Loader2, CheckCircle2, CreditCard, Coins } from 'lucide-react';
 
 import DonationModalService from './services/DonationModalService';
@@ -46,6 +46,13 @@ import type {
   ResolvedDonationMethod,
   TrackableDonationProvider,
 } from '../../shared/types/donationCheckout';
+import { isMobileOrTablet } from '../../utils/deviceDetection';
+import type { DonationCryptoConfirmResponse } from './services/DonationCryptoPaymentStep';
+
+const Web3Provider = lazy(() =>
+  import('../Web3Provider').then((m) => ({ default: m.Web3Provider }))
+);
+const DonationCryptoPaymentStep = lazy(() => import('./services/DonationCryptoPaymentStep'));
 
 const ISO_TO_SYMBOL: Record<string, string> = {
   EUR: '€',
@@ -93,6 +100,16 @@ type ViewState =
   | { kind: 'picking_amount' }
   | { kind: 'starting_checkout' }
   | { kind: 'awaiting_confirmation'; provider: 'stripe' | 'sumup_api' | 'crypto' }
+  // NEW: desktop-only crypto path — rendered directly in this modal,
+  // no new tab. See the header comment above the crypto branch in
+  // handleDonate for why this is desktop-only.
+  | {
+      kind: 'paying_crypto_inline';
+      donationId: string;
+      recipientWallet: string;
+      fiatAmount: number;
+      fiatCurrency: string;
+    }
   | { kind: 'success' }
   | { kind: 'failed' };
 
@@ -267,6 +284,31 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
       }
 
       if (result.provider === 'crypto') {
+        // Desktop: render the wallet-connect/pay flow directly in this
+        // modal — no new tab. Desktop wallet connection is either a
+        // browser extension (no navigation involved) or a QR code
+        // scanned by a SEPARATE device (this tab never leaves), so
+        // nesting inside a modal doesn't carry the same risk mobile
+        // does. Mobile (and anything ambiguous — isMobileOrTablet()
+        // fails closed toward "treat as mobile") keeps the EXACT
+        // existing new-tab + polling behavior below, unchanged: on
+        // mobile, tapping a wallet typically triggers an app-switch
+        // (browser -> wallet app -> back), and that return has to land
+        // on the same page that started it — unverified and risky if
+        // that page were nested in an iframe/modal. See
+        // deviceDetection.ts and DonationCryptoPaymentStep.tsx's header
+        // comments for the full reasoning.
+        if (!isMobileOrTablet()) {
+          setView({
+            kind: 'paying_crypto_inline',
+            donationId: result.donationId,
+            recipientWallet: result.walletAddress,
+            fiatAmount: amount,
+            fiatCurrency: config.currency,
+          });
+          return;
+        }
+
         const params = new URLSearchParams({
           wallet: result.walletAddress,
           amount: String(amount),
@@ -311,16 +353,16 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
         // checkout tab might still be open and polling, to avoid the
         // supporter accidentally losing the "we're watching for your
         // payment" state mid-flow.
-        if (e.target === e.currentTarget && view.kind !== 'awaiting_confirmation') {
+        if (e.target === e.currentTarget && view.kind !== 'awaiting_confirmation' && view.kind !== 'paying_crypto_inline') {
           onClose();
         }
       }}
     >
       <div
-        className="relative w-full max-w-md rounded-[1.75rem] border p-6 shadow-2xl sm:p-8"
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[1.75rem] border p-6 shadow-2xl sm:p-8"
         style={{ background: backgroundColor, borderColor: '#dce1df' }}
       >
-        {view.kind !== 'awaiting_confirmation' && (
+        {view.kind !== 'awaiting_confirmation' && view.kind !== 'paying_crypto_inline' && (
           <button
             type="button"
             onClick={onClose}
@@ -373,6 +415,37 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
               Try again
             </button>
           </div>
+        )}
+
+        {view.kind === 'paying_crypto_inline' && (
+          <Suspense
+            fallback={
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: primaryColor }} />
+                <p className="text-sm" style={{ color: '#52636f' }}>Loading wallet connection…</p>
+              </div>
+            }
+          >
+            <Web3Provider force>
+              <DonationCryptoPaymentStep
+                clubId={clubId}
+                donationId={view.donationId}
+                recipientWallet={view.recipientWallet}
+                fiatAmount={view.fiatAmount}
+                fiatCurrency={view.fiatCurrency}
+                onSuccess={(_confirmed: DonationCryptoConfirmResponse) => {
+                  // Same success handling as the polling path below —
+                  // show the thank-you, then auto-close shortly after.
+                  // No opener/postMessage anywhere in this path at all;
+                  // there's no second window to notify.
+                  setView({ kind: 'success' });
+                  autoCloseTimeoutRef.current = window.setTimeout(() => {
+                    onClose();
+                  }, 2500);
+                }}
+              />
+            </Web3Provider>
+          </Suspense>
         )}
 
         {view.kind === 'awaiting_confirmation' && (

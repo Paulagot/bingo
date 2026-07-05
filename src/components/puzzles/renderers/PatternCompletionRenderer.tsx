@@ -1,141 +1,314 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { PatternCompletionPuzzleData } from '../puzzleTypes';
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface PatternCompletionRendererProps {
-  puzzleData:     Record<string, unknown>;
-  currentAnswer:  Record<string, unknown>;
+  puzzleData: Record<string, unknown>;
+  currentAnswer: Record<string, unknown>;
   onAnswerChange: (answer: Record<string, unknown>) => void;
-  isReadOnly:     boolean;
+  isReadOnly: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// SVG shape renderer
-// Each cell value is "shape-color" e.g. "circle-red", "triangle-blue"
-// ---------------------------------------------------------------------------
+type PatternShape =
+  | 'circle'
+  | 'square'
+  | 'triangle'
+  | 'diamond'
+  | 'star'
+  | 'hexagon';
+
+type PatternColor =
+  | 'red'
+  | 'blue'
+  | 'green'
+  | 'yellow'
+  | 'purple'
+  | 'orange';
+
+type PatternFill = 'solid' | 'outline';
+type PatternSize = 'small' | 'medium' | 'large';
+
+interface PatternCellValue {
+  shape: PatternShape | string;
+  color: PatternColor | string;
+  rotation?: number;
+  count?: number;
+  fill?: PatternFill | string;
+  size?: PatternSize | string;
+}
+
+type PatternCell = PatternCellValue | string | null;
+
+type ExtendedPatternCompletionPuzzleData = PatternCompletionPuzzleData & {
+  matrix: PatternCell[][];
+  options: PatternCellValue[] | string[];
+  gridSize?: number;
+  optionCount?: number;
+  ruleType?: string;
+};
 
 const COLOR_MAP: Record<string, string> = {
-  red:    '#ef4444',
-  blue:   '#3b82f6',
-  green:  '#22c55e',
+  red: '#ef4444',
+  blue: '#3b82f6',
+  green: '#22c55e',
   yellow: '#eab308',
   purple: '#a855f7',
   orange: '#f97316',
 };
 
-interface ShapeProps {
-  shape: string;
-  color: string;
-  size:  number;
+function normaliseCell(value: PatternCell): PatternCellValue | null {
+  if (!value) return null;
+
+  if (typeof value === 'string') {
+    const [shape, color] = value.split('-');
+
+    if (!shape || !color) return null;
+
+    return {
+      shape,
+      color,
+      rotation: 0,
+      count: 1,
+      fill: 'solid',
+      size: 'medium',
+    };
+  }
+
+  return {
+    shape: value.shape ?? 'circle',
+    color: value.color ?? 'blue',
+    rotation: value.rotation ?? 0,
+    count: value.count ?? 1,
+    fill: value.fill ?? 'solid',
+    size: value.size ?? 'medium',
+  };
 }
 
-const Shape: React.FC<ShapeProps> = ({ shape, color, size }) => {
-  const fill   = COLOR_MAP[color] ?? '#6b7280';
-  const s      = size;
-  const half   = s / 2;
-  const pad    = s * 0.1; // padding inside SVG viewport
+function cellKey(value: PatternCell): string {
+  const cell = normaliseCell(value);
 
-  switch (shape) {
-    case 'circle':
-      return (
-        <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-          <circle cx={half} cy={half} r={half - pad} fill={fill} />
-        </svg>
-      );
+  if (!cell) return 'null';
 
-    case 'square':
-      return (
-        <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-          <rect x={pad} y={pad} width={s - pad * 2} height={s - pad * 2} fill={fill} />
-        </svg>
-      );
+  return [
+    cell.shape,
+    cell.color,
+    cell.rotation ?? 0,
+    cell.count ?? 1,
+    cell.fill ?? 'solid',
+    cell.size ?? 'medium',
+  ].join('|');
+}
 
-    case 'triangle':
-      return (
-        <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-          <polygon
-            points={`${half},${pad} ${s - pad},${s - pad} ${pad},${s - pad}`}
-            fill={fill}
-          />
-        </svg>
-      );
+function cellsEqual(a: PatternCell, b: PatternCell): boolean {
+  return cellKey(a) === cellKey(b);
+}
 
-    case 'diamond':
-      return (
-        <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-          <polygon
-            points={`${half},${pad} ${s - pad},${half} ${half},${s - pad} ${pad},${half}`}
-            fill={fill}
-          />
-        </svg>
-      );
+function getSymbolSize(sizeName: string | undefined, baseSize: number): number {
+  if (sizeName === 'small') return baseSize * 0.34;
+  if (sizeName === 'large') return baseSize * 0.58;
+  return baseSize * 0.46;
+}
 
-    case 'star': {
-      // 5-pointed star via polygon
-      const points: string[] = [];
-      for (let i = 0; i < 10; i++) {
-        const angle  = (Math.PI / 5) * i - Math.PI / 2;
-        const radius = i % 2 === 0 ? half - pad : (half - pad) * 0.45;
-        points.push(`${half + radius * Math.cos(angle)},${half + radius * Math.sin(angle)}`);
-      }
+function getPositions(count: number): Array<{ x: number; y: number }> {
+  if (count <= 1) {
+    return [{ x: 50, y: 50 }];
+  }
+
+  if (count === 2) {
+    return [
+      { x: 35, y: 50 },
+      { x: 65, y: 50 },
+    ];
+  }
+
+  return [
+    { x: 50, y: 32 },
+    { x: 34, y: 66 },
+    { x: 66, y: 66 },
+  ];
+}
+
+interface ShapeProps {
+  cell: PatternCellValue;
+  baseSize: number;
+}
+
+const Shape: React.FC<ShapeProps> = ({ cell, baseSize }) => {
+  const fillColor = COLOR_MAP[cell.color] ?? '#64748b';
+  const shapeSize = getSymbolSize(String(cell.size ?? 'medium'), baseSize);
+  const count = Math.max(1, Math.min(Number(cell.count ?? 1), 3));
+  const positions = getPositions(count);
+  const strokeWidth = Math.max(3, baseSize * 0.045);
+  const isOutline = cell.fill === 'outline';
+
+  const shape = String(cell.shape ?? 'circle');
+  const rotation = Number(cell.rotation ?? 0);
+
+  const renderOneShape = (index: number, xPercent: number, yPercent: number) => {
+    const s = shapeSize;
+    const half = s / 2;
+    const pad = s * 0.12;
+    const x = (baseSize * xPercent) / 100 - half;
+    const y = (baseSize * yPercent) / 100 - half;
+
+    const commonProps = {
+      fill: isOutline ? 'transparent' : fillColor,
+      stroke: fillColor,
+      strokeWidth: isOutline ? strokeWidth : 0,
+      strokeLinejoin: 'round' as const,
+    };
+
+    const transform = `translate(${x + half} ${y + half}) rotate(${rotation}) translate(${-half} ${-half})`;
+
+    if (shape === 'circle') {
       return (
-        <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-          <polygon points={points.join(' ')} fill={fill} />
-        </svg>
+        <circle
+          key={index}
+          cx={x + half}
+          cy={y + half}
+          r={half - pad}
+          {...commonProps}
+        />
       );
     }
 
-    case 'hexagon': {
-      const pts: string[] = [];
+    if (shape === 'square') {
+      return (
+        <rect
+          key={index}
+          x={x + pad}
+          y={y + pad}
+          width={s - pad * 2}
+          height={s - pad * 2}
+          rx={s * 0.12}
+          transform={transform}
+          {...commonProps}
+        />
+      );
+    }
+
+    if (shape === 'triangle') {
+      return (
+        <polygon
+          key={index}
+          points={`${x + half},${y + pad} ${x + s - pad},${y + s - pad} ${x + pad},${y + s - pad}`}
+          transform={transform}
+          {...commonProps}
+        />
+      );
+    }
+
+    if (shape === 'diamond') {
+      return (
+        <polygon
+          key={index}
+          points={`${x + half},${y + pad} ${x + s - pad},${y + half} ${x + half},${y + s - pad} ${x + pad},${y + half}`}
+          transform={transform}
+          {...commonProps}
+        />
+      );
+    }
+
+    if (shape === 'star') {
+      const points: string[] = [];
+
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI / 5) * i - Math.PI / 2;
+        const radius = i % 2 === 0 ? half - pad : (half - pad) * 0.45;
+        points.push(
+          `${x + half + radius * Math.cos(angle)},${y + half + radius * Math.sin(angle)}`
+        );
+      }
+
+      return (
+        <polygon
+          key={index}
+          points={points.join(' ')}
+          transform={transform}
+          {...commonProps}
+        />
+      );
+    }
+
+    if (shape === 'hexagon') {
+      const points: string[] = [];
+
       for (let i = 0; i < 6; i++) {
         const angle = (Math.PI / 3) * i - Math.PI / 6;
-        pts.push(`${half + (half - pad) * Math.cos(angle)},${half + (half - pad) * Math.sin(angle)}`);
+        points.push(
+          `${x + half + (half - pad) * Math.cos(angle)},${y + half + (half - pad) * Math.sin(angle)}`
+        );
       }
+
       return (
-        <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-          <polygon points={pts.join(' ')} fill={fill} />
-        </svg>
+        <polygon
+          key={index}
+          points={points.join(' ')}
+          transform={transform}
+          {...commonProps}
+        />
       );
     }
 
-    default:
-      return (
-        <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-          <circle cx={half} cy={half} r={half - pad} fill={fill} />
-        </svg>
-      );
-  }
+    return (
+      <circle
+        key={index}
+        cx={x + half}
+        cy={y + half}
+        r={half - pad}
+        {...commonProps}
+      />
+    );
+  };
+
+  return (
+    <svg
+      width={baseSize}
+      height={baseSize}
+      viewBox={`0 0 ${baseSize} ${baseSize}`}
+      className="overflow-visible"
+      aria-hidden="true"
+    >
+      {positions.map((position, index) =>
+        renderOneShape(index, position.x, position.y)
+      )}
+    </svg>
+  );
 };
 
-// ---------------------------------------------------------------------------
-// Cell — used in both the matrix and options row
-// ---------------------------------------------------------------------------
-
 interface CellProps {
-  value:      string | null;
-  size:       number;
+  value: PatternCell;
+  isMissing?: boolean;
+  isOption?: boolean;
   isSelected?: boolean;
-  isMissing?:  boolean;
-  isOption?:   boolean;
   isReadOnly?: boolean;
-  onClick?:    () => void;
+  onClick?: () => void;
 }
 
 const Cell: React.FC<CellProps> = ({
-  value, size, isSelected, isMissing, isOption, isReadOnly, onClick,
+  value,
+  isMissing = false,
+  isOption = false,
+  isSelected = false,
+  isReadOnly = false,
+  onClick,
 }) => {
-  const [shape, color] = value ? value.split('-') : ['', ''];
+  const cell = normaliseCell(value);
 
-  if (isMissing) {
+  const sharedClassName = [
+    'relative flex aspect-square h-full w-full items-center justify-center rounded-2xl border transition-all',
+    'shadow-sm',
+    isMissing
+      ? 'border-dashed border-indigo-300 bg-indigo-50'
+      : 'border-slate-200 bg-white',
+  ].join(' ');
+
+  if (isMissing && !cell) {
     return (
-      <div
-        className="flex items-center justify-center border-2 border-dashed border-indigo-300 bg-indigo-50 rounded"
-        style={{ width: size, height: size }}
-      >
-        <span className="text-indigo-300 text-2xl font-bold">?</span>
+      <div className={sharedClassName}>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-2xl font-black text-indigo-400">
+          ?
+        </div>
       </div>
     );
   }
@@ -143,36 +316,39 @@ const Cell: React.FC<CellProps> = ({
   if (isOption) {
     return (
       <button
+        type="button"
         onClick={() => !isReadOnly && onClick?.()}
         disabled={isReadOnly}
         className={[
-          'flex items-center justify-center rounded border-2 transition-all duration-100',
+          sharedClassName,
           isSelected
-            ? 'border-indigo-500 bg-indigo-50 scale-105 shadow-md'
-            : 'border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50',
+            ? 'border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100'
+            : 'hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-md',
           isReadOnly ? 'cursor-default' : 'cursor-pointer',
         ].join(' ')}
-        style={{ width: size, height: size }}
       >
-        {shape && color && <Shape shape={shape} color={color} size={size * 0.65} />}
+        {cell && <Shape cell={cell} baseSize={96} />}
+
+        {isSelected && (
+          <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white">
+            ✓
+          </span>
+        )}
       </button>
     );
   }
 
-  // Regular matrix cell
   return (
     <div
-      className="flex items-center justify-center border border-gray-200 bg-white rounded"
-      style={{ width: size, height: size }}
+      className={[
+        sharedClassName,
+        isMissing ? 'ring-2 ring-indigo-100' : '',
+      ].join(' ')}
     >
-      {shape && color && <Shape shape={shape} color={color} size={size * 0.65} />}
+      {cell && <Shape cell={cell} baseSize={96} />}
     </div>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Main renderer
-// ---------------------------------------------------------------------------
 
 const PatternCompletionRenderer: React.FC<PatternCompletionRendererProps> = ({
   puzzleData,
@@ -180,83 +356,138 @@ const PatternCompletionRenderer: React.FC<PatternCompletionRendererProps> = ({
   onAnswerChange,
   isReadOnly,
 }) => {
-  const data = puzzleData as unknown as PatternCompletionPuzzleData;
+  const data = puzzleData as unknown as ExtendedPatternCompletionPuzzleData;
 
-  const [selected, setSelected] = useState<string | null>(
-    (currentAnswer?.selectedOption as string) ?? null
+  const matrix = Array.isArray(data.matrix) ? data.matrix : [];
+  const options = Array.isArray(data.options) ? data.options : [];
+
+  const gridSize = data.gridSize ?? matrix.length ?? 3;
+
+  const [selected, setSelected] = useState<PatternCellValue | string | null>(
+    (currentAnswer?.selectedOption as PatternCellValue | string | null) ?? null
   );
 
   useEffect(() => {
     if (selected !== null) {
       onAnswerChange({ selectedOption: selected });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected]);
+  }, [selected, onAnswerChange]);
 
-  const handleOptionClick = useCallback((option: string) => {
-    setSelected(prev => prev === option ? null : option);
+  const handleOptionClick = useCallback((option: PatternCellValue | string) => {
+    setSelected(prev => cellsEqual(prev, option) ? null : option);
   }, []);
 
-  // Cell sizes — matrix cells slightly larger than option tiles
-  const cellSize   = 80;
-  const optionSize = 68;
+  const gridMaxWidth = gridSize <= 3 ? 'max-w-[360px]' : 'max-w-[430px]';
+  const optionGridClass =
+    options.length > 4
+      ? 'grid-cols-3 sm:grid-cols-6'
+      : 'grid-cols-2 sm:grid-cols-4';
+
+  const selectedKey = useMemo(() => cellKey(selected), [selected]);
+
+  if (!matrix.length || !options.length) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+        <div className="font-bold">Pattern puzzle data is missing.</div>
+        <div className="mt-1">
+          This puzzle needs a matrix and options array in puzzleData.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col items-center gap-8">
+    <div className="space-y-7">
+      {/* Intro */}
+      <div className="relative overflow-hidden rounded-[2rem] border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-indigo-50 px-5 py-4 shadow-sm">
+        <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-violet-100/80" />
 
-      {/* 3×3 matrix */}
-      <div className="flex flex-col gap-1.5">
-        {data.matrix.map((row, r) => (
-          <div key={r} className="flex gap-1.5">
-            {row.map((cell, c) => {
-              const isMissing = cell === null;
-              // Show selected option in the missing cell as a preview
-              const displayValue = isMissing && selected ? selected : cell;
-
-              return (
-                <Cell
-                  key={`${r}-${c}`}
-                  value={isMissing && selected ? displayValue : cell}
-                  size={cellSize}
-                  isMissing={isMissing && !selected}
-                />
-              );
-            })}
+        <div className="relative">
+          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-500">
+            Complete the pattern
           </div>
-        ))}
+
+          <div className="mt-1 text-lg font-black text-slate-900">
+            Find the missing tile
+          </div>
+
+          <div className="mt-1 text-sm font-medium text-slate-500">
+            Look across the rows and columns, then choose the tile that fits.
+          </div>
+        </div>
       </div>
 
-      {/* Divider */}
-      <div className="w-full max-w-xs flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-400 font-medium">Choose the missing piece</span>
-        <div className="flex-1 h-px bg-gray-200" />
+      {/* Matrix */}
+      <div className={`mx-auto w-full ${gridMaxWidth}`}>
+        <div className="rounded-[2rem] bg-slate-950 p-3 shadow-2xl ring-1 ring-black/10">
+          <div
+            className="grid gap-2 rounded-[1.4rem] bg-slate-900 p-2"
+            style={
+              {
+                gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${gridSize}, minmax(0, 1fr))`,
+              } as CSSProperties
+            }
+          >
+            {matrix.map((row, rowIndex) =>
+              row.map((cell, colIndex) => {
+                const isMissing = cell === null;
+                const displayValue = isMissing && selected ? selected : cell;
+
+                return (
+                  <Cell
+                    key={`${rowIndex}-${colIndex}`}
+                    value={displayValue}
+                    isMissing={isMissing}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Options row */}
-      <div className="flex gap-3 flex-wrap justify-center">
-        {data.options.map((option: string) => (
-          <Cell
-            key={option}
-            value={option}
-            size={optionSize}
-            isOption
-            isSelected={selected === option}
-            isReadOnly={isReadOnly}
-            onClick={() => handleOptionClick(option)}
-          />
-        ))}
+      {/* Options */}
+      <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white px-4 py-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
+              Choose the missing piece
+            </div>
+            <div className="mt-1 text-sm font-medium text-slate-500">
+              {selected
+                ? 'Selection previewed in the missing space.'
+                : 'Tap one option to preview it in the grid.'}
+            </div>
+          </div>
+
+          <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+            {options.length} options
+          </div>
+        </div>
+
+        <div className={`grid gap-3 ${optionGridClass}`}>
+          {options.map((option, index) => (
+            <Cell
+              key={`${cellKey(option)}-${index}`}
+              value={option}
+              isOption
+              isSelected={selectedKey === cellKey(option)}
+              isReadOnly={isReadOnly}
+              onClick={() => handleOptionClick(option)}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Hint */}
+      {/* Help */}
       {!isReadOnly && (
-        <p className="text-xs text-gray-400 text-center max-w-xs">
+        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-sm font-medium text-slate-500">
           {selected
-            ? 'Tap your selection again to change it, then hit Submit.'
+            ? 'Happy with this tile? Hit Submit Answer.'
             : 'Study the pattern and tap the tile that completes the grid.'}
-        </p>
+        </div>
       )}
-
     </div>
   );
 };
