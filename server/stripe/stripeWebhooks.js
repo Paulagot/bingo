@@ -23,6 +23,7 @@ import {
   updateSubscriptionPeriodEnd,
   markSubscriptionPastDue,
   markSubscriptionCancelled,
+  getSubscriptionBillingContext,
 } from '../puzzles/services/puzzleSubscriptionPaymentService.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
@@ -152,6 +153,71 @@ async function confirmWalkinLedger({
       extraId:             extra.extraId,
       extraMetadata:       extra,
       ticketId:            null,
+    });
+  }
+}
+
+// ─── Puzzle subscription ledger writes ───────────────────────────────────────
+
+/**
+ * Writes ONE confirmed quiz_payment_ledger row for a puzzle subscription
+ * payment — either the first cycle (from checkout.session.completed) or a
+ * renewal (from invoice.payment_succeeded with billing_reason =
+ * subscription_cycle).
+ *
+ * Looks up room_id/weekly_price/currency/player_name via
+ * getSubscriptionBillingContext rather than trusting Stripe metadata for
+ * these, since only IDs are guaranteed to be present on both event types
+ * (subscription metadata is not copied onto every invoice by Stripe).
+ *
+ * Non-fatal by design: a failed ledger write must never fail subscription
+ * confirmation or renewal processing — the player's access already
+ * doesn't depend on this table. It only affects what clubs see in their
+ * financial reports. Logged loudly so it's easy to spot and backfill.
+ */
+async function writePuzzleSubscriptionLedgerEntry({
+  stripeSubscriptionId,
+  externalTransactionId,
+  paymentReference,
+  context, // 'checkout' | 'renewal' — for logging only
+}) {
+  try {
+    const billing = await getSubscriptionBillingContext({ stripeSubscriptionId });
+
+    if (!billing || !billing.room_id) {
+      console.warn('[StripeWebhook] ⚠️ puzzle_subscription ledger skipped — no billing context or room_id:', {
+        stripeSubscriptionId, context,
+      });
+      return;
+    }
+
+    await createExpectedPayment({
+      roomId:               billing.room_id,
+      clubId:               billing.club_id,
+      playerId:             billing.player_id,
+      playerName:           billing.player_name,
+      ledgerType:           'entry_fee',
+      amount:               Number(billing.weekly_price) / 100, // weekly_price is stored in cents
+      currency:             (billing.currency || 'eur').toUpperCase(),
+      paymentMethod:        'stripe',
+      paymentSource:        'webhook_auto',
+      externalTransactionId,
+      paymentReference,
+      status:               'confirmed',
+      confirmedAt:           new Date(),
+      confirmedBy:           'webhook_auto',
+      confirmedByName:       'Stripe Webhook',
+      confirmedByRole:       'system',
+    });
+
+    if (DEBUG) {
+      console.log('[StripeWebhook] ✅ puzzle_subscription ledger row written:', {
+        context, stripeSubscriptionId, roomId: billing.room_id, playerId: billing.player_id,
+      });
+    }
+  } catch (ledgerErr) {
+    console.error('[StripeWebhook] ⚠️ puzzle_subscription ledger write failed (non-fatal):', {
+      context, stripeSubscriptionId, error: ledgerErr.message,
     });
   }
 }
@@ -394,6 +460,18 @@ export async function stripeWebhookHandler(req, res) {
               subscriptionId, challengeId, playerId, stripeSubscriptionId: session.subscription,
             });
           }
+
+          // First cycle's payment — session.invoice is present on
+          // subscription-mode Checkout Sessions without needing an extra
+          // Stripe API call. session.payment_intent is NOT set in
+          // subscription mode (only on one-time payment sessions), so it
+          // is deliberately not used here.
+          await writePuzzleSubscriptionLedgerEntry({
+            stripeSubscriptionId:  session.subscription,
+            externalTransactionId: session.invoice || session.id,
+            paymentReference:      session.subscription,
+            context:                'checkout',
+          });
         }
 
       // ── Elimination walk-in payment ──────────────────────────────────────
@@ -561,6 +639,21 @@ export async function stripeWebhookHandler(req, res) {
         if (DEBUG) {
           console.log('[StripeWebhook] ✅ invoice.payment_succeeded processed:', {
             stripeSubscriptionId, matched: updated,
+          });
+        }
+
+        // Renewal ledger row — only for genuine renewal cycles.
+        // billing_reason === 'subscription_create' is the FIRST invoice,
+        // already ledgered via checkout.session.completed above; writing
+        // it again here would double-count cycle 1. Only 'subscription_cycle'
+        // (cycle 2 onward) writes a row here, matching the same distinction
+        // updateSubscriptionPeriodEnd already makes for paid_cycles.
+        if (updated && invoice.billing_reason === 'subscription_cycle') {
+          await writePuzzleSubscriptionLedgerEntry({
+            stripeSubscriptionId,
+            externalTransactionId: invoice.id,
+            paymentReference:      invoice.payment_intent,
+            context:                'renewal',
           });
         }
       }

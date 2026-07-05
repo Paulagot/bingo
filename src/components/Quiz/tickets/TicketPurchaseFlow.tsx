@@ -1,6 +1,48 @@
 // src/components/Quiz/tickets/TicketPurchaseFlow.tsx
 // UPDATED: Added 'ticket-type' step for ticketed_event rooms with multiple ticket types.
 //          ticketTypeId + ticketTypeName sent through all payment paths.
+//
+// UPDATED (embed support): added `paymentRedirectStrategy` prop.
+//
+//   Why this exists: this component originally always did
+//   `window.location.href = data.url` to send the buyer to Stripe's
+//   hosted checkout. That's a full navigation of whatever browsing
+//   context this component is running in. On a normal page (padel,
+//   Bonk event pages — both pass mode="embedded" for layout only, NOT
+//   inside a real cross-origin iframe), that context is the whole tab,
+//   so it just works.
+//
+//   Once this component is rendered inside a cross-origin iframe on a
+//   THIRD PARTY site (the club's own embedded ticket widget), that
+//   same line tries to navigate the iframe itself to a different
+//   origin (checkout.stripe.com). Browsers treat a third-party iframe
+//   silently redirecting itself to another domain as a red flag (same
+//   pattern as malicious ad clickjacking) and block or hijack it —
+//   this is the exact failure mode already hit and fixed for the
+//   donation widget (see donate.js / DonateEmbedPage.tsx comments).
+//
+//   `paymentRedirectStrategy="new-tab"` avoids this by calling
+//   `window.open()` (a direct response to a user click, which browsers
+//   always allow) instead of navigating the current frame. Payment
+//   confirmation then can't rely on this tab ever navigating anywhere
+//   — see the `awaiting-stripe-payment` step and useTicketStatusPoll,
+//   which poll the backend's own ledger (written only by the verified
+//   Stripe webhook) as the SOLE source of truth for "did this succeed."
+//   Nothing here ever marks a ticket complete based on the tab closing
+//   or a postMessage alone.
+//
+//   Defaults to 'same-tab' so every existing page keeps its current,
+//   already-proven behavior untouched. Only the new ticket embed page
+//   (mirroring DonateEmbedPage) sets 'new-tab' explicitly.
+//
+//   Revolut / other instant_payment methods are NOT affected by this —
+//   they already open via a manually-clicked provider link rather than
+//   a scripted redirect, and ticket creation for that path is a
+//   self-declared "I've paid" claim confirmed by the buyer (see
+//   createTicket() / PaymentInstructionsFooter), reconciled later by
+//   the club admin via PATCH /:ticketId/confirm — a different trust
+//   model than Stripe/crypto's webhook-verified confirmation, worth
+//   keeping in mind but not something this change alters.
 
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +69,12 @@ import { ActionButtons } from '../shared/ActionButtons';
 import { TicketConfirmation } from './TicketConfirmation';
 import { TicketedEventInfoPanel } from './TicketedEventInfoPanel';
 import { TicketTypeSelector, type TicketTypeOption } from './TicketTypeSelector';
+import { useTicketStatusPoll } from './useTicketStatusPoll';
+import {
+  getTicketCheckoutChannelName,
+  isBroadcastChannelSupported,
+  type TicketCheckoutChannelMessage,
+} from './ticketCheckoutChannel';
 
 const CryptoTicketDonationStep = lazy(() => import('./crypto/CryptoTicketDonationStep'));
 const CryptoFixedFeeStep = lazy(() => import('../joinroom/crypto/CryptoFixedFeeStep'));
@@ -34,7 +82,7 @@ const Web3Provider = lazy(() =>
   import('../../../components/Web3Provider').then((m) => ({ default: m.Web3Provider }))
 );
 
-import type { RoomInfo, Ticket } from './types';
+import type { RoomInfo, Ticket, TicketStatus } from './types';
 import { getGameTypeMeta } from './gameTypeMeta';
 
 const CryptoLoadingFallback: React.FC = () => (
@@ -57,6 +105,7 @@ type TicketStep =
   | 'donation-amount'
   | 'checking-capacity'
   | 'redirecting-to-stripe'
+  | 'awaiting-stripe-payment' // ← new: only used when paymentRedirectStrategy === 'new-tab'
   | 'payment-instructions'
   | 'creating-ticket'
   | 'crypto-donation'
@@ -76,6 +125,21 @@ interface TicketPurchaseFlowProps {
   roomId: string;
   mode?:  'page' | 'embedded';
   onCancel?: () => void;
+  /** Fired once, the moment a ticket reaches the 'complete' step. Used by the embed page to notify its parent frame. Optional — existing pages don't need it. */
+  onComplete?: (ticket: Ticket) => void;
+  /**
+   * How to send the buyer to Stripe's hosted checkout.
+   *
+   * 'same-tab' (default) — window.location.href navigates the current
+   * browsing context. Correct for every existing page. Do NOT set
+   * this to 'new-tab' unless this component is genuinely rendering
+   * inside a cross-origin iframe (see the header comment above).
+   *
+   * 'new-tab' — window.open() instead, with polling-based confirmation
+   * via useTicketStatusPoll rather than trusting the redirect. Set
+   * this from the ticket embed page only.
+   */
+  paymentRedirectStrategy?: 'same-tab' | 'new-tab';
 }
 
 const TICKET_ALLOWED_MANUAL_PROVIDERS = new Set([
@@ -126,6 +190,8 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   roomId,
   mode = 'page',
   onCancel,
+  onComplete,
+  paymentRedirectStrategy = 'same-tab',
 }) => {
   const navigate = useNavigate();
 
@@ -225,6 +291,18 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
     setHasOpenedProviderLink(false);
   };
 
+  // Notify the embed page (or any caller) once, the moment a ticket is
+  // actually confirmed — regardless of which payment path produced it
+  // (Stripe polling, crypto's synchronous confirm, or instant-payment's
+  // manual "I've paid"). This is a courtesy callback for UI purposes
+  // only (e.g. posting a message to a parent frame); it does not gate
+  // or duplicate any of the actual confirmation logic above.
+  // (Moved below — see the block right after `ticket` is declared.
+  // The dependency array [step, ticket] is evaluated synchronously
+  // when this hook call runs, so `ticket` must already exist by then —
+  // unlike the deferred callback *body* of an effect, an array literal
+  // in the call itself is not deferred.)
+
   useEffect(() => {
     loadRoomInfo();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -237,6 +315,92 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
 
   const [hasCopiedReference, setHasCopiedReference] = useState(false);
   const [hasOpenedProviderLink, setHasOpenedProviderLink] = useState(false);
+
+  // Only populated when paymentRedirectStrategy === 'new-tab': holds the
+  // ticketId handed back by POST /stripe/checkout so useTicketStatusPoll
+  // below has something to poll while the buyer pays in the new tab.
+  const [pendingStripeTicketId, setPendingStripeTicketId] = useState<string | null>(null);
+  const [popupBlockedUrl, setPopupBlockedUrl] = useState<string | null>(null);
+
+  // ── Poll the backend ledger for confirmation — this, not the tab, is
+  // the source of truth. See useTicketStatusPoll.ts for the full
+  // rationale (mirrors useDonationStatusPoll's contract).
+  // Fast-path unstick for cancellation — see ticketCheckoutChannel.ts's
+  // header for the full trust model. This does NOT replace polling
+  // as the source of truth for success; it only lets a 'cancelled'
+  // signal (which grants nothing, so is safe to trust directly) return
+  // the buyer to payment-method immediately instead of them staring at
+  // "waiting for payment" for up to 5 minutes after they've already
+  // backed out of Stripe in the other tab.
+  useEffect(() => {
+    if (step !== 'awaiting-stripe-payment' || !pendingStripeTicketId) return;
+    if (!isBroadcastChannelSupported()) return; // falls back to the poll timeout only — safe, just slower
+
+    const channel = new BroadcastChannel(getTicketCheckoutChannelName(pendingStripeTicketId));
+
+    channel.onmessage = (event: MessageEvent<TicketCheckoutChannelMessage>) => {
+      if (event.data?.type === 'cancelled') {
+        setError('Payment was cancelled.');
+        setStep('payment-method');
+      }
+      // 'confirmed' is intentionally NOT handled here — useTicketStatusPoll
+      // above is the only thing allowed to mark a ticket complete.
+    };
+
+    return () => channel.close();
+  }, [step, pendingStripeTicketId]);
+
+  useTicketStatusPoll({
+    ticketId: pendingStripeTicketId,
+    enabled: step === 'awaiting-stripe-payment',
+    onConfirmed: (data: TicketStatus) => {
+      // Built field-by-field rather than spread: TicketStatus carries
+      // several fields Ticket doesn't (confirmedAt, canJoinNow,
+      // joinOpensAt, etc.) which would trip excess-property checks on
+      // an object literal, and TicketStatus doesn't carry
+      // purchaserEmail at all (this is a public, unauthenticated
+      // endpoint — it doesn't hand emails back out), so that one has
+      // to come from state we already collected client-side.
+      setTicket({
+        ticketId:         data.ticketId,
+        joinToken:        data.joinToken,
+        roomId:           data.roomId,
+        purchaserEmail:   playerDetails.purchaserEmail || '',
+        purchaserName:    data.purchaserName,
+        playerName:       data.playerName,
+        entryFee:         data.entryFee,
+        extrasTotal:      data.extrasTotal,
+        totalAmount:      data.totalAmount,
+        currency:         data.currency,
+        extras:           data.extras,
+        paymentStatus:    data.paymentStatus,
+        redemptionStatus: data.redemptionStatus,
+        paymentMethod:    data.paymentMethod,
+        paymentReference: data.paymentReference,
+        gameType:         data.gameType ?? roomInfo?.gameType,
+        clubName:         data.clubName ?? roomInfo?.clubName ?? null,
+        ticketTypeId:     data.ticketTypeId ?? null,
+        ticketTypeName:   data.ticketTypeName ?? null,
+      });
+      setStep('complete');
+    },
+  });
+
+  // Notify the embed page (or any caller) once, the moment a ticket is
+  // actually confirmed — regardless of which payment path produced it
+  // (Stripe polling, crypto's synchronous confirm, or instant-payment's
+  // manual "I've paid"). This is a courtesy callback for UI purposes
+  // only (e.g. posting a message to a parent frame); it does not gate
+  // or duplicate any of the actual confirmation logic above. Placed
+  // here, after `ticket` is declared above, since the dependency array
+  // below is evaluated synchronously on every render — unlike the
+  // body of this effect, which only runs later.
+  useEffect(() => {
+    if (step === 'complete' && ticket && onComplete) {
+      onComplete(ticket);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, ticket]);
 
   const loadRoomInfo = async () => {
     try {
@@ -423,6 +587,12 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           selectedExtras: isDonationRoom ? [] : selectedExtras,
           donationAmount: isDonationRoom ? donationValue : undefined,
           appOrigin:      window.location.origin,
+          // Tells the backend whether the success page Stripe redirects
+          // to is opening in a NEW tab we ourselves opened (embed flow)
+          // or is a normal full-page redirect (existing pages). Only in
+          // the former case is it safe for that page to call
+          // window.close() on itself — see stripeQuizTicketSuccess.tsx.
+          checkoutContext: paymentRedirectStrategy === 'new-tab' ? 'embedded_new_tab' : 'page',
           // ── ticket type ──────────────────────────────────────────────────
           ticketTypeId:   selectedTicketType?.id   ?? null,
           ticketTypeName: selectedTicketType?.name ?? null,
@@ -432,6 +602,44 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.message || data.error || 'Failed to start checkout');
+
+      if (paymentRedirectStrategy === 'new-tab') {
+        // IMPORTANT: do NOT pass 'noopener'/'noreferrer' in the third
+        // argument here. Per spec, window.open() ALWAYS returns null
+        // when either flag is set — even when the popup opens
+        // successfully — because the whole point of noopener is that
+        // neither window gets a reference to the other. That makes
+        // `if (!opened)` meaningless as a blocked-popup check when
+        // noopener is present: it fires every time, blocked or not.
+        //
+        // Instead: open without the flag (so we get a real reference
+        // back and can actually tell if it was blocked), then
+        // immediately null out the new window's `.opener` ourselves.
+        // This achieves the same security goal — Stripe's tab can't
+        // reach back into this one via window.opener — without
+        // sacrificing our own ability to detect a blocked popup.
+        const opened = window.open(data.url, '_blank');
+
+        if (opened) {
+          try { opened.opener = null; } catch { /* some browsers disallow this; harmless if so */ }
+        }
+
+        if (!opened || opened.closed) {
+          // Genuinely blocked. Don't strand the buyer with no way
+          // forward — fall back to a manual link they click
+          // themselves. A direct click is always allowed to open a
+          // new tab, even by browsers configured to block popups.
+          setPopupBlockedUrl(data.url);
+          setPendingStripeTicketId(data.ticketId);
+          setError('Your browser blocked the payment window. Use the button below to continue to payment.');
+          setStep('payment-method');
+          return;
+        }
+
+        setPendingStripeTicketId(data.ticketId);
+        setStep('awaiting-stripe-payment');
+        return;
+      }
 
       setStep('redirecting-to-stripe');
       window.location.href = data.url;
@@ -585,6 +793,28 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           <p className="text-sm text-gray-500 mt-2">You'll be taken to secure checkout.</p>
         </div>
       </div>
+    );
+  }
+
+  if (step === 'awaiting-stripe-payment') {
+    return (
+      <StepLayout
+        mode={mode}
+        icon="💳"
+        title="Waiting for payment"
+        subtitle="Complete checkout in the tab that just opened"
+        footer={<div />}
+      >
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-3" />
+          <p className="text-gray-700">
+            We'll update this automatically once payment goes through.
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            You can safely close this if the payment tab is still open — don't close both.
+          </p>
+        </div>
+      </StepLayout>
     );
   }
 
@@ -814,7 +1044,20 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           footer={<ActionButtons onBack={() => setStep(paymentMethodBackStep())} />}
         >
           {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+              {popupBlockedUrl && (
+                <a
+                  href={popupBlockedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setStep('awaiting-stripe-payment')}
+                  className="mt-2 block w-full rounded-lg bg-indigo-600 px-4 py-2 text-center text-white font-medium hover:bg-indigo-700"
+                >
+                  Continue to payment
+                </a>
+              )}
+            </div>
           )}
           {/* Show selected ticket type summary in payment step */}
           {isTicketedEvent && selectedTicketType && (

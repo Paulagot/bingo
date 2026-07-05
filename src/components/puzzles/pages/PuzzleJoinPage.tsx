@@ -1,7 +1,7 @@
 // src/components/puzzles/pages/PuzzleJoinPage.tsx
 
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   supporterAuthService,
   type PublicChallenge,
@@ -23,16 +23,37 @@ export default function PuzzleJoinPage() {
   }>();
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [challenge, setChallenge] = useState<PublicChallenge | null>(null);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+
+  // Which of the two equally-weighted paths is showing: joining fresh, or
+  // signing back in. A returning PAID subscriber landing here (e.g. their
+  // 90-day token expired, or they're on a new device) must never have
+  // "Pay & join" be the only obvious action — that reads as "pay again."
+  // Both paths get equal visual weight via the tab control below, rather
+  // than one being a loud button and the other a buried text link.
+  //
+  // Defaults to 'join' for a normal share link, but a link built with
+  // ?mode=signin (e.g. from a "manage your subscription" billing email)
+  // lands directly on the sign-in tab instead — the lazy initializer
+  // reads this once, on mount; the tabs remain freely clickable
+  // afterward regardless of how the page was entered.
+  const [mode, setMode] = useState<'join' | 'signin'>(() =>
+    searchParams.get('mode') === 'signin' ? 'signin' : 'join'
+  );
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [gdprConsent, setGdprConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInSubmitting, setSignInSubmitting] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   useEffect(() => {
     const currentJoinCode = joinCode;
@@ -122,6 +143,35 @@ export default function PuzzleJoinPage() {
       setFormError((err as Error).message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleSignIn(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSignInError(null);
+
+    if (!challenge) return;
+
+    setSignInSubmitting(true);
+
+    try {
+      await supporterAuthService.requestMagicLink({
+        email: signInEmail,
+        challengeId: challenge.id,
+        clubId: challenge.club_id ?? '',
+      });
+
+      navigate('/puzzle-check-email', {
+        state: {
+          email: signInEmail,
+          challengeId: challenge.id,
+          clubId: challenge.club_id,
+        },
+      });
+    } catch (err) {
+      setSignInError((err as Error).message);
+    } finally {
+      setSignInSubmitting(false);
     }
   }
 
@@ -267,130 +317,204 @@ export default function PuzzleJoinPage() {
         </section>
 
         <section className="rounded-[36px] border border-[#E8E0D3] bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-[26px] bg-[#E9E0FB] text-4xl shadow-sm">
-              ✨
-            </div>
+          {/* Equal-weight tab toggle — the whole point is that a returning
+              subscriber sees "sign in" as a first-class option, not a
+              buried afterthought below a payment button. */}
+          <div className="mb-6 flex rounded-full border border-[#D8D1C4] bg-[#FBF8F3] p-1">
+            <button
+              type="button"
+              onClick={() => setMode('join')}
+              className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                mode === 'join'
+                  ? 'bg-[#157F85] text-white shadow-sm'
+                  : 'text-[#6E6A63] hover:text-[#071A44]'
+              }`}
+            >
+              New here
+            </button>
 
-            <h2 className="font-serif text-3xl leading-tight text-[#071A44]">
-              {challengeIsFree ? 'Join for free' : 'Join this challenge'}
-            </h2>
-
-            <p className="mt-2 text-sm text-[#6E6A63]">
-              {challengeIsFree
-                ? "We'll email your private access link."
-                : "You'll be taken to a secure checkout to start your subscription."}
-            </p>
+            <button
+              type="button"
+              onClick={() => setMode('signin')}
+              className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                mode === 'signin'
+                  ? 'bg-[#157F85] text-white shadow-sm'
+                  : 'text-[#6E6A63] hover:text-[#071A44]'
+              }`}
+            >
+              Already joined?
+            </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="puzzle-player-name"
-                className="mb-1.5 block text-sm font-semibold text-[#071A44]"
-              >
-                Your name *
-              </label>
+          {mode === 'join' ? (
+            <>
+              <div className="mb-6 text-center">
+                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-[26px] bg-[#E9E0FB] text-4xl shadow-sm">
+                  ✨
+                </div>
 
-              <input
-                id="puzzle-player-name"
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-                placeholder="First and last name"
-                className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
-              />
-            </div>
+                <h2 className="font-serif text-3xl leading-tight text-[#071A44]">
+                  {challengeIsFree ? 'Join for free' : 'Join this challenge'}
+                </h2>
 
-            <div>
-              <label
-                htmlFor="puzzle-player-email"
-                className="mb-1.5 block text-sm font-semibold text-[#071A44]"
-              >
-                Email address *
-              </label>
-
-              <input
-                id="puzzle-player-email"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
-              />
-
-              <p className="mt-2 text-xs leading-relaxed text-[#8A847B]">
-                {challengeIsFree
-                  ? "Your link is emailed to this address. You'll use it to access your puzzles during the challenge."
-                  : "Used for your Stripe receipt and to access your puzzles during the challenge."}
-              </p>
-            </div>
-
-            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#E8E0D3] bg-[#FBF8F3] p-4">
-              <input
-                type="checkbox"
-                checked={gdprConsent}
-                onChange={e => setGdprConsent(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-[#D8D1C4] text-[#157F85] focus:ring-[#157F85]"
-              />
-
-              <span className="text-xs leading-relaxed text-[#6E6A63]">
-                I agree to the{' '}
-                <a
-                  href="/legal/privacy"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-[#071A44] underline"
-                >
-                  Privacy Policy
-                </a>{' '}
-                {challengeIsFree
-                  ? <>and consent to receiving puzzle access emails from{' '}<strong>{challenge.club_name ?? 'the organiser'}</strong>.</>
-                  : <>and consent to receiving puzzle access and billing emails from{' '}<strong>{challenge.club_name ?? 'the organiser'}</strong>.</>}
-              </span>
-            </label>
-
-            {formError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
-                <p className="text-sm font-medium text-rose-700">
-                  {formError}
+                <p className="mt-2 text-sm text-[#6E6A63]">
+                  {challengeIsFree
+                    ? "We'll email your private access link."
+                    : "You'll be taken to a secure checkout to start your subscription."}
                 </p>
               </div>
-            ) : null}
 
-            <PuzzlePrimaryButton
-              type="submit"
-              fullWidth
-              disabled={submitting}
-              className="mt-2"
-            >
-              {challengeIsFree
-                ? (submitting ? 'Sending link…' : 'Send my access link →')
-                : (submitting ? 'Redirecting to checkout…' : `Pay & join${weeklyAmount ? ` — ${weeklyAmount}` : ''} →`)}
-            </PuzzlePrimaryButton>
-          </form>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="puzzle-player-name"
+                    className="mb-1.5 block text-sm font-semibold text-[#071A44]"
+                  >
+                    Your name *
+                  </label>
 
-          <div className="mt-6 border-t border-[#E8E0D3] pt-5 text-center">
-            <p className="text-sm text-[#6E6A63]">
-              Already joined?{' '}
-              <button
-                type="button"
-                onClick={() =>
-                  navigate('/puzzle-login', {
-                    state: {
-                      challengeId: challenge.id,
-                      clubId: challenge.club_id,
-                    },
-                  })
-                }
-                className="font-semibold text-[#071A44] underline"
-              >
-                Sign in with magic link
-              </button>
-            </p>
-          </div>
+                  <input
+                    id="puzzle-player-name"
+                    type="text"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    required
+                    placeholder="First and last name"
+                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="puzzle-player-email"
+                    className="mb-1.5 block text-sm font-semibold text-[#071A44]"
+                  >
+                    Email address *
+                  </label>
+
+                  <input
+                    id="puzzle-player-email"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                    placeholder="you@example.com"
+                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
+                  />
+
+                  <p className="mt-2 text-xs leading-relaxed text-[#8A847B]">
+                    {challengeIsFree
+                      ? "Your link is emailed to this address. You'll use it to access your puzzles during the challenge."
+                      : "Used for your Stripe receipt and to access your puzzles during the challenge."}
+                  </p>
+                </div>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#E8E0D3] bg-[#FBF8F3] p-4">
+                  <input
+                    type="checkbox"
+                    checked={gdprConsent}
+                    onChange={e => setGdprConsent(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-[#D8D1C4] text-[#157F85] focus:ring-[#157F85]"
+                  />
+
+                  <span className="text-xs leading-relaxed text-[#6E6A63]">
+                    I agree to the{' '}
+                    <a
+                      href="/legal/privacy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-[#071A44] underline"
+                    >
+                      Privacy Policy
+                    </a>{' '}
+                    {challengeIsFree
+                      ? <>and consent to receiving puzzle access emails from{' '}<strong>{challenge.club_name ?? 'the organiser'}</strong>.</>
+                      : <>and consent to receiving puzzle access and billing emails from{' '}<strong>{challenge.club_name ?? 'the organiser'}</strong>.</>}
+                  </span>
+                </label>
+
+                {formError ? (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                    <p className="text-sm font-medium text-rose-700">
+                      {formError}
+                    </p>
+                  </div>
+                ) : null}
+
+                <PuzzlePrimaryButton
+                  type="submit"
+                  fullWidth
+                  disabled={submitting}
+                  className="mt-2"
+                >
+                  {challengeIsFree
+                    ? (submitting ? 'Sending link…' : 'Send my access link →')
+                    : (submitting ? 'Redirecting to checkout…' : `Pay & join${weeklyAmount ? ` — ${weeklyAmount}` : ''} →`)}
+                </PuzzlePrimaryButton>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="mb-6 text-center">
+                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-[26px] bg-[#D8E8D8] text-4xl shadow-sm">
+                  🔑
+                </div>
+
+                <h2 className="font-serif text-3xl leading-tight text-[#071A44]">
+                  Welcome back
+                </h2>
+
+                <p className="mt-2 text-sm text-[#6E6A63]">
+                  No payment needed — enter your email and we&apos;ll send a
+                  fresh access link.
+                </p>
+              </div>
+
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="puzzle-signin-email"
+                    className="mb-1.5 block text-sm font-semibold text-[#071A44]"
+                  >
+                    Email address *
+                  </label>
+
+                  <input
+                    id="puzzle-signin-email"
+                    type="email"
+                    value={signInEmail}
+                    onChange={e => setSignInEmail(e.target.value)}
+                    required
+                    placeholder="you@example.com"
+                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
+                  />
+
+                  <p className="mt-2 text-xs leading-relaxed text-[#8A847B]">
+                    We&apos;ll email a link to the address you used to join —
+                    it works for any challenge you&apos;ve already joined at
+                    this club.
+                  </p>
+                </div>
+
+                {signInError ? (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                    <p className="text-sm font-medium text-rose-700">
+                      {signInError}
+                    </p>
+                  </div>
+                ) : null}
+
+                <PuzzlePrimaryButton
+                  type="submit"
+                  fullWidth
+                  disabled={signInSubmitting}
+                  className="mt-2"
+                >
+                  {signInSubmitting ? 'Sending…' : 'Send my access link →'}
+                </PuzzlePrimaryButton>
+              </form>
+            </>
+          )}
         </section>
       </div>
     </PuzzlePageShell>

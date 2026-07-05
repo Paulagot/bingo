@@ -5,6 +5,18 @@
 //     returns only available types to buyers.
 //   - POST /create-with-payment and POST /stripe/checkout pass
 //     ticketTypeId + ticketTypeName to service layer.
+//   - POST /stripe/checkout also passes checkoutContext through, so
+//     the backend can mark the success_url with ?embed=1 for the
+//     embedded ticket widget flow. See TicketPurchaseFlow.tsx and
+//     stripeTicketCheckoutService.js.
+//
+// FIXED: this file previously had TWO 'POST /stripe/checkout' route
+// handlers (a leftover original plus the updated one appended below
+// it). Express matches routes in registration order and the first
+// handler that sends a response wins — the original, checkoutContext-
+// unaware handler was silently swallowing every request, and the
+// updated one below it never ran at all. There is now only ONE
+// '/stripe/checkout' handler, in its original file position.
 //
 // Everything else (auth routes, confirm, status) is UNCHANGED.
 
@@ -325,7 +337,63 @@ router.post('/create-with-payment', async (req, res) => {
 });
 
 /**
+ * GET /api/quiz/tickets/room/:roomId/domain-check
+ *
+ * Public, unauthenticated check the ticket embed script (tickets.js)
+ * calls before rendering its button — mirrors donate.js's equivalent
+ * exactly (GET /donations/:clubId/domain-check → isHostnameAllowed in
+ * DonationButtonService.js), reusing the SAME club-level
+ * fundraisely_club_allowed_domains table rather than adding a new one.
+ * Domain registration is a per-CLUB setting, not per-donation-button —
+ * so a club that has already registered their site for the donation
+ * widget is automatically covered for the ticket widget too, with
+ * nothing new for them to configure.
+ *
+ * The only real difference from the donation version: this is keyed
+ * by roomId, not clubId, so the first step resolves which club owns
+ * this room before running the same hostname check.
+ *
+ * Returns a plain { allowed: boolean } rather than throwing on
+ * "room not found" or "no domains registered" — both are expected,
+ * common outcomes here (anyone can call this with any roomId +
+ * hostname), not error conditions.
+ */
+router.get('/room/:roomId/domain-check', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const hostname = String(req.query.hostname || '').trim().toLowerCase();
+
+    if (!roomId || !hostname) {
+      return res.status(200).json({ allowed: false });
+    }
+
+    const roomData = await getRoomConfig(roomId);
+    if (!roomData?.clubId) {
+      return res.status(200).json({ allowed: false });
+    }
+
+    const ALLOWED_DOMAINS_TABLE = `${TABLE_PREFIX}club_allowed_domains`;
+    const [rows] = await connection.execute(
+      `SELECT 1 FROM ${ALLOWED_DOMAINS_TABLE}
+       WHERE club_id = ? AND hostname = ?
+       LIMIT 1`,
+      [roomData.clubId, hostname]
+    );
+
+    return res.status(200).json({ allowed: rows.length > 0 });
+  } catch (err) {
+    console.error('[Tickets API] ❌ Error checking domain:', err);
+    // Fail closed on unexpected errors, same as donate.js's own
+    // client-side fallback behavior on a failed fetch.
+    return res.status(200).json({ allowed: false });
+  }
+});
+
+/**
  * POST /api/quiz/tickets/stripe/checkout
+ *
+ * (Previously duplicated — see file header. This is now the ONLY
+ * handler for this route.)
  */
 router.post('/stripe/checkout', async (req, res) => {
   try {
@@ -338,8 +406,9 @@ router.post('/stripe/checkout', async (req, res) => {
       selectedExtras,
       donationAmount,
       appOrigin,
-      ticketTypeId,    // ← new
-      ticketTypeName,  // ← new
+      ticketTypeId,     // ← new
+      ticketTypeName,   // ← new
+      checkoutContext,  // ← new: 'embedded_new_tab' | 'page' — see TicketPurchaseFlow.tsx
     } = req.body;
 
     if (!roomId || !purchaserName || !purchaserEmail) {
@@ -360,6 +429,13 @@ router.post('/stripe/checkout', async (req, res) => {
       appOrigin,
       ticketTypeId:   ticketTypeId   || null,
       ticketTypeName: ticketTypeName || null,
+      // Passed straight through so the service can decide whether to
+      // append ?embed=1 onto the Stripe success_url. See
+      // stripeQuizTicketSuccess.tsx for why this matters: that page
+      // only attempts window.close() on itself when this flag is
+      // present, so it never touches a normally-navigated tab on the
+      // existing (non-embedded) pages.
+      checkoutContext: checkoutContext === 'embedded_new_tab' ? 'embedded_new_tab' : 'page',
     });
 
     return res.status(200).json({ ok: true, url: result.url, ticketId: result.ticketId });

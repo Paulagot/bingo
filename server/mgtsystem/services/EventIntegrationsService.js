@@ -6,7 +6,7 @@ import database from '../../config/database.js';
 // not event → room, so the update helper from that service isn't needed
 // in this file anymore.
 
-const VALID_TYPES = ['quiz_web2', 'elimination', 'ticketed_event']; // add more later: quiz_web3, bingo_web2, etc.
+const VALID_TYPES = ['quiz_web2', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop']; // add more later: quiz_web3, bingo_web2, etc.
 
 class EventIntegrationsService {
 
@@ -149,7 +149,7 @@ class EventIntegrationsService {
       time_zone:    null,
     };
 
-    if (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event') {
+    if (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event' || integration_type === 'puzzle_sub' || integration_type === 'puzzle_drop') {
       const room = await this._loadQuizWeb2Room({ roomId: external_ref, clubId });
       cached = {
         status:       room.status       || null,
@@ -182,7 +182,7 @@ class EventIntegrationsService {
     try {
       const eventData = await this._loadEventSyncData({ eventId });
 
-      if (eventData && (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event')) {
+      if (eventData && (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event' || integration_type === 'puzzle_sub' || integration_type === 'puzzle_drop')) {
         const scheduledAt = eventData.start_datetime || eventData.event_date || null;
         const timeZone    = eventData.time_zone || null;
 
@@ -304,7 +304,7 @@ class EventIntegrationsService {
         `SELECT event_id
          FROM fundraisely_event_integrations
          WHERE external_ref = ? AND club_id = ?
-           AND integration_type IN ('quiz_web2', 'elimination', 'ticketed_event')`,
+           AND integration_type IN ('quiz_web2', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop')`,
         [roomId, clubId]
       );
 
