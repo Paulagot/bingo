@@ -27,6 +27,15 @@
  * on the actual checkout call — this client-side check is about not
  * rendering a working button on an unauthorized page at all, not the
  * only line of defense.
+ *
+ * FIXED: this listener previously called closeModal() the instant it
+ * received FUNDRAISELY_DONATION_SUCCESS — tearing down the iframe (and
+ * the "Thank you for your donation" screen DonateEmbedPage.tsx renders
+ * at that exact moment) before the supporter ever saw it. Exactly the
+ * same bug found and fixed in tickets.js's equivalent listener. Now
+ * only FUNDRAISELY_DONATION_CLOSE (an explicit cancel) auto-closes;
+ * success leaves the confirmation visible until the supporter closes
+ * it themselves (X button, Esc, or clicking outside — all unchanged).
  */
 
 (function () {
@@ -109,6 +118,7 @@
       'position:relative',
       'width:100%',
       'max-width:400px',
+      'max-height:90vh',
       'background:#ffffff',
       'border-radius:16px',
       'box-shadow:0 24px 64px rgba(0,0,0,0.2)',
@@ -146,11 +156,14 @@
     iframe.style.cssText = [
       'width:100%',
       'height:540px',
+      'max-height:80vh',
       'border:none',
       'display:block',
     ].join(';');
-    // Allow payment APIs inside the iframe (needed for some payment flows)
-    iframe.setAttribute('allow', 'payment');
+    // Allow payment APIs inside the iframe (needed for some payment
+    // flows), and clipboard-write for reference-copy steps on manual
+    // payment methods (same reasoning as tickets.js's iframe).
+    iframe.setAttribute('allow', 'payment; clipboard-write');
     iframe.setAttribute('loading', 'eager');
 
     container.appendChild(closeBtn);
@@ -180,20 +193,26 @@
   }
 
   // ── postMessage listener ─────────────────────────────────────────────
-  // The iframe can send messages to close the modal (e.g. after a
-  // successful checkout redirect back to /success). The iframe and this
-  // script are on different origins (fundraisely.ie vs club's site), so
-  // postMessage is the only way they can communicate — and we check the
-  // origin before acting on any message. This is a UI-courtesy fast path
-  // only; the embed page's own polling against the server ledger is the
-  // real source of truth for whether a donation succeeded.
+  // UI-courtesy fast path only. DonateEmbedPage's own polling (against
+  // the backend's verified ledger) is the actual source of truth for
+  // whether a donation succeeded — this listener does not decide
+  // anything itself.
+  //
+  // IMPORTANT: on FUNDRAISELY_DONATION_SUCCESS, we deliberately do NOT
+  // close the modal. The success view (thank-you message) is already
+  // rendered inside the iframe at the exact moment this message fires
+  // — auto-closing here would tear that down before the supporter ever
+  // sees it, for every payment method alike. Same behavior the inline
+  // (no-button, no-modal) embed already has: nothing closes it
+  // automatically, the supporter reads their confirmation and closes
+  // it themselves (X button, Esc, or clicking outside — all still
+  // work below).
 
   window.addEventListener('message', function (event) {
     if (event.origin !== baseUrl) return;
 
     var data = event.data || {};
     if (data.type === 'FUNDRAISELY_DONATION_SUCCESS') {
-      closeModal();
       try {
         document.dispatchEvent(new CustomEvent('fundraisely:donation-success', {
           detail: { clubId: data.clubId },
