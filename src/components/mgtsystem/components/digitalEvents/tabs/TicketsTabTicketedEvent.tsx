@@ -19,6 +19,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import { TicketQRModal } from '../../../../Quiz/dashboard/TicketQRModal';
 import { useCurrency } from '../../../hooks/useCurrency';
+import TicketEmbedCodePanel from './TicketEmbedCodePanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ interface TicketData {
 
 interface Props {
   room:                    Room;
+  clubId:                  string;
   hasLinkedPaymentMethods: boolean;
   canUseTicketing:         boolean;
   confirmedBy:             string;
@@ -160,7 +162,7 @@ function TicketLinkQRModal({ ticketUrl, onClose }: { ticketUrl: string; onClose:
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TicketsTabTicketedEvent({
-  room, hasLinkedPaymentMethods, canUseTicketing,
+  room, clubId, hasLinkedPaymentMethods, canUseTicketing,
   confirmedBy, confirmedByName, config,
 }: Props) {
   const [tickets,          setTickets]          = useState<TicketData[]>([]);
@@ -525,6 +527,11 @@ export default function TicketsTabTicketedEvent({
           <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <p className="text-sm text-gray-500">Ticket sales are closed — this event is {room.status}.</p>
           </section>
+        )}
+
+        {/* ── Embed code (button + modal, and inline iframe) ── */}
+        {showPurchaseLink && (
+          <TicketEmbedCodePanel roomId={room.room_id} clubId={clubId} />
         )}
 
         {/* ── Ticket list ── */}
