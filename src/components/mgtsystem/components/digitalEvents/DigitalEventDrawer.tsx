@@ -53,6 +53,7 @@ function statusBadgeStyle(status: string): React.CSSProperties {
 interface Props {
   open: boolean;
   room: Room | null;
+  clubId: string;
   config: any;
   stats?: RoomStats;
   hasLinkedPaymentMethods: boolean;
@@ -87,6 +88,7 @@ interface Props {
 export default function DigitalEventDrawer({
   open,
   room,
+  clubId,
   config,
   stats,
   hasLinkedPaymentMethods,
@@ -359,11 +361,11 @@ export default function DigitalEventDrawer({
 
          {activeTab === "tickets" && (
      isTicketedEvent
-       ? <TicketsTabTicketedEvent room={room} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
+       ? <TicketsTabTicketedEvent room={room} clubId={clubId} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
            canUseTicketing={canUseTicketing}
            confirmedBy={confirmedBy} confirmedByName={confirmedByName}
            config={config} />
-       : <TicketsTab room={room} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
+       : <TicketsTab room={room} clubId={clubId} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
            canUseTicketing={canUseTicketing}
            confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
    )}

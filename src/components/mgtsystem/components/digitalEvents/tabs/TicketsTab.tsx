@@ -22,6 +22,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import { TicketQRModal } from '../../../../Quiz/dashboard/TicketQRModal';
 import { useCurrency } from '../../../hooks/useCurrency';
+import TicketEmbedCodePanel from './TicketEmbedCodePanel';
 
 interface TicketData {
   ticketId: string;
@@ -43,6 +44,7 @@ interface TicketData {
 
 interface Props {
   room: Room;
+  clubId: string;
   hasLinkedPaymentMethods: boolean;
   canUseTicketing: boolean;
   confirmedBy: string;
@@ -257,6 +259,7 @@ function StatusPill({ ticket }: { ticket: TicketData }) {
 
 export default function TicketsTab({
   room,
+  clubId,
   hasLinkedPaymentMethods,
   canUseTicketing,
   confirmedBy,
@@ -618,6 +621,11 @@ export default function TicketsTab({
               </div>
             </div>
           </section>
+        )}
+
+        {/* ── Embed code (button + modal, and inline iframe) ── */}
+        {shouldShowTicketPurchaseLink && (
+          <TicketEmbedCodePanel roomId={room.room_id} clubId={clubId} />
         )}
 
         {/* ── Ticket list ── */}

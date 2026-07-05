@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { SlidingTilePuzzleData } from '../puzzleTypes';
 
 interface SlidingTileRendererProps {
@@ -8,8 +9,6 @@ interface SlidingTileRendererProps {
   isReadOnly: boolean;
 }
 
-const DEFAULT_SIZE = 4;
-
 type ExtendedSlidingTilePuzzleData = SlidingTilePuzzleData & {
   size?: number;
   imageUrl?: string;
@@ -17,11 +16,13 @@ type ExtendedSlidingTilePuzzleData = SlidingTilePuzzleData & {
   mode?: 'numbers' | 'image';
 };
 
+const DEFAULT_SIZE = 4;
+
 function flatToGrid(flat: number[], size: number): number[][] {
   const grid: number[][] = [];
 
-  for (let r = 0; r < size; r++) {
-    grid.push(flat.slice(r * size, r * size + size));
+  for (let row = 0; row < size; row++) {
+    grid.push(flat.slice(row * size, row * size + size));
   }
 
   return grid;
@@ -67,10 +68,9 @@ interface TileProps {
   value: number;
   index: number;
   size: number;
-  isMovable: boolean;
-  isSelected: boolean;
-  isReadOnly: boolean;
   imageUrl?: string;
+  isMovable: boolean;
+  isReadOnly: boolean;
   onClick: (index: number) => void;
 }
 
@@ -78,16 +78,15 @@ const Tile: React.FC<TileProps> = ({
   value,
   index,
   size,
-  isMovable,
-  isSelected,
-  isReadOnly,
   imageUrl,
+  isMovable,
+  isReadOnly,
   onClick,
 }) => {
   if (value === 0) {
     return (
-      <div className="relative aspect-square rounded-[1.35rem] border-2 border-dashed border-white/20 bg-black/25 shadow-inner">
-        <div className="absolute inset-2 rounded-2xl bg-white/5" />
+      <div className="h-full w-full rounded-xl border-2 border-dashed border-slate-500/70 bg-slate-800 shadow-inner">
+        <div className="h-full w-full rounded-xl bg-white/5" />
       </div>
     );
   }
@@ -95,11 +94,13 @@ const Tile: React.FC<TileProps> = ({
   const hasImage = Boolean(imageUrl);
   const { row, col } = getCorrectTilePosition(value, size);
 
-  const backgroundStyle = hasImage
+  const backgroundStyle: CSSProperties | undefined = hasImage
     ? {
         backgroundImage: `url(${imageUrl})`,
         backgroundSize: `${size * 100}% ${size * 100}%`,
-        backgroundPosition: `${(col / (size - 1)) * 100}% ${(row / (size - 1)) * 100}%`,
+        backgroundPosition: `${(col / (size - 1)) * 100}% ${
+          (row / (size - 1)) * 100
+        }%`,
       }
     : undefined;
 
@@ -110,39 +111,22 @@ const Tile: React.FC<TileProps> = ({
       disabled={isReadOnly}
       style={backgroundStyle}
       className={[
-        'group relative aspect-square overflow-hidden rounded-[1.35rem] border transition-all duration-150',
-        'flex items-center justify-center select-none',
-        hasImage
-          ? 'bg-cover bg-no-repeat border-white/20 shadow-lg'
-          : 'border-white/20 bg-gradient-to-br from-violet-500 via-indigo-500 to-sky-500 shadow-lg',
+        'relative h-full w-full overflow-hidden rounded-xl border border-white/20 bg-cover bg-no-repeat shadow-md transition-all duration-150',
+        hasImage ? 'bg-slate-700' : 'bg-gradient-to-br from-indigo-500 to-sky-500',
         isMovable && !isReadOnly
-          ? 'cursor-pointer hover:-translate-y-1 hover:scale-[1.025] hover:shadow-2xl'
+          ? 'cursor-pointer hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-xl'
           : 'cursor-default',
-        isSelected ? 'scale-95 ring-4 ring-white/30' : '',
         !isMovable && !isReadOnly ? 'opacity-95' : '',
       ].join(' ')}
     >
-      {hasImage && (
-        <div className="absolute inset-0 bg-gradient-to-br from-black/0 via-black/0 to-black/25" />
-      )}
+      <div className="absolute inset-0 bg-black/10" />
 
-      {!hasImage && (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_35%)]" />
-      )}
-
-      <span
-        className={[
-          'relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-xs font-black shadow-sm',
-          hasImage
-            ? 'bg-black/50 text-white backdrop-blur-sm ring-1 ring-white/20'
-            : 'bg-white text-indigo-700',
-        ].join(' ')}
-      >
+      <span className="absolute left-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-xs font-black text-white shadow-sm backdrop-blur-sm ring-1 ring-white/20">
         {value}
       </span>
 
       {isMovable && !isReadOnly && (
-        <span className="absolute bottom-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-300 shadow-sm" />
+        <span className="absolute bottom-1.5 right-1.5 z-10 h-2.5 w-2.5 rounded-full bg-emerald-300 shadow" />
       )}
     </button>
   );
@@ -167,7 +151,7 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
       return gridToFlat(saved);
     }
 
-    if (Array.isArray(data.grid)) {
+    if (Array.isArray(data.grid) && data.grid.length === size) {
       return gridToFlat(data.grid);
     }
 
@@ -178,8 +162,7 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
   const [moveCount, setMoveCount] = useState<number>(
     typeof currentAnswer?.moveCount === 'number' ? currentAnswer.moveCount : 0
   );
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
 
   const solved = useMemo(() => isSolved(flat, size), [flat, size]);
   const emptyIdx = useMemo(() => findEmpty(flat), [flat]);
@@ -197,17 +180,21 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
     });
   }, [flat, moveCount, solved, size, onAnswerChange]);
 
-  const handleTileClick = useCallback((tileIdx: number) => {
-    setFlat(prev => {
-      const currentEmptyIdx = findEmpty(prev);
+  const handleTileClick = useCallback(
+    (tileIdx: number) => {
+      setFlat(prev => {
+        const currentEmptyIdx = findEmpty(prev);
 
-      if (currentEmptyIdx < 0) {
-        return prev;
-      }
+        if (currentEmptyIdx < 0) {
+          return prev;
+        }
 
-      const neighbours = getNeighbours(currentEmptyIdx, size);
+        const neighbours = getNeighbours(currentEmptyIdx, size);
 
-      if (neighbours.includes(tileIdx)) {
+        if (!neighbours.includes(tileIdx)) {
+          return prev;
+        }
+
         const next = [...prev];
         const tileValue = next[tileIdx];
 
@@ -218,20 +205,21 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
         next[currentEmptyIdx] = tileValue;
         next[tileIdx] = 0;
 
-        setSelectedIdx(null);
         setMoveCount(count => count + 1);
 
         return next;
-      }
+      });
+    },
+    [size]
+  );
 
-      setSelectedIdx(prevSelected => prevSelected === tileIdx ? null : tileIdx);
-      return prev;
-    });
-  }, [size]);
+  const boardMaxWidth = size === 3 ? 'max-w-[520px]' : 'max-w-[540px]';
+  const boardPadding = size === 3 ? 'p-4' : 'p-3';
+  const gridGap = size === 3 ? 'gap-3' : 'gap-2.5';
 
   return (
     <div className="space-y-6">
-      {/* Header card inside the puzzle */}
+      {/* Puzzle intro */}
       <div className="relative overflow-hidden rounded-[2rem] border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 px-5 py-5 shadow-sm">
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-indigo-100/80" />
         <div className="absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-cyan-100/70" />
@@ -241,11 +229,13 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
             <div className="text-[11px] font-black uppercase tracking-[0.24em] text-indigo-500">
               Picture scramble
             </div>
-            <div className="mt-1 text-lg font-black text-slate-900">
+
+            <div className="mt-1 text-xl font-black text-slate-900">
               {data.title ?? (hasImage ? 'Rebuild the image' : 'Put the tiles back in order')}
             </div>
+
             <div className="mt-1 text-sm font-medium text-slate-500">
-              Tap a glowing tile beside the empty space to slide it.
+              Tap a highlighted tile beside the blank space to slide it.
             </div>
           </div>
 
@@ -271,86 +261,89 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
         </div>
       </div>
 
-      {/* Board + preview */}
-      <div className="mx-auto grid w-full max-w-3xl gap-5 lg:grid-cols-[1fr_220px] lg:items-start">
-        <div className="rounded-[2rem] bg-slate-950 p-3 shadow-2xl ring-1 ring-black/10">
-          <div
-            className="grid gap-2 rounded-[1.5rem] bg-slate-900 p-2"
-            style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
-          >
-            {flat.map((value, index) => (
-              <Tile
-                key={`${value}-${index}`}
-                value={value}
-                index={index}
-                size={size}
-                imageUrl={imageUrl}
-                isMovable={movableIndexes.has(index)}
-                isSelected={index === selectedIdx}
-                isReadOnly={isReadOnly}
-                onClick={handleTileClick}
-              />
-            ))}
+      {/* Main board */}
+    {/* Main board */}
+<div className="mx-auto w-full max-w-[540px]">
+  <div
+    className={`w-full rounded-[2rem] bg-slate-950 ${boardPadding} shadow-2xl ring-1 ring-black/10`}
+    style={{
+      aspectRatio: '1 / 1',
+    }}
+  >
+    <div
+      className={`grid h-full w-full ${gridGap} rounded-[1.5rem] bg-slate-900 p-2`}
+      style={{
+        gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${size}, minmax(0, 1fr))`,
+      }}
+    >
+      {flat.map((value, index) => (
+        <Tile
+          key={`${value}-${index}`}
+          value={value}
+          index={index}
+          size={size}
+          imageUrl={imageUrl}
+          isMovable={movableIndexes.has(index)}
+          isReadOnly={isReadOnly}
+          onClick={handleTileClick}
+        />
+      ))}
+    </div>
+  </div>
+</div>
+
+      {/* Preview */}
+      {hasImage && (
+        <div className="mx-auto w-full max-w-[520px] overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              Preview
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setShowPreview(prev => !prev)}
+              className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-600"
+            >
+              {showPreview ? 'Hide' : 'Show'}
+            </button>
           </div>
-        </div>
 
-        <aside className="space-y-3">
-          {hasImage ? (
-            <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  Preview
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(prev => !prev)}
-                  className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-600"
-                >
-                  {showPreview ? 'Hide' : 'Show'}
-                </button>
-              </div>
-
-              {showPreview ? (
-                <img
-                  src={imageUrl}
-                  alt="Sliding puzzle preview"
-                  className="aspect-square w-full rounded-[1.35rem] object-cover"
-                />
-              ) : (
-                <div className="flex aspect-square w-full items-center justify-center rounded-[1.35rem] bg-slate-100 px-4 text-center text-sm font-bold text-slate-400">
-                  Preview hidden
-                </div>
-              )}
-            </div>
+          {showPreview ? (
+            <img
+              src={imageUrl}
+              alt="Sliding puzzle preview"
+              className="aspect-square w-full rounded-[1.35rem] object-cover"
+            />
           ) : (
-            <div className="rounded-[2rem] border border-slate-200 bg-white px-4 py-4 shadow-sm">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                Goal
-              </div>
-              <div className="mt-2 text-sm font-bold leading-relaxed text-slate-600">
-                Arrange the numbers from 1 to {size * size - 1}, with the empty space at the end.
-              </div>
+            <div className="flex aspect-square w-full items-center justify-center rounded-[1.35rem] bg-slate-100 text-sm font-bold text-slate-400">
+              Preview hidden
             </div>
           )}
+        </div>
+      )}
 
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-50 px-4 py-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              How to play
-            </div>
-            <ul className="mt-2 space-y-2 text-sm font-medium text-slate-500">
-              <li>Only tiles beside the blank space can move.</li>
-              <li>Movable tiles have a small green dot.</li>
-              <li>Fewer moves means a better score.</li>
-            </ul>
-          </div>
-        </aside>
+      {/* Help */}
+      <div className="mx-auto w-full max-w-[520px] rounded-[2rem] border border-slate-200 bg-slate-50 px-4 py-4">
+        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+          How to play
+        </div>
+
+        <ul className="mt-2 space-y-2 text-sm font-medium text-slate-500">
+          <li>Only tiles beside the blank space can move.</li>
+          <li>Movable tiles have a small green dot.</li>
+          <li>Rebuild the full picture as fast as you can.</li>
+        </ul>
       </div>
 
+      {/* Solved state */}
       {solved && !isReadOnly && (
         <div className="mx-auto max-w-md rounded-[2rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-center shadow-sm">
           <p className="text-lg font-black text-emerald-700">
             Puzzle complete!
           </p>
+
           <p className="mt-1 text-sm font-semibold text-emerald-600">
             Solved in {moveCount} move{moveCount !== 1 ? 's' : ''}. Hit Submit to save your score.
           </p>
