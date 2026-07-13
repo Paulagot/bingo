@@ -29,6 +29,8 @@ export default function PeerStripeSuccess() {
     let cancelled = false;
     let attempts = 0;
     const maxAttempts = 12; // ~24 seconds
+    let confirmedAttempts = 0;
+    const maxConfirmedGraceAttempts = 5; // ~10 more seconds once confirmed, waiting for entries
 
     const poll = async () => {
       if (cancelled) return;
@@ -40,7 +42,22 @@ export default function PeerStripeSuccess() {
         setEntries(data.entries || []);
 
         if (data.order.paymentStatus === 'confirmed') {
-          setStatus('confirmed');
+          // Previously this stopped polling the instant status flipped to
+          // 'confirmed', showing whatever entries happened to be in THIS
+          // exact response — even if expansion (which now does more work:
+          // row-locking, per-item ticket creation, emails) hadn't actually
+          // finished yet. Confirming the order and expanding it into
+          // tickets are two separate backend steps, not atomic, so there's
+          // a real window where status is already 'confirmed' but entries
+          // is still empty. Give it a short grace period to catch up
+          // before finalizing, rather than locking in an empty result
+          // permanently.
+          if ((data.entries || []).length > 0 || confirmedAttempts >= maxConfirmedGraceAttempts) {
+            setStatus('confirmed');
+            return;
+          }
+          confirmedAttempts += 1;
+          window.setTimeout(poll, 2000);
           return;
         }
         attempts += 1;
@@ -64,7 +81,7 @@ export default function PeerStripeSuccess() {
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-orange-500" />
           <h2 className="mt-4 text-xl font-black text-slate-950">Confirming your payment…</h2>
           <p className="mt-2 text-sm font-semibold text-slate-500">
-            This usually takes a second — we're checking the order and activating your entries.
+            This usually takes a second - we're checking the order and activating your entries.
           </p>
         </div>
       </main>

@@ -108,12 +108,14 @@ export async function expandPeerOrder(orderId) {
             await conn.execute(
               `INSERT INTO ${E}
                (id,peer_fundraiser_id,club_id,room_id,order_id,order_item_id,pack_id,pack_item_id,
+                order_quantity_index,pack_item_quantity_index,
                 participant_id,supporter_name,supporter_email,entry_type,status,metadata_json)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'pending_payment',?)`,
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'pending_payment',?)`,
               [entryId,order.peer_fundraiser_id,order.club_id,pi.target_room_id,order.id,oi.id,oi.pack_id,pi.id,
+               orderQty,q,
                order.participant_id,order.supporter_name,order.supporter_email,correctedType,
                JSON.stringify({
-                 orderQuantityIndex:orderQty,packItemQuantityIndex:q,apportionedFee:feeMap.get(pi.id),
+                 apportionedFee:feeMap.get(pi.id),
                  // Kept for visibility/debugging — shows when a pack was
                  // built with a mismatched item_type that got corrected here.
                  originalItemType: pi.item_type !== correctedType ? pi.item_type : undefined,
