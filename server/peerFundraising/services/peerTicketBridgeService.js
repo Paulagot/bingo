@@ -7,18 +7,25 @@ const T = `${TABLE_PREFIX}quiz_tickets`;
 const R = `${TABLE_PREFIX}web2_quiz_rooms`;
 
 const parseJson = (v,f={}) => { if(!v)return f; if(typeof v==='object')return v; try{return JSON.parse(v)}catch{return f} };
-const gameType = itemType => itemType === 'elimination_entry' ? 'elimination' : 'quiz';
+const gameTypeFromItemType = itemType => itemType === 'elimination_entry' ? 'elimination' : 'quiz';
 const paymentMethod = cat => ({stripe:'stripe',crypto:'crypto',instant_payment:'instant_payment',bank_transfer:'instant_payment',cash_to_participant:'cash',cash:'cash',card:'card',card_tap:'card_tap'}[cat] || 'other');
 const paymentSource = cat => cat === 'stripe' ? 'webhook_auto' : cat === 'crypto' ? 'onchain_auto' : 'admin_assigned';
 
 export async function createTicketForPeerEntry(entryId, context) {
   const { order, packItem, apportionedFee, clubPaymentMethodId } = context;
   const ticketId = nanoid(12), joinToken = nanoid(16), roomId = packItem.target_room_id;
-  const [rooms] = await connection.execute(`SELECT config_json FROM ${R} WHERE room_id=? AND club_id=? LIMIT 1`, [roomId,order.club_id]);
+  const [rooms] = await connection.execute(`SELECT config_json, game_type FROM ${R} WHERE room_id=? AND club_id=? LIMIT 1`, [roomId,order.club_id]);
   if (!rooms[0]) throw new Error(`room_not_found:${roomId}`);
   const cfg = parseJson(rooms[0].config_json, {});
   const extras = Object.entries(cfg.fundraisingOptions || {}).filter(([,v])=>v===true).map(([extraId])=>({extraId,price:0,source:'peer_pack',included:true}));
-  const fee = Number(apportionedFee || 0), gt = gameType(packItem.item_type);
+  const fee = Number(apportionedFee || 0);
+  // Previously derived purely from packItem.item_type, which is only ever
+  // set once, manually, at pack-build time — nothing stopped it from being
+  // wrong. peerEntryExpansionService.js now corrects item_type against the
+  // room before this function is even called, but deriving it again here,
+  // independently, directly from the room's own game_type column is a
+  // second, cheap backstop against exactly this class of bug recurring.
+  const gt = rooms[0].game_type === 'elimination' ? 'elimination' : rooms[0].game_type === 'quiz' ? 'quiz' : gameTypeFromItemType(packItem.item_type);
 
   await connection.execute(
     `INSERT INTO ${T}
@@ -33,7 +40,12 @@ export async function createTicketForPeerEntry(entryId, context) {
      clubPaymentMethodId || null,joinToken]
   );
 
-  const joinUrl = `/join/${gt}/${roomId}?ticket=${ticketId}&token=${joinToken}`;
+  // Previously pointed straight into /join/{gameType}/{roomId} — dropping
+  // a buyer directly into the live-join route immediately after purchase,
+  // even when the event itself might be weeks away. Point at the ticket
+  // status page instead; that page is responsible for showing the actual
+  // join link once the room is live.
+  const joinUrl = `/tickets/status/${ticketId}`;
   await connection.execute(
     `UPDATE ${E} SET status='confirmed',entry_code=?,ticket_code=?,join_url=?,linked_ticket_id=?,confirmed_at=UTC_TIMESTAMP() WHERE id=?`,
     [`PE-${nanoid(8).toUpperCase()}`,ticketId,joinUrl,ticketId,entryId]
