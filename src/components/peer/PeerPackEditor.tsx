@@ -30,6 +30,29 @@ const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   custom: 'Custom',
 };
 
+// Previously the room and item-type dropdowns were completely independent
+// — nothing stopped a club from picking an elimination room and labelling
+// it "Quiz Individual Ticket" (which is exactly what happened in testing:
+// a real elimination room got saved with item_type='quiz_individual_ticket',
+// which then produced a wrong join link and a wrong "Join Quiz Night"
+// button for an entry that was actually elimination). Deriving valid
+// choices from the selected room's actual game_type — and auto-setting a
+// sensible default the moment a room is picked — makes this mismatch
+// impossible to create through the UI rather than just hoping the club
+// picks correctly.
+function validItemTypesForGameType(gameType?: string): ItemType[] {
+  if (gameType === 'elimination') return ['elimination_entry'];
+  if (gameType === 'quiz') return ['quiz_team_ticket', 'quiz_individual_ticket', 'game_entry'];
+  if (gameType === 'ticketed_event') return ['event_ticket'];
+  if (gameType === 'puzzle_sub' || gameType === 'puzzle_drop') return ['puzzle_entry'];
+  // No room selected yet, or a type we don't have a specific mapping for —
+  // show everything rather than blocking the form.
+  return ITEM_TYPES;
+}
+function defaultItemTypeForGameType(gameType?: string): ItemType {
+  return validItemTypesForGameType(gameType)[0] ?? 'custom';
+}
+
 interface PackItemDraft {
   targetRoomId: string;
   itemType: ItemType;
@@ -243,12 +266,19 @@ export default function PeerPackEditor({ pack, rooms, defaultCurrency, saving, o
               to build a bundle (e.g. a quiz ticket + an elimination entry).
             </p>
 
-            {items.map((item, idx) => (
+            {items.map((item, idx) => {
+              const selectedRoom = rooms.find(r => r.room_id === item.targetRoomId);
+              const validTypes = validItemTypesForGameType(selectedRoom?.game_type);
+              return (
               <div key={idx} className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 p-3">
                 <select
                   className="min-w-[200px] flex-1 rounded-xl border border-slate-200 p-2"
                   value={item.targetRoomId}
-                  onChange={e => updateItem(idx, { targetRoomId: e.target.value })}
+                  onChange={e => {
+                    const roomId = e.target.value;
+                    const room = rooms.find(r => r.room_id === roomId);
+                    updateItem(idx, { targetRoomId: roomId, itemType: defaultItemTypeForGameType(room?.game_type) });
+                  }}
                 >
                   <option value="">— Select event —</option>
                   {rooms.map(r => (
@@ -263,7 +293,7 @@ export default function PeerPackEditor({ pack, rooms, defaultCurrency, saving, o
                   value={item.itemType}
                   onChange={e => updateItem(idx, { itemType: e.target.value as ItemType })}
                 >
-                  {ITEM_TYPES.map(t => <option key={t} value={t}>{ITEM_TYPE_LABELS[t]}</option>)}
+                  {validTypes.map(t => <option key={t} value={t}>{ITEM_TYPE_LABELS[t]}</option>)}
                 </select>
 
                 <input
@@ -286,7 +316,8 @@ export default function PeerPackEditor({ pack, rooms, defaultCurrency, saving, o
                   </button>
                 )}
               </div>
-            ))}
+              );
+            })}
 
             {rooms.length === 0 && (
               <div className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">

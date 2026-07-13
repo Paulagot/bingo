@@ -268,11 +268,31 @@ async function assertRoom(roomId,clubId,allowHistorical=false) {
 const VALID_PACK_TYPES = new Set(['single_entry','bundle','ticket','sponsor','custom']);
 const VALID_ITEM_TYPES = new Set(['game_entry','quiz_team_ticket','quiz_individual_ticket','puzzle_entry','elimination_entry','event_ticket','custom']);
 
+// Mirrors the same room-type mapping used in peerEntryExpansionService.js
+// (correctEntryType) and PeerPackEditor.tsx (validItemTypesForGameType) —
+// kept as three independent copies rather than a shared import on purpose,
+// since this one runs server-side at save time (before a pack can even be
+// created), the entry-expansion one runs at purchase time (self-healing
+// existing bad data), and the editor one is UI-only (prevention via the
+// dropdown). Three independent layers catching the same class of mistake.
+function validItemTypesForRoomGameType(gameType) {
+  if (gameType === 'elimination') return new Set(['elimination_entry']);
+  if (gameType === 'quiz') return new Set(['quiz_team_ticket','quiz_individual_ticket','game_entry']);
+  if (gameType === 'ticketed_event') return new Set(['event_ticket']);
+  if (gameType === 'puzzle_sub' || gameType === 'puzzle_drop') return new Set(['puzzle_entry']);
+  return null; // unknown/no room match — don't block, nothing to cross-check against
+}
+
 // Previously savePack only checked name and items.length — price, quantity
 // and itemType went straight into the INSERT unvalidated. Number(bad||0)
 // silently became €0, and a bogus itemType would only fail later, deep
-// inside entry expansion, with a confusing error far from the cause.
-function validatePackPayload(b) {
+// inside entry expansion, with a confusing error far from the cause. Now
+// also async, so it can cross-check each item's itemType against its
+// target room's actual game_type — this is what would have caught the
+// elimination-room-saved-as-quiz_individual_ticket mismatch found in
+// testing, at save time, with a clear error, instead of silently
+// persisting bad data that only surfaced as a wrong join link days later.
+async function validatePackPayload(b, clubId) {
   if (!b?.name?.trim()) fail('invalid_pack_name');
   const price = Number(b.price);
   if (!Number.isFinite(price) || price < 0) fail('invalid_price');
@@ -283,6 +303,19 @@ function validatePackPayload(b) {
     if (!item.itemType || !VALID_ITEM_TYPES.has(item.itemType)) fail('invalid_item_type');
     const qty = Number(item.quantity);
     if (!Number.isFinite(qty) || qty < 1) fail('invalid_quantity');
+  }
+
+  const roomIds = [...new Set(b.items.map(i => i.targetRoomId))];
+  if (roomIds.length) {
+    const ph = roomIds.map(() => '?').join(',');
+    const [rooms] = await connection.execute(`SELECT room_id, game_type FROM ${R} WHERE room_id IN (${ph}) AND club_id=?`, [...roomIds, clubId]);
+    const gameTypeByRoom = Object.fromEntries(rooms.map(r => [r.room_id, r.game_type]));
+    for (const item of b.items) {
+      const validTypes = validItemTypesForRoomGameType(gameTypeByRoom[item.targetRoomId]);
+      if (validTypes && !validTypes.has(item.itemType)) {
+        fail(`item_type_mismatch: ${item.itemType} is not valid for a ${gameTypeByRoom[item.targetRoomId]} room`);
+      }
+    }
   }
 }
 export async function listPacks(fid,clubId) {
@@ -295,7 +328,7 @@ export async function listPacks(fid,clubId) {
 }
 export async function savePack(fid,clubId,packId,b) {
   await assertFundraiser(fid,clubId);
-  validatePackPayload(b);
+  await validatePackPayload(b, clubId);
   const existing = packId ? await listPacks(fid,clubId) : {packs:[]};
   const old = existing.packs.find(p=>p.id===packId);
   const oldRooms=new Set(old?.items?.map(i=>i.target_room_id)||[]);

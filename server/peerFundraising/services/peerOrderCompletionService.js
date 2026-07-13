@@ -119,13 +119,40 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
   if(orderId)[rows]=await connection.execute(`SELECT * FROM ${O} WHERE id=? LIMIT 1`,[orderId]);
   else [rows]=await connection.execute(`SELECT * FROM ${O} WHERE stripe_payment_intent_id=? OR stripe_checkout_session_id=? LIMIT 1`,[stripePaymentIntentId,stripePaymentIntentId]);
   const order=rows[0]; if(!order)return null;
-  if(order.payment_status==='confirmed'){await expandPeerOrder(order.id);return order;}
+
+  // NOTE: Stripe fires BOTH checkout.session.completed AND
+  // payment_intent.succeeded for every Checkout Session payment, and
+  // stripeWebhooks.js calls confirmPeerOrder from both — so this function
+  // WILL genuinely be invoked twice, nearly simultaneously, for the same
+  // order. expandPeerOrder now handles that safely itself (row-level
+  // locking — see peerEntryExpansionService.js), but wrapping it here too
+  // means a failure in expansion can never silently prevent the order-
+  // confirmation email below from firing. Previously this call had no
+  // try/catch at all — if it threw (exactly what the race could cause),
+  // the email code further down never ran, even though the order's status
+  // itself was already correctly set.
+  if(order.payment_status==='confirmed'){
+    try { await expandPeerOrder(order.id); }
+    catch(expandErr){ console.error('[PeerOrderCompletion] ⚠️ Re-expansion failed (non-fatal):', expandErr.message); }
+    return order;
+  }
+
   await connection.execute(
     `UPDATE ${O} SET payment_status='confirmed',confirmed_at=UTC_TIMESTAMP(),
      stripe_payment_intent_id=COALESCE(?,stripe_payment_intent_id),external_transaction_id=COALESCE(?,external_transaction_id),
      payment_reference=COALESCE(?,payment_reference) WHERE id=?`,
     [stripePaymentIntentId,externalTransactionId,paymentReference,order.id]);
-  await expandPeerOrder(order.id);
+
+  try {
+    await expandPeerOrder(order.id);
+  } catch (expandErr) {
+    // Order is already marked confirmed above — an expansion failure here
+    // (e.g. losing the race to the other webhook event, or a genuine data
+    // problem) should never stop the supporter from at least getting their
+    // order-confirmation email. Logged clearly so it can be manually
+    // re-expanded if entries genuinely never got created.
+    console.error('[PeerOrderCompletion] ⚠️ Expansion failed (non-fatal):', expandErr.message);
+  }
 
   // Order-confirmation email — peer had no equivalent at all. Fired here,
   // same reasoning as campaign's confirmOrderByStripeIntent: the webhook

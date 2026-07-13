@@ -439,27 +439,20 @@ export async function stripeWebhookHandler(req, res) {
       }
 
       // New peer-to-peer order.
-      // confirmPeerOrder should return null if the PaymentIntent is not
-      // linked to a peer order.
-      try {
-        const peerOrder = await confirmPeerOrder({
-          stripePaymentIntentId: paymentIntent.id,
-          externalTransactionId: paymentIntent.id,
-          paymentReference:      paymentIntent.id,
-        });
-
-        if (peerOrder) {
-          console.log(
-            '[StripeWebhook] Peer order confirmed:',
-            peerOrder.id
-          );
-        }
-      } catch (peerErr) {
-        console.error(
-          '[StripeWebhook] Peer order confirmation failed (non-fatal):',
-          peerErr.message
-        );
-      }
+      //
+      // NOTE: previously this ALSO called confirmPeerOrder here, alongside
+      // the checkout.session.completed handler below — Stripe fires both
+      // event types for every Checkout Session payment, so peer orders
+      // were being confirmed/expanded twice, nearly simultaneously, for
+      // every single purchase. expandPeerOrder is now safe against that
+      // (row-level locking — see peerEntryExpansionService.js), but there's
+      // no reason to keep doing the redundant work: checkout.session.completed
+      // carries the full orderId directly in metadata and is sufficient on
+      // its own for Checkout-Session-based peer orders. Skipping the peer
+      // lookup here entirely removes the double-invocation at its source
+      // rather than just tolerating it safely downstream.
+      // (Campaign's confirmOrderByStripeIntent above is unaffected — that
+      // flow doesn't have this same double-event overlap.)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
