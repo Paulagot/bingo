@@ -6,10 +6,6 @@ import QuizRoomsService, { type RoomStats } from '../../services/quizRoomService
 import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
 import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
-import ScheduleEliminationModal from '../../modals/ScheduleEliminationModal';
-import ScheduleQuizModal from '../../modals/ScheduleQuizModal';
-import ScheduleTicketedEventModal from '../../modals/ScheduleTicketedEventModal';
-import ticketedEventMgmtService from '../../services/TicketedEventMgmtService';
 import { DashboardFundraisingSummary } from '../progress/DashboardFundraisingSummary';
 import ManageDonationButtonModal from '../../modals/ManageDonationButtonModal'; 
 import TotalIncomeReportButton from './TotalIncomeReportButton';
@@ -29,18 +25,20 @@ import type { Web2RoomListItem as Room } from '../../../../shared/api/quiz.api';
 import DigitalEventDrawer from '../digitalEvents/DigitalEventDrawer';
 import { FundraiselyEventCard } from '../cards/FundraiselyEventCard';
 import { FundraiselyEventRow } from '../cards/FundraiselyEventRow';
-import CreateEventForm from '../forms/CreateEventForm';
+import CreateFundraiserWizard from '../../wizard/CreateFundraiserWizard';
+import type { ActivityTypeId } from '../../wizard/activityRegistry';
+import EditFundraiserModal from '../../modals/EditFundraiserModal';
 import eventsService from '../../services/eventsServices';
-import type { Event, CreateEventForm as CreateEventFormData, UpdateEventForm } from '../../types/event';
+import type { Event } from '../../types/event';
 import NotificationsTicker from './NotificationsTicker';
 
 type ViewMode = 'table' | 'cards';
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed' | 'cancelled';
-type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event';
+type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination' | 'ticketed_event';
+  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -87,8 +85,14 @@ export default function QuizEventDashboard() {
   const [events, setEvents]                         = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading]           = useState(true);
   const [eventsError, setEventsError]               = useState<string | null>(null);
-  const [showCreateForm, setShowCreateForm]         = useState(false);
   const [eventToEdit, setEventToEdit]               = useState<Event | null>(null);
+  // Create flow — CreateFundraiserWizard (replaces the old CreateEventForm
+  // create path). wizardEvent/wizardType carry the legacy Add-Activity
+  // case: the event already exists, so the wizard skips step 2 and jumps
+  // straight to the activity setup for that type.
+  const [showWizard, setShowWizard]                 = useState(false);
+  const [wizardEvent, setWizardEvent]               = useState<Event | null>(null);
+  const [wizardType, setWizardType]                 = useState<ActivityTypeId | undefined>(undefined);
   const [statusFilter, setStatusFilter]             = useState<StatusFilter>('all');
   const [gameTypeFilter, setGameTypeFilter]         = useState<GameTypeFilter>('all');
   const [search, setSearch]                         = useState('');
@@ -99,7 +103,6 @@ export default function QuizEventDashboard() {
   const [roomRowsMap, setRoomRowsMap]               = useState<Record<string, Room>>({});
   const [roomStatsMap, setRoomStatsMap]             = useState<Record<string, RoomStats>>({});
   const [outstandingMap, setOutstandingMap]         = useState<Record<string, number>>({});
-  const [pendingActivityEventId, setPendingActivityEventId] = useState<string | null>(null);
 
   const [drawerOpen, setDrawerOpen]                 = useState(false);
   const [drawerRoom, setDrawerRoom]                 = useState<Room | null>(null);
@@ -109,11 +112,6 @@ export default function QuizEventDashboard() {
 
   const [managePaymentsOpen, setManagePaymentsOpen]               = useState(false);
    const [manageDonationButtonOpen, setManageDonationButtonOpen]   = useState(false);   
-  const [scheduleQuizOpen, setScheduleQuizOpen]                   = useState(false);
-  const [scheduleEliminationOpen, setScheduleEliminationOpen]     = useState(false);
-  const [scheduleTicketedEventOpen, setScheduleTicketedEventOpen] = useState(false);
- const [isEditingTicketedEvent, setIsEditingTicketedEvent] = useState(false);
-const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
 
   const [ents, setEnts]               = useState<any>(null);
   const [entsLoading, setEntsLoading] = useState(true);
@@ -135,8 +133,15 @@ const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
   const statusCounts = useMemo(() => {
     const counts = { all: events.length, upcoming: 0, live: 0, completed: 0, cancelled: 0 };
     for (const e of events) {
-      const roomStatus = activityMap[e.id]?.status;
-      if (roomStatus === 'live')                                    counts.live++;
+      const activity   = activityMap[e.id];
+      const roomStatus = activity?.status;
+      // A puzzle_sub room's 'open' status means the challenge is actively
+      // running and billing weekly (see openPuzzleSubRoom on the backend)
+      // — that's a "live" state, not "upcoming" the way 'open' means for
+      // a quiz/elimination room waiting for its scheduled start.
+      const isRunningSubscription = activity?.game_type === 'puzzle_sub' && roomStatus === 'open';
+
+      if (roomStatus === 'live' || isRunningSubscription)           counts.live++;
       else if (roomStatus === 'open' || roomStatus === 'scheduled') counts.upcoming++;
       else if (roomStatus === 'completed')                          counts.completed++;
       else if (roomStatus === 'cancelled')                          counts.cancelled++;
@@ -151,9 +156,12 @@ const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
 
     if (statusFilter !== 'all') {
       list = list.filter(e => {
-        const roomStatus = activityMap[e.id]?.status;
-        if (statusFilter === 'live')      return roomStatus === 'live';
-        if (statusFilter === 'upcoming')  return !roomStatus || roomStatus === 'scheduled' || roomStatus === 'open';
+        const activity   = activityMap[e.id];
+        const roomStatus = activity?.status;
+        const isRunningSubscription = activity?.game_type === 'puzzle_sub' && roomStatus === 'open';
+
+        if (statusFilter === 'live')      return roomStatus === 'live' || isRunningSubscription;
+        if (statusFilter === 'upcoming')  return !roomStatus || roomStatus === 'scheduled' || (roomStatus === 'open' && !isRunningSubscription);
         if (statusFilter === 'completed') return roomStatus === 'completed';
         if (statusFilter === 'cancelled') return roomStatus === 'cancelled';
         return true;
@@ -194,9 +202,12 @@ const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
     let base = [...events];
     if (statusFilter !== 'all') {
       base = base.filter(e => {
-        const roomStatus = activityMap[e.id]?.status;
-        if (statusFilter === 'live')      return roomStatus === 'live';
-        if (statusFilter === 'upcoming')  return !roomStatus || roomStatus === 'scheduled' || roomStatus === 'open';
+        const activity   = activityMap[e.id];
+        const roomStatus = activity?.status;
+        const isRunningSubscription = activity?.game_type === 'puzzle_sub' && roomStatus === 'open';
+
+        if (statusFilter === 'live')      return roomStatus === 'live' || isRunningSubscription;
+        if (statusFilter === 'upcoming')  return !roomStatus || roomStatus === 'scheduled' || (roomStatus === 'open' && !isRunningSubscription);
         if (statusFilter === 'completed') return roomStatus === 'completed';
         if (statusFilter === 'cancelled') return roomStatus === 'cancelled';
         return true;
@@ -207,6 +218,7 @@ const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
       quiz:           base.filter(e => activityMap[e.id]?.game_type === 'quiz').length,
       elimination:    base.filter(e => activityMap[e.id]?.game_type === 'elimination').length,
       ticketed_event: base.filter(e => activityMap[e.id]?.game_type === 'ticketed_event').length,
+      puzzle_sub:     base.filter(e => activityMap[e.id]?.game_type === 'puzzle_sub').length,
     };
   }, [events, statusFilter, activityMap]);
 
@@ -240,7 +252,8 @@ const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
             const linked = integrations.find((i: any) =>
               i.integration_type === 'quiz_web2' ||
               i.integration_type === 'elimination' ||
-              i.integration_type === 'ticketed_event'
+              i.integration_type === 'ticketed_event' ||
+              i.integration_type === 'puzzle_sub'
             );
             return [event.id, linked] as const;
           } catch {
@@ -260,7 +273,9 @@ const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
             ? 'elimination'
             : integration.integration_type === 'ticketed_event'
               ? 'ticketed_event'
-              : 'quiz';
+              : integration.integration_type === 'puzzle_sub'
+                ? 'puzzle_sub'
+                : 'quiz';
 
         newActivityMap[eventId] = {
           room_id:   integration.external_ref,
@@ -297,12 +312,16 @@ const [isEditingQuiz, setIsEditingQuiz] = useState(false);  // ← add this
           setRoomRowsMap(freshRowMap);
           setActivityMap(updatedActivityMap);
 
-          // Outstanding payments — only for completed non-ticketed-event rooms
+          // Outstanding payments — only for completed rooms with a manual
+          // payment concept. Ticketed events reconcile separately; puzzle
+          // subscriptions are Stripe-only, so there's nothing unpaid to
+          // chase here — see quiz_payment_ledger writes in stripeWebhooks.js.
           const completedIds = Object.values(updatedActivityMap)
             .filter((a): a is LinkedActivity =>
               !!a &&
               a.status === 'completed' &&
-              a.game_type !== 'ticketed_event'
+              a.game_type !== 'ticketed_event' &&
+              a.game_type !== 'puzzle_sub'
             )
             .map(a => a.room_id);
 
@@ -346,10 +365,11 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
         pmResults.forEach(r => { pmMap[r.id] = r.hasLinked; });
         setPaymentMethodMap(pmMap);
 
-       const [quizLinks, eliminationLinks, ticketedLinks] = await Promise.all([
+       const [quizLinks, eliminationLinks, ticketedLinks, subscriptionLinks] = await Promise.all([
   eventIntegrationsService.lookupLinks({ integration_type: 'quiz_web2',      external_refs: roomIds }),
   eventIntegrationsService.lookupLinks({ integration_type: 'elimination',     external_refs: roomIds }),
   eventIntegrationsService.lookupLinks({ integration_type: 'ticketed_event',  external_refs: roomIds }),
+  eventIntegrationsService.lookupLinks({ integration_type: 'puzzle_sub',     external_refs: roomIds }),
 ]);
 
 const leMap: Record<string, { eventId: string; eventTitle: string }> = {};
@@ -357,6 +377,7 @@ for (const l of [
   ...(quizLinks.links       || []),
   ...(eliminationLinks.links || []),
   ...(ticketedLinks.links    || []),
+  ...(subscriptionLinks.links || []),
 ]) {
   if (l.external_ref && l.event_id && l.event_title) {
     leMap[l.external_ref] = { eventId: l.event_id, eventTitle: l.event_title };
@@ -440,85 +461,17 @@ setLinkedEventsMap(leMap);
     setDrawerOpen(true);
   };
 
-  const handleActivitySaved = async (
-    roomId?: string,
-    gameType: 'quiz' | 'elimination' | 'ticketed_event' = 'quiz'
+  // Legacy events with no activity yet: open the wizard at the activity
+  // step with the existing event injected — event creation is skipped and
+  // the wizard's submit chain only creates + links the room. All EDITING
+  // (event + activity together) goes through EditFundraiserModal.
+  const handleAddActivity = (
+    event: Event,
+    type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub'
   ) => {
-    if (roomId && pendingActivityEventId) {
-      // Only link if this event doesn't already have this room linked.
-      // Without this check, EVERY edit of an already-linked room re-fires
-      // the link call and hits a 409 ("already linked") from the backend —
-      // harmless to the room's own data, but noisy and masked a real bug
-      // (see below) for a while.
-      const alreadyLinked = activityMap[pendingActivityEventId]?.room_id === roomId;
-
-      if (!alreadyLinked) {
-        try {
-          await eventIntegrationsService.link(pendingActivityEventId, {
-            integration_type:
-              gameType === 'elimination'
-                ? 'elimination'
-                : gameType === 'ticketed_event'
-                  ? 'ticketed_event'
-                  : 'quiz_web2',
-            external_ref: roomId,
-          });
-        } catch (e) {
-          console.error('Failed to auto-link activity to event:', e);
-        }
-      }
-
-      // NOTE: there used to be a second step here that read the EVENT's
-      // payment_methods_json and pushed it DOWN onto the room. That was
-      // leftover from the old architecture, before payment methods were
-      // flipped to flow room → event instead of event → room (see
-      // PaymentMethodSelector.tsx / EventIntegrationsService.js for the
-      // current design). It has been removed — it was overwriting the
-      // room's just-saved payment methods with the event's stale cached
-      // copy, which is what caused "removing methods doesn't stick"
-      // (the event's old non-empty cache would get pushed back down,
-      // undoing the removal — adding methods often didn't show this
-      // because the overwrite happened to overlap with what was added).
-      // The room already wrote its own payment methods correctly inside
-      // its own create/update handler — nothing here should touch them.
-    }
-    setPendingActivityEventId(null);
-    await loadEvents();
-  };
-
-  const handleAddActivity = (event: Event, type: 'quiz' | 'elimination' | 'ticketed_event') => {
-    setPendingActivityEventId(event.id);
-    if (type === 'quiz')                setScheduleQuizOpen(true);
-    else if (type === 'elimination')    setScheduleEliminationOpen(true);
-    else if (type === 'ticketed_event') setScheduleTicketedEventOpen(true);
-  };
-
-  const handleCreateEvent = async (data: CreateEventFormData | UpdateEventForm) => {
-    if (!clubId) throw new Error('No club ID');
-    await eventsService.createEvent(clubId, data as CreateEventFormData);
-    await loadEvents();
-  };
-
-  const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) => {
-    if (!eventToEdit) return;
-    await eventsService.updateEvent(eventToEdit.id, data as UpdateEventForm);
-
-    const activity = activityMap[eventToEdit.id];
-    if (activity?.game_type === 'ticketed_event' && activity.status === 'scheduled') {
-      try {
-        const updates: any = {};
-        if ((data as any).start_datetime) updates.scheduledAt = (data as any).start_datetime;
-        if ((data as any).time_zone)      updates.timeZone    = (data as any).time_zone;
-        if (Object.keys(updates).length > 0) {
-          await ticketedEventMgmtService.updateRoom(activity.room_id, updates);
-        }
-      } catch (e) {
-        console.error('Failed to sync date to ticketed event room:', e);
-      }
-    }
-
-    setEventToEdit(null);
-    await loadEvents();
+    setWizardEvent(event);
+    setWizardType(type);
+    setShowWizard(true);
   };
 
   const handlePublish   = async (event: Event) => { await eventsService.publishEvent(event.id);   await loadEvents(); };
@@ -570,6 +523,7 @@ setLinkedEventsMap(leMap);
     { key: 'quiz',           label: 'Quiz',        icon: <Play className="h-3 w-3" />,      count: gameTypeCounts.quiz },
     { key: 'elimination',    label: 'Elimination', icon: <Trophy className="h-3 w-3" />,    count: gameTypeCounts.elimination },
     { key: 'ticketed_event', label: 'Ticketed',    icon: <Ticket className="h-3 w-3" />,    count: gameTypeCounts.ticketed_event },
+    { key: 'puzzle_sub',     label: 'Subscription', icon: <Puzzle className="h-3 w-3" />,   count: gameTypeCounts.puzzle_sub },
   ];
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -630,12 +584,12 @@ setLinkedEventsMap(leMap);
             )}
 
             <button type="button"
-              onClick={() => { setEventToEdit(null); setShowCreateForm(true); }}
+              onClick={() => { setWizardEvent(null); setWizardType(undefined); setShowWizard(true); }}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
               style={{ background: '#157f85' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
               onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}>
-              <PlusCircle className="h-4 w-4" /> Create Event
+              <PlusCircle className="h-4 w-4" /> Create Fundraiser
             </button>
           </div>
         </div>
@@ -854,10 +808,10 @@ setLinkedEventsMap(leMap);
             </p>
             {events.length === 0 && (
               <button
-                onClick={() => { setEventToEdit(null); setShowCreateForm(true); }}
+                onClick={() => { setWizardEvent(null); setWizardType(undefined); setShowWizard(true); }}
                 className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
                 style={{ background: '#157f85' }}>
-                <PlusCircle className="h-4 w-4" /> Create First Event
+                <PlusCircle className="h-4 w-4" /> Create Your First Fundraiser
               </button>
             )}
             {(search || statusFilter !== 'all') && (
@@ -891,7 +845,7 @@ setLinkedEventsMap(leMap);
                     outstandingCount={outstanding}
                     onOpenDrawer={() => handleOpenDrawer(event)}
                     onAddActivity={(type) => handleAddActivity(event, type)}
-                    onEdit={() => { setEventToEdit(event); setShowCreateForm(true); }}
+                    onEdit={() => setEventToEdit(event)}
                     onPublish={() => handlePublish(event)}
                     onUnpublish={() => handleUnpublish(event)}
                   />
@@ -914,7 +868,7 @@ setLinkedEventsMap(leMap);
                   outstandingCount={outstanding}
                   onOpenDrawer={() => handleOpenDrawer(event)}
                   onAddActivity={(type) => handleAddActivity(event, type)}
-                  onEdit={() => { setEventToEdit(event); setShowCreateForm(true); }}
+                  onEdit={() => setEventToEdit(event)}
                   onPublish={() => handlePublish(event)}
                   onUnpublish={() => handleUnpublish(event)}
                 />
@@ -926,14 +880,35 @@ setLinkedEventsMap(leMap);
 
       {/* ── Modals ── */}
 
-      {showCreateForm && (
-        <CreateEventForm
-          onSubmit={eventToEdit ? handleUpdateEvent : handleCreateEvent}
-          onCancel={() => { setShowCreateForm(false); setEventToEdit(null); }}
-          editMode={!!eventToEdit}
-          existingEvent={eventToEdit}
+      {showWizard && clubId && (
+        <CreateFundraiserWizard
+          clubId={clubId}
+          existingEvent={wizardEvent}
+          initialType={wizardType}
+          onClose={() => { setShowWizard(false); setWizardEvent(null); setWizardType(undefined); }}
+          onDone={async () => { await loadEvents(); }}
         />
       )}
+
+      {eventToEdit && (() => {
+        const activity = activityMap[eventToEdit.id] ?? null;
+        // Prefer the drawer's room row when it matches — it carries the
+        // freshest config_json (handleOpenDrawer refreshes it).
+        const roomForEdit = activity
+          ? (drawerRoom?.room_id === activity.room_id
+              ? drawerRoom
+              : roomRowsMap[activity.room_id] ?? null)
+          : null;
+        return (
+          <EditFundraiserModal
+            event={eventToEdit}
+            activity={activity}
+            room={roomForEdit}
+            onClose={() => setEventToEdit(null)}
+            onSaved={async () => { await loadEvents(); }}
+          />
+        );
+      })()}
 
       {drawerRoom && (
         <DigitalEventDrawer
@@ -968,28 +943,15 @@ setLinkedEventsMap(leMap);
           confirmUnlink={confirmUnlink}
           onLaunchFromHere={() => openRoom(drawerRoom.room_id, drawerRoom.host_id)}
           onPaymentMethodSuccess={() => handlePaymentMethodSuccess(drawerRoom.room_id)}
-          onEditQuiz={() => {
+          onEditFundraiser={() => {
             const linkedEvent = drawerLinked?.eventId
               ? events.find(e => e.id === drawerLinked.eventId)
               : undefined;
             if (linkedEvent) {
-              setPendingActivityEventId(linkedEvent.id);
-              setIsEditingQuiz(true);  
-              setScheduleQuizOpen(true);
+              setEventToEdit(linkedEvent);
               setDrawerOpen(false);
             }
           }}
-          onEditTicketedEvent={() => {
-    const linkedEvent = drawerLinked?.eventId
-       ? events.find(e => e.id === drawerLinked.eventId)
-       : undefined;
-     if (linkedEvent) {
-       setPendingActivityEventId(linkedEvent.id);
-       setIsEditingTicketedEvent(true);
-       setScheduleTicketedEventOpen(true);
-       setDrawerOpen(false);
-     }
-   }}
         />
       )}
 
@@ -1011,63 +973,6 @@ setLinkedEventsMap(leMap);
         />
       )}
 
-      {scheduleQuizOpen && (() => {
-        const pendingEvent = events.find(e => e.id === pendingActivityEventId);
-        if (!pendingEvent) return null;
-        return (
-        <ScheduleQuizModal
-  event={pendingEvent}
-  existingRoom={isEditingQuiz ? drawerRoom : null}   // ← add this
-  onClose={() => {
-    setScheduleQuizOpen(false);
-    setPendingActivityEventId(null);
-    setIsEditingQuiz(false);    // ← add this reset
-  }}
-  onSaved={async (roomId) => {
-    setScheduleQuizOpen(false);
-    setIsEditingQuiz(false);    // ← add this reset
-    await handleActivitySaved(roomId, 'quiz');
-  }}
-/>
-        );
-      })()}
-
-      {scheduleEliminationOpen && (() => {
-        const pendingEvent = events.find(e => e.id === pendingActivityEventId);
-        if (!pendingEvent) return null;
-        return (
-          <ScheduleEliminationModal
-            event={pendingEvent}
-            onClose={() => { setScheduleEliminationOpen(false); setPendingActivityEventId(null); }}
-            onSaved={async (roomId) => {
-              setScheduleEliminationOpen(false);
-              await handleActivitySaved(roomId, 'elimination');
-            }}
-          />
-        );
-      })()}
-
-      {scheduleTicketedEventOpen && (() => {
-    const pendingEvent = events.find(e => e.id === pendingActivityEventId);
-     if (!pendingEvent) return null;
-     const roomToEdit = isEditingTicketedEvent ? drawerRoom : null;
-     return (
-       <ScheduleTicketedEventModal
-         event={pendingEvent}
-         existingRoom={roomToEdit as any}
-         onClose={() => {
-           setScheduleTicketedEventOpen(false);
-           setPendingActivityEventId(null);
-           setIsEditingTicketedEvent(false);
-         }}
-         onSaved={async (roomId) => {
-           setScheduleTicketedEventOpen(false);
-           setIsEditingTicketedEvent(false);
-           await handleActivitySaved(roomId, 'ticketed_event');
-         }}
-       />
-     );
-   })()}
     </div>
   );
 }

@@ -17,7 +17,7 @@ import database from '../../config/database.js';
 export async function joinFree({ challengeId, supporterId, clubId }) {
   // Verify challenge exists, belongs to this club, and is free
   const [[challenge]] = await database.connection.execute(
-    `SELECT id, is_free, status, total_weeks
+    `SELECT id, is_free, status, total_weeks, starts_at
      FROM fundraisely_puzzle_challenges
      WHERE id = ? AND club_id = ?
      LIMIT 1`,
@@ -32,6 +32,20 @@ export async function joinFree({ challengeId, supporterId, clubId }) {
   }
   if (challenge.status === 'cancelled') {
     throw new Error('This challenge has been cancelled.');
+  }
+
+  // New sign-ups close once the LAST week has unlocked — starts_at +
+  // (total_weeks - 1) weeks, matching exactly how each week's own
+  // unlocksAt is computed in challengeService.js
+  // (unlocksAt = startsAtMs + (entry.week - 1) * weekMs). This does NOT
+  // affect anyone already enrolled — their own access continues
+  // regardless of this date; it only blocks brand-new sign-ups.
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const startsAtMs = new Date(challenge.starts_at).getTime();
+  const lastWeekUnlocksAt = startsAtMs + (challenge.total_weeks - 1) * weekMs;
+
+  if (Date.now() > lastWeekUnlocksAt) {
+    throw new Error('New sign-ups have closed for this challenge — the final week has already unlocked.');
   }
 
   // Enroll in challenge_players (INSERT IGNORE = safe to call twice)

@@ -71,6 +71,7 @@ export async function createPuzzleSubRoom({
   currency,
   totalWeeks,
   startsAt,
+  eventSponsors,
 }) {
   if (!challengeId) throw Object.assign(new Error('challengeId required'), { statusCode: 400 });
   if (!clubId)      throw Object.assign(new Error('clubId required'),      { statusCode: 400 });
@@ -107,6 +108,10 @@ export async function createPuzzleSubRoom({
     // Computed end date — same value as ended_at on the room row, stored
     // in config_json too so it's accessible without a second column lookup.
     endsAt: endsAtMysql,
+    // Same field name and {name, role} shape as TicketedEventConfig's
+    // eventSponsors — kept consistent across activity types rather than
+    // inventing a subscription-specific name.
+    eventSponsors: eventSponsors ?? [],
   });
 
   // room_caps_json — subscriptions have no venue capacity concept, but
@@ -315,6 +320,7 @@ export async function updatePuzzleSubRoom({
   currency,
   totalWeeks,
   startsAt,
+  eventSponsors,
 }) {
   if (!challengeId) throw Object.assign(new Error('challengeId required'), { statusCode: 400 });
 
@@ -346,6 +352,7 @@ export async function updatePuzzleSubRoom({
     startsAt:     resolvedStartsAt,
     eventDateTime: resolvedStartsAt,
     endsAt:       endsAtMysql,
+    eventSponsors: eventSponsors ?? currentConfig.eventSponsors ?? [],
   };
 
   const sets    = ['config_json = ?', 'updated_at = UTC_TIMESTAMP()'];

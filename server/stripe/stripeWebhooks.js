@@ -2,22 +2,26 @@
 // CHANGES from previous version:
 //   1. Handles checkout.session.expired — hard-deletes ticket + ledger rows
 //      for ticket_purchase sessions.
-//   2. ✅ Confirms campaign product orders on payment_intent.succeeded.
-//      confirmOrderByStripeIntent returns null if the intent isn't a campaign
-//      order, so all existing quiz/elimination flows are unaffected.
-//   3. ✅ Handles checkout.session.expired for campaign_product sessions —
-//      cancels the order and order items so they don't sit as pending forever.
-//   4. ✅ NEW: Pre-registers Stripe walk-in player into in-memory elimination
-//      room via addPlayerWithId so the success page socket join works immediately.
+//   2. Confirms campaign product orders on payment_intent.succeeded.
+//   3. Handles checkout.session.expired for campaign_product sessions.
+//   4. Pre-registers Stripe walk-in players into in-memory elimination rooms.
+//   5. Confirms and fulfils peer-to-peer fundraiser orders.
+//   6. Cancels expired peer-to-peer Stripe orders.
 
 import Stripe from 'stripe';
 import { connection, TABLE_PREFIX } from '../config/database.js';
-import { sendTicketConfirmationEmail, getTicketWithRoomConfig } from '../utils/ticketEmail.js';
+import {
+  sendTicketConfirmationEmail,
+  getTicketWithRoomConfig,
+} from '../utils/ticketEmail.js';
 import { createExpectedPayment } from '../mgtsystem/services/quizPaymentLedgerService.js';
 import { deleteExpiredTicket } from './stripeExpiredTicketService.js';
 import { confirmOrderByStripeIntent } from '../campaigns/services/campaignOrderService.js';
 import { addPlayerWithId } from '../elimination/services/eliminationRoomManager.js';
-import { confirmDonation, markDonationStatus } from '../donations/services/DonationLedgerService.js';
+import {
+  confirmDonation,
+  markDonationStatus,
+} from '../donations/services/DonationLedgerService.js';
 import {
   confirmSubscriptionCheckout,
   updateSubscriptionPeriodEnd,
@@ -25,8 +29,15 @@ import {
   markSubscriptionCancelled,
   getSubscriptionBillingContext,
 } from '../puzzles/services/puzzleSubscriptionPaymentService.js';
+import { maybeAutoCompleteChallenge } from '../puzzles/services/challengeService.js';
+import {
+  confirmPeerOrder,
+  cancelExpiredPeerOrder,
+} from '../peerFundraising/services/peerOrderCompletionService.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-06-20',
+});
 
 const TICKETS_TABLE       = `${TABLE_PREFIX}quiz_tickets`;
 const LEDGER_TABLE        = `${TABLE_PREFIX}quiz_payment_ledger`;
@@ -34,33 +45,51 @@ const STRIPE_EVENTS_TABLE = `${TABLE_PREFIX}stripe_events`;
 
 const DEBUG = true;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Stripe event idempotency
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function alreadyProcessed(eventId) {
   const [rows] = await connection.execute(
-    `SELECT event_id FROM ${STRIPE_EVENTS_TABLE} WHERE event_id = ? LIMIT 1`,
+    `SELECT event_id
+     FROM ${STRIPE_EVENTS_TABLE}
+     WHERE event_id = ?
+     LIMIT 1`,
     [eventId]
   );
+
   return rows.length > 0;
 }
 
 async function markProcessed(eventId, eventType) {
   await connection.execute(
-    `INSERT INTO ${STRIPE_EVENTS_TABLE} (event_id, event_type, processed_at) VALUES (?, ?, UTC_TIMESTAMP())`,
+    `INSERT INTO ${STRIPE_EVENTS_TABLE}
+      (event_id, event_type, processed_at)
+     VALUES (?, ?, UTC_TIMESTAMP())`,
     [eventId, eventType]
   );
 }
 
-async function confirmTicketAndLedger({ ticketId, sessionId, paymentIntentId }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Standard ticket confirmation
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function confirmTicketAndLedger({
+  ticketId,
+  sessionId,
+  paymentIntentId,
+}) {
   await connection.execute(
     `UPDATE ${TICKETS_TABLE}
      SET
-       payment_status        = 'payment_confirmed',
-       redemption_status     = 'ready',
-       confirmed_at          = UTC_TIMESTAMP(),
-       confirmed_by          = 'webhook_auto',
-       confirmed_by_name     = 'Stripe',
-       confirmed_by_role     = 'admin',
+       payment_status          = 'payment_confirmed',
+       redemption_status       = 'ready',
+       confirmed_at            = UTC_TIMESTAMP(),
+       confirmed_by            = 'webhook_auto',
+       confirmed_by_name       = 'Stripe',
+       confirmed_by_role       = 'admin',
        external_transaction_id = COALESCE(external_transaction_id, ?),
-       updated_at            = UTC_TIMESTAMP()
+       updated_at              = UTC_TIMESTAMP()
      WHERE ticket_id = ?`,
     [paymentIntentId || sessionId, ticketId]
   );
@@ -76,118 +105,147 @@ async function confirmTicketAndLedger({ ticketId, sessionId, paymentIntentId }) 
        updated_at              = UTC_TIMESTAMP()
      WHERE ticket_id      = ?
        AND payment_method = 'stripe'
-       AND status         IN ('expected','claimed')`,
+       AND status         IN ('expected', 'claimed')`,
     [paymentIntentId || sessionId, ticketId]
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Quiz walk-in ledger
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function confirmWalkinLedger({
-  roomId, clubId, playerId, playerName,
-  entryFee, extrasWithPrices, donationAmount, fundraisingMode,
-  currency, clubPaymentMethodId, sessionId, paymentIntentId,
+  roomId,
+  clubId,
+  playerId,
+  playerName,
+  entryFee,
+  extrasWithPrices,
+  donationAmount,
+  fundraisingMode,
+  currency,
+  clubPaymentMethodId,
+  sessionId,
+  paymentIntentId,
 }) {
   const reference  = paymentIntentId || sessionId;
   const isDonation = fundraisingMode === 'donation';
 
-  console.log('[StripeWebhook] 🧾 confirmWalkinLedger input:', {
-    roomId, playerId, playerName, entryFee, donationAmount,
-    fundraisingMode, isDonationRoom: isDonation,
+  console.log('[StripeWebhook] confirmWalkinLedger input:', {
+    roomId,
+    playerId,
+    playerName,
+    entryFee,
+    donationAmount,
+    fundraisingMode,
+    isDonationRoom: isDonation,
   });
 
   if (isDonation) {
     const amount = parseFloat(donationAmount || 0);
 
     await createExpectedPayment({
-      roomId, clubId, playerId, playerName,
+      roomId,
+      clubId,
+      playerId,
+      playerName,
       ledgerType:          'entry_fee',
       amount,
       currency,
       paymentMethod:       'stripe',
       paymentSource:       'webhook_auto',
-      clubPaymentMethodId: clubPaymentMethodId ? parseInt(clubPaymentMethodId) : null,
-      paymentReference:    reference,
-      status:              'confirmed',
-      confirmedAt:         new Date(),
-      confirmedBy:         'webhook_auto',
-      confirmedByName:     'Stripe',
-      confirmedByRole:     'admin',
-      ticketId:            null,
-      extraMetadata:       { fundraisingMode: 'donation', donationAmount: amount },
+      clubPaymentMethodId: clubPaymentMethodId
+        ? parseInt(clubPaymentMethodId, 10)
+        : null,
+      paymentReference: reference,
+      status:           'confirmed',
+      confirmedAt:      new Date(),
+      confirmedBy:      'webhook_auto',
+      confirmedByName:  'Stripe',
+      confirmedByRole:  'admin',
+      ticketId:         null,
+      extraMetadata: {
+        fundraisingMode: 'donation',
+        donationAmount: amount,
+      },
     });
 
     return;
   }
 
   await createExpectedPayment({
-    roomId, clubId, playerId, playerName,
+    roomId,
+    clubId,
+    playerId,
+    playerName,
     ledgerType:          'entry_fee',
     amount:              parseFloat(entryFee),
     currency,
     paymentMethod:       'stripe',
     paymentSource:       'webhook_auto',
-    clubPaymentMethodId: clubPaymentMethodId ? parseInt(clubPaymentMethodId) : null,
-    paymentReference:    reference,
-    status:              'confirmed',
-    confirmedAt:         new Date(),
-    confirmedBy:         'webhook_auto',
-    confirmedByName:     'Stripe',
-    confirmedByRole:     'admin',
-    ticketId:            null,
+    clubPaymentMethodId: clubPaymentMethodId
+      ? parseInt(clubPaymentMethodId, 10)
+      : null,
+    paymentReference: reference,
+    status:           'confirmed',
+    confirmedAt:      new Date(),
+    confirmedBy:      'webhook_auto',
+    confirmedByName:  'Stripe',
+    confirmedByRole:  'admin',
+    ticketId:         null,
   });
 
   for (const extra of extrasWithPrices) {
     await createExpectedPayment({
-      roomId, clubId, playerId, playerName,
+      roomId,
+      clubId,
+      playerId,
+      playerName,
       ledgerType:          'extra_purchase',
       amount:              parseFloat(extra.price),
       currency,
       paymentMethod:       'stripe',
       paymentSource:       'webhook_auto',
-      clubPaymentMethodId: clubPaymentMethodId ? parseInt(clubPaymentMethodId) : null,
-      paymentReference:    reference,
-      status:              'confirmed',
-      confirmedAt:         new Date(),
-      confirmedBy:         'webhook_auto',
-      confirmedByName:     'Stripe',
-      confirmedByRole:     'admin',
-      extraId:             extra.extraId,
-      extraMetadata:       extra,
-      ticketId:            null,
+      clubPaymentMethodId: clubPaymentMethodId
+        ? parseInt(clubPaymentMethodId, 10)
+        : null,
+      paymentReference: reference,
+      status:           'confirmed',
+      confirmedAt:      new Date(),
+      confirmedBy:      'webhook_auto',
+      confirmedByName:  'Stripe',
+      confirmedByRole:  'admin',
+      extraId:          extra.extraId,
+      extraMetadata:    extra,
+      ticketId:         null,
     });
   }
 }
 
-// ─── Puzzle subscription ledger writes ───────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Puzzle subscription ledger
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Writes ONE confirmed quiz_payment_ledger row for a puzzle subscription
- * payment — either the first cycle (from checkout.session.completed) or a
- * renewal (from invoice.payment_succeeded with billing_reason =
- * subscription_cycle).
- *
- * Looks up room_id/weekly_price/currency/player_name via
- * getSubscriptionBillingContext rather than trusting Stripe metadata for
- * these, since only IDs are guaranteed to be present on both event types
- * (subscription metadata is not copied onto every invoice by Stripe).
- *
- * Non-fatal by design: a failed ledger write must never fail subscription
- * confirmation or renewal processing — the player's access already
- * doesn't depend on this table. It only affects what clubs see in their
- * financial reports. Logged loudly so it's easy to spot and backfill.
- */
 async function writePuzzleSubscriptionLedgerEntry({
   stripeSubscriptionId,
   externalTransactionId,
   paymentReference,
-  context, // 'checkout' | 'renewal' — for logging only
+  context,
 }) {
   try {
-    const billing = await getSubscriptionBillingContext({ stripeSubscriptionId });
+    const billing = await getSubscriptionBillingContext({
+      stripeSubscriptionId,
+    });
 
     if (!billing || !billing.room_id) {
-      console.warn('[StripeWebhook] ⚠️ puzzle_subscription ledger skipped — no billing context or room_id:', {
-        stripeSubscriptionId, context,
-      });
+      console.warn(
+        '[StripeWebhook] Puzzle subscription ledger skipped — no billing context or room ID:',
+        {
+          stripeSubscriptionId,
+          context,
+        }
+      );
+
       return;
     }
 
@@ -197,80 +255,116 @@ async function writePuzzleSubscriptionLedgerEntry({
       playerId:             billing.player_id,
       playerName:           billing.player_name,
       ledgerType:           'entry_fee',
-      amount:               Number(billing.weekly_price) / 100, // weekly_price is stored in cents
+      amount:               Number(billing.weekly_price) / 100,
       currency:             (billing.currency || 'eur').toUpperCase(),
       paymentMethod:        'stripe',
       paymentSource:        'webhook_auto',
       externalTransactionId,
       paymentReference,
       status:               'confirmed',
-      confirmedAt:           new Date(),
-      confirmedBy:           'webhook_auto',
-      confirmedByName:       'Stripe Webhook',
-      confirmedByRole:       'system',
+      confirmedAt:          new Date(),
+      confirmedBy:          'webhook_auto',
+      confirmedByName:      'Stripe Webhook',
+      confirmedByRole:      'system',
     });
 
     if (DEBUG) {
-      console.log('[StripeWebhook] ✅ puzzle_subscription ledger row written:', {
-        context, stripeSubscriptionId, roomId: billing.room_id, playerId: billing.player_id,
-      });
+      console.log(
+        '[StripeWebhook] Puzzle subscription ledger row written:',
+        {
+          context,
+          stripeSubscriptionId,
+          roomId:   billing.room_id,
+          playerId: billing.player_id,
+        }
+      );
     }
   } catch (ledgerErr) {
-    console.error('[StripeWebhook] ⚠️ puzzle_subscription ledger write failed (non-fatal):', {
-      context, stripeSubscriptionId, error: ledgerErr.message,
-    });
+    console.error(
+      '[StripeWebhook] Puzzle subscription ledger write failed (non-fatal):',
+      {
+        context,
+        stripeSubscriptionId,
+        error: ledgerErr.message,
+      }
+    );
   }
 }
 
-// ─── Campaign order expired cleanup ──────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Expired campaign product order
+// Remove this once the old campaign-product feature is fully deleted.
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function cancelExpiredCampaignOrder(orderId, sessionId) {
-  const T_ORDERS      = `${TABLE_PREFIX}campaign_product_orders`;
-  const T_ORDER_ITEMS = `${TABLE_PREFIX}campaign_product_order_items`;
-  const T_ENTRIES     = `${TABLE_PREFIX}campaign_entries`;
+  const T_ORDERS  = `${TABLE_PREFIX}campaign_product_orders`;
+  const T_ENTRIES = `${TABLE_PREFIX}campaign_entries`;
 
   const [result] = await connection.execute(
     `UPDATE ${T_ORDERS}
-     SET payment_status = 'cancelled',
-         metadata_json  = JSON_SET(COALESCE(metadata_json, '{}'),
-                            '$.cancelReason', 'stripe_session_expired',
-                            '$.expiredSessionId', ?)
-     WHERE id = ? AND payment_status = 'pending'`,
+     SET
+       payment_status = 'cancelled',
+       metadata_json = JSON_SET(
+         COALESCE(metadata_json, '{}'),
+         '$.cancelReason',
+         'stripe_session_expired',
+         '$.expiredSessionId',
+         ?
+       )
+     WHERE id = ?
+       AND payment_status = 'pending'`,
     [sessionId, orderId]
   );
 
   if (result.affectedRows === 0) {
-    console.log(`[StripeWebhook] ℹ️ Campaign order ${orderId} not pending — skipping expiry cancel`);
+    console.log(
+      `[StripeWebhook] Campaign order ${orderId} is not pending — expiry skipped`
+    );
+
     return { cancelled: false };
   }
 
   await connection.execute(
     `UPDATE ${T_ENTRIES}
      SET status = 'cancelled'
-     WHERE order_id = ? AND status = 'pending_payment'`,
+     WHERE order_id = ?
+       AND status = 'pending_payment'`,
     [orderId]
   );
 
-  console.log(`[StripeWebhook] 🗑️ Cancelled expired campaign order ${orderId} (session: ${sessionId})`);
+  console.log(
+    `[StripeWebhook] Cancelled expired campaign order ${orderId}`
+  );
+
   return { cancelled: true };
 }
 
-// ─── Main webhook handler ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Main webhook handler
+// ─────────────────────────────────────────────────────────────────────────────
 
 export async function stripeWebhookHandler(req, res) {
-  console.log('[StripeWebhook] 🔔 Webhook received!');
+  console.log('[StripeWebhook] Webhook received');
   console.log('[StripeWebhook] Method:', req.method);
   console.log('[StripeWebhook] Headers:', {
-    'stripe-signature': req.headers['stripe-signature'] ? 'present' : 'MISSING',
-    'stripe-account':   req.headers['stripe-account'] || 'NOT PRESENT (platform account)',
+    'stripe-signature': req.headers['stripe-signature']
+      ? 'present'
+      : 'MISSING',
+    'stripe-account':
+      req.headers['stripe-account'] ||
+      'NOT PRESENT (platform account)',
   });
   console.log('[StripeWebhook] Body type:', typeof req.body);
-  console.log('[StripeWebhook] Body is Buffer:', Buffer.isBuffer(req.body));
+  console.log(
+    '[StripeWebhook] Body is Buffer:',
+    Buffer.isBuffer(req.body)
+  );
 
   const sig              = req.headers['stripe-signature'];
   const connectAccountId = req.headers['stripe-account'];
 
   let event;
+
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
@@ -278,429 +372,884 @@ export async function stripeWebhookHandler(req, res) {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error('[StripeWebhook] ❌ Signature verification failed:', err.message);
+    console.error(
+      '[StripeWebhook] Signature verification failed:',
+      err.message
+    );
+
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   try {
     if (DEBUG) {
-      console.log('[StripeWebhook] Event:', event.type, '| Connect account:', connectAccountId || 'platform');
+      console.log(
+        '[StripeWebhook] Event:',
+        event.type,
+        '| Connect account:',
+        connectAccountId || 'platform'
+      );
     }
 
     if (await alreadyProcessed(event.id)) {
-      if (DEBUG) console.log('[StripeWebhook] 🔁 Duplicate event ignored:', event.id);
-      return res.json({ received: true, duplicate: true });
+      if (DEBUG) {
+        console.log(
+          '[StripeWebhook] Duplicate event ignored:',
+          event.id
+        );
+      }
+
+      return res.json({
+        received: true,
+        duplicate: true,
+      });
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // payment_intent.succeeded — handles campaign product orders
+    // payment_intent.succeeded
     // ─────────────────────────────────────────────────────────────────────────
+
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object;
-      if (DEBUG) console.log('[StripeWebhook] 💳 payment_intent.succeeded:', paymentIntent.id);
 
+      if (DEBUG) {
+        console.log(
+          '[StripeWebhook] payment_intent.succeeded:',
+          paymentIntent.id
+        );
+      }
+
+      // Old campaign product order support.
+      // This can be removed once those tables and services are deleted.
       try {
-        const campaignOrder = await confirmOrderByStripeIntent(paymentIntent.id);
+        const campaignOrder = await confirmOrderByStripeIntent(
+          paymentIntent.id
+        );
+
         if (campaignOrder) {
-          console.log('[StripeWebhook] ✅ Campaign order confirmed:', campaignOrder.id);
+          console.log(
+            '[StripeWebhook] Campaign order confirmed:',
+            campaignOrder.id
+          );
         }
       } catch (campaignErr) {
-        console.error('[StripeWebhook] ⚠️ Campaign order confirmation failed (non-fatal):', campaignErr.message);
+        console.error(
+          '[StripeWebhook] Campaign order confirmation failed (non-fatal):',
+          campaignErr.message
+        );
       }
+
+      // New peer-to-peer order.
+      // confirmPeerOrder should return null if the PaymentIntent is not
+      // linked to a peer order.
+      try {
+        const peerOrder = await confirmPeerOrder({
+          stripePaymentIntentId: paymentIntent.id,
+          externalTransactionId: paymentIntent.id,
+          paymentReference:      paymentIntent.id,
+        });
+
+        if (peerOrder) {
+          console.log(
+            '[StripeWebhook] Peer order confirmed:',
+            peerOrder.id
+          );
+        }
+      } catch (peerErr) {
+        console.error(
+          '[StripeWebhook] Peer order confirmation failed (non-fatal):',
+          peerErr.message
+        );
+      }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // checkout.session.completed
     // ─────────────────────────────────────────────────────────────────────────
-    } else if (event.type === 'checkout.session.completed') {
+
+    else if (event.type === 'checkout.session.completed') {
       const session         = event.data.object;
       const type            = session?.metadata?.type;
       const sessionId       = session?.id;
       const paymentIntentId = session?.payment_intent || null;
 
-      // ── Campaign product purchase ────────────────────────────────────────
-      if (type === 'campaign_product') {
+      // ── Peer-to-peer fundraiser order ──────────────────────────────────────
+
+      if (type === 'peer_fundraiser_order') {
         const orderId = session?.metadata?.orderId;
 
         if (!orderId) {
-          console.warn('[StripeWebhook] ⚠️ campaign_product missing orderId', { sessionId });
+          console.warn(
+            '[StripeWebhook] peer_fundraiser_order is missing orderId',
+            { sessionId }
+          );
         } else {
           try {
-            const confirmed = await confirmOrderByStripeIntent(paymentIntentId ?? sessionId);
+            const confirmed = await confirmPeerOrder({
+              orderId,
+              stripePaymentIntentId: paymentIntentId ?? null,
+              externalTransactionId:
+                paymentIntentId ?? sessionId,
+              paymentReference:
+                paymentIntentId ?? sessionId,
+            });
+
             if (confirmed) {
-              console.log('[StripeWebhook] ✅ Campaign order confirmed via checkout.session.completed:', orderId);
+              console.log(
+                '[StripeWebhook] Peer order confirmed through checkout.session.completed:',
+                orderId
+              );
             }
-          } catch (err) {
-            console.error('[StripeWebhook] ⚠️ Campaign order confirm failed (non-fatal):', err.message);
+          } catch (peerErr) {
+            console.error(
+              '[StripeWebhook] Peer order confirmation failed (non-fatal):',
+              peerErr.message
+            );
           }
         }
+      }
 
-      // ── Ticket purchase ──────────────────────────────────────────────────
-      } else if (type === 'ticket_purchase') {
+      // ── Old campaign product purchase ──────────────────────────────────────
+
+      else if (type === 'campaign_product') {
+        const orderId = session?.metadata?.orderId;
+
+        if (!orderId) {
+          console.warn(
+            '[StripeWebhook] campaign_product is missing orderId',
+            { sessionId }
+          );
+        } else {
+          try {
+            const confirmed = await confirmOrderByStripeIntent(
+              paymentIntentId ?? sessionId
+            );
+
+            if (confirmed) {
+              console.log(
+                '[StripeWebhook] Campaign order confirmed through checkout.session.completed:',
+                orderId
+              );
+            }
+          } catch (err) {
+            console.error(
+              '[StripeWebhook] Campaign order confirmation failed (non-fatal):',
+              err.message
+            );
+          }
+        }
+      }
+
+      // ── Standard advance ticket purchase ───────────────────────────────────
+
+      else if (type === 'ticket_purchase') {
         const ticketId = session?.metadata?.ticketId;
 
         if (!ticketId) {
-          console.warn('[StripeWebhook] ⚠️ ticket_purchase missing ticketId', { sessionId });
+          console.warn(
+            '[StripeWebhook] ticket_purchase is missing ticketId',
+            { sessionId }
+          );
         } else {
-          await confirmTicketAndLedger({ ticketId, sessionId, paymentIntentId });
-          if (DEBUG) console.log('[StripeWebhook] ✅ Confirmed ticket + ledger:', { ticketId, sessionId });
+          await confirmTicketAndLedger({
+            ticketId,
+            sessionId,
+            paymentIntentId,
+          });
+
+          if (DEBUG) {
+            console.log(
+              '[StripeWebhook] Confirmed ticket and ledger:',
+              {
+                ticketId,
+                sessionId,
+              }
+            );
+          }
 
           try {
-            console.log('[StripeWebhook] 📧 Sending confirmation email for ticket:', ticketId);
-            const ticketRow = await getTicketWithRoomConfig(ticketId);
-            console.log('[StripeWebhook] 📧 Ticket row found:', !!ticketRow);
+            const ticketRow = await getTicketWithRoomConfig(
+              ticketId
+            );
 
             if (ticketRow) {
-              const config = typeof ticketRow.config_json === 'string'
-                ? JSON.parse(ticketRow.config_json)
-                : ticketRow.config_json;
+              const config =
+                typeof ticketRow.config_json === 'string'
+                  ? JSON.parse(ticketRow.config_json)
+                  : ticketRow.config_json;
 
-              const extras = typeof ticketRow.extras === 'string'
-                ? JSON.parse(ticketRow.extras)
-                : ticketRow.extras || [];
+              const extras =
+                typeof ticketRow.extras === 'string'
+                  ? JSON.parse(ticketRow.extras)
+                  : ticketRow.extras || [];
 
               await sendTicketConfirmationEmail({
-                eventTitle:     config?.eventTitle    || null,
-                eventLocation:  config?.eventLocation || null,
+                eventTitle:
+                  config?.eventTitle || null,
+                eventLocation:
+                  config?.eventLocation || null,
                 ticketId,
-                purchaserEmail: ticketRow.purchaser_email,
-                purchaserName:  ticketRow.purchaser_name,
-                playerName:     ticketRow.player_name,
-                entryFee:       ticketRow.entry_fee,
-                extrasTotal:    ticketRow.extras_total,
-                totalAmount:    ticketRow.total_amount,
-                currency:       ticketRow.currency,
-                currencySymbol: config?.currencySymbol || '€',
+                purchaserEmail:
+                  ticketRow.purchaser_email,
+                purchaserName:
+                  ticketRow.purchaser_name,
+                playerName:
+                  ticketRow.player_name,
+                entryFee:
+                  ticketRow.entry_fee,
+                extrasTotal:
+                  ticketRow.extras_total,
+                totalAmount:
+                  ticketRow.total_amount,
+                currency:
+                  ticketRow.currency,
+                currencySymbol:
+                  config?.currencySymbol || '€',
                 extras,
-                clubId:         ticketRow.club_id,
-                hostName:       config?.hostName,
-                eventDateTime:  config?.eventDateTime,
-                timeZone:       config?.timeZone,
-                gameType:       ticketRow.game_type || 'quiz',
-                clubName:       ticketRow.club_name || null,
+                clubId:
+                  ticketRow.club_id,
+                hostName:
+                  config?.hostName,
+                eventDateTime:
+                  config?.eventDateTime,
+                timeZone:
+                  config?.timeZone,
+                gameType:
+                  ticketRow.game_type || 'quiz',
+                clubName:
+                  ticketRow.club_name || null,
               });
 
-              if (DEBUG) console.log('[StripeWebhook] ✅ Email sent to:', ticketRow.purchaser_email);
+              if (DEBUG) {
+                console.log(
+                  '[StripeWebhook] Ticket email sent to:',
+                  ticketRow.purchaser_email
+                );
+              }
             }
           } catch (emailErr) {
-            console.error('[StripeWebhook] ⚠️ Email send failed (non-fatal):', emailErr.message);
-            console.error('[StripeWebhook] ⚠️ Full error:', emailErr);
+            console.error(
+              '[StripeWebhook] Ticket email failed (non-fatal):',
+              emailErr.message
+            );
           }
         }
+      }
 
-      // ── Walk-in payment (quiz) ───────────────────────────────────────────
-      } else if (type === 'walkin_payment') {
+      // ── Quiz walk-in payment ────────────────────────────────────────────────
+
+      else if (type === 'walkin_payment') {
         const {
-          roomId, clubId, playerId, playerName, entryFee, currency,
-          clubPaymentMethodId, donationAmount, fundraisingMode,
+          roomId,
+          clubId,
+          playerId,
+          playerName,
+          entryFee,
+          currency,
+          clubPaymentMethodId,
+          donationAmount,
+          fundraisingMode,
         } = session.metadata || {};
 
-        const extrasWithPrices = JSON.parse(session.metadata?.extrasWithPrices || '[]');
+        let extrasWithPrices = [];
 
-        console.log('[StripeWebhook] 🧾 Walk-in metadata received:', {
-          roomId, clubId, playerId, playerName, entryFee, donationAmount,
-          fundraisingMode, currency, clubPaymentMethodId, extrasWithPrices,
-          sessionMetadata: session.metadata,
-        });
+        try {
+          extrasWithPrices = JSON.parse(
+            session.metadata?.extrasWithPrices || '[]'
+          );
+        } catch {
+          extrasWithPrices = [];
+        }
+
+        console.log(
+          '[StripeWebhook] Quiz walk-in metadata received:',
+          {
+            roomId,
+            clubId,
+            playerId,
+            playerName,
+            entryFee,
+            donationAmount,
+            fundraisingMode,
+            currency,
+            clubPaymentMethodId,
+            extrasWithPrices,
+          }
+        );
 
         await confirmWalkinLedger({
-          roomId, clubId, playerId, playerName, entryFee, extrasWithPrices,
-          donationAmount, fundraisingMode, currency, clubPaymentMethodId,
-          sessionId, paymentIntentId,
+          roomId,
+          clubId,
+          playerId,
+          playerName,
+          entryFee,
+          extrasWithPrices,
+          donationAmount,
+          fundraisingMode,
+          currency,
+          clubPaymentMethodId,
+          sessionId,
+          paymentIntentId,
         });
 
         if (DEBUG) {
-          console.log('[StripeWebhook] ✅ Walk-in ledger confirmed:', {
-            roomId, playerId, playerName, fundraisingMode, donationAmount,
-          });
+          console.log(
+            '[StripeWebhook] Quiz walk-in ledger confirmed:',
+            {
+              roomId,
+              playerId,
+              playerName,
+              fundraisingMode,
+              donationAmount,
+            }
+          );
         }
+      }
 
-       } else if (type === 'club_donation') {
+      // ── Club donation ──────────────────────────────────────────────────────
+
+      else if (type === 'club_donation') {
         const donationId = session?.metadata?.donationId;
- 
+
         if (!donationId) {
-          console.warn('[StripeWebhook] ⚠️ club_donation missing donationId', { sessionId });
+          console.warn(
+            '[StripeWebhook] club_donation is missing donationId',
+            { sessionId }
+          );
         } else {
           const updated = await confirmDonation({
-            externalCheckoutId: sessionId,
-            externalTransactionId: paymentIntentId,
+            externalCheckoutId:      sessionId,
+            externalTransactionId:   paymentIntentId,
           });
- 
+
           if (DEBUG) {
-            console.log('[StripeWebhook] ✅ Club donation confirmed:', {
-              donationId, sessionId, updated,
-            });
+            console.log(
+              '[StripeWebhook] Club donation confirmed:',
+              {
+                donationId,
+                sessionId,
+                updated,
+              }
+            );
           }
         }
+      }
 
-      // ── Puzzle subscription (weekly Puzzle Challenge) ──────────────────
-      } else if (type === 'puzzle_subscription') {
-        const { subscriptionId, challengeId, clubId, playerId } = session.metadata || {};
+      // ── Puzzle subscription ────────────────────────────────────────────────
 
-        if (!subscriptionId || !challengeId || !playerId) {
-          console.warn('[StripeWebhook] ⚠️ puzzle_subscription missing metadata', {
-            sessionId, subscriptionId, challengeId, playerId,
-          });
+      else if (type === 'puzzle_subscription') {
+        const {
+          subscriptionId,
+          challengeId,
+          clubId,
+          playerId,
+        } = session.metadata || {};
+
+        if (
+          !subscriptionId ||
+          !challengeId ||
+          !playerId
+        ) {
+          console.warn(
+            '[StripeWebhook] puzzle_subscription is missing metadata',
+            {
+              sessionId,
+              subscriptionId,
+              challengeId,
+              playerId,
+            }
+          );
         } else {
-          // session.subscription is the Stripe Subscription id created by
-          // checkout in `mode: 'subscription'`. session.customer is the
-          // Stripe Customer id — already known to us, but written again
-          // here via COALESCE so this is safe even if it were ever missing
-          // at pending-row creation time.
           await confirmSubscriptionCheckout({
             subscriptionId,
             challengeId,
             playerId,
             clubId,
-            stripeSubscriptionId: session.subscription,
-            stripeCustomerId:     session.customer,
+            stripeSubscriptionId:
+              session.subscription,
+            stripeCustomerId:
+              session.customer,
           });
 
           if (DEBUG) {
-            console.log('[StripeWebhook] ✅ Puzzle subscription confirmed:', {
-              subscriptionId, challengeId, playerId, stripeSubscriptionId: session.subscription,
-            });
+            console.log(
+              '[StripeWebhook] Puzzle subscription confirmed:',
+              {
+                subscriptionId,
+                challengeId,
+                playerId,
+                stripeSubscriptionId:
+                  session.subscription,
+              }
+            );
           }
 
-          // First cycle's payment — session.invoice is present on
-          // subscription-mode Checkout Sessions without needing an extra
-          // Stripe API call. session.payment_intent is NOT set in
-          // subscription mode (only on one-time payment sessions), so it
-          // is deliberately not used here.
           await writePuzzleSubscriptionLedgerEntry({
-            stripeSubscriptionId:  session.subscription,
-            externalTransactionId: session.invoice || session.id,
-            paymentReference:      session.subscription,
-            context:                'checkout',
+            stripeSubscriptionId:
+              session.subscription,
+            externalTransactionId:
+              session.invoice || session.id,
+            paymentReference:
+              session.subscription,
+            context:
+              'checkout',
           });
         }
+      }
 
-      // ── Elimination walk-in payment ──────────────────────────────────────
-      } else if (type === 'elimination_walkin_payment') {
+      // ── Elimination walk-in payment ────────────────────────────────────────
+
+      else if (type === 'elimination_walkin_payment') {
         const {
-          roomId, clubId, playerId, playerName, entryFee, currency, clubPaymentMethodId,
+          roomId,
+          clubId,
+          playerId,
+          playerName,
+          entryFee,
+          currency,
+          clubPaymentMethodId,
         } = session.metadata || {};
 
-        const reference = paymentIntentId || sessionId;
+        const reference =
+          paymentIntentId || sessionId;
 
-        // ── Step 1: Write confirmed ledger entry ─────────────────────────
         await createExpectedPayment({
           roomId,
           clubId,
           playerId,
           playerName,
-          ledgerType:          'entry_fee',
-          amount:              parseFloat(entryFee),
-          currency:            currency ?? 'EUR',
-          paymentMethod:       'stripe',
-          paymentSource:       'webhook_auto',
-          clubPaymentMethodId: clubPaymentMethodId ? parseInt(clubPaymentMethodId) : null,
-          paymentReference:    reference,
-          status:              'confirmed',
-          confirmedAt:         new Date(),
-          confirmedBy:         'webhook_auto',
-          confirmedByName:     'Stripe',
-          confirmedByRole:     'admin',
-          ticketId:            null,
+          ledgerType:
+            'entry_fee',
+          amount:
+            parseFloat(entryFee),
+          currency:
+            currency ?? 'EUR',
+          paymentMethod:
+            'stripe',
+          paymentSource:
+            'webhook_auto',
+          clubPaymentMethodId:
+            clubPaymentMethodId
+              ? parseInt(clubPaymentMethodId, 10)
+              : null,
+          paymentReference:
+            reference,
+          status:
+            'confirmed',
+          confirmedAt:
+            new Date(),
+          confirmedBy:
+            'webhook_auto',
+          confirmedByName:
+            'Stripe',
+          confirmedByRole:
+            'admin',
+          ticketId:
+            null,
         });
 
-        console.log('[StripeWebhook] ✅ Elimination walk-in ledger confirmed:', {
-          roomId, playerId, playerName, entryFee,
-        });
+        console.log(
+          '[StripeWebhook] Elimination walk-in ledger confirmed:',
+          {
+            roomId,
+            playerId,
+            playerName,
+            entryFee,
+          }
+        );
 
-        // ── Step 2: Pre-register player in the in-memory room ────────────
-        // This ensures that when the success page fires join_elimination_room
-        // with this playerId, the reconnect path in the socket handler finds
-        // the player immediately rather than returning "Player not found".
         try {
-          addPlayerWithId(roomId, playerId, {
-            name:            playerName,
-            paid:            true,
-            paymentMethod:   'stripe',
-            paymentReference: reference,
-          });
-          console.log('[StripeWebhook] ✅ Player pre-registered in elimination room:', {
-            roomId, playerId, playerName,
-          });
-        } catch (roomErr) {
-          // Non-fatal — the room may not exist yet (race condition on very first
-          // join before the host has hydrated the room), or may already be full.
-          // The player will see the "contact host" fallback on the success page.
-          console.warn('[StripeWebhook] ⚠️ Could not pre-register player in room (non-fatal):', {
-            roomId, playerId, playerName, error: roomErr.message,
-          });
-        }
+          addPlayerWithId(
+            roomId,
+            playerId,
+            {
+              name:             playerName,
+              paid:             true,
+              paymentMethod:    'stripe',
+              paymentReference: reference,
+            }
+          );
 
+          console.log(
+            '[StripeWebhook] Player pre-registered in elimination room:',
+            {
+              roomId,
+              playerId,
+              playerName,
+            }
+          );
+        } catch (roomErr) {
+          console.warn(
+            '[StripeWebhook] Could not pre-register player in room (non-fatal):',
+            {
+              roomId,
+              playerId,
+              playerName,
+              error: roomErr.message,
+            }
+          );
+        }
       } else {
-        console.warn('[StripeWebhook] ⚠️ Unknown metadata type:', type, { sessionId });
+        console.warn(
+          '[StripeWebhook] Unknown checkout metadata type:',
+          type,
+          { sessionId }
+        );
       }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // checkout.session.expired
     // ─────────────────────────────────────────────────────────────────────────
-    } else if (event.type === 'checkout.session.expired') {
+
+    else if (event.type === 'checkout.session.expired') {
       const session   = event.data.object;
       const type      = session?.metadata?.type;
       const sessionId = session?.id;
+
+      // ── Standard ticket purchase ───────────────────────────────────────────
 
       if (type === 'ticket_purchase') {
         const ticketId = session?.metadata?.ticketId;
 
         if (!ticketId) {
-          console.warn('[StripeWebhook] ⚠️ expired ticket_purchase missing ticketId', { sessionId });
+          console.warn(
+            '[StripeWebhook] Expired ticket_purchase is missing ticketId',
+            { sessionId }
+          );
         } else {
-          const result = await deleteExpiredTicket(ticketId, 'webhook_expired');
+          const result = await deleteExpiredTicket(
+            ticketId,
+            'webhook_expired'
+          );
 
           if (DEBUG) {
-            console.log('[StripeWebhook] 🗑️ Expired ticket_purchase cleaned up:', {
-              ticketId, sessionId, deleted: result.deleted, reason: result.reason,
-            });
+            console.log(
+              '[StripeWebhook] Expired ticket cleaned up:',
+              {
+                ticketId,
+                sessionId,
+                deleted: result.deleted,
+                reason:  result.reason,
+              }
+            );
           }
         }
+      }
 
-       } else if (type === 'club_donation') {
+      // ── Club donation ──────────────────────────────────────────────────────
+
+      else if (type === 'club_donation') {
         const donationId = session?.metadata?.donationId;
- 
+
         if (!donationId) {
-          console.warn('[StripeWebhook] ⚠️ expired club_donation missing donationId', { sessionId });
+          console.warn(
+            '[StripeWebhook] Expired club_donation is missing donationId',
+            { sessionId }
+          );
         } else {
           const updated = await markDonationStatus({
             externalCheckoutId: sessionId,
-            status: 'expired',
+            status:             'expired',
           });
- 
+
           if (DEBUG) {
-            console.log('[StripeWebhook] 🗑️ Expired club_donation marked:', {
-              donationId, sessionId, updated,
-            });
+            console.log(
+              '[StripeWebhook] Expired club donation marked:',
+              {
+                donationId,
+                sessionId,
+                updated,
+              }
+            );
           }
         }
+      }
 
-      } else if (type === 'campaign_product') {
+      // ── Peer fundraiser order ──────────────────────────────────────────────
+
+      else if (type === 'peer_fundraiser_order') {
         const orderId = session?.metadata?.orderId;
 
         if (!orderId) {
-          console.warn('[StripeWebhook] ⚠️ expired campaign_product missing orderId', { sessionId });
+          console.warn(
+            '[StripeWebhook] Expired peer_fundraiser_order is missing orderId',
+            { sessionId }
+          );
         } else {
-          const result = await cancelExpiredCampaignOrder(orderId, sessionId);
+          const result = await cancelExpiredPeerOrder(
+            orderId,
+            sessionId
+          );
 
           if (DEBUG) {
-            console.log('[StripeWebhook] 🗑️ Expired campaign_product handled:', {
-              orderId, sessionId, cancelled: result.cancelled,
-            });
+            console.log(
+              '[StripeWebhook] Expired peer order handled:',
+              {
+                orderId,
+                sessionId,
+                cancelled: result.cancelled,
+              }
+            );
           }
         }
+      }
 
-      } else if (type === 'walkin_payment') {
-        // Walk-in payments never write to DB until confirmed — nothing to clean up.
-        if (DEBUG) {
-          console.log('[StripeWebhook] ℹ️ Expired walkin_payment — no DB rows to clean up:', {
-            sessionId,
-            playerId: session?.metadata?.playerId,
-          });
+      // ── Old campaign product order ─────────────────────────────────────────
+
+      else if (type === 'campaign_product') {
+        const orderId = session?.metadata?.orderId;
+
+        if (!orderId) {
+          console.warn(
+            '[StripeWebhook] Expired campaign_product is missing orderId',
+            { sessionId }
+          );
+        } else {
+          const result = await cancelExpiredCampaignOrder(
+            orderId,
+            sessionId
+          );
+
+          if (DEBUG) {
+            console.log(
+              '[StripeWebhook] Expired campaign order handled:',
+              {
+                orderId,
+                sessionId,
+                cancelled: result.cancelled,
+              }
+            );
+          }
         }
+      }
 
-      } else if (type === 'elimination_walkin_payment') {
-        // Same as walkin_payment — ledger is only written on confirmation,
-        // so there is nothing to roll back on expiry.
+      // ── Quiz walk-in ────────────────────────────────────────────────────────
+
+      else if (type === 'walkin_payment') {
         if (DEBUG) {
-          console.log('[StripeWebhook] ℹ️ Expired elimination_walkin_payment — no DB rows to clean up:', {
-            sessionId,
-            playerId: session?.metadata?.playerId,
-            roomId:   session?.metadata?.roomId,
-          });
+          console.log(
+            '[StripeWebhook] Expired walkin_payment has no DB rows to clean:',
+            {
+              sessionId,
+              playerId:
+                session?.metadata?.playerId,
+            }
+          );
         }
+      }
 
+      // ── Elimination walk-in ────────────────────────────────────────────────
+
+      else if (
+        type ===
+        'elimination_walkin_payment'
+      ) {
+        if (DEBUG) {
+          console.log(
+            '[StripeWebhook] Expired elimination_walkin_payment has no DB rows to clean:',
+            {
+              sessionId,
+              playerId:
+                session?.metadata?.playerId,
+              roomId:
+                session?.metadata?.roomId,
+            }
+          );
+        }
       } else {
-        console.warn('[StripeWebhook] ⚠️ checkout.session.expired — unknown type:', type, { sessionId });
+        console.warn(
+          '[StripeWebhook] checkout.session.expired has unknown type:',
+          type,
+          { sessionId }
+        );
       }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // invoice.payment_succeeded — puzzle subscription renewal
-    // ─────────────────────────────────────────────────────────────────────────
-    } else if (event.type === 'invoice.payment_succeeded') {
-      const invoice = event.data.object;
-      const stripeSubscriptionId = invoice.subscription;
-
-      if (!stripeSubscriptionId) {
-        if (DEBUG) console.log('[StripeWebhook] ℹ️ invoice.payment_succeeded with no subscription — ignoring', { invoiceId: invoice.id });
-      } else {
-        // Looked up by stripe_subscription_id, not metadata — invoices for
-        // renewal cycles don't carry our custom metadata the way the
-        // initial Checkout Session did. If no row matches, this invoice
-        // isn't for a puzzle subscription (could be any other Stripe
-        // subscription product on this connected account), so this is a
-        // silent no-op rather than a warning.
-        const updated = await updateSubscriptionPeriodEnd({
-          stripeSubscriptionId,
-          currentPeriodEnd: invoice.period_end ?? invoice.lines?.data?.[0]?.period?.end ?? null,
-          billingReason: invoice.billing_reason,
-        });
-
-        if (DEBUG) {
-          console.log('[StripeWebhook] ✅ invoice.payment_succeeded processed:', {
-            stripeSubscriptionId, matched: updated,
-          });
-        }
-
-        // Renewal ledger row — only for genuine renewal cycles.
-        // billing_reason === 'subscription_create' is the FIRST invoice,
-        // already ledgered via checkout.session.completed above; writing
-        // it again here would double-count cycle 1. Only 'subscription_cycle'
-        // (cycle 2 onward) writes a row here, matching the same distinction
-        // updateSubscriptionPeriodEnd already makes for paid_cycles.
-        if (updated && invoice.billing_reason === 'subscription_cycle') {
-          await writePuzzleSubscriptionLedgerEntry({
-            stripeSubscriptionId,
-            externalTransactionId: invoice.id,
-            paymentReference:      invoice.payment_intent,
-            context:                'renewal',
-          });
-        }
-      }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // invoice.payment_failed — puzzle subscription renewal failed
-    // ─────────────────────────────────────────────────────────────────────────
-    } else if (event.type === 'invoice.payment_failed') {
-      const invoice = event.data.object;
-      const stripeSubscriptionId = invoice.subscription;
-
-      if (!stripeSubscriptionId) {
-        if (DEBUG) console.log('[StripeWebhook] ℹ️ invoice.payment_failed with no subscription — ignoring', { invoiceId: invoice.id });
-      } else {
-        const updated = await markSubscriptionPastDue({ stripeSubscriptionId });
-
-        if (DEBUG) {
-          console.log('[StripeWebhook] ⚠️ invoice.payment_failed processed:', {
-            stripeSubscriptionId, matched: updated,
-          });
-        }
-      }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // customer.subscription.deleted — puzzle subscription cancelled
-    // ─────────────────────────────────────────────────────────────────────────
-    } else if (event.type === 'customer.subscription.deleted') {
-      const subscription = event.data.object;
-      const stripeSubscriptionId = subscription.id;
-
-      const updated = await markSubscriptionCancelled({ stripeSubscriptionId });
-
-      if (DEBUG) {
-        console.log('[StripeWebhook] ✅ customer.subscription.deleted processed:', {
-          stripeSubscriptionId, matched: updated,
-        });
-      }
-
-    } else {
-      if (DEBUG) console.log('[StripeWebhook] ℹ️ Unhandled event type:', event.type);
     }
 
-    await markProcessed(event.id, event.type);
-    return res.json({ received: true });
+    // ─────────────────────────────────────────────────────────────────────────
+    // Puzzle subscription renewal succeeded
+    // ─────────────────────────────────────────────────────────────────────────
 
+    else if (event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data.object;
+      const stripeSubscriptionId =
+        invoice.subscription;
+
+      if (!stripeSubscriptionId) {
+        if (DEBUG) {
+          console.log(
+            '[StripeWebhook] invoice.payment_succeeded has no subscription — ignored',
+            {
+              invoiceId: invoice.id,
+            }
+          );
+        }
+      } else {
+        const updated =
+          await updateSubscriptionPeriodEnd({
+            stripeSubscriptionId,
+            currentPeriodEnd:
+              invoice.period_end ??
+              invoice.lines?.data?.[0]?.period?.end ??
+              null,
+            billingReason:
+              invoice.billing_reason,
+          });
+
+        if (DEBUG) {
+          console.log(
+            '[StripeWebhook] invoice.payment_succeeded processed:',
+            {
+              stripeSubscriptionId,
+              matched: updated,
+            }
+          );
+        }
+
+        if (
+          updated &&
+          invoice.billing_reason ===
+            'subscription_cycle'
+        ) {
+          await writePuzzleSubscriptionLedgerEntry({
+            stripeSubscriptionId,
+            externalTransactionId:
+              invoice.id,
+            paymentReference:
+              invoice.payment_intent,
+            context:
+              'renewal',
+          });
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Puzzle subscription renewal failed
+    // ─────────────────────────────────────────────────────────────────────────
+
+    else if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      const stripeSubscriptionId =
+        invoice.subscription;
+
+      if (!stripeSubscriptionId) {
+        if (DEBUG) {
+          console.log(
+            '[StripeWebhook] invoice.payment_failed has no subscription — ignored',
+            {
+              invoiceId: invoice.id,
+            }
+          );
+        }
+      } else {
+        const updated =
+          await markSubscriptionPastDue({
+            stripeSubscriptionId,
+          });
+
+        if (DEBUG) {
+          console.log(
+            '[StripeWebhook] invoice.payment_failed processed:',
+            {
+              stripeSubscriptionId,
+              matched: updated,
+            }
+          );
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Puzzle subscription deleted or cancelled
+    // ─────────────────────────────────────────────────────────────────────────
+
+    else if (
+      event.type ===
+      'customer.subscription.deleted'
+    ) {
+      const subscription =
+        event.data.object;
+      const stripeSubscriptionId =
+        subscription.id;
+
+      const billingContext =
+        await getSubscriptionBillingContext({
+          stripeSubscriptionId,
+        });
+
+      const updated =
+        await markSubscriptionCancelled({
+          stripeSubscriptionId,
+        });
+
+      if (DEBUG) {
+        console.log(
+          '[StripeWebhook] customer.subscription.deleted processed:',
+          {
+            stripeSubscriptionId,
+            matched: updated,
+          }
+        );
+      }
+
+      if (billingContext?.challenge_id) {
+        try {
+          const [[challengeRow]] =
+            await connection.execute(
+              `SELECT
+                 status,
+                 starts_at,
+                 total_weeks
+               FROM ${TABLE_PREFIX}puzzle_challenges
+               WHERE id = ?
+               LIMIT 1`,
+              [billingContext.challenge_id]
+            );
+
+          if (challengeRow) {
+            await maybeAutoCompleteChallenge({
+              challengeId:
+                billingContext.challenge_id,
+              clubId:
+                billingContext.club_id,
+              status:
+                challengeRow.status,
+              startsAt:
+                challengeRow.starts_at,
+              totalWeeks:
+                challengeRow.total_weeks,
+            });
+          }
+        } catch (autoCompleteErr) {
+          console.warn(
+            '[StripeWebhook] Auto-complete check failed:',
+            autoCompleteErr.message
+          );
+        }
+      }
+    } else if (DEBUG) {
+      console.log(
+        '[StripeWebhook] Unhandled event type:',
+        event.type
+      );
+    }
+
+    await markProcessed(
+      event.id,
+      event.type
+    );
+
+    return res.json({
+      received: true,
+    });
   } catch (err) {
-    console.error('[StripeWebhook] ❌ Handler error:', err);
-    return res.status(500).json({ error: 'webhook_failed' });
+    console.error(
+      '[StripeWebhook] Handler error:',
+      err
+    );
+
+    return res.status(500).json({
+      error: 'webhook_failed',
+    });
   }
 }

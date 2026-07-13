@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
@@ -94,6 +92,8 @@ import SiteCookiesPage from './pages/site/pages/legal/CookiesPage';
 import CheckinPage from './pages/site/pages/CheckinPage';
 import SafeStreetsIrelandPadelPage from './pages/events/SafeStreetsIrelandPadelPage';
 import PuzzleNotifyPage from './components/puzzles/pages/PuzzleNotifyPage';
+import PublicWeekLeaderboardPage from './components/puzzles/pages/PublicWeekLeaderboardPage';
+import PublicWallOfFamePage from './components/puzzles/pages/PublicWallOfFamePage';
 const StandaloneDonatePage = lazy(() => import('./pages/donations/StandaloneDonatePage'));
 const TicketEmbedPage = lazy(() => import('./components/embed/TicketEmbedPage'));
 
@@ -206,6 +206,13 @@ const CampaignSupportPage = lazy(() => import('./pages/campaigns/CampaignSupport
 const CampaignStripeSuccess = lazy(() => import('./pages/campaigns/CampaignStripeSuccess'));
 const CampaignSellerPage = lazy(() => import('./pages/campaigns/CampaignSellerPage'));
 
+// Peer-to-Peer Fundraising
+const PeerDashboard = lazy(() => import('./pages/peer/PeerDashboard'));
+const PeerFundraiserEditor = lazy(() => import('./pages/peer/PeerFundraiserEditor'));
+const PeerManagePage = lazy(() => import('./pages/peer/PeerManagePage'));
+const PeerSupportPage = lazy(() => import('./pages/peer/PeerSupportPage'));
+const PeerStripeSuccess = lazy(() => import('./pages/peer/PeerStripeSuccess'));
+
 const LoadingSpinner = ({
   message = 'Loading...',
   subMessage,
@@ -248,9 +255,14 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
 
-        //   <Route path="/dev/wallet-iframe-test" element={
-     <Suspense fallback={null}><WalletIframeTestPage /></Suspense>
-   } />
+        <Route
+          path="/dev/wallet-iframe-test"
+          element={
+            <Suspense fallback={null}>
+              <WalletIframeTestPage />
+            </Suspense>
+          }
+        />
 
    <Route
   path="/donate/:clubId/crypto/:donationId"
@@ -260,6 +272,9 @@ export default function App() {
     </Suspense>
   }
 />
+
+<Route path="/leaderboards/:challengeId" element={<PublicWallOfFamePage />} />
+<Route path="/leaderboards/:challengeId/weeks/:week" element={<PublicWeekLeaderboardPage />} />
         {/* 
           NEW PUBLIC MARKETING SITE
           These replace the old public marketing pages at live URLs.
@@ -452,6 +467,45 @@ export default function App() {
           }
         />
 
+        {/* Peer-to-Peer public supporter routes */}
+        <Route
+          path="/fundraise/:clubSlug/:fundraiserSlug"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading fundraiser..." />}>
+              <PeerSupportPage />
+            </Suspense>
+          }
+        />
+
+        {/*
+          Previously missing entirely — PeerStripeSuccess.tsx existed as a
+          file but was never imported or routed here, so the URL
+          peerStripeCheckoutService.js has been generating since it was
+          written (…/fundraise/:clubSlug/:fundraiserSlug/order-success)
+          had nowhere to land. React Router v6 ranks routes by specificity
+          (a literal segment like "order-success" always outranks the
+          dynamic :participantSlug below), so this works correctly
+          regardless of where it's declared relative to that route —
+          unlike the Express backend routes, ordering isn't load-bearing here.
+        */}
+        <Route
+          path="/fundraise/:clubSlug/:fundraiserSlug/order-success"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Confirming your payment..." />}>
+              <PeerStripeSuccess />
+            </Suspense>
+          }
+        />
+
+        <Route
+          path="/fundraise/:clubSlug/:fundraiserSlug/:participantSlug"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading fundraiser..." />}>
+              <PeerSupportPage />
+            </Suspense>
+          }
+        />
+
         {/* Campaign routes */}
         <Route path="/campaigns/clubs-league" element={<ClubsLeaguePage />} />
 
@@ -487,6 +541,34 @@ export default function App() {
           element={
             <Suspense fallback={<LoadingSpinner message="Loading seller page..." />}>
               <CampaignSellerPage />
+            </Suspense>
+          }
+        />
+
+        {/* Peer-to-Peer management routes */}
+        <Route
+          path="/peer-dashboard"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading Peer-to-Peer Dashboard..." />}>
+              <PeerDashboard />
+            </Suspense>
+          }
+        />
+
+        <Route
+          path="/peer-dashboard/new"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Creating fundraiser..." />}>
+              <PeerFundraiserEditor />
+            </Suspense>
+          }
+        />
+
+        <Route
+          path="/peer-dashboard/:peerFundraiserId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading peer fundraiser..." />}>
+              <PeerManagePage />
             </Suspense>
           }
         />
@@ -872,6 +954,8 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+
 
 
 

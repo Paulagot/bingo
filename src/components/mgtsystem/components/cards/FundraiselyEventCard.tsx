@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Calendar, MapPin, Globe, Layers, Target, Ticket,
   Trophy, Play, FileText, Eye, PlusCircle,
-  TrendingUp, ChevronDown, Pencil, Settings,
+  TrendingUp, ChevronDown, Pencil, Settings, Puzzle,
 } from 'lucide-react';
 import type { Event } from '../../types/event';
 import type { RoomStats } from '../../services/quizRoomServices';
@@ -16,7 +16,7 @@ import { utcToLocalDate, utcToLocalTime } from '../../../../utils/dateUtils';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination' | 'ticketed_event';
+  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -27,7 +27,7 @@ export interface FundraiselyEventCardProps {
   activityStats?: RoomStats;
   outstandingCount?: number;
   onOpenDrawer: () => void;
-  onAddActivity: (type: 'quiz' | 'elimination' | 'ticketed_event') => void;
+  onAddActivity: (type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub') => void;
   onEdit: () => void;
   onPublish?: () => void;
   onUnpublish?: () => void;
@@ -43,6 +43,7 @@ const GAME_TYPE_COLOURS = {
   quiz:           { stripe: '#15803d', label: 'Quiz Night' },
   elimination:    { stripe: '#c8423b', label: 'Elimination' },
   ticketed_event: { stripe: '#0369a1', label: 'Ticketed Event' },
+  puzzle_sub:     { stripe: '#7c3aed', label: 'Puzzle Subscription' },
 } satisfies Record<LinkedActivity['game_type'], { stripe: string; label: string }>;
 
 /**
@@ -109,6 +110,7 @@ function GameTypeIcon({ type, size = 14 }: { type: LinkedActivity['game_type']; 
   const s = { width: size, height: size };
   if (type === 'elimination') return <Trophy style={s} />;
   if (type === 'ticketed_event') return <Ticket style={s} />;
+  if (type === 'puzzle_sub') return <Puzzle style={s} />;
   return <Play style={s} />;
 }
 
@@ -117,7 +119,7 @@ function GameTypeIcon({ type, size = 14 }: { type: LinkedActivity['game_type']; 
 interface AddActivityDropdownProps {
   open: boolean;
   onToggle: () => void;
-  onSelect: (type: 'quiz' | 'elimination' | 'ticketed_event') => void;
+  onSelect: (type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub') => void;
 }
 
 function AddActivityDropdown({ open, onToggle, onSelect }: AddActivityDropdownProps) {
@@ -141,6 +143,7 @@ function AddActivityDropdown({ open, onToggle, onSelect }: AddActivityDropdownPr
     { type: 'quiz',           label: 'Quiz Night',     sub: 'Ticketed fundraising quiz',   Icon: Play   },
     { type: 'ticketed_event', label: 'Ticketed Event',  sub: 'Dinner, raffle, charity event…', Icon: Ticket },
     { type: 'elimination',    label: 'Elimination',     sub: 'Last player standing game',   Icon: Trophy },
+    { type: 'puzzle_sub',     label: 'Puzzle Subscription', sub: 'Weekly puzzles, paid or free', Icon: Puzzle },
   ];
 
   return (
