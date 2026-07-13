@@ -66,6 +66,25 @@ function getCached(tokenCode, currencyCode) {
   return entry.price;
 }
 
+/**
+ * NEW: last-resort fallback for when BOTH live providers fail at once.
+ * Unlike getCached, this does NOT enforce the normal TTL and does NOT
+ * delete the entry — it's only ever consulted after both CoinGecko and
+ * Jupiter have already failed, as a "better than nothing" price rather
+ * than hard-failing the donor's quote entirely. Bounded to 1 hour past
+ * expiry so a genuinely stale price (e.g. after a long outage) doesn't
+ * get served indefinitely.
+ */
+const STALE_FALLBACK_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour past normal expiry
+
+function getStaleCache(tokenCode, currencyCode) {
+  const entry = priceCache.get(cacheKey(tokenCode, currencyCode));
+  if (!entry) return null;
+  const age = Date.now() - entry.fetchedAt;
+  if (age > CACHE_TTL_MS + STALE_FALLBACK_MAX_AGE_MS) return null;
+  return entry.price;
+}
+
 function setCache(tokenCode, currencyCode, price) {
   priceCache.set(cacheKey(tokenCode, currencyCode), { price, fetchedAt: Date.now() });
 }
@@ -147,6 +166,20 @@ async function getUsdCrossRate(targetCurrencyCode) {
 }
 
 /**
+ * UPDATED: migrated from Jupiter Price API V2 to V3.
+ *
+ * V2 (/price/v2) is officially deprecated by Jupiter — the 404s you'll
+ * see in logs from the old endpoint aren't a rate-limit or outage,
+ * they're the sunset endpoint genuinely no longer existing. V3 also
+ * changed the response shape entirely (no longer nested under
+ * `.data.{mint}.price` — the mint is now the top-level key, and the
+ * field is `usdPrice` not `price`) and now requires an API key sent
+ * as the `x-api-key` header, obtained free from https://portal.jup.ag.
+ *
+ * Set JUPITER_API_KEY in your environment before this will work — if
+ * it's missing, this function fails fast with a clear error instead
+ * of sending a request that Jupiter will just reject with 401.
+ *
  * @param {string|null} mintAddress  SPL mint address; null → use SOL mint alias
  * @param {string} targetCurrencyCode
  * @returns {Promise<number>}  Price in target currency
@@ -155,17 +188,28 @@ async function fetchFromJupiter(mintAddress, targetCurrencyCode) {
   const SOL_MINT = 'So11111111111111111111111111111111111111112';
   const mint = mintAddress ?? SOL_MINT;
 
-  const url = `https://api.jup.ag/price/v2?ids=${mint}`;
+  const apiKey = process.env.JUPITER_API_KEY;
+  if (!apiKey) {
+    throw new Error('JUPITER_API_KEY is not set — Price API V3 requires an API key (get one free at portal.jup.ag)');
+  }
+
+  const url = `https://api.jup.ag/price/v3?ids=${mint}`;
 
   const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      'x-api-key': apiKey,
+    },
     signal: AbortSignal.timeout(8_000),
   });
 
   if (!res.ok) throw new Error(`Jupiter HTTP ${res.status}`);
 
   const json = await res.json();
-  const priceUsd = json?.data?.[mint]?.price;
+  // V3 shape: { [mint]: { usdPrice, blockId, decimals, priceChange24h } }
+  // — NOT V2's { data: { [mint]: { price } } }, which is why this line
+  // changed along with the URL above.
+  const priceUsd = json?.[mint]?.usdPrice;
 
   if (typeof priceUsd !== 'number' && typeof priceUsd !== 'string') {
     throw new Error(`Jupiter: no price for mint ${mint}`);
@@ -215,6 +259,14 @@ async function fetchPrice(tokenCode, currency) {
     return price;
   } catch (err) {
     console.warn(`[TokenPrice] ❌ Jupiter also failed for ${tokenCode}/${currency.code}: ${err.message}`);
+  }
+
+  // Both live providers failed — last resort: a recent-but-expired
+  // cached price, rather than hard-failing the caller entirely.
+  const stale = getStaleCache(tokenCode, currency.code);
+  if (stale !== null) {
+    console.warn(`[TokenPrice] ⚠️ Both providers failed — serving STALE cached price for ${tokenCode}/${currency.code}: ${currency.symbol}${stale}`);
+    return stale;
   }
 
   return null;

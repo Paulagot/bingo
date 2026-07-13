@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   X, Eye, Settings, CreditCard, Ticket,
-  Play, BarChart3, Scale, Heart, QrCode,
+  Play, BarChart3, Scale, Heart, QrCode, Trophy,
 } from "lucide-react";
 import type { Web2RoomListItem as Room } from "../../../../shared/api/quiz.api";
 import type { RoomStats } from "../../services/quizRoomServices";
@@ -21,6 +21,15 @@ import ImpactTab from "./tabs/ImpactTab";
 import TicketedEventReconciliationTab from "./tabs/reconciliation/TicketedEventReconciliationTab";
 import TicketsTabTicketedEvent from './tabs/TicketsTabTicketedEvent';
 
+import OverviewTabSubscription from './tabs/OverviewTabSubscription';
+import SetupTabSubscription from './tabs/SetupTabSubscription';
+import SubscriptionLinkPanel from './tabs/SubscriptionLinkPanel';
+import LaunchTabSubscription from './tabs/LaunchTabSubscription';
+import ImpactTabSubscription from './tabs/ImpactTabSubscription';
+import LeaderboardTabSubscription from './tabs/LeaderboardTabSubscription';
+import SubscriptionReconciliationTab from './tabs/reconciliation/SubscriptionReconciliationTab';
+import { challengeService, type Challenge, type LeaderboardEntry } from '../../../puzzles/services/ChallengeService';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +37,7 @@ import TicketsTabTicketedEvent from './tabs/TicketsTabTicketedEvent';
 type TabId =
   | "impact" | "overview" | "setup" | "payments"
   | "tickets" | "launch" | "report" | "approval"
-  | "reconciliation";
+  | "reconciliation" | "subscriptionLink" | "leaderboard";
 
 interface Tab {
   id: TabId;
@@ -77,8 +86,8 @@ interface Props {
   onLaunchFromHere: () => void;
   onPaymentMethodSuccess: () => void;
   onRefreshRoom?: () => Promise<void>;
-  onEditQuiz?: () => void;
-  onEditTicketedEvent?: () => void;
+  /** Opens the unified EditFundraiserModal (event + activity together). */
+  onEditFundraiser?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,8 +112,7 @@ export default function DigitalEventDrawer({
   onLaunchFromHere,
   onPaymentMethodSuccess,
   onRefreshRoom,
-  onEditQuiz,
-  onEditTicketedEvent,
+  onEditFundraiser,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -118,8 +126,59 @@ export default function DigitalEventDrawer({
   const isCompleted     = room?.status === "completed";
   const isCancelled     = room?.status === "cancelled";
   const isTicketedEvent = (room as any)?.game_type === 'ticketed_event';
+  const isSubscription  = (room as any)?.game_type === 'puzzle_sub';
   const canUseTicketing = featureAccess?.ticketing === true;
   const canUsePayments  = featureAccess?.quizPayments === true;
+
+  // ── Subscription challenge data ─────────────────────────────────────────────
+  // The drawer only ever has a room (room_id, game_type, status) — the
+  // actual challenge (title, schedule, price, player_count) lives in
+  // fundraisely_puzzle_challenges and is fetched once here, the same way
+  // auditView is fetched once and passed down to Report/Approval tabs.
+  const [challenge, setChallenge]               = useState<Challenge | null>(null);
+  const [challengeLoading, setChallengeLoading] = useState(false);
+  const [challengeError, setChallengeError]     = useState<string | null>(null);
+  const lastFetchedChallengeRoomId = useRef<string | null>(null);
+
+  const [leaderboard, setLeaderboard]               = useState<LeaderboardEntry[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+
+  const fetchChallenge = useCallback(async (roomId: string) => {
+    setChallengeLoading(true);
+    setChallengeError(null);
+    try {
+      const data = await challengeService.getChallengeByRoomId(roomId);
+      setChallenge(data);
+      lastFetchedChallengeRoomId.current = roomId;
+      if (!data) {
+        setChallengeError('No linked challenge found for this room.');
+        return;
+      }
+      // Leaderboard needs the challengeId, which we only just resolved —
+      // fetched here rather than in its own effect keyed off room_id to
+      // avoid a second independent lookup racing this one.
+      setLeaderboardLoading(true);
+      try {
+        const board = await challengeService.getLeaderboard(data.id);
+        setLeaderboard(board);
+      } catch {
+        setLeaderboard([]); // non-critical — Impact/Leaderboard tabs degrade gracefully
+      } finally {
+        setLeaderboardLoading(false);
+      }
+    } catch (e: any) {
+      setChallengeError(e?.message || 'Failed to load challenge data');
+    } finally {
+      setChallengeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open || !room?.room_id || !isSubscription) return;
+    if (lastFetchedChallengeRoomId.current !== room.room_id) {
+      fetchChallenge(room.room_id);
+    }
+  }, [open, room?.room_id, isSubscription, fetchChallenge]);
 
   const fetchAuditView = useCallback(async (roomId: string) => {
     setAuditViewLoading(true);
@@ -141,7 +200,7 @@ export default function DigitalEventDrawer({
 
   useEffect(() => {
     if (!open || !room?.room_id) return;
-    if (!isCompleted) {
+    if (!isCompleted || isSubscription) {
       setAuditView(null);
       lastFetchedRoomId.current = null;
       return;
@@ -149,12 +208,14 @@ export default function DigitalEventDrawer({
     if (lastFetchedRoomId.current !== room.room_id) {
       fetchAuditView(room.room_id);
     }
-  }, [open, room?.room_id, room?.status, isCompleted, fetchAuditView]);
+  }, [open, room?.room_id, room?.status, isCompleted, isSubscription, fetchAuditView]);
 
   // ── Initial tab selection ──────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
-      if (room?.status === "completed" && isTicketedEvent) {
+      if (isSubscription) {
+        setActiveTab(room?.status !== "scheduled" ? 'impact' : 'overview');
+      } else if (room?.status === "completed" && isTicketedEvent) {
         const reconciliationStatus = (room as any).reconciliation_status;
         setActiveTab(reconciliationStatus === 'closed' ? 'impact' : 'reconciliation');
       } else {
@@ -177,11 +238,15 @@ export default function DigitalEventDrawer({
 
   const handleRefresh = useCallback(async () => {
     if (onRefreshRoom) await onRefreshRoom();
-    if (room?.room_id && isCompleted) {
+    if (room?.room_id && isCompleted && !isSubscription) {
       lastFetchedRoomId.current = null;
       await fetchAuditView(room.room_id);
     }
-  }, [onRefreshRoom, room?.room_id, isCompleted, fetchAuditView]);
+    if (room?.room_id && isSubscription) {
+      lastFetchedChallengeRoomId.current = null;
+      await fetchChallenge(room.room_id);
+    }
+  }, [onRefreshRoom, room?.room_id, isCompleted, isSubscription, fetchAuditView, fetchChallenge]);
 
   if (!open || !room) return null;
 
@@ -220,7 +285,27 @@ export default function DigitalEventDrawer({
   const reconciliationClosed = (room as any).reconciliation_status === 'closed';
 
   // ── Tab sets ───────────────────────────────────────────────────────────────
-  const tabs: Tab[] = isCompleted
+  const overviewTab       = { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> };
+  const setupTab          = { id: "setup" as TabId, label: "Setup", icon: <Settings className="h-3.5 w-3.5" /> };
+  const subscriptionLinkTab = { id: "subscriptionLink" as TabId, label: "Join Link", icon: <Ticket className="h-3.5 w-3.5" /> };
+  const subscriptionLaunchTab = { id: "launch" as TabId, label: "Launch", icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled challenges" };
+  const leaderboardTab    = { id: "leaderboard" as TabId, label: "Leaderboard", icon: <Trophy className="h-3.5 w-3.5" /> };
+  const subReconciliationTab = { id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> };
+  const subImpactTab      = { id: "impact" as TabId, label: "Impact", icon: <Heart className="h-3.5 w-3.5" /> };
+
+  // Once the room leaves 'scheduled' (draft), Setup drops out entirely
+  // (already the case) and the remaining tabs reorder: Impact leads —
+  // that's the number people actually want to check day to day once a
+  // challenge is running — with Overview and Launch pushed to the end,
+  // since neither needs to be front-and-centre once the challenge is no
+  // longer being set up or activated.
+  const isSubscriptionLive = room.status !== "scheduled";
+
+  const tabs: Tab[] = isSubscription
+    ? isSubscriptionLive
+      ? [subImpactTab, subscriptionLinkTab, leaderboardTab, subReconciliationTab, overviewTab, subscriptionLaunchTab]
+      : [overviewTab, setupTab, subscriptionLinkTab, subscriptionLaunchTab, leaderboardTab, subReconciliationTab, subImpactTab]
+    : isCompleted
     ? [
         ...(!isTicketedEvent || reconciliationClosed
           ? [
@@ -278,6 +363,12 @@ export default function DigitalEventDrawer({
                   Ticketed Event
                 </span>
               )}
+              {isSubscription && (
+                <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                  style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', borderColor: 'rgba(124,58,237,0.3)' }}>
+                  Puzzle Subscription
+                </span>
+              )}
               {scheduledDate && (
                 <span className="text-sm font-semibold text-[#102532]">{scheduledDate}</span>
               )}
@@ -329,28 +420,46 @@ export default function DigitalEventDrawer({
         {/* Tab content */}
         <div className="flex flex-1 flex-col overflow-y-auto">
           {activeTab === "impact" && (
-            <ImpactTab room={room} config={config} auditView={auditView}
-              auditViewLoading={auditViewLoading} auditViewError={auditViewError}
-              onRefresh={handleRefresh} />
+            isSubscription
+              ? <ImpactTabSubscription stats={stats} challenge={challenge} challengeLoading={challengeLoading} leaderboard={leaderboard} onRefresh={handleRefresh} />
+              : <ImpactTab room={room} config={config} auditView={auditView}
+                  auditViewLoading={auditViewLoading} auditViewError={auditViewError}
+                  onRefresh={handleRefresh} />
           )}
+{activeTab === "leaderboard" && (
+  <LeaderboardTabSubscription
+    leaderboard={leaderboard}
+    leaderboardLoading={leaderboardLoading}
+    challengeId={challenge?.id}
+  />
+)}
 
           {activeTab === "overview" && (
-            isTicketedEvent
-              ? <OverviewTabTicketedEvent room={room} config={config} stats={stats}
+            isSubscription
+              ? <OverviewTabSubscription room={room} challenge={challenge}
+                  challengeLoading={challengeLoading} challengeError={challengeError}
                   linkedEventTitle={linkedEventTitle} />
-              : <OverviewTab room={room} config={config} stats={stats}
-                  linkedEventTitle={linkedEventTitle} />
+              : isTicketedEvent
+                ? <OverviewTabTicketedEvent room={room} config={config} stats={stats}
+                    linkedEventTitle={linkedEventTitle} />
+                : <OverviewTab room={room} config={config} stats={stats}
+                    linkedEventTitle={linkedEventTitle} />
           )}
 
           {activeTab === "setup" && (
-            <SetupTab
-              room={room}
-              linkedEvent={linkedEvent}
-              isTicketedEvent={isTicketedEvent}
-              onEditQuiz={onEditQuiz ?? (() => {})}
-              onEditTicketedEvent={onEditTicketedEvent ?? (() => {})}
-              onSaved={onSaved}
-            />
+            isSubscription
+              ? <SetupTabSubscription challenge={challenge} challengeLoading={challengeLoading}
+                  onEdit={() => onEditFundraiser?.()} />
+              : <SetupTab
+                  room={room}
+                  linkedEvent={linkedEvent}
+                  isTicketedEvent={isTicketedEvent}
+                  onEditFundraiser={onEditFundraiser ?? (() => {})}
+                />
+          )}
+
+          {activeTab === "subscriptionLink" && (
+            <SubscriptionLinkPanel challenge={challenge} challengeLoading={challengeLoading} />
           )}
 
           {activeTab === "payments" && (
@@ -371,11 +480,14 @@ export default function DigitalEventDrawer({
    )}
 
           {activeTab === "launch" && (
-            <LaunchTab
-              room={room}
-              onLaunchFromHere={onLaunchFromHere}
-              onRoomUpdated={onRefreshRoom}
-            />
+            isSubscription
+              ? <LaunchTabSubscription challenge={challenge} challengeLoading={challengeLoading}
+                  onStatusChanged={handleRefresh} />
+              : <LaunchTab
+                  room={room}
+                  onLaunchFromHere={onLaunchFromHere}
+                  onRoomUpdated={onRefreshRoom}
+                />
           )}
 
           {activeTab === "report" && (
@@ -390,10 +502,16 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "reconciliation" && (
-            <TicketedEventReconciliationTab
-              room={room}
-              onRefreshRoom={handleRefresh}
-            />
+            isSubscription
+              ? <SubscriptionReconciliationTab
+                  roomId={room.room_id}
+                  currencySymbol={({ eur: '€', gbp: '£', usd: '$' } as Record<string, string>)[(config?.currency ?? 'eur').toLowerCase()] ?? '€'}
+                  hostName={config?.hostName ?? 'Host'}
+                />
+              : <TicketedEventReconciliationTab
+                  room={room}
+                  onRefreshRoom={handleRefresh}
+                />
           )}
         </div>
       </div>

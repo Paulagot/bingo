@@ -27,21 +27,36 @@ import { v4 as uuidv4 } from 'uuid';
 import { setupSocketHandlers } from './socketHandler.js';
 import { PORT } from './config.js';
 import { logAllRooms } from './roomManager.js';
-import { initializeDatabase } from './config/database.js';
-import { logger, loggers, logRequest, logResponse } from './config/logging.js';
-import { connection } from './config/database.js';
+import {
+  initializeDatabase,
+  connection,
+} from './config/database.js';
+import {
+  logger,
+  loggers,
+  logRequest,
+  logResponse,
+} from './config/logging.js';
 
 import createRoomApi from './quiz/api/create-room.js';
 import ticketedEventMgmtRoutes from './ticketedEvent/api/ticketedEventMgmtRoutes.js';
 import ticketedEventCheckinRoutes from './ticketedEvent/api/ticketedEventCheckinRoutes.js';
 
 console.log('🔍 About to import community-registration...');
+
 import communityRegistrationApi from './quiz/api/community-registration.js';
 import impactCampaignPledgeApi from './quiz/api/impactcampaign-pledge.js';
-console.log('✅ Community registration imported:', communityRegistrationApi);
-console.log('📦 Type:', typeof communityRegistrationApi);
 
-import impact_campaign_leaderboard from './quiz/api/impact-campaign-leaderboard.js';
+console.log(
+  '✅ Community registration imported:',
+  communityRegistrationApi,
+);
+console.log(
+  '📦 Type:',
+  typeof communityRegistrationApi,
+);
+
+import impactCampaignLeaderboard from './quiz/api/impact-campaign-leaderboard.js';
 
 import authRoutes from './routes/auth.js';
 import createDepositAddress from './tgb/api/create-deposit-address.js';
@@ -95,49 +110,66 @@ import pledgeRouter from './mgtsystem/routes/pledgesRouter.js';
 import donationCryptoQuoteRouter from './donations/api/donationCryptoQuoteRouter.js';
 import donationCryptoRouter from './donations/api/donationCryptoRouter.js';
 
-
 import puzzleRouter from './puzzles/routes/puzzleRoutes.js';
 import challengeRouter from './puzzles/routes/challengeRoutes.js';
 import supporterAuthRouter from './supporters/routes/supporterAuthRoutes.js';
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
+import subscriptionReconciliationRoutes from './puzzles/routes/subscriptionReconciliationRoutes.js';
 
-import { mountSummerQuestRoutes, setupSummerQuestDatabase } from './summerquest/server/index.js';
-import ticketsSummaryRouter from './quiz/api/ticketsSummaryRouter.js'
+import {
+  mountSummerQuestRoutes,
+  setupSummerQuestDatabase,
+} from './summerquest/server/index.js';
 
-// Campaign Product Builder imports
-import authenticateToken from './middleware/auth.js';
-import campaignProductMgmtRoutes from './campaigns/api/campaignProductMgmtRoutes.js';
-import campaignSupportRoutes from './campaigns/api/campaignSupportRoutes.js';
-import campaignLinkedRoomsRoutes from './campaigns/api/campaignLinkedRoomsRoutes.js';
-import {
-  campaignPaymentMethodsMgmtRoutes,
-  campaignPaymentMethodsPublicRoutes,
-} from './campaigns/api/campaignPaymentMethodsRoutes.js';
-import campaignCryptoRoutes from './campaigns/api/campaignCryptoRoutes.js';
-import {
-  campaignSellerMgmtRoutes,
-  campaignSellerPublicRoutes,
-} from './campaigns/api/campaignSellerRoutes.js';
+import ticketsSummaryRouter from './quiz/api/ticketsSummaryRouter.js';
+
 import { createFeedbackRouter } from './routes/feedbackRoutes.js';
-import ticketedEventReconciliationRoutes from
-  './ticketedEvent/api/ticketedEventReconciliationRoutes.js';
+
+import ticketedEventReconciliationRoutes from './ticketedEvent/api/ticketedEventReconciliationRoutes.js';
 import ticketedEventAdminsRoutes from './ticketedEvent/api/ticketedEventAdminsRoutes.js';
+
 import donationCheckoutRoutes from './donations/api/donationCheckoutRoutes.js';
 import donationStatusRoutes from './donations/api/donationStatusRouter.js';
+
+/*
+|--------------------------------------------------------------------------
+| Peer-to-peer fundraising
+|--------------------------------------------------------------------------
+|
+| peerRoutes includes the core management and public support routes.
+| peerPaymentRoutes includes Stripe, payment-method and reporting routes.
+|
+| Management endpoints apply authenticateToken inside the router.
+| Public supporter endpoints remain public.
+|
+*/
+
+import peerRoutes from './peerFundraising/api/peerRoutes.js';
+import peerPaymentRoutes from './peerFundraising/api/peerPaymentRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
 let isDatabaseReady = false;
 
 verifyMailer().catch((err) => {
-  console.warn('📧 SMTP verify threw (will still try on send):', err?.message || err);
+  console.warn(
+    '📧 SMTP verify threw (will still try on send):',
+    err?.message || err,
+  );
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Health check — MUST be first, always available, no middleware needed
-// ─────────────────────────────────────────────────────────────────────────────
+/*
+|--------------------------------------------------------------------------
+| Health check
+|--------------------------------------------------------------------------
+|
+| This must be first and must not depend on the database.
+|
+*/
+
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -147,180 +179,404 @@ app.get('/health', (req, res) => {
   });
 });
 
+/*
+|--------------------------------------------------------------------------
+| CORS
+|--------------------------------------------------------------------------
+*/
+
 app.use(cors());
 
-// Stripe webhook MUST be raw and MUST come before express.json()
-app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+/*
+|--------------------------------------------------------------------------
+| Stripe webhook
+|--------------------------------------------------------------------------
+|
+| Stripe requires the raw request body for signature verification.
+| This route must remain before express.json().
+|
+*/
 
-app.use(express.json({ limit: '100kb', strict: true }));
-app.use(express.text({ type: 'text/*', limit: '100kb' }));
+app.post(
+  '/api/webhooks/stripe',
+  express.raw({
+    type: 'application/json',
+  }),
+  stripeWebhookHandler,
+);
 
-mountSummerQuestRoutes(app, connection);
+/*
+|--------------------------------------------------------------------------
+| Standard request body parsers
+|--------------------------------------------------------------------------
+*/
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PUBLIC ROUTES — mounted here, BEFORE any auth middleware or helmet.
-// Anything that must be accessible without a token goes in this block.
-// ORDER WITHIN THIS BLOCK MATTERS — more specific paths first.
-// ─────────────────────────────────────────────────────────────────────────────
+app.use(
+  express.json({
+    limit: '100kb',
+    strict: true,
+  }),
+);
+
+app.use(
+  express.text({
+    type: 'text/*',
+    limit: '100kb',
+  }),
+);
+
+/*
+|--------------------------------------------------------------------------
+| Summer Quest
+|--------------------------------------------------------------------------
+*/
+
+mountSummerQuestRoutes(
+  app,
+  connection,
+);
+
+/*
+|--------------------------------------------------------------------------
+| Public routes
+|--------------------------------------------------------------------------
+|
+| Public routes must be mounted before the database guard and before any
+| SPA catch-all route.
+|
+*/
+
 console.log('🔓 Mounting public routes...');
 
-app.use('/frame', frameRoutes);
-app.use('/', authRoutes);
+app.use(
+  '/frame',
+  frameRoutes,
+);
 
-// Crypto quote — public, no auth. Must be here before any /api router that has auth inside.
-console.log('  ✅ /api/quiz/crypto-quote');
-app.use('/api/quiz/crypto-quote', quizCryptoQuoteRouter);
+app.use(
+  '/',
+  authRoutes,
+);
 
-// Campaign support — public supporter-facing pages and checkout
-console.log('  ✅ campaign support routes');
-app.use('/api', campaignSupportRoutes);
-app.use('/api', campaignPaymentMethodsPublicRoutes);
-app.use('/api', campaignCryptoRoutes);
-app.use('/api', campaignSellerPublicRoutes);
+console.log(
+  '  ✅ /api/quiz/crypto-quote',
+);
 
-// Campaign management — mounted at /api, auth enforced per-route inside each router
-console.log('  ✅ campaign mgmt routes (auth per-route)');
-app.use('/api', campaignPaymentMethodsMgmtRoutes);
-app.use('/api', campaignProductMgmtRoutes);
-app.use('/api', campaignLinkedRoomsRoutes);
-app.use('/api', campaignSellerMgmtRoutes);
-app.use('/api', clubEventsRoutes);
+app.use(
+  '/api/quiz/crypto-quote',
+  quizCryptoQuoteRouter,
+);
 
-app.use('/api/feedback', createFeedbackRouter(connection));
+/*
+|--------------------------------------------------------------------------
+| Peer-to-peer routes
+|--------------------------------------------------------------------------
+|
+| These routers contain both public supporter endpoints and management
+| endpoints. Authentication is applied per management route inside the
+| routers.
+|
+*/
 
-console.log('✅ Public routes mounted');
+console.log(
+  '  ✅ peer-to-peer routes',
+);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// JSON parse error handler
-// ─────────────────────────────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    console.error('[Server] ❌ JSON parsing error:', err.message);
+app.use(
+  '/api',
+  peerRoutes,
+);
 
-    if (!res.headersSent) {
-      try {
-        res.status(400);
-        res.setHeader('Content-Type', 'application/json');
-        res.end(
-          JSON.stringify({
-            error: 'Invalid JSON',
-            message: 'Request body contains invalid JSON',
-            details: err.message,
-          }),
-        );
-        return;
-      } catch (sendErr) {
-        console.error('[Server] ❌ Failed to send JSON parsing error response:', sendErr);
+app.use(
+  '/api',
+  peerPaymentRoutes,
+);
+
+/*
+|--------------------------------------------------------------------------
+| Existing club event routes
+|--------------------------------------------------------------------------
+|
+| The peer pack builder relies on the existing room and event systems.
+|
+*/
+
+app.use(
+  '/api',
+  clubEventsRoutes,
+);
+
+app.use(
+  '/api/feedback',
+  createFeedbackRouter(connection),
+);
+
+console.log(
+  '✅ Public routes mounted',
+);
+
+/*
+|--------------------------------------------------------------------------
+| JSON parsing error handler
+|--------------------------------------------------------------------------
+*/
+
+app.use(
+  (
+    err,
+    req,
+    res,
+    next,
+  ) => {
+    if (
+      err instanceof SyntaxError &&
+      err.status === 400 &&
+      'body' in err
+    ) {
+      console.error(
+        '[Server] ❌ JSON parsing error:',
+        err.message,
+      );
+
+      if (!res.headersSent) {
+        try {
+          res.status(400);
+
+          res.setHeader(
+            'Content-Type',
+            'application/json',
+          );
+
+          res.end(
+            JSON.stringify({
+              error: 'Invalid JSON',
+              message:
+                'Request body contains invalid JSON',
+              details: err.message,
+            }),
+          );
+
+          return;
+        } catch (sendErr) {
+          console.error(
+            '[Server] ❌ Failed to send JSON parsing error response:',
+            sendErr,
+          );
+        }
       }
     }
-  }
 
-  next(err);
-});
+    next(err);
+  },
+);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Farcaster manifest
-// ─────────────────────────────────────────────────────────────────────────────
-app.get('/.well-known/farcaster.json', (req, res) => {
-  const BASE_URL = process.env.BASE_URL || 'https://fundraisely-staging.up.railway.app';
+/*
+|--------------------------------------------------------------------------
+| Farcaster manifest
+|--------------------------------------------------------------------------
+*/
 
-  res.json({
-    accountAssociation: {
-      header:
-        'eyJmaWQiOi0xLCJ0eXBlIjoiYXV0aCIsImtleSI6IjB4NWI1MWIwMDQ0NDA1RDQ2NjNDZmM4QWE5ODFBMjMyY0VCMzM1MjM1ZCJ9',
-      payload:
-        'eyJkb21haW4iOiJmdW5kcmFpc2VseS1zdGFnaW5nLnVwLnJhaWx3YXkuYXBwIn0',
-      signature:
-        'AAAAAAAAAAAAAAAAyhG94Fl3s2MRZwKIYr4qFzl2yhEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeSCrVbLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAC6XtDGqoxJA4-Bnlh-JjPEqfQooAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOQ_-6NvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQE6oErBpRJgB1NH4sd7O2SHVZFQgKbSn1R6efWmoROk6hZ6BSLTCkTp-gXHlV7KV3yYMWOse4HfWRwyD47DMlu0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABxsbuhUz7DWbk4Mp7eqUkfp-MGGMfPsfDeSMNibitn79zELdD-5PvcgGk8ZxjikSJEXtUqBwsm4Wrl-2onMl0QwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAl8ZgIay2xclZzG8RWZzuWvO8j9R0fus3XxDee9lRlVy8FAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEMeyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoid1p2NW0wR2ktQnJjOGxyMFlwbEZZMXBMcEhLb3czNnVWcVRqbDVXd3hyVSIsIm9yaWdpbiI6Imh0dHBzOi8va2V5cy5jb2luYmFzZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2UsIm90aGVyX2tleXNfY2FuX2JlX2FkZGVkX2hlcmUiOiJkbyBub3QgY29tcGFyZSBjbGllbnREYXRhSlNPTiBhZ2FpbnN0IGEgdGVtcGxhdGUuIFNlZSBodHRwczovL3Blcm1hbmVudGx5LXJlbW92ZWQuaW52YWxpZC95YWJQZXgifQAAAAAAAAAAAAAAAAAAAAAAAAAAZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJI',
-    },
-    miniapp: {
-      version: '1',
-      name: 'FundRaisely Quiz',
-      homeUrl: `${BASE_URL}/web3/impact-campaign/baseapp`,
-      builderCode: 'bc_vpqki8ri',
-      iconUrl: `${BASE_URL}/icon.png`,
-      imageUrl: `${BASE_URL}/embed-image.png`,
-      splashImageUrl: `${BASE_URL}/splash.png`,
-      splashBackgroundColor: '#0f0f1a',
-      tagline: 'Host. Play. Raise. Impact.',
-      subtitle: 'Host. Play. Raise. Impact.',
-      description:
-        'Turn your community into a force for good. Host or join a quiz night where every entry fee goes directly to a verified charity.',
-      ogTitle: 'FundRaisely Quiz',
-      ogDescription: 'Host a quiz. Fund a charity. On-chain, transparent, no middlemen.',
-      primaryCategory: 'social',
-      tags: ['quiz', 'fundraising', 'web3', 'base'],
-      heroImageUrl: `${BASE_URL}/embed-image.png`,
-      screenshotUrls: [`${BASE_URL}/Picture2.png`, `${BASE_URL}/Picture3.png`, `${BASE_URL}/Picture4.png`],
-      ogImageUrl: `${BASE_URL}/embed-image.png`,
-    },
-  });
-});
+app.get(
+  '/.well-known/farcaster.json',
+  (req, res) => {
+    const BASE_URL =
+      process.env.BASE_URL ||
+      'https://fundraisely-staging.up.railway.app';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Database guard — blocks API calls until DB is ready
-// ─────────────────────────────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  if (req.path === '/health' || req.path === '/api/health') return next();
+    res.json({
+      accountAssociation: {
+        header:
+          'eyJmaWQiOi0xLCJ0eXBlIjoiYXV0aCIsImtleSI6IjB4NWI1MWIwMDQ0NDA1RDQ2NjNDZmM4QWE5ODFBMjMyY0VCMzM1MjM1ZCJ9',
+        payload:
+          'eyJkb21haW4iOiJmdW5kcmFpc2VseS1zdGFnaW5nLnVwLnJhaWx3YXkuYXBwIn0',
+        signature:
+          'AAAAAAAAAAAAAAAAyhG94Fl3s2MRZwKIYr4qFzl2yhEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeSCrVbLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAC6XtDGqoxJA4-Bnlh-JjPEqfQooAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOQ_-6NvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQE6oErBpRJgB1NH4sd7O2SHVZFQgKbSn1R6efWmoROk6hZ6BSLTCkTp-gXHlV7KV3yYMWOse4HfWRwyD47DMlu0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABxsbuhUz7DWbk4Mp7eqUkfp-MGGMfPsfDeSMNibitn79zELdD-5PvcgGk8ZxjikSJEXtUqBwsm4Wrl-2onMl0QwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAl8ZgIay2xclZzG8RWZzuWvO8j9R0fus3XxDee9lRlVy8FAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEMeyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoid1p2NW0wR2ktQnJjOGxyMFlwbEZZMXBMcEhLb3czNnVWcVRqbDVXd3hyVSIsIm9yaWdpbiI6Imh0dHBzOi8va2V5cy5jb2luYmFzZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2UsIm90aGVyX2tleXNfY2FuX2JlX2FkZGVkX2hlcmUiOiJkbyBub3QgY29tcGFyZSBjbGllbnREYXRhSlNPTiBhZ2FpbnN0IGEgdGVtcGxhdGUuIFNlZSBodHRwczovL3Blcm1hbmVudGx5LXJlbW92ZWQuaW52YWxpZC95YWJQZXgifQAAAAAAAAAAAAAAAAAAAAAAAAAAZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJI',
+      },
+      miniapp: {
+        version: '1',
+        name: 'FundRaisely Quiz',
+        homeUrl: `${BASE_URL}/web3/impact-campaign/baseapp`,
+        builderCode: 'bc_vpqki8ri',
+        iconUrl: `${BASE_URL}/icon.png`,
+        imageUrl: `${BASE_URL}/embed-image.png`,
+        splashImageUrl: `${BASE_URL}/splash.png`,
+        splashBackgroundColor: '#0f0f1a',
+        tagline: 'Host. Play. Raise. Impact.',
+        subtitle: 'Host. Play. Raise. Impact.',
+        description:
+          'Turn your community into a force for good. Host or join a quiz night where every entry fee goes directly to a verified charity.',
+        ogTitle: 'FundRaisely Quiz',
+        ogDescription:
+          'Host a quiz. Fund a charity. On-chain, transparent, no middlemen.',
+        primaryCategory: 'social',
+        tags: [
+          'quiz',
+          'fundraising',
+          'web3',
+          'base',
+        ],
+        heroImageUrl: `${BASE_URL}/embed-image.png`,
+        screenshotUrls: [
+          `${BASE_URL}/Picture2.png`,
+          `${BASE_URL}/Picture3.png`,
+          `${BASE_URL}/Picture4.png`,
+        ],
+        ogImageUrl: `${BASE_URL}/embed-image.png`,
+      },
+    });
+  },
+);
 
-  if (req.path.startsWith('/api') || req.path.startsWith('/quiz/api')) {
-    if (!isDatabaseReady) {
-      return res.status(503).json({
-        error: 'Service unavailable',
-        message: 'Database is still initializing',
-      });
+/*
+|--------------------------------------------------------------------------
+| Database guard
+|--------------------------------------------------------------------------
+|
+| API calls are blocked until initialization completes.
+|
+*/
+
+app.use(
+  (
+    req,
+    res,
+    next,
+  ) => {
+    if (
+      req.path === '/health' ||
+      req.path === '/api/health'
+    ) {
+      return next();
     }
-  }
 
-  next();
-});
-
-// Request ID and logging middleware
-app.use((req, res, next) => {
-  req.requestId = uuidv4();
-  req.startTime = Date.now();
-
-  if (process.env.LOG_LEVEL === 'debug') {
-    logRequest(loggers.server, req);
-  }
-
-  const originalSend = res.send;
-  res.send = function (data) {
-    const duration = Date.now() - req.startTime;
-
-    if (process.env.LOG_LEVEL === 'debug') {
-      logResponse(loggers.server, req, res, duration);
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/quiz/api')
+    ) {
+      if (!isDatabaseReady) {
+        return res.status(503).json({
+          error: 'Service unavailable',
+          message:
+            'Database is still initializing',
+        });
+      }
     }
 
-    return originalSend.call(this, data);
-  };
+    next();
+  },
+);
 
-  next();
-});
+/*
+|--------------------------------------------------------------------------
+| Request ID and logging
+|--------------------------------------------------------------------------
+*/
 
-/* ──────────────────────────────────────────────────────────
-   TGB endpoints
-   ────────────────────────────────────────────────────────── */
-app.post('/api/tgb/create-deposit-address', createDepositAddress);
-app.post('/api/tgb/webhook', tgbWebhookHandler);
+app.use(
+  (
+    req,
+    res,
+    next,
+  ) => {
+    req.requestId = uuidv4();
+    req.startTime = Date.now();
 
-/* ──────────────────────────────────────────────────────────
-   Stripe endpoints
-   ────────────────────────────────────────────────────────── */
-app.set('trust proxy', 1);
-app.use('/api/stripe', stripeRouter);
+    if (
+      process.env.LOG_LEVEL === 'debug'
+    ) {
+      logRequest(
+        loggers.server,
+        req,
+      );
+    }
 
-/* ──────────────────────────────────────────────────────────
-   Security headers
-   ────────────────────────────────────────────────────────── */
+    const originalSend =
+      res.send;
+
+    res.send = function sendWithLogging(
+      data,
+    ) {
+      const duration =
+        Date.now() -
+        req.startTime;
+
+      if (
+        process.env.LOG_LEVEL ===
+        'debug'
+      ) {
+        logResponse(
+          loggers.server,
+          req,
+          res,
+          duration,
+        );
+      }
+
+      return originalSend.call(
+        this,
+        data,
+      );
+    };
+
+    next();
+  },
+);
+
+/*
+|--------------------------------------------------------------------------
+| TGB endpoints
+|--------------------------------------------------------------------------
+*/
+
+app.post(
+  '/api/tgb/create-deposit-address',
+  createDepositAddress,
+);
+
+app.post(
+  '/api/tgb/webhook',
+  tgbWebhookHandler,
+);
+
+/*
+|--------------------------------------------------------------------------
+| Stripe routes
+|--------------------------------------------------------------------------
+*/
+
+app.set(
+  'trust proxy',
+  1,
+);
+
+app.use(
+  '/api/stripe',
+  stripeRouter,
+);
+
+/*
+|--------------------------------------------------------------------------
+| Security headers
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   helmet({
     xPoweredBy: false,
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: {
+      policy:
+        'same-origin-allow-popups',
+    },
+    referrerPolicy: {
+      policy:
+        'strict-origin-when-cross-origin',
+    },
+    crossOriginResourcePolicy: {
+      policy: 'cross-origin',
+    },
   }),
 );
+
 const ALLOWED_CONNECT = [
   "'self'",
   'https:',
@@ -343,29 +599,50 @@ const ALLOWED_CONNECT = [
   'https://*.llamarpc.com',
   'wss://avalanche-fuji.drpc.org',
   'https://*.g.alchemy.com',
-  // Solana RPC — needed for the crypto donation flow's wallet/tx-sending
-  // step, which calls these directly from the browser (not proxied
-  // through our own backend). Without these, sendTransaction/getBalance
-  // etc. calls from the connected wallet would be silently blocked by
-  // CSP — looks like "the wallet doesn't work" with no obvious cause.
   'https://api.mainnet-beta.solana.com',
   'https://api.devnet.solana.com',
   'https://*.solana-mainnet.g.alchemy.com',
   'https://*.solana-devnet.g.alchemy.com',
-  ...(process.env.CSP_CONNECT_EXTRA?.split(',').map((s) => s.trim()).filter(Boolean) ?? []),
+  ...(
+    process.env.CSP_CONNECT_EXTRA
+      ?.split(',')
+      .map((value) =>
+        value.trim(),
+      )
+      .filter(Boolean) ?? []
+  ),
 ];
- 
 
 app.use(
   helmet.contentSecurityPolicy({
     directives: {
-      defaultSrc: ["'self'"],
-      baseUri: ["'self'"],
-      objectSrc: ["'none'"],
-      scriptSrc: ["'self'", 'https:', "'unsafe-inline'"],
-      scriptSrcElem: ["'self'", 'https:', "'unsafe-inline'"],
-      scriptSrcAttr: ["'none'"],
-      styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
+      defaultSrc: [
+        "'self'",
+      ],
+      baseUri: [
+        "'self'",
+      ],
+      objectSrc: [
+        "'none'",
+      ],
+      scriptSrc: [
+        "'self'",
+        'https:',
+        "'unsafe-inline'",
+      ],
+      scriptSrcElem: [
+        "'self'",
+        'https:',
+        "'unsafe-inline'",
+      ],
+      scriptSrcAttr: [
+        "'none'",
+      ],
+      styleSrc: [
+        "'self'",
+        'https:',
+        "'unsafe-inline'",
+      ],
       imgSrc: [
         "'self'",
         'data:',
@@ -374,211 +651,537 @@ app.use(
         'https://images.walletconnect.com',
         'https://static.walletconnect.com',
       ],
-      fontSrc: ["'self'", 'https:', 'data:'],
-      mediaSrc: ["'self'", 'https:'],
-      workerSrc: ["'self'", 'blob:'],
-      manifestSrc: ["'self'"],
-     frameSrc: [
-  "'self'",
-  'https://www.google.com',
-  'https://maps.google.com',
-  'https://www.google.co.uk',
-  'https://www.google.ie',
-  'https://verify.walletconnect.com',
-  'https://verify.walletconnect.org',
-  'https://www.youtube.com',
-  'https://www.youtube-nocookie.com',
-  'https://player.vimeo.com',
-],
-      childSrc: ["'self'", 'https://verify.walletconnect.com', 'https://verify.walletconnect.org'],
-      frameAncestors: ['*'],
-      connectSrc: ALLOWED_CONNECT,
+      fontSrc: [
+        "'self'",
+        'https:',
+        'data:',
+      ],
+      mediaSrc: [
+        "'self'",
+        'https:',
+      ],
+      workerSrc: [
+        "'self'",
+        'blob:',
+      ],
+      manifestSrc: [
+        "'self'",
+      ],
+      frameSrc: [
+        "'self'",
+        'https://www.google.com',
+        'https://maps.google.com',
+        'https://www.google.co.uk',
+        'https://www.google.ie',
+        'https://verify.walletconnect.com',
+        'https://verify.walletconnect.org',
+        'https://www.youtube.com',
+        'https://www.youtube-nocookie.com',
+        'https://player.vimeo.com',
+      ],
+      childSrc: [
+        "'self'",
+        'https://verify.walletconnect.com',
+        'https://verify.walletconnect.org',
+      ],
+      frameAncestors: [
+        '*',
+      ],
+      connectSrc:
+        ALLOWED_CONNECT,
       upgradeInsecureRequests: [],
     },
     reportOnly: false,
   }),
 );
 
-/* ──────────────────────────────────────────────────────────
-   301 redirects
-   ────────────────────────────────────────────────────────── */
-app.use((req, res, next) => {
-  const { path: p } = req;
+/*
+|--------------------------------------------------------------------------
+| Redirects
+|--------------------------------------------------------------------------
+*/
 
-  const redirect = (target) => {
-    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    return res.redirect(301, target + qs);
-  };
+app.use(
+  (
+    req,
+    res,
+    next,
+  ) => {
+    const {
+      path: requestPath,
+    } = req;
 
-  if (/^\/web3\/web3(\/.*)?$/i.test(p)) {
-    return redirect(p.replace(/^\/web3\/web3/i, '/web3'));
-  }
+    const redirect = (
+      target,
+    ) => {
+      const queryString =
+        req.url.includes('?')
+          ? req.url.slice(
+              req.url.indexOf('?'),
+            )
+          : '';
 
-  const m1 =
-    p.match(/^\/web3-impact-event(?:\/(.*))?$/i) ||
-    p.match(/^\/Web3-Impact-Event(?:\/(.*))?$/);
+      return res.redirect(
+        301,
+        target + queryString,
+      );
+    };
 
-  if (m1) {
-    return redirect('/web3/impact-campaign' + (m1[1] ? '/' + m1[1] : ''));
-  }
+    if (
+      /^\/web3\/web3(\/.*)?$/i.test(
+        requestPath,
+      )
+    ) {
+      return redirect(
+        requestPath.replace(
+          /^\/web3\/web3/i,
+          '/web3',
+        ),
+      );
+    }
 
-  const m2 = p.match(/^\/impact(?:\/(.*))?$/i);
+    const impactMatch =
+      requestPath.match(
+        /^\/web3-impact-event(?:\/(.*))?$/i,
+      ) ||
+      requestPath.match(
+        /^\/Web3-Impact-Event(?:\/(.*))?$/,
+      );
 
-  if (m2) {
-    return redirect('/web3/impact-campaign' + (m2[1] ? '/' + m2[1] : ''));
-  }
+    if (impactMatch) {
+      return redirect(
+        `/web3/impact-campaign${
+          impactMatch[1]
+            ? `/${impactMatch[1]}`
+            : ''
+        }`,
+      );
+    }
 
-  const m3 = p.match(/^\/web3-fundraising-quiz(?:\/(.*))?$/i);
+    const shortImpactMatch =
+      requestPath.match(
+        /^\/impact(?:\/(.*))?$/i,
+      );
 
-  if (m3) {
-    return redirect('/web3' + (m3[1] ? '/' + m3[1] : ''));
-  }
+    if (shortImpactMatch) {
+      return redirect(
+        `/web3/impact-campaign${
+          shortImpactMatch[1]
+            ? `/${shortImpactMatch[1]}`
+            : ''
+        }`,
+      );
+    }
 
-  if (/^\/(uk|ireland)\/?$/i.test(p)) {
-    return redirect('/');
-  }
+    const quizMatch =
+      requestPath.match(
+        /^\/web3-fundraising-quiz(?:\/(.*))?$/i,
+      );
 
-  next();
-});
+    if (quizMatch) {
+      return redirect(
+        `/web3${
+          quizMatch[1]
+            ? `/${quizMatch[1]}`
+            : ''
+        }`,
+      );
+    }
 
-/* ──────────────────────────────────────────────────────────
-   Request logging
-   ────────────────────────────────────────────────────────── */
-// app.use((req, res, next) => {
-//   if (req.path.startsWith('/quiz/api') || req.path.startsWith('/api')) {
-//     console.log(`📥 ${req.method} ${req.url}`);
-//     console.log('📥 Headers:', {
-//       'content-type': req.headers['content-type'],
-//       'content-length': req.headers['content-length'],
-//       'user-agent': req.headers['user-agent']?.substring(0, 50),
-//     });
-//   }
+    if (
+      /^\/(uk|ireland)\/?$/i.test(
+        requestPath,
+      )
+    ) {
+      return redirect('/');
+    }
 
-//   next();
-// });
+    next();
+  },
+);
 
-/* ──────────────────────────────────────────────────────────
-   API routers — auth-gated routes (auth enforced per-router)
-   ────────────────────────────────────────────────────────── */
-console.log('🛠️ Setting up auth-gated routes...');
+/*
+|--------------------------------------------------------------------------
+| API routers
+|--------------------------------------------------------------------------
+*/
 
-app.use('/quiz/api/community-registration', communityRegistrationApi);
-app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
-app.use('/api/impact-campaign/leaderboard', impact_campaign_leaderboard);
-app.use('/quiz/api', web2RoomsApi);
-app.use('/', eventIntegrationsApi);
-app.use('/api/payment-methods', paymentMethodsApi);
-app.use('/api/tickets', ticketsSummaryRouter);
+console.log(
+  '🛠️ Setting up auth-gated routes...',
+);
 
-app.use('/api/quiz-reconciliation', reconciliationRoutes);
-app.use('/api/quiz/tickets/crypto-donation', quizTicketCryptoDonationRoutes);
-app.use('/api/quiz/tickets/crypto-fixed-fee', quizTicketCryptoFixedFeeRouter);
-app.use('/api/quiz/tickets', ticketsRouter);
-app.use('/api/quiz/web2', quizStatsRoutes);
+app.use(
+  '/quiz/api/community-registration',
+  communityRegistrationApi,
+);
 
-app.use('/api', quizPaymentMethodsRoutes);
-app.use('/api', donationButtonRoutes); 
-app.use('/api', donationCheckoutRoutes);
-app.use('/api', donationStatusRoutes);
-app.use('/api/donations', donationCryptoQuoteRouter);
-app.use('/api/donations', donationCryptoRouter);
-app.use('/quiz/api', createRoomApi);
-app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
-app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
-app.use('/api/pledges', pledgeRouter);
-app.use('/api/elimination/mgmt', eliminationMgmtRoutes);
-app.use('/api/elimination', eliminationRoutes);
-app.use('/api/charities', charityListApi);
-app.use('/api/charities', charityResolverApi);
-app.use('/api/admin/charity-wallets', charityWalletsAdminApi);
-app.use('/api/elimination/dev', eliminationDevRoutes);
-app.use('/api/puzzles', puzzleRouter);
-app.use('/api/puzzle-challenges', challengeRouter);
-app.use('/api/supporter-auth', supporterAuthRouter);
-app.use('/api/puzzle-subscriptions', puzzleSubscriptionRouter);
-app.use('/api/web3-transactions', web3TransactionRoutes);
-app.use('/api/web3/auth', web3AuthRoutes);
-app.use('/api/web3/fundraisers', web3FundraiserRoutes);
-app.use('/api/web3/public-events', web3PublicEventsRoutes);
-app.use('/api/contact', contactRoute);
-app.use('/api/auth/reset', passwordResetRoute);
-app.use('/api/quiz/crypto-donation', quizCryptoDonationRoutes);
-app.use('/api/quiz/crypto-fixed-fee', quizCryptoFixedFeeRouter);
-app.use('/api/ticketed-event/mgmt', ticketedEventMgmtRoutes);
-app.use('/api/ticketed-event/checkin', ticketedEventCheckinRoutes); 
-app.use('/api/ticketed-event/reconciliation', ticketedEventReconciliationRoutes);
-app.use('/api/ticketed-event/admins', ticketedEventAdminsRoutes);
+app.use(
+  '/quiz/api/impactcampaign/pledge',
+  impactCampaignPledgeApi,
+);
 
-console.log('✅ All routes setup complete');
+app.use(
+  '/api/impact-campaign/leaderboard',
+  impactCampaignLeaderboard,
+);
 
-app.get('/quiz/api/community-registration/test', (req, res) => {
-  res.json({ message: 'Route is working!' });
-});
+app.use(
+  '/quiz/api',
+  web2RoomsApi,
+);
 
-/* ──────────────────────────────────────────────────────────
-   Sitemap / robots
-   Must be mounted before public static files and SPA catch-all.
-   Uses server/SeoRoutes.js, including staging crawler block.
-   ────────────────────────────────────────────────────────── */
+app.use(
+  '/',
+  eventIntegrationsApi,
+);
+
+app.use(
+  '/api/payment-methods',
+  paymentMethodsApi,
+);
+
+app.use(
+  '/api/tickets',
+  ticketsSummaryRouter,
+);
+
+app.use(
+  '/api/quiz-reconciliation',
+  reconciliationRoutes,
+);
+
+app.use(
+  '/api/quiz/tickets/crypto-donation',
+  quizTicketCryptoDonationRoutes,
+);
+
+app.use(
+  '/api/quiz/tickets/crypto-fixed-fee',
+  quizTicketCryptoFixedFeeRouter,
+);
+
+app.use(
+  '/api/quiz/tickets',
+  ticketsRouter,
+);
+
+app.use(
+  '/api/quiz/web2',
+  quizStatsRoutes,
+);
+
+app.use(
+  '/api',
+  quizPaymentMethodsRoutes,
+);
+
+app.use(
+  '/api',
+  donationButtonRoutes,
+);
+
+app.use(
+  '/api',
+  donationCheckoutRoutes,
+);
+
+app.use(
+  '/api',
+  donationStatusRoutes,
+);
+
+app.use(
+  '/api/donations',
+  donationCryptoQuoteRouter,
+);
+
+app.use(
+  '/api/donations',
+  donationCryptoRouter,
+);
+
+app.use(
+  '/quiz/api',
+  createRoomApi,
+);
+
+app.use(
+  '/api/mgtsystem/quiz-late-payments',
+  quizLatePayments,
+);
+
+app.use(
+  '/api/quiz/personalised-round',
+  quizPersonalisedRoundRouter,
+);
+
+app.use(
+  '/api/pledges',
+  pledgeRouter,
+);
+
+app.use(
+  '/api/elimination/mgmt',
+  eliminationMgmtRoutes,
+);
+
+app.use(
+  '/api/elimination',
+  eliminationRoutes,
+);
+
+app.use(
+  '/api/charities',
+  charityListApi,
+);
+
+app.use(
+  '/api/charities',
+  charityResolverApi,
+);
+
+app.use(
+  '/api/admin/charity-wallets',
+  charityWalletsAdminApi,
+);
+
+app.use(
+  '/api/elimination/dev',
+  eliminationDevRoutes,
+);
+
+app.use(
+  '/api/puzzles',
+  puzzleRouter,
+);
+
+app.use(
+  '/api/puzzle-challenges',
+  challengeRouter,
+);
+
+app.use(
+  '/api/supporter-auth',
+  supporterAuthRouter,
+);
+
+app.use(
+  '/api/puzzle-subscriptions',
+  puzzleSubscriptionRouter,
+);
+
+app.use(
+  '/api/subscription-reconciliation',
+  subscriptionReconciliationRoutes,
+);
+
+app.use(
+  '/api/web3-transactions',
+  web3TransactionRoutes,
+);
+
+app.use(
+  '/api/web3/auth',
+  web3AuthRoutes,
+);
+
+app.use(
+  '/api/web3/fundraisers',
+  web3FundraiserRoutes,
+);
+
+app.use(
+  '/api/web3/public-events',
+  web3PublicEventsRoutes,
+);
+
+app.use(
+  '/api/contact',
+  contactRoute,
+);
+
+app.use(
+  '/api/auth/reset',
+  passwordResetRoute,
+);
+
+app.use(
+  '/api/quiz/crypto-donation',
+  quizCryptoDonationRoutes,
+);
+
+app.use(
+  '/api/quiz/crypto-fixed-fee',
+  quizCryptoFixedFeeRouter,
+);
+
+app.use(
+  '/api/ticketed-event/mgmt',
+  ticketedEventMgmtRoutes,
+);
+
+app.use(
+  '/api/ticketed-event/checkin',
+  ticketedEventCheckinRoutes,
+);
+
+app.use(
+  '/api/ticketed-event/reconciliation',
+  ticketedEventReconciliationRoutes,
+);
+
+app.use(
+  '/api/ticketed-event/admins',
+  ticketedEventAdminsRoutes,
+);
+
+console.log(
+  '✅ All routes setup complete',
+);
+
+app.get(
+  '/quiz/api/community-registration/test',
+  (req, res) => {
+    res.json({
+      message:
+        'Route is working!',
+    });
+  },
+);
+
+/*
+|--------------------------------------------------------------------------
+| Sitemap and robots
+|--------------------------------------------------------------------------
+*/
+
 try {
   seoRoutes(app);
 } catch (error) {
-  console.error('⚠️ Failed to setup SEO routes:', error.message);
+  console.error(
+    '⚠️ Failed to setup SEO routes:',
+    error.message,
+  );
 }
 
-/* ──────────────────────────────────────────────────────────
-   Bad encoded URI guard
-   ────────────────────────────────────────────────────────── */
-app.use((req, res, next) => {
-  try {
-    decodeURIComponent(req.path);
-    next();
-  } catch (e) {
-    res.status(400).end('Bad Request');
+/*
+|--------------------------------------------------------------------------
+| Invalid URI guard
+|--------------------------------------------------------------------------
+*/
+
+app.use(
+  (
+    req,
+    res,
+    next,
+  ) => {
+    try {
+      decodeURIComponent(
+        req.path,
+      );
+
+      next();
+    } catch {
+      res
+        .status(400)
+        .end('Bad Request');
+    }
+  },
+);
+
+/*
+|--------------------------------------------------------------------------
+| Public static files
+|--------------------------------------------------------------------------
+*/
+
+app.use(
+  express.static(
+    path.join(
+      __dirname,
+      '../public',
+    ),
+  ),
+);
+
+/*
+|--------------------------------------------------------------------------
+| SEO helpers
+|--------------------------------------------------------------------------
+*/
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll(
+      '&',
+      '&amp;',
+    )
+    .replaceAll(
+      '<',
+      '&lt;',
+    )
+    .replaceAll(
+      '>',
+      '&gt;',
+    )
+    .replaceAll(
+      '"',
+      '&quot;',
+    );
+}
+
+function getCanonicalInfo(
+  canonical,
+) {
+  if (!canonical) {
+    return null;
   }
-});
-
-/* ──────────────────────────────────────────────────────────
-   Public static files
-   ────────────────────────────────────────────────────────── */
-app.use(express.static(path.join(__dirname, '../public')));
-
-/* ──────────────────────────────────────────────────────────
-   SEO head injection helpers
-   ────────────────────────────────────────────────────────── */
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
-function getCanonicalInfo(canonical) {
-  if (!canonical) return null;
 
   try {
-    const url = new URL(canonical);
-    const pathOnly = `${url.pathname}${url.search || ''}`;
-    const isIE = url.hostname.includes('fundraisely.ie');
+    const url =
+      new URL(canonical);
+
+    const pathOnly =
+      `${url.pathname}${
+        url.search || ''
+      }`;
+
+    const isIE =
+      url.hostname.includes(
+        'fundraisely.ie',
+      );
 
     return {
       path: pathOnly,
-      locale: isIE ? 'en_IE' : 'en_GB',
-      ukUrl: `https://fundraisely.co.uk${pathOnly}`,
-      ieUrl: `https://fundraisely.ie${pathOnly}`,
-      xDefaultUrl: `https://fundraisely.ie${pathOnly}`,
+      locale:
+        isIE
+          ? 'en_IE'
+          : 'en_GB',
+      ukUrl:
+        `https://fundraisely.co.uk${pathOnly}`,
+      ieUrl:
+        `https://fundraisely.ie${pathOnly}`,
+      xDefaultUrl:
+        `https://fundraisely.ie${pathOnly}`,
     };
-  } catch (error) {
-    console.warn('⚠️ Invalid canonical URL for SEO head tags:', canonical);
+  } catch {
+    console.warn(
+      '⚠️ Invalid canonical URL for SEO head tags:',
+      canonical,
+    );
+
     return null;
   }
 }
 
-function buildHeadTags(seo = {}) {
+function buildHeadTags(
+  seo = {},
+) {
   const {
     title = 'FundRaisely',
-    description = 'FundRaisely helps clubs, schools, charities and community groups run fundraising events, ticketing, payment tracking and reports.',
+    description =
+      'FundRaisely helps clubs, schools, charities and community groups run fundraising events, ticketing, payment tracking and reports.',
     image = '',
     imageAlt = title,
     imageWidth = '1200',
@@ -586,286 +1189,738 @@ function buildHeadTags(seo = {}) {
     type = 'website',
     canonical,
     keywords,
-    robots: robotsFromSeo = 'index, follow',
+    robots:
+      robotsFromSeo =
+        'index, follow',
   } = seo;
 
-  const isStaging = process.env.APP_ENV === 'staging';
-  const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
-  const canonicalInfo = getCanonicalInfo(canonical);
+  const isStaging =
+    process.env.APP_ENV ===
+    'staging';
+
+  const robots =
+    isStaging
+      ? 'noindex, nofollow'
+      : robotsFromSeo;
+
+  const canonicalInfo =
+    getCanonicalInfo(
+      canonical,
+    );
 
   return [
-    `<title>${escapeHtml(title)}</title>`,
-    `<meta id="meta-description" name="description" content="${escapeHtml(description)}">`,
-    robots ? `<meta id="meta-robots" name="robots" content="${escapeHtml(robots)}">` : '',
-    keywords ? `<meta id="meta-keywords" name="keywords" content="${escapeHtml(keywords)}">` : '',
+    `<title>${escapeHtml(
+      title,
+    )}</title>`,
 
-    `<meta id="og-title" property="og:title" content="${escapeHtml(title)}">`,
-    `<meta id="og-description" property="og:description" content="${escapeHtml(description)}">`,
-    image ? `<meta id="og-image" property="og:image" content="${escapeHtml(image)}">` : '',
-    image ? `<meta id="og-image-secure" property="og:image:secure_url" content="${escapeHtml(image)}">` : '',
-    image ? `<meta id="og-image-width" property="og:image:width" content="${escapeHtml(imageWidth)}">` : '',
-    image ? `<meta id="og-image-height" property="og:image:height" content="${escapeHtml(imageHeight)}">` : '',
-    image ? `<meta id="og-image-alt" property="og:image:alt" content="${escapeHtml(imageAlt)}">` : '',
-    `<meta id="og-type" property="og:type" content="${escapeHtml(type)}">`,
-    canonical ? `<meta id="og-url" property="og:url" content="${escapeHtml(canonical)}">` : '',
+    `<meta id="meta-description" name="description" content="${escapeHtml(
+      description,
+    )}">`,
+
+    robots
+      ? `<meta id="meta-robots" name="robots" content="${escapeHtml(
+          robots,
+        )}">`
+      : '',
+
+    keywords
+      ? `<meta id="meta-keywords" name="keywords" content="${escapeHtml(
+          keywords,
+        )}">`
+      : '',
+
+    `<meta id="og-title" property="og:title" content="${escapeHtml(
+      title,
+    )}">`,
+
+    `<meta id="og-description" property="og:description" content="${escapeHtml(
+      description,
+    )}">`,
+
+    image
+      ? `<meta id="og-image" property="og:image" content="${escapeHtml(
+          image,
+        )}">`
+      : '',
+
+    image
+      ? `<meta id="og-image-secure" property="og:image:secure_url" content="${escapeHtml(
+          image,
+        )}">`
+      : '',
+
+    image
+      ? `<meta id="og-image-width" property="og:image:width" content="${escapeHtml(
+          imageWidth,
+        )}">`
+      : '',
+
+    image
+      ? `<meta id="og-image-height" property="og:image:height" content="${escapeHtml(
+          imageHeight,
+        )}">`
+      : '',
+
+    image
+      ? `<meta id="og-image-alt" property="og:image:alt" content="${escapeHtml(
+          imageAlt,
+        )}">`
+      : '',
+
+    `<meta id="og-type" property="og:type" content="${escapeHtml(
+      type,
+    )}">`,
+
+    canonical
+      ? `<meta id="og-url" property="og:url" content="${escapeHtml(
+          canonical,
+        )}">`
+      : '',
+
     `<meta id="og-site" property="og:site_name" content="FundRaisely">`,
-    canonicalInfo ? `<meta id="og-locale" property="og:locale" content="${canonicalInfo.locale}">` : '',
+
+    canonicalInfo
+      ? `<meta id="og-locale" property="og:locale" content="${canonicalInfo.locale}">`
+      : '',
 
     `<meta id="tw-card" name="twitter:card" content="summary_large_image">`,
-    `<meta id="tw-title" name="twitter:title" content="${escapeHtml(title)}">`,
-    `<meta id="tw-description" name="twitter:description" content="${escapeHtml(description)}">`,
-    image ? `<meta id="tw-image" name="twitter:image" content="${escapeHtml(image)}">` : '',
-    image ? `<meta id="tw-image-alt" name="twitter:image:alt" content="${escapeHtml(imageAlt)}">` : '',
 
-    canonical ? `<link id="link-canonical" rel="canonical" href="${escapeHtml(canonical)}">` : '',
-    canonicalInfo
-      ? `<link rel="alternate" hreflang="en-GB" href="${escapeHtml(canonicalInfo.ukUrl)}">`
+    `<meta id="tw-title" name="twitter:title" content="${escapeHtml(
+      title,
+    )}">`,
+
+    `<meta id="tw-description" name="twitter:description" content="${escapeHtml(
+      description,
+    )}">`,
+
+    image
+      ? `<meta id="tw-image" name="twitter:image" content="${escapeHtml(
+          image,
+        )}">`
       : '',
-    canonicalInfo
-      ? `<link rel="alternate" hreflang="en-IE" href="${escapeHtml(canonicalInfo.ieUrl)}">`
+
+    image
+      ? `<meta id="tw-image-alt" name="twitter:image:alt" content="${escapeHtml(
+          imageAlt,
+        )}">`
       : '',
+
+    canonical
+      ? `<link id="link-canonical" rel="canonical" href="${escapeHtml(
+          canonical,
+        )}">`
+      : '',
+
     canonicalInfo
-      ? `<link rel="alternate" hreflang="x-default" href="${escapeHtml(canonicalInfo.xDefaultUrl)}">`
+      ? `<link rel="alternate" hreflang="en-GB" href="${escapeHtml(
+          canonicalInfo.ukUrl,
+        )}">`
+      : '',
+
+    canonicalInfo
+      ? `<link rel="alternate" hreflang="en-IE" href="${escapeHtml(
+          canonicalInfo.ieUrl,
+        )}">`
+      : '',
+
+    canonicalInfo
+      ? `<link rel="alternate" hreflang="x-default" href="${escapeHtml(
+          canonicalInfo.xDefaultUrl,
+        )}">`
       : '',
   ]
     .filter(Boolean)
     .join('\n    ');
 }
 
-/* ──────────────────────────────────────────────────────────
-   Static files + SPA catch-all
-   ────────────────────────────────────────────────────────── */
-if (process.env.NODE_ENV === 'production') {
+/*
+|--------------------------------------------------------------------------
+| Static files and SPA fallback
+|--------------------------------------------------------------------------
+*/
+
+if (
+  process.env.NODE_ENV ===
+  'production'
+) {
   app.use(
     '/assets',
-    express.static(path.join(__dirname, '../dist/assets'), {
-      maxAge: '31536000000',
-      etag: true,
-      lastModified: true,
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.js')) {
-          res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        }
+    express.static(
+      path.join(
+        __dirname,
+        '../dist/assets',
+      ),
+      {
+        maxAge:
+          '31536000000',
+        etag: true,
+        lastModified: true,
+        setHeaders: (
+          res,
+          filePath,
+        ) => {
+          if (
+            filePath.endsWith(
+              '.js',
+            )
+          ) {
+            res.setHeader(
+              'Content-Type',
+              'application/javascript; charset=utf-8',
+            );
+          }
 
-        if (filePath.endsWith('.css')) {
-          res.setHeader('Content-Type', 'text/css; charset=utf-8');
-        }
+          if (
+            filePath.endsWith(
+              '.css',
+            )
+          ) {
+            res.setHeader(
+              'Content-Type',
+              'text/css; charset=utf-8',
+            );
+          }
 
-        if (
-          filePath.endsWith('.js') ||
-          filePath.endsWith('.css') ||
-          filePath.endsWith('.woff2') ||
-          filePath.endsWith('.woff')
-        ) {
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        } else {
-          res.setHeader('Cache-Control', 'public, max-age=31536000');
-        }
+          if (
+            filePath.endsWith(
+              '.js',
+            ) ||
+            filePath.endsWith(
+              '.css',
+            ) ||
+            filePath.endsWith(
+              '.woff2',
+            ) ||
+            filePath.endsWith(
+              '.woff',
+            )
+          ) {
+            res.setHeader(
+              'Cache-Control',
+              'public, max-age=31536000, immutable',
+            );
+          } else {
+            res.setHeader(
+              'Cache-Control',
+              'public, max-age=31536000',
+            );
+          }
+        },
       },
-    }),
+    ),
   );
 
   app.use(
-    express.static(path.join(__dirname, '../dist'), {
-      index: false,
-      maxAge: '3600000',
-      etag: true,
-      lastModified: true,
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.js')) {
-          res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        }
+    express.static(
+      path.join(
+        __dirname,
+        '../dist',
+      ),
+      {
+        index: false,
+        maxAge: '3600000',
+        etag: true,
+        lastModified: true,
+        setHeaders: (
+          res,
+          filePath,
+        ) => {
+          if (
+            filePath.endsWith(
+              '.js',
+            )
+          ) {
+            res.setHeader(
+              'Content-Type',
+              'application/javascript; charset=utf-8',
+            );
+          }
 
-        if (filePath.endsWith('.css')) {
-          res.setHeader('Content-Type', 'text/css; charset=utf-8');
-        }
+          if (
+            filePath.endsWith(
+              '.css',
+            )
+          ) {
+            res.setHeader(
+              'Content-Type',
+              'text/css; charset=utf-8',
+            );
+          }
+        },
       },
-    }),
+    ),
   );
 
-  app.get('*', (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  app.get(
+    '*',
+    (
+      req,
+      res,
+    ) => {
+      res.setHeader(
+        'Cache-Control',
+        'public, max-age=0, must-revalidate',
+      );
 
-    const indexPath = path.join(__dirname, '../dist/index.html');
+      const indexPath =
+        path.join(
+          __dirname,
+          '../dist/index.html',
+        );
 
-    fs.readFile(indexPath, 'utf8', (err, html) => {
-      if (err) {
-        console.error('❌ Failed to read index.html', err);
-        return res.status(500).send('Server error');
-      }
+      fs.readFile(
+        indexPath,
+        'utf8',
+        (
+          err,
+          html,
+        ) => {
+          if (err) {
+            console.error(
+              '❌ Failed to read index.html',
+              err,
+            );
 
-      const proto =
-        req.headers['x-forwarded-proto']?.toString() || (req.secure ? 'https' : 'http');
-      const origin = `${proto}://${req.get('host')}`;
-      const seo = getSeoForPath(req.path, origin);
+            return res
+              .status(500)
+              .send(
+                'Server error',
+              );
+          }
 
-      res.status(200).send(html.replace('<!--app-head-->', buildHeadTags(seo)));
-    });
-  });
+          const proto =
+            req.headers[
+              'x-forwarded-proto'
+            ]?.toString() ||
+            (
+              req.secure
+                ? 'https'
+                : 'http'
+            );
+
+          const origin =
+            `${proto}://${req.get(
+              'host',
+            )}`;
+
+          const seo =
+            getSeoForPath(
+              req.path,
+              origin,
+            );
+
+          return res
+            .status(200)
+            .send(
+              html.replace(
+                '<!--app-head-->',
+                buildHeadTags(
+                  seo,
+                ),
+              ),
+            );
+        },
+      );
+    },
+  );
 } else {
   app.use(
-    express.static(path.join(__dirname, '../dist'), {
-      index: false,
-      setHeaders: (res) => {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
+    express.static(
+      path.join(
+        __dirname,
+        '../dist',
+      ),
+      {
+        index: false,
+        setHeaders: (
+          res,
+        ) => {
+          res.setHeader(
+            'Cache-Control',
+            'no-store, no-cache, must-revalidate, proxy-revalidate',
+          );
+
+          res.setHeader(
+            'Pragma',
+            'no-cache',
+          );
+
+          res.setHeader(
+            'Expires',
+            '0',
+          );
+        },
       },
-    }),
+    ),
   );
 
-  app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, '../dist/index.html');
+  app.get(
+    '*',
+    (
+      req,
+      res,
+    ) => {
+      const indexPath =
+        path.join(
+          __dirname,
+          '../dist/index.html',
+        );
 
-    fs.readFile(indexPath, 'utf8', (err, html) => {
-      if (err) {
-        console.error('❌ Failed to read index.html', err);
-        return res.status(500).send('Server error');
-      }
+      fs.readFile(
+        indexPath,
+        'utf8',
+        (
+          err,
+          html,
+        ) => {
+          if (err) {
+            console.error(
+              '❌ Failed to read index.html',
+              err,
+            );
 
-      const proto =
-        req.headers['x-forwarded-proto']?.toString() || (req.secure ? 'https' : 'http');
-      const origin = `${proto}://${req.get('host')}`;
-      const seo = getSeoForPath(req.path, origin);
+            return res
+              .status(500)
+              .send(
+                'Server error',
+              );
+          }
 
-      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.set('Pragma', 'no-cache');
-      res.set('Expires', '0');
+          const proto =
+            req.headers[
+              'x-forwarded-proto'
+            ]?.toString() ||
+            (
+              req.secure
+                ? 'https'
+                : 'http'
+            );
 
-      res.status(200).send(html.replace('<!--app-head-->', buildHeadTags(seo)));
-    });
-  });
+          const origin =
+            `${proto}://${req.get(
+              'host',
+            )}`;
+
+          const seo =
+            getSeoForPath(
+              req.path,
+              origin,
+            );
+
+          res.set(
+            'Cache-Control',
+            'no-store, no-cache, must-revalidate, proxy-revalidate',
+          );
+
+          res.set(
+            'Pragma',
+            'no-cache',
+          );
+
+          res.set(
+            'Expires',
+            '0',
+          );
+
+          return res
+            .status(200)
+            .send(
+              html.replace(
+                '<!--app-head-->',
+                buildHeadTags(
+                  seo,
+                ),
+              ),
+            );
+        },
+      );
+    },
+  );
 }
 
-/* ──────────────────────────────────────────────────────────
-   HTTP server + Socket.io
-   ────────────────────────────────────────────────────────── */
-const httpServer = createServer(app);
+/*
+|--------------------------------------------------------------------------
+| HTTP server and Socket.IO
+|--------------------------------------------------------------------------
+*/
 
-const io = new Server(httpServer, {
-  cors: {
-    origin: [
-      'https://fundraisely.ie',
-      'https://www.fundraisely.ie',
-      'https://fundraisely.co.uk',
-      'https://www.fundraisely.co.uk',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://fundraisely-staging.up.railway.app',
-    ],
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
-});
+const httpServer =
+  createServer(app);
 
-app.set('io', io);
+const io =
+  new Server(
+    httpServer,
+    {
+      cors: {
+        origin: [
+          'https://fundraisely.ie',
+          'https://www.fundraisely.ie',
+          'https://fundraisely.co.uk',
+          'https://www.fundraisely.co.uk',
+          'http://localhost:5173',
+          'http://localhost:5174',
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'https://fundraisely-staging.up.railway.app',
+        ],
+        methods: [
+          'GET',
+          'POST',
+        ],
+        credentials: true,
+      },
+    },
+  );
+
+app.set(
+  'io',
+  io,
+);
 
 try {
   setupSocketHandlers(io);
 } catch (error) {
-  console.error('⚠️ Failed to setup socket handlers:', error.message);
+  console.error(
+    '⚠️ Failed to setup socket handlers:',
+    error.message,
+  );
 }
 
-/* ──────────────────────────────────────────────────────────
-   Global error handler — must be last middleware
-   ────────────────────────────────────────────────────────── */
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400) {
-    return next(err);
-  }
+/*
+|--------------------------------------------------------------------------
+| Global error handler
+|--------------------------------------------------------------------------
+*/
 
-  console.error('--------------------------------------');
-  console.error('[Server] ❌❌ GLOBAL ERROR HANDLER');
-  console.error('[Server] ❌ Error message:', err?.message);
-  console.error('[Server] ❌ Request path:', req.path);
-  console.error('--------------------------------------');
+app.use(
+  (
+    err,
+    req,
+    res,
+    next,
+  ) => {
+    if (
+      err instanceof SyntaxError &&
+      err.status === 400
+    ) {
+      return next(err);
+    }
 
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  try {
-    res.status(500);
-    res.setHeader('Content-Type', 'application/json');
-    res.end(
-      JSON.stringify({
-        error: 'Internal error',
-        message: err?.message || 'An unexpected error occurred',
-        ...(process.env.NODE_ENV !== 'production' && {
-          details: err?.message,
-          stack: err?.stack,
-          name: err?.name,
-        }),
-      }),
+    console.error(
+      '--------------------------------------',
     );
-  } catch (sendErr) {
-    console.error('[Server] ❌ Failed to send error response:', sendErr);
-  }
-});
+    console.error(
+      '[Server] ❌❌ GLOBAL ERROR HANDLER',
+    );
+    console.error(
+      '[Server] ❌ Error message:',
+      err?.message,
+    );
+    console.error(
+      '[Server] ❌ Request path:',
+      req.path,
+    );
+    console.error(
+      '--------------------------------------',
+    );
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise);
-  console.error('❌ Reason:', reason);
-});
+    if (
+      res.headersSent
+    ) {
+      return next(err);
+    }
 
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
-  process.exit(1);
-});
+    try {
+      res.status(500);
 
-app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
+      res.setHeader(
+        'Content-Type',
+        'application/json',
+      );
 
-app.get('/debug/rooms', (req, res) => {
-  res.json({
-    totalRooms: 0,
-    rooms: logAllRooms(),
-  });
-});
+      res.end(
+        JSON.stringify({
+          error:
+            'Internal error',
+          message:
+            err?.message ||
+            'An unexpected error occurred',
+          ...(
+            process.env.NODE_ENV !==
+            'production' && {
+              details:
+                err?.message,
+              stack:
+                err?.stack,
+              name:
+                err?.name,
+            }
+          ),
+        }),
+      );
+    } catch (sendErr) {
+      console.error(
+        '[Server] ❌ Failed to send error response:',
+        sendErr,
+      );
+    }
+  },
+);
 
-/* ──────────────────────────────────────────────────────────
-   Start server
-   ────────────────────────────────────────────────────────── */
-console.log(`🔧 Starting server on port ${PORT}...`);
-console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+process.on(
+  'unhandledRejection',
+  (
+    reason,
+    promise,
+  ) => {
+    console.error(
+      '❌ Unhandled Rejection at:',
+      promise,
+    );
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`✅ Healthcheck available at http://localhost:${PORT}/health`);
-});
+    console.error(
+      '❌ Reason:',
+      reason,
+    );
+  },
+);
 
-httpServer.on('error', (error) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use`);
+process.on(
+  'uncaughtException',
+  (error) => {
+    console.error(
+      '❌ Uncaught Exception:',
+      error,
+    );
+
     process.exit(1);
-  }
+  },
+);
 
-  console.error('❌ Server error:', error);
-  process.exit(1);
-});
+app.get(
+  '/api/health',
+  (
+    req,
+    res,
+  ) =>
+    res
+      .status(200)
+      .json({
+        status: 'ok',
+      }),
+);
 
-/* ──────────────────────────────────────────────────────────
-   Database init — non-blocking, runs after server starts
-   ────────────────────────────────────────────────────────── */
+app.get(
+  '/debug/rooms',
+  (
+    req,
+    res,
+  ) => {
+    res.json({
+      totalRooms: 0,
+      rooms:
+        logAllRooms(),
+    });
+  },
+);
+
+/*
+|--------------------------------------------------------------------------
+| Start server
+|--------------------------------------------------------------------------
+*/
+
+console.log(
+  `🔧 Starting server on port ${PORT}...`,
+);
+
+console.log(
+  `🔧 NODE_ENV: ${
+    process.env.NODE_ENV ||
+    'development'
+  }`,
+);
+
+httpServer.listen(
+  PORT,
+  '0.0.0.0',
+  () => {
+    console.log(
+      `🚀 Server running on port ${PORT}`,
+    );
+
+    console.log(
+      `✅ Healthcheck available at http://localhost:${PORT}/health`,
+    );
+  },
+);
+
+httpServer.on(
+  'error',
+  (error) => {
+    if (
+      error.code ===
+      'EADDRINUSE'
+    ) {
+      console.error(
+        `❌ Port ${PORT} is already in use`,
+      );
+
+      process.exit(1);
+    }
+
+    console.error(
+      '❌ Server error:',
+      error,
+    );
+
+    process.exit(1);
+  },
+);
+
+/*
+|--------------------------------------------------------------------------
+| Database initialization
+|--------------------------------------------------------------------------
+*/
+
 (async () => {
   try {
     await initializeDatabase();
+
     isDatabaseReady = true;
-    console.log('🗄️ Database connected and ready');
+
+    console.log(
+      '🗄️ Database connected and ready',
+    );
+
     startStripeCleanupJob();
 
-    // Summer Quest module — creates its own tables/seed data on first
-    // boot if they don't exist yet, then mounts its routes.
-   await setupSummerQuestDatabase(connection);
-    console.log('🗄️ Summer Quest ready');
+    await setupSummerQuestDatabase(
+      connection,
+    );
+
+    console.log(
+      '🗄️ Summer Quest ready',
+    );
   } catch (dbError) {
-    console.error('❌ Database initialization failed:', dbError?.message || dbError);
+    console.error(
+      '❌ Database initialization failed:',
+      dbError?.message ||
+        dbError,
+    );
+
     process.exit(1);
   }
-})().catch((err) => {
-  console.error('❌ Database initialization threw:', err);
-  process.exit(1);
-});
+})().catch(
+  (err) => {
+    console.error(
+      '❌ Database initialization threw:',
+      err,
+    );
+
+    process.exit(1);
+  },
+);
 
 
