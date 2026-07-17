@@ -143,7 +143,7 @@ export async function ensureStripeProductAndPrice({ challengeId, clubId }) {
  */
 export async function createCheckoutSession({ challengeId, supporterEmail, supporterName, clubId }) {
   const [[challenge]] = await database.connection.execute(
-    `SELECT id, club_id, title, weekly_price, currency, is_free, status, stripe_price_id
+    `SELECT id, club_id, title, weekly_price, currency, is_free, status, stripe_price_id, total_weeks, starts_at
      FROM fundraisely_puzzle_challenges
      WHERE id = ? AND club_id = ?
      LIMIT 1`,
@@ -163,6 +163,20 @@ export async function createCheckoutSession({ challengeId, supporterEmail, suppo
     // Activation should have created this — if it's missing, the challenge
     // was never properly activated (or activation predates this build).
     throw new Error('stripe_not_connected');
+  }
+
+  // New sign-ups close once the LAST week has unlocked — starts_at +
+  // (total_weeks - 1) weeks, matching exactly how each week's own
+  // unlocksAt is computed in challengeService.js. Same check as
+  // joinFree's, kept in sync since both flows must agree on when
+  // enrollment closes. This does NOT affect anyone already subscribed —
+  // it only blocks brand-new checkouts.
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const startsAtMs = new Date(challenge.starts_at).getTime();
+  const lastWeekUnlocksAt = startsAtMs + (challenge.total_weeks - 1) * weekMs;
+
+  if (Date.now() > lastWeekUnlocksAt) {
+    throw new Error('New sign-ups have closed for this challenge — the final week has already unlocked.');
   }
 
   const stripeConn = await getReadyStripeForClub(clubId);
@@ -527,6 +541,85 @@ export async function markSubscriptionPastDue({ stripeSubscriptionId }) {
     [stripeSubscriptionId]
   );
   return result.affectedRows > 0;
+}
+
+/**
+ * Cancel every active/past_due subscriber's Stripe subscription
+ * IMMEDIATELY — no more charges will ever be taken. Deliberately does
+ * NOT touch access (challenge_players rows are untouched) and does NOT
+ * refund anything — subscribers keep whatever weeks they've already
+ * paid for, per the explicit decision this was built against.
+ *
+ * Called from challengeService.updateChallengeStatus when a club cancels
+ * a challenge — this is the piece that was previously entirely missing:
+ * cancelPuzzleSubRoom only ever flipped local DB status, so subscribers
+ * kept being billed indefinitely regardless of the club "cancelling."
+ *
+ * Non-fatal per-subscription: one failed Stripe call doesn't stop the
+ * rest from being attempted. Returns a summary rather than throwing, so
+ * the caller (and ultimately the club, via the UI) can see exactly how
+ * many succeeded vs failed — a partial failure here is something a club
+ * needs to know about and possibly finish manually in the Stripe
+ * dashboard, not something to silently swallow.
+ */
+export async function cancelAllActiveSubscriptionsForChallenge({ challengeId, clubId }) {
+  const [subscriptions] = await database.connection.execute(
+    `SELECT id, stripe_subscription_id, player_id
+     FROM fundraisely_puzzle_subscriptions
+     WHERE challenge_id = ? AND club_id = ?
+       AND status IN ('active', 'past_due')
+       AND stripe_subscription_id IS NOT NULL`,
+    [challengeId, clubId]
+  );
+
+  if (!subscriptions.length) {
+    return { cancelledCount: 0, failedCount: 0, errors: [] };
+  }
+
+  const stripeConn = await getReadyStripeForClub(clubId);
+  if (!stripeConn) {
+    // No Stripe connection at all — every cancellation would fail the
+    // same way, so report it as one clear error rather than N identical ones.
+    return {
+      cancelledCount: 0,
+      failedCount: subscriptions.length,
+      errors: ['Stripe is not connected for this club — could not reach Stripe to cancel any subscriptions.'],
+    };
+  }
+
+  let cancelledCount = 0;
+  const errors = [];
+
+  for (const sub of subscriptions) {
+    try {
+      // Immediate cancellation — NOT cancel_at_period_end. This stops
+      // billing right away; the subscriber keeps access to whatever
+      // weeks they've already paid for (access is governed by
+      // challenge_players / puzzle unlock logic, not by subscription
+      // status), and nothing here issues a refund for the current period.
+      await stripe.subscriptions.cancel(
+        sub.stripe_subscription_id,
+        {},
+        { stripeAccount: stripeConn.accountId }
+      );
+
+      await markSubscriptionCancelled({ stripeSubscriptionId: sub.stripe_subscription_id });
+      cancelledCount++;
+    } catch (err) {
+      // Stripe throws if the subscription was already cancelled on their
+      // side (e.g. it naturally hit its own cancel_at moments earlier) —
+      // treat that as success, not a failure to report.
+      if (err?.code === 'resource_missing' || /already.*canceled/i.test(err?.message || '')) {
+        await markSubscriptionCancelled({ stripeSubscriptionId: sub.stripe_subscription_id });
+        cancelledCount++;
+        continue;
+      }
+      console.warn('[puzzleSubscriptionPayment] ⚠️ Failed to cancel subscription', sub.stripe_subscription_id, ':', err.message);
+      errors.push(`Subscription for player ${sub.player_id}: ${err.message}`);
+    }
+  }
+
+  return { cancelledCount, failedCount: errors.length, errors };
 }
 
 /** customer.subscription.deleted → mark cancelled. */

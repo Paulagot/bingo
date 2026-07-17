@@ -3,19 +3,16 @@
 // Setup tab for the digital event drawer.
 //
 // Quiz rooms:        shows personalised round editor (scheduled only)
-// Elimination rooms: shows Edit Game button → ScheduleEliminationModal
-// Ticketed events:   shows neither — no personalised questions, no edit modal
-//                    (ticketed event config is managed via ScheduleTicketedEventModal)
+// ALL activity types: a single Edit button that opens the unified
+// EditFundraiserModal (event + activity settings, saved together) via
+// the onEditFundraiser callback — the per-type Schedule modals are no
+// longer rendered from here.
 
 import { useEffect, useRef, useState } from 'react';
 import { Settings, PlusCircle, Trash2, Save, AlertCircle, CheckCircle, Loader2, Edit3 } from 'lucide-react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import type { Event } from '../../../types/event';
 import { quizPersonalisedRoundsService } from '../../../services/QuizPersonalisedRoundsService';
-import ScheduleEliminationModal from '../../../modals/ScheduleEliminationModal';
-import type { EliminationRoomListItem } from '../../../services/EliminationMgmtService';
-import ScheduleTicketedEventModal from '../../../modals/ScheduleTicketedEventModal';
-import type { TicketedEventRoomListItem } from '../../../services/TicketedEventMgmtService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,27 +33,22 @@ const emptyQuestion = (): EditableQuestion => ({
 
 interface Props {
   room: Room;
-  linkedEvent?: Event;       // passed to elimination edit modal
+  linkedEvent?: Event;
   isTicketedEvent?: boolean; // hides personalised questions section entirely
-  onEditQuiz: () => void;    // opens ScheduleQuizModal (quiz only)
-  onSaved?: () => void;      // called after elimination edit saved
-  onEditTicketedEvent?: () => void; // called after ticketed event edit saved
+  /** Opens the unified EditFundraiserModal (event + activity together). */
+  onEditFundraiser: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SetupTab({
   room,
-  linkedEvent,
+  linkedEvent: _linkedEvent,
   isTicketedEvent = false,
-  onEditQuiz,
-  onSaved,
-  onEditTicketedEvent,
+  onEditFundraiser,
 }: Props) {
   const isScheduled   = room.status === 'scheduled';
   const isElimination = (room as any).game_type === 'elimination';
-
-  const [showEditModal, setShowEditModal] = useState(false);
 
   // ── Personalised round state (quiz only — hidden for elimination & ticketed) ──
   const [roundLoading,  setRoundLoading]  = useState(false);
@@ -204,13 +196,13 @@ export default function SetupTab({
           </div>
           {isScheduled ? (
             <button
-              onClick={() => setShowEditModal(true)}
+              onClick={onEditFundraiser}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
               style={{ background: '#157f85' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
               onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}
             >
-              <Edit3 className="h-4 w-4" /> Edit Event Settings
+              <Edit3 className="h-4 w-4" /> Edit Fundraiser
             </button>
           ) : (
             <p className="text-sm text-[#8a9bab]">
@@ -219,17 +211,6 @@ export default function SetupTab({
           )}
         </div>
  
-        {showEditModal && (
-          <ScheduleTicketedEventModal
-            event={linkedEvent!}
-            existingRoom={room as unknown as TicketedEventRoomListItem}
-            onClose={() => setShowEditModal(false)}
-            onSaved={() => {
-              setShowEditModal(false);
-              onSaved?.();
-            }}
-          />
-        )}
       </div>
     );
   }
@@ -245,30 +226,19 @@ export default function SetupTab({
           </div>
           {isScheduled ? (
             <button
-              onClick={() => setShowEditModal(true)}
+              onClick={onEditFundraiser}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
               style={{ background: '#157f85' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
               onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}
             >
-              <Edit3 className="h-4 w-4" /> Edit Game Settings
+              <Edit3 className="h-4 w-4" /> Edit Fundraiser
             </button>
           ) : (
             <p className="text-sm text-[#8a9bab]">Game settings can only be edited before the event starts.</p>
           )}
         </div>
 
-        {showEditModal && (
-          <ScheduleEliminationModal
-            event={linkedEvent}
-            existingRoom={room as unknown as EliminationRoomListItem}
-            onClose={() => setShowEditModal(false)}
-            onSaved={() => {
-              setShowEditModal(false);
-              onSaved?.();
-            }}
-          />
-        )}
       </div>
     );
   }
@@ -286,7 +256,7 @@ export default function SetupTab({
               <p className="text-xs text-[#52636f] mt-0.5">Edit rounds, entry fee, and payment settings.</p>
             </div>
             <button
-              onClick={onEditQuiz}
+              onClick={onEditFundraiser}
               className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition"
               style={{ background: 'rgba(21,127,133,0.1)', color: '#157f85' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(21,127,133,0.2)')}

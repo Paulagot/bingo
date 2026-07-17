@@ -8,7 +8,7 @@ import type { Event } from '../../types/event';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination' | 'ticketed_event';
+  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 

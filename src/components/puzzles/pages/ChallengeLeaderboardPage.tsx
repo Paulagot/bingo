@@ -282,7 +282,7 @@ export default function ChallengeLeaderboardPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-[#6E6A63]">
-                  Expand a player to review their week-by-week answers.
+                  Expand a player to see their week-by-week scores and times.
                 </p>
               </div>
             </div>
@@ -390,6 +390,10 @@ function LeaderboardCard({
   );
 }
 
+// ⚠️ Answers and solutions are deliberately never shown here (or sent by
+// the backend). Weekly puzzles stay live for the whole challenge because
+// players join on their own clock and always start at week 1 — a correct
+// player's answer IS the solution. Do not reintroduce an answer reveal.
 function WeekBreakdownCard({
   week,
 }: {
@@ -397,7 +401,7 @@ function WeekBreakdownCard({
 }) {
   return (
     <div className="rounded-[24px] border border-[#E8E0D3] bg-[#FBF8F3] p-4">
-      <div className="grid gap-4 lg:grid-cols-[120px_1fr_120px] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[120px_1fr_auto] lg:items-center">
         <div>
           <p className="text-sm font-semibold text-[#071A44]">
             Week {week.weekNumber}
@@ -408,11 +412,19 @@ function WeekBreakdownCard({
           </p>
         </div>
 
-        <AnswerReveal
-          playerAnswer={week.playerAnswer}
-          correctAnswer={week.correctAnswer}
-          isCorrect={week.isCorrect}
-        />
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[#6E6A63]">
+          {week.timeTakenSeconds !== null && week.timeTakenSeconds !== undefined ? (
+            <span className="rounded-full bg-white px-3 py-1 font-semibold shadow-sm">
+              ⏱ {formatDuration(week.timeTakenSeconds)}
+            </span>
+          ) : null}
+
+          {week.submittedAt ? (
+            <span className="rounded-full bg-white px-3 py-1 font-semibold shadow-sm">
+              {new Date(week.submittedAt).toLocaleDateString()}
+            </span>
+          ) : null}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-end">
           <span
@@ -434,86 +446,9 @@ function WeekBreakdownCard({
   );
 }
 
-function AnswerReveal({
-  playerAnswer,
-  correctAnswer,
-  isCorrect,
-}: {
-  playerAnswer: Record<string, unknown> | null;
-  correctAnswer: Record<string, unknown> | null;
-  isCorrect: boolean;
-}) {
-  const player = extractReadableAnswer(playerAnswer);
-  const correct = extractReadableAnswer(correctAnswer);
-
-  return (
-    <div className="space-y-2">
-      <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#8A847B]">
-          Player answer
-        </p>
-
-        <p className="mt-1 break-words text-sm font-semibold text-[#071A44]">
-          {player}
-        </p>
-      </div>
-
-      {!isCorrect && correct ? (
-        <div className="rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#5F7D6A]">
-            Correct answer
-          </p>
-
-          <p className="mt-1 break-words text-sm font-semibold text-[#2E6A46]">
-            {correct}
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function extractReadableAnswer(obj: Record<string, unknown> | null): string {
-  if (!obj) return '—';
-
-  const priorityKeys = [
-    'answer',
-    'decoded',
-    'selectedOption',
-    'orderedIds',
-    'steps',
-    'matches',
-    'foundWords',
-    'grid',
-  ];
-
-  for (const key of priorityKeys) {
-    if (key in obj) {
-      const value = obj[key];
-
-      if (typeof value === 'string') {
-        return value;
-      }
-
-      if (Array.isArray(value)) {
-        return `[${value.slice(0, 4).join(', ')}${value.length > 4 ? '…' : ''}]`;
-      }
-
-      return safeStringify(value);
-    }
-  }
-
-  return safeStringify(obj);
-}
-
-function safeStringify(value: unknown): string {
-  try {
-    const result = JSON.stringify(value);
-
-    if (!result) return '—';
-
-    return result.length > 60 ? `${result.slice(0, 60)}…` : result;
-  } catch {
-    return '—';
-  }
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  if (m === 0) return `${s}s`;
+  return `${m}m ${s}s`;
 }

@@ -1,13 +1,34 @@
 // src/components/mgtsystem/modals/ScheduleEliminationModal.tsx
+//
+// Now a THIN WRAPPER around EliminationActivityStep (the extracted body
+// shared with CreateFundraiserWizard's step 3). This modal keeps exactly
+// the same Props contract as before, and still supports BOTH modes during
+// the wizard rollout:
+//
+//   • edit mode  (existingRoom set)  — its long-term job: pre-fills from
+//     the room's config, submit calls updateRoom. Opened from the drawer.
+//   • create mode (no existingRoom) — legacy path kept working until the
+//     dashboard's Add Activity is rewired to the wizard; submit calls
+//     scheduleRoom + onSaved(roomId) so handleActivitySaved can link,
+//     identical to the previous behaviour.
+//
+// All field UI, validation rules, and the config shape live in
+// EliminationActivityStep — change them there and both create and edit
+// stay in lockstep.
 
-import { useState, useMemo } from 'react';
-import { X, Trophy, DollarSign, AlertCircle, Save, Tag } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { X, Trophy, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from '../../../features/auth';
 import eliminationMgmtService, { type EliminationRoomListItem } from '../services/EliminationMgmtService';
-import { currencySymbol } from '../shared/CurrencySelect';
+import { ErrorBanner } from '../shared/ui';
 import type { Event } from '../types/event';
-import PaymentMethodSelector, { type PaymentMethodSelection } from '../shared/PaymentMethodSelector';
+import type { DraftEvent } from '../wizard/activityRegistry';
+import EliminationActivityStep, {
+  type EliminationConfig,
+  defaultEliminationConfig,
+  validateEliminationConfig,
+} from '../wizard/steps/activities/EliminationActivityStep';
 
 interface Props {
   onClose:       () => void;
@@ -16,52 +37,21 @@ interface Props {
   existingRoom?: EliminationRoomListItem;
 }
 
-// ── Section wrapper ────────────────────────────────────────────────────────────
-const Section: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="rounded-xl p-5" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-    {children}
-  </div>
-);
-
-const SectionHeader = ({ icon, title, subtitle }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-}) => (
-  <div className="flex items-start gap-3 mb-4">
-    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg mt-0.5"
-      style={{ background: 'rgba(233,87,79,0.10)', color: '#e9574f' }}>
-      {icon}
-    </div>
-    <div>
-      <h3 className="text-sm font-bold" style={{ color: '#102532' }}>{title}</h3>
-      {subtitle && <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>{subtitle}</p>}
-    </div>
-  </div>
-);
-
-const inputCls = (err?: boolean) =>
-  `w-full rounded-lg border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-[#e9574f] focus:border-transparent ${
-    err ? 'border-[#e9574f] bg-red-50' : 'border-[#dce1df] bg-white hover:border-[#b8c6b0]'
-  }`;
-
 export default function ScheduleEliminationModal({ onClose, onSaved, event, existingRoom }: Props) {
-  const isEditMode     = !!existingRoom;
+  const isEditMode = !!existingRoom;
+
   // Use the service's normalised parseConfig so old flat-field rooms load correctly
   const existingConfig = useMemo(
     () => (existingRoom ? eliminationMgmtService.parseConfig(existingRoom) : null),
     [existingRoom],
   );
-
-  // Convenience: grab the existing winner prize (place 1) if present
   const existingPrize = existingConfig?.prizes?.find(p => p.place === 1) ?? null;
 
   const user     = useAuthStore((s: any) => s.user);
   const club     = useAuthStore((s: any) => s.club);
   const hostId   = user?.id || user?.user_id || user?.club_user_id || '';
   const hostName = user?.name || user?.full_name || user?.first_name || '';
-
-  // Currency comes from the club's reporting_currency — no user selection needed
   const currency = club?.reporting_currency ?? 'EUR';
-  const sym      = currencySymbol(currency);
 
   const scheduledAt = existingRoom?.scheduled_at
     || event?.start_datetime
@@ -70,81 +60,68 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
     || event?.time_zone
     || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  // ── Form state ─────────────────────────────────────────────────────────────
-  const [entryFee,         setEntryFee]         = useState(
-    existingConfig?.entryFee != null ? String(existingConfig.entryFee) : '',
-  );
-  const [prizeDescription, setPrizeDescription] = useState(
-    existingPrize?.description ?? '',
-  );
-  const [prizeValue,       setPrizeValue]       = useState(
-    existingPrize?.value != null ? String(existingPrize.value) : '',
-  );
-  const [prizeSponsor,     setPrizeSponsor]     = useState(
-    existingPrize?.sponsor ?? '',
-  );
+  // Payment methods hydrated from the room's own column on edit — NOT
+  // from the event. See PaymentMethodSelector.tsx for the reasoning.
+  const rawLinked = existingRoom?.linked_payment_methods_json;
+  const parsedLinked =
+    typeof rawLinked === 'string'
+      ? (() => { try { return JSON.parse(rawLinked); } catch { return null; } })()
+      : (rawLinked ?? null);
 
-  // ── Payment methods ──────────────────────────────────────────────────────────
-  // Hydrated from the room's own linked_payment_methods_json on edit (NOT
-  // from the event — payment methods are an activity-level concern now,
-  // see PaymentMethodSelector.tsx for the full reasoning).
-  const rawLinkedPaymentMethods = existingRoom?.linked_payment_methods_json;
-  const existingPaymentMethods =
-    typeof rawLinkedPaymentMethods === 'string'
-      ? (() => { try { return JSON.parse(rawLinkedPaymentMethods); } catch { return null; } })()
-      : (rawLinkedPaymentMethods ?? null);
+  const [config, setConfig] = useState<EliminationConfig>(() => ({
+    ...defaultEliminationConfig(),
+    entryFee:         existingConfig?.entryFee != null ? String(existingConfig.entryFee) : '',
+    prizeDescription: existingPrize?.description ?? '',
+    prizeValue:       existingPrize?.value != null ? String(existingPrize.value) : '',
+    prizeSponsor:     existingPrize?.sponsor ?? '',
+    paymentMethods: {
+      ticketMethodIds:  parsedLinked?.ticket_method_ids  ?? [],
+      onnightMethodIds: parsedLinked?.onnight_method_ids ?? [],
+    },
+  }));
 
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSelection>({
-    ticketMethodIds:  existingPaymentMethods?.ticket_method_ids  ?? [],
-    onnightMethodIds: existingPaymentMethods?.onnight_method_ids ?? [],
-  });
-
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState<string | null>(null);
 
-  // ── Validation ─────────────────────────────────────────────────────────────
-  const validate = (): boolean => {
-    const errs: Record<string, string> = {};
-    const fee = Number(entryFee);
-    if (!entryFee || isNaN(fee) || fee <= 0) errs.entryFee = 'Entry fee must be a positive number';
-    if (!prizeDescription.trim()) errs.prizeDescription = 'Prize description is required';
-    if (prizeValue) {
-      const pv = Number(prizeValue);
-      if (isNaN(pv) || pv < 0) errs.prizeValue = 'Prize value must be a positive number';
-    }
-    setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
+  // The step reads event context off a DraftEvent — synthesise one from
+  // the real event / room, same fields the old modal read directly.
+  const draftEvent: DraftEvent = {
+    title:          event?.title ?? '',
+    summary:        event?.summary ?? null,
+    start_datetime: scheduledAt,
+    event_date:     event?.event_date ?? '',
+    time_zone:      timeZone,
+    location_label: event?.location_label ?? null,
+    goal_amount:    event?.goal_amount ?? 0,
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setError(null);
-    if (!validate()) return;
+    const errs = validateEliminationConfig(config);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
     setLoading(true);
     try {
-      // Build the prizes array — same shape as quiz config_json.prizes
       const prizes = [{
         place:       1,
-        value:       prizeValue ? Number(prizeValue) : null,
-        description: prizeDescription.trim(),
-        sponsor:     prizeSponsor.trim() || null,
+        value:       config.prizeValue ? Number(config.prizeValue) : null,
+        description: config.prizeDescription.trim(),
+        sponsor:     config.prizeSponsor.trim() || null,
       }];
 
       const payload = {
         scheduledAt,
         timeZone,
-        entryFee:         Number(entryFee),
+        entryFee: Number(config.entryFee),
         currency,
         prizes,
         // Flat fields kept for backend compatibility during migration
-        prizeDescription: prizeDescription.trim(),
-        prizeValue:       prizeValue ? Number(prizeValue) : undefined,
-        // Payment methods are now set at the activity level, written
-        // directly onto the room — nothing copies these down from the
-        // event anymore. See eliminationMgmtService.js.
-        ticketMethodIds:  paymentMethods.ticketMethodIds,
-        onnightMethodIds: paymentMethods.onnightMethodIds,
+        prizeDescription: config.prizeDescription.trim(),
+        prizeValue:       config.prizeValue ? Number(config.prizeValue) : undefined,
+        ticketMethodIds:  config.paymentMethods.ticketMethodIds,
+        onnightMethodIds: config.paymentMethods.onnightMethodIds,
       };
 
       if (isEditMode && existingRoom) {
@@ -167,7 +144,6 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: 'rgba(16,37,50,0.55)', backdropFilter: 'blur(2px)' }}>
@@ -212,120 +188,17 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
           </p>
         </div>
 
-        {/* Body */}
+        {/* Body — the shared step */}
         <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4" style={{ background: '#f6f1e8' }}>
-
-          {error && (
-            <div className="flex items-start gap-2 rounded-lg border px-3 py-2.5"
-              style={{ background: '#fef2f2', borderColor: '#fca5a5' }}>
-              <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm" style={{ color: '#dc2626' }}>{error}</p>
-            </div>
-          )}
-
-          {/* ── Entry Fee ── */}
-          <Section>
-            <SectionHeader
-              icon={<DollarSign className="h-4 w-4" />}
-              title="Entry Fee"
-              subtitle={`Set the entry fee per player — currency: ${sym} (${currency})`}
-            />
-            <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
-                Amount <span style={{ color: '#e9574f' }}>*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2 text-sm font-semibold" style={{ color: '#52636f' }}>{sym}</span>
-                <input
-                  type="number" min="0.01" step="0.01" placeholder="5.00"
-                  value={entryFee} onChange={e => setEntryFee(e.target.value)}
-                  className={`${inputCls(!!fieldErrors.entryFee)} pl-7`}
-                  disabled={loading}
-                />
-              </div>
-              {fieldErrors.entryFee && (
-                <p className="mt-1 text-xs" style={{ color: '#e9574f' }}>{fieldErrors.entryFee}</p>
-              )}
-              <p className="mt-1.5 text-xs" style={{ color: '#8a9bab' }}>
-                Currency is set to your club's reporting currency. Change it in club settings.
-              </p>
-            </div>
-          </Section>
-
-          {/* ── Prize ── */}
-          <Section>
-            <SectionHeader
-              icon={<Trophy className="h-4 w-4" />}
-              title="Prize"
-              subtitle="The prize for the last player standing"
-            />
-            <div className="space-y-4">
-
-              {/* Description */}
-              <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
-                  Prize Description <span style={{ color: '#e9574f' }}>*</span>
-                </label>
-                <input
-                  type="text" maxLength={500} placeholder="e.g. Weekend away for two"
-                  value={prizeDescription} onChange={e => setPrizeDescription(e.target.value)}
-                  className={inputCls(!!fieldErrors.prizeDescription)}
-                  disabled={loading}
-                />
-                {fieldErrors.prizeDescription && (
-                  <p className="mt-1 text-xs" style={{ color: '#e9574f' }}>{fieldErrors.prizeDescription}</p>
-                )}
-              </div>
-
-              {/* Value */}
-              <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
-                  Prize Value <span className="font-normal" style={{ color: '#8a9bab' }}>(optional)</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-sm font-semibold" style={{ color: '#52636f' }}>{sym}</span>
-                  <input
-                    type="number" min="0" step="0.01" placeholder="500.00"
-                    value={prizeValue} onChange={e => setPrizeValue(e.target.value)}
-                    className={`${inputCls(!!fieldErrors.prizeValue)} pl-7`}
-                    disabled={loading}
-                  />
-                </div>
-                {fieldErrors.prizeValue && (
-                  <p className="mt-1 text-xs" style={{ color: '#e9574f' }}>{fieldErrors.prizeValue}</p>
-                )}
-              </div>
-
-              {/* Sponsor */}
-              <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Tag className="h-3 w-3" style={{ color: '#e9574f' }} />
-                    Sponsor <span className="font-normal" style={{ color: '#8a9bab' }}>(optional)</span>
-                  </span>
-                </label>
-                <input
-                  type="text" maxLength={200} placeholder="e.g. Buddies for Paws"
-                  value={prizeSponsor} onChange={e => setPrizeSponsor(e.target.value)}
-                  className={inputCls()}
-                  disabled={loading}
-                />
-                <p className="mt-1.5 text-xs" style={{ color: '#8a9bab' }}>
-                  Shown on the end game screen alongside the winner's name.
-                </p>
-              </div>
-
-            </div>
-          </Section>
-
-          {/* ── Payment Methods ── */}
-          <PaymentMethodSelector
-            mode="split"
-            value={paymentMethods}
-            onChange={setPaymentMethods}
+          {error && <ErrorBanner message={error} />}
+          <EliminationActivityStep
+            value={config}
+            onChange={setConfig}
+            draftEvent={draftEvent}
             disabled={loading}
+            errors={fieldErrors}
+            currency={currency}
           />
-
         </div>
 
         {/* Footer */}

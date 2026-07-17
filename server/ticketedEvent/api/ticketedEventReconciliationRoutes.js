@@ -14,6 +14,12 @@
 import express from 'express';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { authenticateToken } from '../../middleware/auth.js';
+import {
+  ensureDraftReconciliation,
+  addAdjustment as addAdjustmentRow,
+  updateAdjustment as updateAdjustmentRow,
+  deleteAdjustment as deleteAdjustmentRow,
+} from './ticketedEventReconciliationService.js';
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -365,25 +371,45 @@ router.post('/room/:roomId/adjustments', async (req, res) => {
     const config   = parseConfig(room.config_json);
     const currency = config.currency ?? 'EUR';
 
-    const [result] = await connection.execute(
-      `INSERT INTO ${ADJUSTMENTS_TABLE}
-         (room_id, club_id, adjustment_type, amount, currency,
-          payment_method, reason_code, note, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [roomId, room.club_id, adjustmentType, amount, currency,
-       paymentMethod ?? null, reasonCode ?? null, note ?? null, createdBy ?? null]
-    );
+    // Ensure a draft reconciliation row exists so this adjustment has a
+    // reconciliation_id to link to — the intent already documented at
+    // the top of ticketedEventReconciliationService.js, just not
+    // actually wired up here before. addAdjustmentRow/updateAdjustmentRow
+    // below also only ever touch columns that really exist on this table
+    // (ts, reconciliation_id, adjustment_type, amount, currency,
+    // payment_method, reason_code, note, created_by) — the previous
+    // inline SQL here referenced a non-existent `updated_at` column,
+    // which is why every "Add Entry" click was silently failing.
+    const draft = await ensureDraftReconciliation(roomId, room.club_id);
+    if (draft.approved) {
+      return res.status(409).json({ error: 'Reconciliation already approved — adjustments are locked' });
+    }
+
+    const insertedId = await addAdjustmentRow({
+      roomId,
+      clubId: room.club_id,
+      reconciliationId: draft.id,
+      adjustmentType,
+      amount,
+      currency,
+      paymentMethod: paymentMethod ?? null,
+      reasonCode: reasonCode ?? null,
+      note: note ?? null,
+      createdBy: createdBy ?? null,
+    });
 
     const [[row]] = await connection.execute(
-      `SELECT * FROM ${ADJUSTMENTS_TABLE} WHERE id = ?`,
-      [result.insertId]
+      `SELECT id, room_id, ts, adjustment_type, amount, currency,
+              payment_method, reason_code, note, created_by, created_at
+       FROM ${ADJUSTMENTS_TABLE} WHERE id = ?`,
+      [insertedId]
     );
 
     res.json({
       adjustment: {
         id:             String(row.id),
         roomId:         row.room_id,
-        ts:             row.created_at,
+        ts:             row.ts,
         adjustmentType: row.adjustment_type,
         amount:         Number(row.amount ?? 0),
         currency:       row.currency,
@@ -404,32 +430,22 @@ router.post('/room/:roomId/adjustments', async (req, res) => {
 
 router.patch('/room/:roomId/adjustments/:id', async (req, res) => {
   const { roomId, id } = req.params;
-  const allowed = ['adjustment_type', 'amount', 'payment_method', 'reason_code', 'note'];
-  const updates = {};
+  const fieldKeys = ['adjustmentType', 'paymentMethod', 'reasonCode', 'amount', 'note'];
+  const patch = {};
 
-  const fieldMap = {
-    adjustmentType: 'adjustment_type',
-    paymentMethod:  'payment_method',
-    reasonCode:     'reason_code',
-    amount:         'amount',
-    note:           'note',
-  };
-
-  for (const [key, col] of Object.entries(fieldMap)) {
-    if (req.body[key] !== undefined) updates[col] = req.body[key];
+  for (const key of fieldKeys) {
+    if (req.body[key] !== undefined) patch[key] = req.body[key];
   }
 
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(patch).length === 0) {
     return res.status(400).json({ error: 'No valid fields to update' });
   }
 
   try {
-    const setClauses = Object.keys(updates).map(col => `${col} = ?`).join(', ');
-    await connection.execute(
-      `UPDATE ${ADJUSTMENTS_TABLE} SET ${setClauses}, updated_at = NOW()
-       WHERE id = ? AND room_id = ?`,
-      [...Object.values(updates), id, roomId]
-    );
+    // Only ever sets columns that actually exist on this table — no
+    // updated_at reference, unlike the inline SQL this replaced.
+    const ok = await updateAdjustmentRow(roomId, id, patch);
+    if (!ok) return res.status(404).json({ error: 'Adjustment not found' });
     res.json({ ok: true });
   } catch (err) {
     console.error('[TicketedRecon] PATCH adjustment error:', err);
@@ -442,10 +458,8 @@ router.patch('/room/:roomId/adjustments/:id', async (req, res) => {
 router.delete('/room/:roomId/adjustments/:id', async (req, res) => {
   const { roomId, id } = req.params;
   try {
-    await connection.execute(
-      `DELETE FROM ${ADJUSTMENTS_TABLE} WHERE id = ? AND room_id = ?`,
-      [id, roomId]
-    );
+    const ok = await deleteAdjustmentRow(roomId, id);
+    if (!ok) return res.status(404).json({ error: 'Adjustment not found' });
     res.json({ ok: true });
   } catch (err) {
     console.error('[TicketedRecon] DELETE adjustment error:', err);
@@ -545,6 +559,25 @@ router.post('/room/:roomId/approve', async (req, res) => {
       `UPDATE ${ROOMS_TABLE} SET reconciliation_status = 'closed', updated_at = NOW()
        WHERE room_id = ?`,
       [roomId]
+    );
+
+    // Stamp every confirmed ledger row that fed these totals with which
+    // reconciliation it was settled under and who approved it. This was
+    // previously never written anywhere, even though reconciliation_id /
+    // reconciled_at / reconciled_by / reconciled_by_name all exist on
+    // the ledger table — the totals were computed from these rows, but
+    // the rows themselves were never marked as reconciled. Unlike
+    // subscriptions (which are period-bounded by date), a ticketed event
+    // only ever has one reconciliation for its whole lifetime, so this
+    // is a plain room-wide stamp with no date window needed.
+    await connection.execute(
+      `UPDATE ${LEDGER_TABLE}
+       SET reconciliation_id  = (SELECT id FROM ${RECON_TABLE} WHERE room_id = ? LIMIT 1),
+           reconciled_at      = NOW(),
+           reconciled_by      = ?,
+           reconciled_by_name = ?
+       WHERE room_id = ? AND status = 'confirmed' AND reconciliation_id IS NULL`,
+      [roomId, approvedBy.trim(), approvedBy.trim(), roomId]
     );
 
     res.json({

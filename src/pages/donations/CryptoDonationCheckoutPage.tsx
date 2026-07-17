@@ -222,7 +222,7 @@ function CryptoCheckoutInner() {
     try {
       setActionError(null);
       setStatus('connecting');
-      await open({ view: 'Connect' });
+      await open({ view: 'Connect', namespace: 'solana' });
       setStatus('idle');
     } catch (err: any) {
       setStatus('idle');
