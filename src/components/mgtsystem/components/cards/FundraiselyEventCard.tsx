@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Calendar, MapPin, Globe, Layers, Target, Ticket,
   Trophy, Play, FileText, Eye, PlusCircle,
-  TrendingUp, ChevronDown, Pencil, Settings, Puzzle,
+   ChevronDown, Pencil, Settings, Puzzle,
 } from 'lucide-react';
 import type { Event } from '../../types/event';
 import type { RoomStats } from '../../services/quizRoomServices';
@@ -28,7 +28,8 @@ export interface FundraiselyEventCardProps {
   outstandingCount?: number;
   onOpenDrawer: () => void;
   onAddActivity: (type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub') => void;
-  onEdit: () => void;
+  /** Omit to hide the Edit control (e.g. once the activity is no longer editable). */
+  onEdit?: () => void;
   onPublish?: () => void;
   onUnpublish?: () => void;
 }
@@ -230,8 +231,7 @@ export function FundraiselyEventCard({
   const hasActivity  = !!linkedActivity;
   const ticketsSold  = getTicketsSold(activityStats);
   const totalIncome  = activityStats?.totalIncome ?? 0;
-  const goalAmount   = Number(event.goal_amount  || 0);
-  const raisedAmount = Number(event.actual_amount || 0);
+ 
 
   const tz          = event.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const displayDate = event.start_datetime
@@ -312,22 +312,24 @@ export function FundraiselyEventCard({
             )}
           </div>
 
-          {/* Edit button */}
-          <button
-            type="button"
-            onClick={onEdit}
-            className="flex-shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#f6f1e8] relative group/edit"
-            style={{ color: '#8a9bab' }}
-            title="Edit event"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            <span
-              className="pointer-events-none absolute -bottom-7 right-0 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-semibold opacity-0 group-hover/edit:opacity-100 transition-opacity z-10"
-              style={{ background: '#102532', color: '#fff' }}
+          {/* Edit button — only while the fundraiser is still editable */}
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex-shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[#f6f1e8] relative group/edit"
+              style={{ color: '#8a9bab' }}
+              title="Edit event"
             >
-              Edit event
-            </span>
-          </button>
+              <Pencil className="h-3.5 w-3.5" />
+              <span
+                className="pointer-events-none absolute -bottom-7 right-0 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-semibold opacity-0 group-hover/edit:opacity-100 transition-opacity z-10"
+                style={{ background: '#102532', color: '#fff' }}
+              >
+                Edit event
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Title */}

@@ -42,6 +42,17 @@ interface LinkedActivity {
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
+// A fundraiser can be edited only while its activity is still SCHEDULED —
+// once the room opens/goes live/ends, its config (and the event details
+// bound to it) are locked, matching the drawer's Setup-tab rule. Events
+// with no activity yet (legacy) have nothing scheduled to lock, so they
+// stay editable. Kept as a free function so the card, the row, and the
+// render guard all apply the identical test.
+function canEditFundraiser(activity: LinkedActivity | null | undefined): boolean {
+  if (!activity) return true;            // no activity linked yet — editable
+  return activity.status === 'scheduled';
+}
+
 function extractCreditsRemaining(ents: any): number {
   if (!ents) return 0;
   const candidates = [ents.game_credits_remaining, ents.creditsRemaining, ents.credits];
@@ -845,7 +856,7 @@ setLinkedEventsMap(leMap);
                     outstandingCount={outstanding}
                     onOpenDrawer={() => handleOpenDrawer(event)}
                     onAddActivity={(type) => handleAddActivity(event, type)}
-                    onEdit={() => setEventToEdit(event)}
+                    onEdit={canEditFundraiser(activityMap[event.id]) ? () => setEventToEdit(event) : undefined}
                     onPublish={() => handlePublish(event)}
                     onUnpublish={() => handleUnpublish(event)}
                   />
@@ -868,7 +879,7 @@ setLinkedEventsMap(leMap);
                   outstandingCount={outstanding}
                   onOpenDrawer={() => handleOpenDrawer(event)}
                   onAddActivity={(type) => handleAddActivity(event, type)}
-                  onEdit={() => setEventToEdit(event)}
+                  onEdit={canEditFundraiser(activityMap[event.id]) ? () => setEventToEdit(event) : undefined}
                   onPublish={() => handlePublish(event)}
                   onUnpublish={() => handleUnpublish(event)}
                 />
@@ -890,7 +901,7 @@ setLinkedEventsMap(leMap);
         />
       )}
 
-      {eventToEdit && (() => {
+      {eventToEdit && canEditFundraiser(activityMap[eventToEdit.id]) && (() => {
         const activity = activityMap[eventToEdit.id] ?? null;
         // Prefer the drawer's room row when it matches — it carries the
         // freshest config_json (handleOpenDrawer refreshes it).
