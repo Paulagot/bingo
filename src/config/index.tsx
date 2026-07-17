@@ -73,6 +73,7 @@ export const metadata = {
 // 🌐 Supported Networks
 // ---------------------------------------------
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  solana,
   sepolia,
   baseSepolia,
   optimismSepolia,
@@ -90,8 +91,7 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   sei,
   polygon,
   solanaDevnet,
-  solana,
-  solanaTestnet,
+   solanaTestnet,
 ];
 
 // ---------------------------------------------

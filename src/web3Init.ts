@@ -42,7 +42,7 @@ export function initAppKit(): Promise<void> {
     ]);
 
     createAppKit({
-      adapters: [wagmiAdapter, solanaAdapter],
+      adapters: [solanaAdapter, wagmiAdapter],
       projectId,
       networks: networks as [AppKitNetwork, ...AppKitNetwork[]],
       metadata,
