@@ -34,6 +34,13 @@
 //                 only while status === 'draft' (Stripe billing locks
 //                 it after activation); the EVENT stays editable either
 //                 way. The challenge keeps its own title/starts/weeks.
+//   puzzle_drop — items/pricing tiers/go-on-sale date/payment methods,
+//                 editable ONLY while the Drop's room status is still
+//                 'scheduled' (not yet on sale) — see updateDrop's
+//                 backend comment for why wholesale item replacement is
+//                 only safe before purchases can exist. Fetched via
+//                 puzzleDropMgmtService.getDrop(room_id), same on-demand
+//                 fetch pattern puzzle_sub's challenge uses.
 //   no activity — legacy events: event section only.
 
 import { useEffect, useState } from 'react';
@@ -67,8 +74,19 @@ import SubscriptionActivityStep, {
 import QuizActivityStep, {
   type QuizWizardConfig, validateQuizConfig,
 } from '../wizard/steps/activities/QuizActivityStep';
+import PuzzleDropActivityStep, {
+  type PuzzleDropConfig, defaultPuzzleDropConfig, validatePuzzleDropConfig,
+} from '../wizard/steps/activities/PuzzleDropActivityStep';
+import puzzleDropMgmtService, { type DropDetail } from '../services/PuzzleDropMgmtService';
 
-type GameType = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
+// ADDED 'puzzle_drop'. Note this is a LOCAL type alias, duplicated
+// (under a different name, 'GameType' vs 'LinkedActivity') across at
+// least three files now (QuizEventDashboard.tsx, FundraiselyEventCard.tsx,
+// DashboardFundraisingSummary.tsx). Worth considering a single shared
+// export — e.g. from activityRegistry.tsx, which already has
+// ActivityTypeId as the canonical list — so adding a 6th activity type
+// later doesn't require hunting down every duplicate union again.
+type GameType = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
 
 interface Campaign { id: string; name: string; }
 
@@ -134,13 +152,18 @@ export default function EditFundraiserModal({
     goal_amount:    event.goal_amount || '',
   }));
 
-  // Whether the activity's config is actually loadable from what we were
-  // handed. Quiz needs config_json for the merge-save; elim/ticketed can
-  // parse defaults but saving defaults over a real config is worse than
-  // saying so. puzzle_sub only needs the room_id (it fetches).
+  // Whether the activity's config is actually loadable/editable from what
+  // we were handed. Quiz needs config_json for the merge-save; elim/
+  // ticketed can parse defaults but saving defaults over a real config is
+  // worse than saying so. puzzle_sub and puzzle_drop both fetch their own
+  // detail on demand (room_id / challenge id is all that's needed up
+  // front), so both are unconditionally true here — the fetch's own
+  // loading/failure states are handled separately (subLoading/dropLoading
+  // below), same pattern for both.
   const activityAvailable =
     !activity ? false
     : activity.game_type === 'puzzle_sub' ? true
+    : activity.game_type === 'puzzle_drop' ? true
     : !!room?.config_json;
 
   // ── Per-type activity config ──────────────────────────────────────────────
@@ -248,6 +271,48 @@ export default function EditFundraiserModal({
 
   const subLocked = gameType === 'puzzle_sub' && !!challenge && challenge.status !== 'draft';
 
+  // Puzzle Drop: fetch the room+items+tiers detail (it holds the editable
+  // config) — same on-demand fetch pattern as the subscription's
+  // challenge above.
+  const [dropConfig, setDropConfig] = useState<PuzzleDropConfig>(defaultPuzzleDropConfig);
+  const [dropDetail, setDropDetail] = useState<DropDetail | null>(null);
+  const [dropLoading, setDropLoading] = useState(gameType === 'puzzle_drop');
+  useEffect(() => {
+    if (gameType !== 'puzzle_drop' || !activity) return;
+    let cancelled = false;
+    puzzleDropMgmtService.getDrop(activity.room_id)
+      .then(detail => {
+        if (cancelled) return;
+        setDropDetail(detail);
+        setDropConfig({
+          items: detail.items.length
+            ? detail.items
+                .slice()
+                .sort((a, b) => a.display_order - b.display_order)
+                .map(i => ({ puzzleType: i.puzzle_type, difficulty: i.difficulty as 'easy' | 'medium' | 'hard' }))
+            : defaultPuzzleDropConfig().items,
+          pricingTiers: detail.pricingTiers.length
+            ? detail.pricingTiers
+                .slice()
+                .sort((a, b) => a.display_order - b.display_order)
+                .map(t => ({ quantity: String(t.quantity), price: String(t.price), label: t.label ?? '' }))
+            : defaultPuzzleDropConfig().pricingTiers,
+          paymentMethods: parseLinkedPaymentMethods(detail.linkedPaymentMethods),
+        });
+      })
+      .catch(() => { /* section shows unavailable notice, same as puzzle_sub's catch */ })
+      .finally(() => { if (!cancelled) setDropLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Locked once the Drop has gone on sale — matches the backend's own
+  // updateDrop guard (status must still be 'scheduled'). Same shape as
+  // subLocked above; kept separate rather than merged since the two
+  // activity types lock for different reasons (Stripe billing vs.
+  // wholesale item replacement safety) and read from different state.
+  const dropLocked = gameType === 'puzzle_drop' && !!dropDetail && dropDetail.status !== 'scheduled';
+
   // ── Save (resumable: event first, then activity) ──────────────────────────
   const [submitting, setSubmitting]         = useState(false);
   const [error, setError]                   = useState<string | null>(null);
@@ -273,10 +338,11 @@ export default function EditFundraiserModal({
     const eErrs = validateEventFields(fields, def, { allowPastDate: true });
     setEventErrors(eErrs);
     let aErrs: Record<string, string> = {};
-    if (activityAvailable && !subLocked) {
+    if (activityAvailable && !subLocked && !dropLocked) {
       if (gameType === 'elimination')     aErrs = validateEliminationConfig(elimConfig);
       if (gameType === 'ticketed_event')  aErrs = validateTicketedEventConfig(ticketedConfig);
       if (gameType === 'quiz')            aErrs = validateQuizConfig(quizConfig);
+      if (gameType === 'puzzle_drop')     aErrs = validatePuzzleDropConfig(dropConfig);
       if (gameType === 'puzzle_sub' && challenge) {
         if (!subConfig.title.trim()) aErrs = { form: 'Challenge title is required' };
         else if (!subConfig.isFree) {
@@ -314,7 +380,7 @@ export default function EditFundraiserModal({
       }
 
       // ── 2. Activity ──
-      if (activity && activityAvailable && !subLocked) {
+      if (activity && activityAvailable && !subLocked && !dropLocked) {
         const scheduledAtUTC = fields.start_datetime ? localInputToUTC(fields.start_datetime) : null;
 
         if (gameType === 'elimination') {
@@ -404,6 +470,23 @@ export default function EditFundraiserModal({
             sponsors:       subConfig.sponsors
               .filter(s => s.name.trim())
               .map(s => ({ name: s.name.trim(), role: s.role?.trim() || undefined })),
+          });
+
+        } else if (gameType === 'puzzle_drop' && dropDetail) {
+          await puzzleDropMgmtService.updateDrop(activity.room_id, {
+            scheduledAt: scheduledAtUTC,
+            timeZone:    fields.time_zone,
+            dropTitle:   fields.title.trim(),
+            items: dropConfig.items.map(i => ({
+              puzzleType: i.puzzleType,
+              difficulty: i.difficulty,
+            })),
+            pricingTiers: dropConfig.pricingTiers.map(t => ({
+              quantity: parseInt(t.quantity, 10),
+              price:    parseFloat(t.price),
+              label:    t.label.trim() || undefined,
+            })),
+            onnightMethodIds: dropConfig.paymentMethods.onnightMethodIds,
           });
         }
       }
@@ -500,7 +583,7 @@ export default function EditFundraiserModal({
                     Event details above can still be saved.
                   </p>
                 </div>
-              ) : subLoading ? (
+              ) : subLoading || dropLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#e8ddfb] border-t-[#7c3aed]" />
                 </div>
@@ -510,6 +593,14 @@ export default function EditFundraiserModal({
                   <p className="text-xs text-amber-900">
                     This challenge is {challenge?.status} — the schedule and price are locked in for subscribers
                     (Stripe billing depends on them). Event details above can still be edited.
+                  </p>
+                </div>
+              ) : dropLocked ? (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <Lock className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" />
+                  <p className="text-xs text-amber-900">
+                    This Drop is already {dropDetail?.status} — it's gone on sale, so its items and pricing are
+                    locked in for buyers who've already purchased. Event details above can still be edited.
                   </p>
                 </div>
               ) : gameType === 'elimination' ? (
@@ -538,6 +629,12 @@ export default function EditFundraiserModal({
                   draftEvent={draftEvent} disabled={submitting}
                   errors={activityErrors} currency={currency}
                 />
+              ) : gameType === 'puzzle_drop' && dropDetail ? (
+                <PuzzleDropActivityStep
+                  value={dropConfig} onChange={setDropConfig}
+                  draftEvent={draftEvent} disabled={submitting}
+                  errors={activityErrors} currency={currency}
+                />
               ) : (
                 <div className="rounded-lg border px-3 py-2.5" style={{ borderColor: '#dce1df', background: '#fff' }}>
                   <p className="text-sm" style={{ color: '#8a9bab' }}>No linked challenge found for this room.</p>
@@ -551,7 +648,7 @@ export default function EditFundraiserModal({
         <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderTop: '1px solid #dce1df', background: '#fbf8f2' }}>
           <p className="text-xs" style={{ color: '#8a9bab' }}>
-            {activity && activityAvailable && !subLocked ? 'Saves the event and its activity together' : ''}
+            {activity && activityAvailable && !subLocked && !dropLocked ? 'Saves the event and its activity together' : ''}
           </p>
           <div className="flex items-center gap-3">
             <button type="button" onClick={onClose} disabled={submitting}

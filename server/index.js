@@ -115,11 +115,10 @@ import challengeRouter from './puzzles/routes/challengeRoutes.js';
 import supporterAuthRouter from './supporters/routes/supporterAuthRoutes.js';
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
 import subscriptionReconciliationRoutes from './puzzles/routes/subscriptionReconciliationRoutes.js';
+import puzzleDropRouter from './puzzles/routes/puzzleDropRoutes.js';
+console.log('✅ puzzleDropRouter imported:', typeof puzzleDropRouter);
 
-import {
-  mountSummerQuestRoutes,
-  setupSummerQuestDatabase,
-} from './summerquest/server/index.js';
+
 
 import ticketsSummaryRouter from './quiz/api/ticketsSummaryRouter.js';
 
@@ -225,16 +224,7 @@ app.use(
   }),
 );
 
-/*
-|--------------------------------------------------------------------------
-| Summer Quest
-|--------------------------------------------------------------------------
-*/
 
-mountSummerQuestRoutes(
-  app,
-  connection,
-);
 
 /*
 |--------------------------------------------------------------------------
@@ -974,6 +964,8 @@ app.use(
   '/api/subscription-reconciliation',
   subscriptionReconciliationRoutes,
 );
+
+app.use('/api/puzzle-drop', puzzleDropRouter);
 
 app.use(
   '/api/web3-transactions',
@@ -1896,13 +1888,7 @@ httpServer.on(
 
     startStripeCleanupJob();
 
-    await setupSummerQuestDatabase(
-      connection,
-    );
-
-    console.log(
-      '🗄️ Summer Quest ready',
-    );
+  
   } catch (dbError) {
     console.error(
       '❌ Database initialization failed:',

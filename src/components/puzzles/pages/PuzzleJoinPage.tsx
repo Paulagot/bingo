@@ -9,6 +9,7 @@ import {
 import PuzzlePageShell from '../ui/PuzzlePageShell';
 import PuzzlePrimaryButton from '../ui/PuzzlePrimaryButton';
 import PuzzleStatPill from '../ui/PuzzleStatPill';
+import { resolvePuzzleTheme } from '../ui/puzzleTheme';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   eur: '€',
@@ -54,6 +55,11 @@ export default function PuzzleJoinPage() {
   const [signInEmail, setSignInEmail] = useState('');
   const [signInSubmitting, setSignInSubmitting] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
+
+  // Club branding — falls back to the default FundRaisely look whenever
+  // the challenge hasn't loaded yet, or the club hasn't set any brand
+  // colors/logo of their own. See puzzleTheme.ts for the fallback rules.
+  const theme = useMemo(() => resolvePuzzleTheme(challenge), [challenge]);
 
   useEffect(() => {
     const currentJoinCode = joinCode;
@@ -116,13 +122,15 @@ export default function PuzzleJoinPage() {
           clubId: challenge.club_id ?? '',
         });
 
-        navigate('/puzzle-check-email', {
-          state: {
-            email,
-            challengeId: challenge.id,
-            clubId: challenge.club_id,
-          },
-        });
+navigate('/puzzle-check-email', {
+  state: {
+    email,
+    challengeId: challenge.id,
+    clubId: challenge.club_id,
+    clubName: challenge.club_name,
+    theme,
+  },
+});
         return;
       }
 
@@ -161,13 +169,15 @@ export default function PuzzleJoinPage() {
         clubId: challenge.club_id ?? '',
       });
 
-      navigate('/puzzle-check-email', {
-        state: {
-          email: signInEmail,
-          challengeId: challenge.id,
-          clubId: challenge.club_id,
-        },
-      });
+ navigate('/puzzle-check-email', {
+  state: {
+    email,
+    challengeId: challenge.id,
+    clubId: challenge.club_id,
+    clubName: challenge.club_name,
+    theme,
+  },
+});
     } catch (err) {
       setSignInError((err as Error).message);
     } finally {
@@ -189,6 +199,8 @@ export default function PuzzleJoinPage() {
   if (loading) {
     return (
       <PuzzlePageShell
+        theme={theme}
+        clubName={challenge?.club_name}
         rightHeaderContent={
           <span className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[#6E6A63] shadow-sm">
             Loading…
@@ -196,7 +208,7 @@ export default function PuzzleJoinPage() {
         }
       >
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[#157F85]" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[var(--puzzle-primary)]" />
         </div>
       </PuzzlePageShell>
     );
@@ -204,7 +216,7 @@ export default function PuzzleJoinPage() {
 
   if (pageError || !challenge) {
     return (
-      <PuzzlePageShell>
+      <PuzzlePageShell theme={theme} clubName={challenge?.club_name}>
         <div className="mx-auto max-w-xl rounded-[28px] border border-[#E7C4C4] bg-white p-8 text-center shadow-sm">
           <p className="mb-2 text-3xl">😕</p>
           <h1 className="mb-2 text-xl font-bold text-[#071A44]">
@@ -220,6 +232,8 @@ export default function PuzzleJoinPage() {
 
   return (
     <PuzzlePageShell
+      theme={theme}
+      clubName={challenge.club_name}
       rightHeaderContent={
         <div className="rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-2 shadow-sm">
           <p className="text-sm font-semibold text-[#2E6A46]">
@@ -250,7 +264,7 @@ export default function PuzzleJoinPage() {
           <div className="mt-7 rounded-[30px] border border-[#E8E0D3] bg-[#FBF8F3] p-5">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-[#157F85]">
+                <p className="text-sm font-semibold text-[var(--puzzle-primary)]">
                   {challenge.club_name ?? 'FundRaisely club'}
                 </p>
 
@@ -326,7 +340,7 @@ export default function PuzzleJoinPage() {
               onClick={() => setMode('join')}
               className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
                 mode === 'join'
-                  ? 'bg-[#157F85] text-white shadow-sm'
+                  ? 'bg-[var(--puzzle-primary)] text-[var(--puzzle-text-on-primary)] shadow-sm'
                   : 'text-[#6E6A63] hover:text-[#071A44]'
               }`}
             >
@@ -338,7 +352,7 @@ export default function PuzzleJoinPage() {
               onClick={() => setMode('signin')}
               className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
                 mode === 'signin'
-                  ? 'bg-[#157F85] text-white shadow-sm'
+                  ? 'bg-[var(--puzzle-primary)] text-[var(--puzzle-text-on-primary)] shadow-sm'
                   : 'text-[#6E6A63] hover:text-[#071A44]'
               }`}
             >
@@ -380,7 +394,7 @@ export default function PuzzleJoinPage() {
                     onChange={e => setName(e.target.value)}
                     required
                     placeholder="First and last name"
-                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
+                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[var(--puzzle-primary)] focus:bg-white focus:ring-4 focus:ring-[var(--puzzle-primary)]/10"
                   />
                 </div>
 
@@ -399,7 +413,7 @@ export default function PuzzleJoinPage() {
                     onChange={e => setEmail(e.target.value)}
                     required
                     placeholder="you@example.com"
-                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
+                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[var(--puzzle-primary)] focus:bg-white focus:ring-4 focus:ring-[var(--puzzle-primary)]/10"
                   />
 
                   <p className="mt-2 text-xs leading-relaxed text-[#8A847B]">
@@ -414,7 +428,7 @@ export default function PuzzleJoinPage() {
                     type="checkbox"
                     checked={gdprConsent}
                     onChange={e => setGdprConsent(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-[#D8D1C4] text-[#157F85] focus:ring-[#157F85]"
+                    className="mt-0.5 h-4 w-4 rounded border-[#D8D1C4] text-[var(--puzzle-primary)] focus:ring-[var(--puzzle-primary)]"
                   />
 
                   <span className="text-xs leading-relaxed text-[#6E6A63]">
@@ -486,7 +500,7 @@ export default function PuzzleJoinPage() {
                     onChange={e => setSignInEmail(e.target.value)}
                     required
                     placeholder="you@example.com"
-                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[#157F85] focus:bg-white focus:ring-4 focus:ring-[#157F85]/10"
+                    className="w-full rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-sm text-[#071A44] outline-none transition placeholder:text-[#A39C91] focus:border-[var(--puzzle-primary)] focus:bg-white focus:ring-4 focus:ring-[var(--puzzle-primary)]/10"
                   />
 
                   <p className="mt-2 text-xs leading-relaxed text-[#8A847B]">

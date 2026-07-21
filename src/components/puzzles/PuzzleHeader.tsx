@@ -21,7 +21,7 @@ const STATE_LABELS: Record<PuzzlePageState, string> = {
   inProgress: 'In Progress',
   submitted: 'Submitted',
   completed: 'Completed',
-  failedValidation: 'Failed — Try Again',
+  failedValidation: 'Failed - You were unable to solve this puzzle, better luck next time!',
 };
 
 function formatTime(seconds: number): string {

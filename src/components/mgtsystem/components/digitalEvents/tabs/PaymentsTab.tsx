@@ -106,9 +106,9 @@ function getSubtitle(method: PaymentMethod_) {
   if (method.method_category === 'instant_payment') {
     const provider = String(method.provider_name || '').toLowerCase();
     if (provider === 'cash') {
-      parts.push('Cash on the night / manual confirmation');
+      parts.push('Cash at the Door / manual confirmation');
     } else if (provider === 'card_tap') {
-      parts.push('CardTap on the night / manual confirmation');
+      parts.push('CardTap at the Door / manual confirmation');
     } else {
       parts.push('Manual payment');
     }

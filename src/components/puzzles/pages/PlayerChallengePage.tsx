@@ -10,6 +10,7 @@ import {
 import PuzzlePageShell from '../ui/PuzzlePageShell';
 import PuzzlePrimaryButton from '../ui/PuzzlePrimaryButton';
 import PuzzleStatPill from '../ui/PuzzleStatPill';
+import { resolvePuzzleTheme, type PuzzleBrandTheme } from '../ui/puzzleTheme';
 
 interface WeekState {
   weekNumber: number;
@@ -62,6 +63,12 @@ export default function PlayerChallengePage() {
   const [isAuth, setIsAuth] = useState(() => supporterAuthService.isAuthenticated());
 
   const sessionId = searchParams.get('session_id');
+
+  // Club branding — this page always fetches its own challenge data
+  // (unlike the check-email page, which inherits theme via navigation
+  // state), so it can resolve theme directly and doesn't need a
+  // fallback for lost state on refresh.
+  const theme = useMemo(() => resolvePuzzleTheme(challenge), [challenge]);
 
   useEffect(() => {
     if (!challengeId) {
@@ -190,9 +197,21 @@ export default function PlayerChallengePage() {
   const lockedWeeks = weeks.filter(w => w.status === 'locked').length;
   const completedWeeks = weeks.filter(w => w.status === 'completed').length;
 
+  // The trophy card's "current" puzzle — matches what the card's own
+  // "Play now" button already navigates to: the earliest not-yet-completed
+  // available week (catch-up first), not whatever unlocked most recently.
+  // Falls back to the last week if everything's completed (nothing pending
+  // to catch up on), or the first week if nothing has unlocked yet.
+  const currentWeek =
+    weeks.find(w => w.status === 'available') ??
+    weeks[weeks.length - 1] ??
+    weeks[0];
+
   if (loading) {
     return (
       <PuzzlePageShell
+        theme={theme}
+        clubName={challenge?.club_name}
         rightHeaderContent={
           <span className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[#6E6A63] shadow-sm">
             Loading…
@@ -200,7 +219,7 @@ export default function PlayerChallengePage() {
         }
       >
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[#157F85]" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[var(--puzzle-primary)]" />
         </div>
       </PuzzlePageShell>
     );
@@ -208,7 +227,7 @@ export default function PlayerChallengePage() {
 
   if (pageError || !challenge) {
     return (
-      <PuzzlePageShell>
+      <PuzzlePageShell theme={theme} clubName={challenge?.club_name}>
         <div className="rounded-[28px] border border-[#E7C4C4] bg-white p-8 text-center shadow-sm">
           <p className="mb-2 text-3xl">😕</p>
           <p className="font-semibold text-[#071A44]">
@@ -223,6 +242,8 @@ export default function PlayerChallengePage() {
 
   return (
     <PuzzlePageShell
+      theme={theme}
+      clubName={challenge.club_name}
       rightHeaderContent={
         <div className="rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-2 shadow-sm">
           <p className="text-sm font-semibold text-[#2E6A46]">
@@ -383,6 +404,7 @@ export default function PlayerChallengePage() {
                     <WeekCard
                       key={week.weekNumber}
                       week={week}
+                      challengeId={resolvedChallengeId}
                       onPlay={() =>
                         navigate(`/challenges/${resolvedChallengeId}/puzzle/${week.weekNumber}`)
                       }
@@ -414,12 +436,12 @@ export default function PlayerChallengePage() {
 
             <div className="rounded-[24px] border border-[#E8E0D3] bg-[#FBF8F3] p-5 text-center">
               <span className="mb-3 inline-flex rounded-full bg-[#E9E0FB] px-3 py-1 text-xs font-semibold text-[#6E50A0]">
-                Week 1
+                {currentWeek ? `Week ${currentWeek.weekNumber}` : 'Week 1'}
               </span>
 
               <p className="mb-2 font-serif text-2xl text-[#071A44]">
-                {weeks[0]
-                  ? PUZZLE_TYPE_LABELS[weeks[0].puzzleType] ?? weeks[0].puzzleType
+                {currentWeek
+                  ? PUZZLE_TYPE_LABELS[currentWeek.puzzleType] ?? currentWeek.puzzleType
                   : 'Weekly puzzle'}
               </p>
 
@@ -462,6 +484,56 @@ export default function PlayerChallengePage() {
             </div>
           </section>
 
+          {/* Leaderboard links — the share/recruit exit (Wall of Fame, fully
+              public) and, once enrolled, the "how am I doing" exit (Overall
+              standings, auth required). Kept as their own card rather than
+              folded into "Challenge summary" below, since these are actions
+              (go look at something else) not facts about the challenge. */}
+          <section className="rounded-[32px] border border-[#E8E0D3] bg-white p-6 shadow-sm">
+            <h3 className="mb-1 text-lg font-semibold text-[#071A44]">
+              Leaderboards
+            </h3>
+            <p className="mb-4 text-sm text-[#6E6A63]">
+              See how everyone's doing, and share the results.
+            </p>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => navigate(`/leaderboards/${resolvedChallengeId}`)}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-left transition hover:bg-[#F8F5EF]"
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-[#071A44]">
+                    🏆 Wall of fame
+                  </span>
+                  <span className="block text-xs text-[#6E6A63]">
+                    Top 3 every week — share it
+                  </span>
+                </span>
+                <span className="text-[#6E6A63]">→</span>
+              </button>
+
+              {enrolled && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/challenges/${resolvedChallengeId}/standings`)}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#D8D1C4] bg-[#FBF8F3] px-4 py-3 text-left transition hover:bg-[#F8F5EF]"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-[#071A44]">
+                      📊 My standing
+                    </span>
+                    <span className="block text-xs text-[#6E6A63]">
+                      Your cumulative score, all weeks
+                    </span>
+                  </span>
+                  <span className="text-[#6E6A63]">→</span>
+                </button>
+              )}
+            </div>
+          </section>
+
           <section className="rounded-[32px] border border-[#E8E0D3] bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-[#071A44]">
               Challenge summary
@@ -498,9 +570,11 @@ function mapScheduleToWeekState(scheduleData: ScheduleRow[]): WeekState[] {
     difficulty: row.difficulty,
     unlocksAt: row.unlocks_at ? new Date(row.unlocks_at) : null,
     status:
-      !row.unlocks_at || new Date(row.unlocks_at) <= now
-        ? 'available'
-        : 'locked',
+      row.is_correct !== null
+        ? 'completed'
+        : !row.unlocks_at || new Date(row.unlocks_at) <= now
+          ? 'available'
+          : 'locked',
   }));
 }
 
@@ -521,11 +595,14 @@ function SummaryRow({
 
 function WeekCard({
   week,
+  challengeId,
   onPlay,
 }: {
   week: WeekState;
+  challengeId: string;
   onPlay: () => void;
 }) {
+  const navigate = useNavigate();
   const isLocked = week.status === 'locked';
   const isCompleted = week.status === 'completed';
 
@@ -546,6 +623,20 @@ function WeekCard({
       : 'Available';
 
   const icon = isLocked ? '🔒' : isCompleted ? '✅' : '🧩';
+
+  function handleClick() {
+    if (isLocked) return;
+
+    if (isCompleted) {
+      // Completed weeks route to that week's public leaderboard, not
+      // back into the puzzle/result panel — matches the intent of
+      // clicking a finished puzzle ("how did I do?").
+      navigate(`/leaderboards/${challengeId}/weeks/${week.weekNumber}`);
+      return;
+    }
+
+    onPlay();
+  }
 
   return (
     <div className={`rounded-[28px] border border-[#E8E0D3] p-5 shadow-sm ${bgClass}`}>
@@ -589,15 +680,15 @@ function WeekCard({
 
       <button
         type="button"
-        onClick={onPlay}
+        onClick={handleClick}
         disabled={isLocked}
         className={`mt-5 w-full rounded-full px-4 py-3 text-sm font-semibold transition ${
           isLocked
             ? 'cursor-not-allowed bg-white text-[#A39C91]'
-            : 'bg-[#071A44] text-white hover:opacity-95'
+            : 'bg-[var(--puzzle-primary)] text-[var(--puzzle-text-on-primary)] hover:opacity-95'
         }`}
       >
-        {isLocked ? 'Locked' : isCompleted ? 'View result' : 'Play now →'}
+        {isLocked ? 'Locked' : isCompleted ? 'View leaderboard' : 'Play now →'}
       </button>
     </div>
   );

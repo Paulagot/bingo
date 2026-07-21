@@ -57,6 +57,41 @@ class PuzzleService extends BaseService {
     );
   }
 
+  /**
+   * Best-effort save used only when the tab is being hidden or the page is
+   * unloading. A normal fetch (including ones already in flight) is very
+   * commonly cancelled by the browser the moment 'beforeunload'/'pagehide'
+   * fires — this is exactly the "child interrupts, laptop gets closed"
+   * moment we most want the save to survive. `keepalive: true` is the
+   * browser's purpose-built mechanism for letting a request finish even
+   * though the page is going away.
+   *
+   * navigator.sendBeacon() is the more commonly-cited tool for this, but it
+   * can't carry the Authorization header this API needs (it only supports
+   * a same-origin, header-less POST) — so it's the wrong fit for a
+   * Bearer-token-authenticated endpoint like this one, and `keepalive`
+   * is used instead.
+   *
+   * Confirmed against BaseService.request(): it builds its fetch config as
+   * `{ ...options, headers: {...} }`, so this extra `keepalive` key does
+   * pass through to the underlying fetch() call as intended.
+   */
+  saveProgressOnUnload(instanceId: string, progressData: Record<string, unknown>) {
+    void this.request<{ ok: boolean }>(
+      `/puzzles/${instanceId}/save`,
+      {
+        method: 'POST',
+        body:   JSON.stringify({ progressData }),
+        keepalive: true,
+      } as RequestInit & { body: string }
+    ).catch(() => {
+      // Best-effort only. The debounced save moments earlier (see
+      // usePuzzleAutosave) is the primary safety net — this is a last
+      // chance to catch the final few seconds of changes, not the only
+      // save attempt.
+    });
+  }
+
   submitPuzzle(instanceId: string, payload: PuzzleSubmitPayload) {
     return this.request<PuzzleSubmitResponse>(
       `/puzzles/${instanceId}/submit`,

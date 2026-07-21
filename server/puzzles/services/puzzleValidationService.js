@@ -1,5 +1,6 @@
 import database from '../../config/database.js';
 import { getEngine } from './puzzleGenerationService.js';
+import { getTrustedElapsedSeconds } from './puzzleProgressService.js';
 
 export async function validateAndScore({
   instanceId,
@@ -39,7 +40,7 @@ export async function validateAndScore({
 
   // ── 2. Load the stored solution — never trust the client ─────────────────
   const [rows] = await database.connection.execute(
-    `SELECT challenge_id, week_number, solution_data
+    `SELECT challenge_id, week_number, difficulty, solution_data
      FROM fundraisely_puzzle_instances
      WHERE id = ? LIMIT 1`,
     [instanceId]
@@ -47,16 +48,44 @@ export async function validateAndScore({
 
   if (!rows?.length) throw new Error('Puzzle instance not found');
 
-  const { challenge_id, week_number, solution_data } = rows[0];
+  const { challenge_id, week_number, difficulty, solution_data } = rows[0];
   const solutionData =
     typeof solution_data === 'string' ? JSON.parse(solution_data) : solution_data;
 
-  // ── 3. Validate + score ───────────────────────────────────────────────────
+  // ── 3. Determine the trusted elapsed time — server-tracked, not the
+  //        client's own claim. See puzzleProgressService.getTrustedElapsedSeconds
+  //        for how this is built from autosave heartbeats. Only falls back to
+  //        the client-reported value if we have genuinely no tracking data at
+  //        all (sessions that predate this feature) — never as a preference.
+  const serverElapsedSeconds = await getTrustedElapsedSeconds({ instanceId, playerId });
+  const trustedTimeTakenSeconds = serverElapsedSeconds ?? Math.max(0, Number(timeTakenSeconds) || 0);
+
+  // Soft anomaly flag — doesn't block or alter scoring, just makes it cheap
+  // to query "submissions where the client's claimed time looks nothing
+  // like what the server actually observed" later. A big gap is exactly
+  // the tab-switch-to-a-solver pattern discussed earlier; flagging it is
+  // the realistic ceiling for detecting that client-side, per our earlier
+  // conversation — this can't prevent it, only surface it for review.
+  const reportedTimeTakenSeconds = Math.max(0, Number(timeTakenSeconds) || 0);
+  const timeAnomaly =
+    serverElapsedSeconds !== null &&
+    serverElapsedSeconds > 20 &&
+    reportedTimeTakenSeconds < serverElapsedSeconds * 0.4;
+
+  // ── 4. Validate + score ───────────────────────────────────────────────────
   const engine           = getEngine(puzzleType);
   const validationResult = engine.validate(answer, solutionData);
-  const scoreResult      = engine.score({ validationResult, submission: { timeTakenSeconds } });
+  const scoreResult      = engine.score({
+    validationResult,
+    difficulty,
+    solutionData,
+    submission: {
+      timeTakenSeconds: trustedTimeTakenSeconds,
+      answer,
+    },
+  });
 
-  // ── 4. Persist — plain INSERT, no overwrite ───────────────────────────────
+  // ── 5. Persist — plain INSERT, no overwrite ───────────────────────────────
   // The unique key uq_instance_player (instance_id, player_id) guarantees
   // only one row per player per puzzle. We no longer use ON DUPLICATE KEY
   // UPDATE — if somehow a race condition fires a duplicate, MySQL will throw
@@ -65,8 +94,8 @@ export async function validateAndScore({
     `INSERT INTO fundraisely_puzzle_submissions
        (instance_id, player_id, club_id, challenge_id, week_number, puzzle_type,
         answer, is_correct, total_score, base_score, bonus_score, penalty_score,
-        time_taken_seconds)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        time_taken_seconds, reported_time_taken_seconds, time_anomaly)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       instanceId,
       playerId,
@@ -80,7 +109,9 @@ export async function validateAndScore({
       scoreResult.baseScore,
       scoreResult.bonusScore,
       scoreResult.penaltyScore,
-      timeTakenSeconds,
+      trustedTimeTakenSeconds,
+      reportedTimeTakenSeconds,
+      timeAnomaly ? 1 : 0,
     ]
   );
 

@@ -8,7 +8,10 @@ import type { Event } from '../../types/event';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
+  // ADDED 'puzzle_drop' — this type is only ever used to look up room_id
+  // for stats (confirmedForEvent never branches on the value itself), so
+  // this is a pure widening fix with no other logic change needed here.
+  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -57,7 +60,6 @@ export function DashboardFundraisingSummary({
   const donutChart        = useRef<any>(null);
   const lineChart         = useRef<any>(null);
 
-  // ── Totals from events + stats ─────────────────────────────────────────────
   const totals = useMemo(() => {
     let totalGoal     = 0;
     let totalIncome   = 0;
@@ -82,7 +84,6 @@ export function DashboardFundraisingSummary({
     return { totalGoal, totalIncome, overallProgress, eventsWithGoal, eventsOnTrack };
   }, [events, activityMap, roomStatsMap]);
 
-  // ── Donut data — two slices ────────────────────────────────────────────────
   const donutData = useMemo(() => {
     const raised    = Math.round(totals.totalIncome);
     const remaining = Math.max(Math.round(totals.totalGoal - totals.totalIncome), 0);
@@ -93,12 +94,8 @@ export function DashboardFundraisingSummary({
     };
   }, [totals]);
 
-  // ── Line data — cumulative from income series ──────────────────────────────
-  // Uses real confirmed_at dates from the ledger via the income-series endpoint.
-  // Falls back to per-event income plotted at event dates if series is empty.
   const lineData = useMemo(() => {
     if (incomeSeries.length > 0) {
-      // Sort by date, build cumulative
       const sorted = [...incomeSeries].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
@@ -114,7 +111,6 @@ export function DashboardFundraisingSummary({
       return { labels, values, isCumulative: true };
     }
 
-    // Fallback — per-event income at event dates, sorted chronologically
     const eventsWithIncome = events
       .filter(e => Number(e.goal_amount || 0) > 0)
       .map(e => {
@@ -132,7 +128,6 @@ export function DashboardFundraisingSummary({
     };
   }, [incomeSeries, events, activityMap, roomStatsMap]);
 
-  // ── Build / rebuild charts ─────────────────────────────────────────────────
   useEffect(() => {
     if (!open || chartsBuilt.current) return;
 
@@ -142,7 +137,6 @@ export function DashboardFundraisingSummary({
       const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
       const tickColor = isDark ? 'rgba(255,255,255,0.4)'  : '#52636f';
 
-      // ── Donut ──────────────────────────────────────────────────────────────
       if (donutRef.current) {
         donutChart.current = new Chart(donutRef.current, {
           type: 'doughnut',
@@ -196,10 +190,8 @@ export function DashboardFundraisingSummary({
         });
       }
 
-      // ── Line / cumulative ──────────────────────────────────────────────────
       if (lineRef.current && lineData.labels.length > 0) {
 
-        // Inline plugin: draws a pill-shaped label above each data point.
         const pointLabelPlugin = {
           id: 'pointLabels',
           afterDatasetsDraw(chart: any) {
@@ -227,7 +219,6 @@ export function DashboardFundraisingSummary({
               const pillX = x - pillW / 2;
               const pillY = y - 22 - pillH / 2;
               const r = pillH / 2;
-              // Pill background
               ctx.beginPath();
               ctx.moveTo(pillX + r, pillY);
               ctx.lineTo(pillX + pillW - r, pillY);
@@ -241,7 +232,6 @@ export function DashboardFundraisingSummary({
               ctx.closePath();
               ctx.fillStyle = isDark ? '#1e3a4a' : '#102532';
               ctx.fill();
-              // Label text
               ctx.fillStyle = '#ffffff';
               ctx.fillText(label, x, pillY + pillH / 2);
             });
@@ -271,7 +261,6 @@ export function DashboardFundraisingSummary({
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            // Extra top padding so point labels above the highest point aren't clipped
             layout: { padding: { top: 28, right: 8, bottom: 4, left: 4 } },
             plugins: {
               legend: { display: false },
@@ -332,7 +321,6 @@ export function DashboardFundraisingSummary({
     };
   }, [open, donutData, lineData]);
 
-  // ── Guard ──────────────────────────────────────────────────────────────────
   if (totals.eventsWithGoal === 0) return null;
 
   const isComplete = totals.overallProgress >= 100;
@@ -341,7 +329,6 @@ export function DashboardFundraisingSummary({
   return (
     <div className="mb-6">
 
-      {/* ── Strip ─────────────────────────────────────────────────────────── */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -431,7 +418,6 @@ export function DashboardFundraisingSummary({
         </div>
       </button>
 
-      {/* ── Charts panel ──────────────────────────────────────────────────── */}
       <div
         className="overflow-hidden transition-all duration-300"
         style={{
@@ -447,11 +433,9 @@ export function DashboardFundraisingSummary({
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
 
-          {/* ── Donut ── */}
           <div className="rounded-xl p-4" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
             <p className="text-xs font-semibold mb-4" style={{ color: '#52636f' }}>Goal progress</p>
 
-            {/* Donut centred above legend */}
             <div className="flex flex-col items-center gap-4">
               <div style={{ width: '150px', height: '150px' }}>
                 <canvas
@@ -461,7 +445,6 @@ export function DashboardFundraisingSummary({
                 />
               </div>
 
-              {/* Legend below donut */}
               <div className="w-full flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -491,7 +474,6 @@ export function DashboardFundraisingSummary({
             </div>
           </div>
 
-          {/* ── Line chart ── */}
           <div className="rounded-xl p-4" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs font-semibold" style={{ color: '#52636f' }}>

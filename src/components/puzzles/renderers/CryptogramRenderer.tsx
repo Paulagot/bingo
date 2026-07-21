@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
 interface CryptogramRendererProps {
   puzzleData: Record<string, unknown>;
@@ -7,13 +7,16 @@ interface CryptogramRendererProps {
   isReadOnly: boolean;
 }
 
+interface CryptogramHint {
+  cipherLetter: string;
+  plainLetter: string;
+}
+
 interface CryptogramData {
   encoded: string;
   uniqueLetters: number;
-  hint: {
-    cipherLetter: string;
-    plainLetter: string;
-  };
+  hints?: CryptogramHint[];
+  hint?: CryptogramHint;
 }
 
 const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
@@ -23,28 +26,45 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
   isReadOnly,
 }) => {
   const data = puzzleData as unknown as CryptogramData;
-  const savedAnswer = currentAnswer as unknown as
-    | { letterMap?: Record<string, string>; decoded?: string }
-    | undefined;
+  const hints = useMemo(() => {
+    if (Array.isArray(data?.hints) && data.hints.length > 0) return data.hints;
+    if (data?.hint?.cipherLetter && data?.hint?.plainLetter) return [data.hint];
+    return [];
+  }, [data]);
 
-  const getInitialMap = useCallback((): Record<string, string> => {
-    const saved = savedAnswer?.letterMap;
+  const hintCipherToPlain = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const h of hints) map.set(h.cipherLetter, h.plainLetter);
+    return map;
+  }, [hints]);
+
+  const hintPlainLetters = useMemo(() => new Set(hints.map(h => h.plainLetter)), [hints]);
+
+  const buildMapWithHints = useCallback((saved?: Record<string, string>): Record<string, string> => {
     const base: Record<string, string> = saved ? { ...saved } : {};
-
-    // Always preserve the starter hint
-    if (data?.hint?.cipherLetter && data?.hint?.plainLetter) {
-      base[data.hint.cipherLetter] = data.hint.plainLetter;
-    }
-
+    for (const h of hints) base[h.cipherLetter] = h.plainLetter;
     return base;
-  }, [savedAnswer?.letterMap, data?.hint?.cipherLetter, data?.hint?.plainLetter]);
+  }, [hints]);
 
-  const [letterMap, setLetterMap] = useState<Record<string, string>>(getInitialMap);
+  const [letterMap, setLetterMap] = useState<Record<string, string>>(() => {
+    const saved = (currentAnswer as { letterMap?: Record<string, string> } | undefined)?.letterMap;
+    return buildMapWithHints(saved);
+  });
   const [selected, setSelected] = useState<string | null>(null);
+  const [justAssigned, setJustAssigned] = useState<string | null>(null);
 
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  const puzzleKeyRef = useRef(data.encoded);
   useEffect(() => {
-    setLetterMap(getInitialMap());
-  }, [getInitialMap]);
+    if (puzzleKeyRef.current !== data.encoded) {
+      puzzleKeyRef.current = data.encoded;
+      const saved = (currentAnswer as { letterMap?: Record<string, string> } | undefined)?.letterMap;
+      setLetterMap(buildMapWithHints(saved));
+      setSelected(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.encoded, buildMapWithHints]);
 
   const encodedChars = useMemo(() => data.encoded.split(''), [data.encoded]);
 
@@ -67,20 +87,36 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
 
   useEffect(() => {
     onAnswerChange({ letterMap, decoded });
-  }, [letterMap, decoded, onAnswerChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [letterMap, decoded]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const id = requestAnimationFrame(() => {
+      pickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selected]);
+
+  useEffect(() => {
+    if (!justAssigned) return;
+    const t = setTimeout(() => setJustAssigned(null), 400);
+    return () => clearTimeout(t);
+  }, [justAssigned]);
 
   const handleCipherClick = useCallback(
     (ch: string) => {
-      if (isReadOnly || ch === data.hint.cipherLetter) return;
+      if (isReadOnly || hintCipherToPlain.has(ch)) return;
       setSelected((prev) => (prev === ch ? null : ch));
     },
-    [isReadOnly, data.hint.cipherLetter]
+    [isReadOnly, hintCipherToPlain]
   );
 
   const handlePlainClick = useCallback(
     (plain: string) => {
       if (!selected || isReadOnly) return;
       setLetterMap((prev) => ({ ...prev, [selected]: plain }));
+      setJustAssigned(selected);
       setSelected(null);
     },
     [selected, isReadOnly]
@@ -92,24 +128,20 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
     setLetterMap((prev) => {
       const next = { ...prev };
       delete next[selected];
-
-      // Never allow the starter hint mapping to be removed
-      if (selected === data.hint.cipherLetter) {
-        next[data.hint.cipherLetter] = data.hint.plainLetter;
-      }
-
+      const hintPlain = hintCipherToPlain.get(selected);
+      if (hintPlain) next[selected] = hintPlain;
       return next;
     });
 
     setSelected(null);
-  }, [selected, data.hint.cipherLetter, data.hint.plainLetter]);
+  }, [selected, hintCipherToPlain]);
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const usedPlain = new Set(Object.values(letterMap));
 
   const selectedMappedValue = selected ? letterMap[selected] : null;
 
-  if (!data?.encoded || !data?.hint?.cipherLetter || !data?.hint?.plainLetter) {
+  if (!data?.encoded || hints.length === 0) {
     return (
       <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
         Invalid cryptogram puzzle data.
@@ -118,63 +150,47 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
   }
 
   return (
-    <div className="space-y-5">
-      {/* Hint */}
-      <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-indigo-500">
-          Starter hint
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 px-4 py-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-indigo-500">
+            Starter hint{hints.length > 1 ? 's' : ''}
+          </div>
+          <div className="text-xs font-bold text-indigo-700 bg-white rounded-full px-2.5 py-1 shadow-sm shrink-0">
+            {filledLetters}/{totalMappableLetters} solved
+          </div>
         </div>
-        <div className="mt-1 text-sm sm:text-base text-indigo-900">
-          Encoded letter{' '}
-          <span className="inline-flex min-w-[2rem] items-center justify-center rounded-lg bg-white px-2 py-1 font-mono font-bold text-indigo-700 border border-indigo-200">
-            {data.hint.cipherLetter}
-          </span>{' '}
-          means{' '}
-          <span className="inline-flex min-w-[2rem] items-center justify-center rounded-lg bg-white px-2 py-1 font-mono font-bold text-indigo-700 border border-indigo-200">
-            {data.hint.plainLetter}
-          </span>
-        </div>
-        <div className="mt-2 text-xs text-indigo-700/80">
-          Unique letters to solve: {data.uniqueLetters}
-        </div>
-      </div>
-
-      {/* Decoded preview */}
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-          Decoded preview
-        </div>
-        <div className="mt-2 break-words font-mono text-sm sm:text-base leading-7 text-emerald-900">
-          {decoded}
-        </div>
-      </div>
-
-      {/* Progress */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-gray-700">
-          Solved mappings:{' '}
-          <span className="font-semibold text-gray-900">
-            {filledLetters}/{totalMappableLetters}
-          </span>
-        </div>
-
-        <div className="text-xs sm:text-sm text-gray-500">
-          {allFilled ? (
-            <span className="font-semibold text-emerald-600">
-              All letters filled — hit Submit to check.
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-indigo-900">
+          {hints.map((h, i) => (
+            <span key={i} className="inline-flex items-center gap-1.5">
+              <span className="inline-flex min-w-[1.75rem] items-center justify-center rounded-lg bg-white px-1.5 py-0.5 font-mono font-bold text-indigo-700 border border-indigo-200 text-sm">
+                {h.cipherLetter}
+              </span>
+              <span className="text-indigo-400 text-xs">→</span>
+              <span className="inline-flex min-w-[1.75rem] items-center justify-center rounded-lg bg-white px-1.5 py-0.5 font-mono font-bold text-indigo-700 border border-indigo-200 text-sm">
+                {h.plainLetter}
+              </span>
             </span>
-          ) : (
-            <span>
-              Tap an encoded letter, then choose its plain letter.
-            </span>
-          )}
+          ))}
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/70">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-500 transition-all duration-300"
+            style={{ width: totalMappableLetters > 0 ? `${(filledLetters / totalMappableLetters) * 100}%` : '0%' }}
+          />
         </div>
       </div>
 
-      {/* Encoded phrase */}
       <div className="rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50 to-white px-3 py-4 sm:px-5">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 text-center">
-          Encoded phrase
+          {selected ? (
+            <span>
+              Assigning{' '}
+              <span className="font-mono font-bold text-indigo-600">{selected}</span> - pick its letter below
+            </span>
+          ) : (
+            'Tap an encoded letter to start'
+          )}
         </div>
 
         <div className="mt-4 flex flex-wrap justify-center gap-x-1 gap-y-3 sm:gap-x-2 sm:gap-y-4">
@@ -194,10 +210,11 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
               );
             }
 
-            const isHint = ch === data.hint.cipherLetter;
+            const isHint = hintCipherToPlain.has(ch);
             const isSelected = selected === ch;
             const matchesSelected = selected !== null && ch === selected;
             const plain = letterMap[ch] ?? '';
+            const isPopping = justAssigned === ch;
 
             return (
               <button
@@ -211,23 +228,22 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
                   matchesSelected ? 'bg-indigo-50 ring-2 ring-indigo-300' : '',
                 ].join(' ')}
               >
-                {/* Plain letter guess */}
                 <div
                   className={[
-                    'flex h-10 w-10 items-center justify-center rounded-t-lg border-b-2 text-base sm:h-11 sm:w-11 sm:text-lg font-bold transition-colors',
+                    'flex h-10 w-10 items-center justify-center rounded-t-lg border-b-2 text-base sm:h-11 sm:w-11 sm:text-lg font-bold transition-all duration-300',
+                    isPopping ? 'scale-125' : 'scale-100',
                     isHint
                       ? 'border-indigo-400 bg-indigo-100 text-indigo-700'
                       : isSelected
                       ? 'border-indigo-500 bg-indigo-100 text-indigo-800'
                       : plain
-                      ? 'border-gray-400 bg-white text-gray-900'
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-900'
                       : 'border-gray-300 bg-white text-gray-300',
                   ].join(' ')}
                 >
                   {plain || '·'}
                 </div>
 
-                {/* Cipher letter */}
                 <div
                   className={[
                     'mt-1 w-10 text-center font-mono text-[11px] sm:w-11 sm:text-xs',
@@ -246,7 +262,67 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
         </div>
       </div>
 
-      {/* Current mappings summary */}
+      {!isReadOnly && selected && (
+        <div ref={pickerRef} className="sticky bottom-2 z-20" style={{ animation: 'cryptogramPickerIn 0.2s ease-out' }}>
+          <div className="rounded-2xl border border-indigo-200 bg-white/95 backdrop-blur px-4 py-4 shadow-[0_8px_30px_rgba(79,70,229,0.25)]">
+            <div className="text-center">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Assign letter
+              </div>
+              <div className="mt-1 text-sm text-gray-700">
+                Pick the plain letter for{' '}
+                <span className="inline-flex min-w-[2rem] items-center justify-center rounded-lg bg-indigo-100 px-2 py-1 font-mono font-bold text-indigo-700">
+                  {selected}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-6 gap-2 sm:grid-cols-7 md:grid-cols-9">
+              {alphabet.map((pl) => {
+                const isHintPlain = hintPlainLetters.has(pl);
+                const taken = usedPlain.has(pl) && selectedMappedValue !== pl;
+
+                return (
+                  <button
+                    key={pl}
+                    type="button"
+                    onClick={() => !taken && !isHintPlain && handlePlainClick(pl)}
+                    disabled={taken || isHintPlain}
+                    className={[
+                      'h-11 rounded-xl border text-sm font-bold transition-all sm:h-11',
+                      selectedMappedValue === pl
+                        ? 'border-indigo-600 bg-indigo-500 text-white scale-105'
+                        : taken || isHintPlain
+                        ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-indigo-400 hover:bg-indigo-50 active:scale-95',
+                    ].join(' ')}
+                  >
+                    {pl}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={handleClearSelected}
+                className="h-11 rounded-xl border border-red-200 bg-white text-sm font-bold text-red-500 transition hover:border-red-300 hover:bg-red-50 active:scale-95"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+        <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+          Decoded preview
+        </div>
+        <div className="mt-2 break-words font-mono text-sm sm:text-base leading-7 text-emerald-900">
+          {decoded}
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
           Current mappings
@@ -255,7 +331,7 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
         <div className="mt-2 flex flex-wrap gap-2">
           {uniqueCipherLetters.map((cipher) => {
             const mapped = letterMap[cipher];
-            const isHint = cipher === data.hint.cipherLetter;
+            const isHint = hintCipherToPlain.has(cipher);
 
             return (
               <div
@@ -278,70 +354,23 @@ const CryptogramRenderer: React.FC<CryptogramRendererProps> = ({
         </div>
       </div>
 
-      {/* Alphabet picker */}
-      {!isReadOnly && selected && (
-        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-          <div className="text-center">
-            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Assign letter
-            </div>
-            <div className="mt-1 text-sm text-gray-700">
-              Pick the plain letter for{' '}
-              <span className="inline-flex min-w-[2rem] items-center justify-center rounded-lg bg-indigo-100 px-2 py-1 font-mono font-bold text-indigo-700">
-                {selected}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-6 gap-2 sm:grid-cols-7 md:grid-cols-9">
-            {alphabet.map((pl) => {
-              const isHintPlain = pl === data.hint.plainLetter;
-              const taken = usedPlain.has(pl) && selectedMappedValue !== pl;
-
-              return (
-                <button
-                  key={pl}
-                  type="button"
-                  onClick={() => !taken && !isHintPlain && handlePlainClick(pl)}
-                  disabled={taken || isHintPlain}
-                  className={[
-                    'h-10 rounded-xl border text-sm font-bold transition-all sm:h-11',
-                    selectedMappedValue === pl
-                      ? 'border-indigo-600 bg-indigo-500 text-white'
-                      : taken || isHintPlain
-                      ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300'
-                      : 'border-gray-300 bg-white text-gray-700 hover:border-indigo-400 hover:bg-indigo-50',
-                  ].join(' ')}
-                >
-                  {pl}
-                </button>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={handleClearSelected}
-              className="h-10 rounded-xl border border-red-200 bg-white text-sm font-bold text-red-500 transition hover:border-red-300 hover:bg-red-50 sm:h-11"
-            >
-              Clear
-            </button>
-          </div>
+      {isReadOnly ? null : allFilled ? (
+        <div className="rounded-2xl px-5 py-3 text-center bg-gradient-to-r from-amber-100 to-amber-200 shadow-sm">
+          <p className="font-semibold text-amber-900">All letters filled! 🏆</p>
+          <p className="text-sm mt-0.5 text-amber-700">Hit Submit to check your answer.</p>
         </div>
+      ) : (
+        <p className="text-center text-xs sm:text-sm text-gray-500">
+          Tap any encoded letter in the phrase to start decoding.
+        </p>
       )}
 
-      {/* Bottom helper */}
-      <div className="text-center text-xs sm:text-sm text-gray-500">
-        {selected ? (
-          <span>
-            You are assigning a plain letter to{' '}
-            <span className="font-mono font-semibold text-indigo-700">{selected}</span>.
-          </span>
-        ) : (
-          <span>
-            Tap any encoded letter in the phrase to start decoding.
-          </span>
-        )}
-      </div>
+      <style>{`
+        @keyframes cryptogramPickerIn {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 };

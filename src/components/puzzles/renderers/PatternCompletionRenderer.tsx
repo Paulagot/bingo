@@ -368,9 +368,12 @@ const PatternCompletionRenderer: React.FC<PatternCompletionRendererProps> = ({
   );
 
   useEffect(() => {
-    if (selected !== null) {
-      onAnswerChange({ selectedOption: selected });
-    }
+    // Previously this only fired while something was selected, so tapping a
+    // selected tile again to deselect it left the parent's saved answer
+    // pointing at the old (now-unselected) option. Always report the current
+    // state — including back down to null — so it can never drift from what
+    // the player actually sees on screen.
+    onAnswerChange({ selectedOption: selected });
   }, [selected, onAnswerChange]);
 
   const handleOptionClick = useCallback((option: PatternCellValue | string) => {
@@ -397,26 +400,7 @@ const PatternCompletionRenderer: React.FC<PatternCompletionRendererProps> = ({
   }
 
   return (
-    <div className="space-y-7">
-      {/* Intro */}
-      <div className="relative overflow-hidden rounded-[2rem] border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-indigo-50 px-5 py-4 shadow-sm">
-        <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-violet-100/80" />
-
-        <div className="relative">
-          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-500">
-            Complete the pattern
-          </div>
-
-          <div className="mt-1 text-lg font-black text-slate-900">
-            Find the missing tile
-          </div>
-
-          <div className="mt-1 text-sm font-medium text-slate-500">
-            Look across the rows and columns, then choose the tile that fits.
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-5 sm:space-y-7">
       {/* Matrix */}
       <div className={`mx-auto w-full ${gridMaxWidth}`}>
         <div className="rounded-[2rem] bg-slate-950 p-3 shadow-2xl ring-1 ring-black/10">
@@ -448,7 +432,7 @@ const PatternCompletionRenderer: React.FC<PatternCompletionRendererProps> = ({
       </div>
 
       {/* Options */}
-      <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white px-4 py-5 shadow-sm">
+      <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white px-3 py-4 shadow-sm sm:px-4 sm:py-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">

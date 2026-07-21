@@ -132,7 +132,7 @@ export async function createChallenge({
   // appears in the club dashboard, event linking, and reporting
   // infrastructure alongside quiz/elimination/ticketed_event rooms.
   // Non-fatal: if room creation fails the challenge itself is still
-  // created — the club can still use it, they just won't see it in the
+  // created - the club can still use it, they just won't see it in the
   // room management view until the room is created (which could be
   // retried later). Room_id is written back onto the challenge row so
   // the two tables stay linked.
@@ -162,7 +162,7 @@ export async function createChallenge({
 }
 
 /**
- * Full edit — title, description, weeks, start date, schedule, price.
+ * Full edit - title, description, weeks, start date, schedule, price.
  * Only allowed while status === 'draft': ensureStripeProductAndPrice runs
  * once at Activate and existing subscribers' cancel_at math (see
  * applyCancelAtForSubscription in puzzleSubscriptionPaymentService.js)
@@ -225,7 +225,7 @@ export async function updateChallenge({
     ]
   );
 
-  // Replace the schedule wholesale — safe for a draft challenge since
+  // Replace the schedule wholesale - safe for a draft challenge since
   // nothing has unlocked or been played yet, so there's no history to
   // preserve or reconcile against.
   await database.connection.execute(
@@ -247,7 +247,7 @@ export async function updateChallenge({
     }
   }
 
-  // Mirror the edit through to the room's config_json — same non-fatal
+  // Mirror the edit through to the room's config_json - same non-fatal
   // sync pattern used everywhere else in this file. This is also what
   // actually persists sponsors (see puzzleSubRoomService.updatePuzzleSubRoom),
   // since they live in config_json, not a column on this table.
@@ -304,12 +304,12 @@ export async function getChallengeById({ challengeId, clubId }) {
 
   if (!challenge) return null;
 
-  // Lazy safety net for auto-completion — see maybeAutoCompleteChallenge's
+  // Lazy safety net for auto-completion - see maybeAutoCompleteChallenge's
   // own comment for why this can't rely purely on the webhook event. Only
   // does real work (an extra COUNT query, possibly a status UPDATE) when
   // status is still 'active'; every other status returns false immediately.
   // If it did complete just now, re-fetch fresh rather than return this
-  // now-stale 'active' snapshot — safe to recurse: the inner call's status
+  // now-stale 'active' snapshot - safe to recurse: the inner call's status
   // will already read 'completed', so its own auto-complete check
   // short-circuits immediately and this cannot loop.
   if (challenge.status === 'active') {
@@ -334,7 +334,7 @@ export async function getChallengeById({ challengeId, clubId }) {
   );
 
   // Sponsors live on the room's config_json (same convention as
-  // ticketed_event's eventSponsors), not a column on this table —
+  // ticketed_event's eventSponsors), not a column on this table -
   // fetched via the same room lookup other parts of this file already
   // use. Non-fatal: a missing/unlinked room just means no sponsors data,
   // not a failed challenge load.
@@ -350,7 +350,7 @@ export async function getChallengeById({ challengeId, clubId }) {
 }
 
 /**
- * Reverse lookup — given a room_id (what the mgtsystem dashboard/drawer
+ * Reverse lookup - given a room_id (what the mgtsystem dashboard/drawer
  * actually has, via fundraisely_event_integrations.external_ref), find
  * the challenge it belongs to. room_id is unique per challenge (written
  * once by createChallenge and never reassigned), so this is a plain
@@ -373,25 +373,25 @@ export async function getChallengeByRoomId({ roomId, clubId }) {
 // ─── Auto-completion ────────────────────────────────────────────────────────
 //
 // Nothing manually flips a challenge to 'completed' any more (Mark Complete
-// was removed — every subscriber's own Stripe cancel_at already handles
+// was removed - every subscriber's own Stripe cancel_at already handles
 // their billing stopping on schedule with zero action needed). But the
 // challenge itself still needs to eventually reach 'completed' once it's
 // genuinely over, both for reporting and so the reconciliation flow has a
 // clear "this is the final period" moment.
 //
 // "Over" means BOTH of these, not just one:
-//   1. The enrollment window has closed (no new sign-ups possible) — using
+//   1. The enrollment window has closed (no new sign-ups possible) - using
 //      the same total_weeks - 1 formula everywhere else in this file.
 //   2. Every subscription tied to this challenge has reached a terminal
-//      state — nobody left in 'active' or 'past_due'. This covers people
+//      state - nobody left in 'active' or 'past_due'. This covers people
 //      who ran their full term AND people who cancelled early; either way
 //      ends the same way in fundraisely_puzzle_subscriptions.
 //
 // Checked from two places: the customer.subscription.deleted webhook
-// (event-driven — fires the moment the LAST active subscriber's own
+// (event-driven - fires the moment the LAST active subscriber's own
 // subscription ends), and lazily inside getChallengeById (covers the edge
 // case where the enrollment window closes AFTER every subscriber already
-// cancelled early — no subscription-cancelled event is left to re-trigger
+// cancelled early - no subscription-cancelled event is left to re-trigger
 // the check at that later moment, so the next time anyone actually looks
 // at the challenge catches it instead).
 
@@ -415,17 +415,17 @@ async function hasRemainingActiveSubscriptions(challengeId) {
 /**
  * Checks the two conditions above and flips the challenge to 'completed'
  * if both hold. Takes already-known status/startsAt/totalWeeks so callers
- * that already have the row (getChallengeById) don't re-fetch it — the
+ * that already have the row (getChallengeById) don't re-fetch it - the
  * webhook path, which only starts with a challengeId, fetches them itself
  * first. Returns true if it actually completed the challenge, false
- * otherwise (including "nothing to do" — status wasn't 'active').
+ * otherwise (including "nothing to do" - status wasn't 'active').
  */
 export async function maybeAutoCompleteChallenge({ challengeId, clubId, status, startsAt, totalWeeks }) {
   if (status !== 'active') return false;
   if (!isEnrollmentWindowClosed(startsAt, totalWeeks)) return false;
   if (await hasRemainingActiveSubscriptions(challengeId)) return false;
 
-  console.log(`[challengeService] 🏁 Auto-completing challenge ${challengeId} — enrollment closed and no active subscriptions remain`);
+  console.log(`[challengeService] 🏁 Auto-completing challenge ${challengeId} - enrollment closed and no active subscriptions remain`);
   await updateChallengeStatus({ challengeId, clubId, status: 'completed' });
   return true;
 }
@@ -463,7 +463,7 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
 
   // Mirror the status change through to the management-system room row
   // so the club dashboard, event linking, and reporting stay in sync.
-  // Non-fatal — the challenge status has already been updated; a room
+  // Non-fatal - the challenge status has already been updated; a room
   // sync failure is logged but doesn't roll back the challenge update.
   let stripeCancelSummary = null;
   try {
@@ -473,7 +473,7 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
       await cancelPuzzleSubRoom({ challengeId, clubId });
       // The actual missing piece Cancel needed: without this, existing
       // subscribers kept being billed indefinitely regardless of the
-      // challenge being "cancelled" — cancelPuzzleSubRoom only ever
+      // challenge being "cancelled" - cancelPuzzleSubRoom only ever
       // flipped local status. This stops billing immediately for every
       // active subscriber; it never touches access or issues refunds.
       // Errors here are non-fatal to the status change itself (the
@@ -484,7 +484,7 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
     } else if (status === 'completed') {
       await completePuzzleSubRoom({ challengeId, clubId });
     }
-    // 'draft' has no direct room equivalent — a challenge going back to
+    // 'draft' has no direct room equivalent - a challenge going back to
     // draft (e.g. after a failed activation attempt) leaves the room as
     // 'scheduled', which is correct: the room was always at 'scheduled'
     // until activation, so reverting to draft just means "don't open it."
@@ -573,7 +573,7 @@ export async function getLeaderboard({ challengeId }) {
   // ⚠️ Deliberately NO ss.answer and NO pi.solution_data here.
   // Weekly puzzles stay live for the whole life of the challenge (players
   // join on their own clock and always start at week 1), so there is never
-  // a safe moment to expose solutions — and a correct player's answer IS
+  // a safe moment to expose solutions - and a correct player's answer IS
   // the solution. Sending either field to any client, even one whose UI
   // hides it, leaks answers via the network response. Do not add them back.
   const [weekRows] = await database.connection.execute(
@@ -622,7 +622,7 @@ export async function getLeaderboard({ challengeId }) {
 // ─── Public leaderboards ─────────────────────────────────────────────────────
 //
 // These back the UNAUTHENTICATED endpoints in challengeRoutes.js. Rules:
-//   - Only respond for challenges in 'active' or 'completed' status — drafts
+//   - Only respond for challenges in 'active' or 'completed' status - drafts
 //     and cancelled challenges return null and the route 404s.
 //   - Never include answers, solutions, emails, or internal IDs beyond what
 //     the page needs. Names are supporter screen names (the join form tells
@@ -632,14 +632,28 @@ export async function getLeaderboard({ challengeId }) {
 
 /**
  * Minimal challenge metadata for public pages. Returns null unless the
- * challenge is 'active' or 'completed' — that null is the visibility gate
+ * challenge is 'active' or 'completed' - that null is the visibility gate
  * every public leaderboard call runs through.
+ *
+ * Also joins the club's brand columns (added for donation-button and
+ * puzzle-subscription branding - see fundraisely_clubs.brand_*) so these
+ * public, unauthenticated pages can render with the club's own colors and
+ * logo instead of always showing the default FundRaisely look. Nullable -
+ * a club with no branding set just returns nulls here, and the frontend's
+ * resolvePuzzleTheme falls back to the default theme in that case.
  */
 export async function getPublicChallengeMeta({ challengeId }) {
   const [[challenge]] = await database.connection.execute(
-    `SELECT id, title, status, total_weeks, starts_at
-     FROM fundraisely_puzzle_challenges
-     WHERE id = ? AND status IN ('active', 'completed')
+    `SELECT
+       c.id, c.title, c.status, c.total_weeks, c.starts_at,
+       cl.name AS club_name,
+       cl.brand_logo_url AS club_logo_url,
+       cl.brand_primary_color AS club_primary_color,
+       cl.brand_background_color AS club_background_color,
+       cl.brand_text_on_primary_color AS club_text_on_primary_color
+     FROM fundraisely_puzzle_challenges c
+     JOIN fundraisely_clubs cl ON cl.id = c.club_id
+     WHERE c.id = ? AND c.status IN ('active', 'completed')
      LIMIT 1`,
     [challengeId]
   );
@@ -648,7 +662,7 @@ export async function getPublicChallengeMeta({ challengeId }) {
 }
 
 /**
- * Full leaderboard for one week's puzzle. Public — every player who has
+ * Full leaderboard for one week's puzzle. Public - every player who has
  * submitted this week appears, regardless of when they joined the
  * challenge, which is the whole point: late joiners compete on equal
  * footing per puzzle even though they can never catch up cumulatively.
@@ -687,11 +701,16 @@ export async function getWeekLeaderboard({ challengeId, weekNumber }) {
       title: challenge.title,
       status: challenge.status,
       totalWeeks: challenge.total_weeks,
+      clubName: challenge.club_name,
+      clubLogoUrl: challenge.club_logo_url,
+      clubPrimaryColor: challenge.club_primary_color,
+      clubBackgroundColor: challenge.club_background_color,
+      clubTextOnPrimaryColor: challenge.club_text_on_primary_color,
     },
     weekNumber: Number(weekNumber),
     puzzleType: schedule.puzzle_type,
     difficulty: schedule.difficulty,
-    // 'final' only once the challenge has completed — until then late
+    // 'final' only once the challenge has completed - until then late
     // joiners can still submit this week and the board can still change.
     isFinal: challenge.status === 'completed',
     entries: rows.map((row, index) => ({
@@ -706,7 +725,7 @@ export async function getWeekLeaderboard({ challengeId, weekNumber }) {
 }
 
 /**
- * Top 3 for every week of a challenge in one call — the public
+ * Top 3 for every week of a challenge in one call - the public
  * "wall of fame" view. Uses ROW_NUMBER() (MySQL 8+) to rank within each
  * week with the same tie-break order as getWeekLeaderboard.
  */
@@ -767,6 +786,11 @@ export async function getPublicLeaderboardSummary({ challengeId }) {
       title: challenge.title,
       status: challenge.status,
       totalWeeks: challenge.total_weeks,
+      clubName: challenge.club_name,
+      clubLogoUrl: challenge.club_logo_url,
+      clubPrimaryColor: challenge.club_primary_color,
+      clubBackgroundColor: challenge.club_background_color,
+      clubTextOnPrimaryColor: challenge.club_text_on_primary_color,
     },
     isFinal: challenge.status === 'completed',
     weeks: schedule.map(week => ({

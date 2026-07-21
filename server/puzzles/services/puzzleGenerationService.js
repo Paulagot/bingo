@@ -97,6 +97,68 @@ export async function generatePuzzleForWeek({ challengeId, weekNumber, puzzleTyp
 }
 
 /**
+ * Generate a puzzle for a Puzzle Drop item.
+ *
+ * Sibling of generatePuzzleForWeek — same "generate once, reuse forever"
+ * shape, same table, same engines. Keyed on (drop_room_id, item_number)
+ * instead of (challenge_id, week_number); see the puzzle_drop_migration.sql
+ * comments for why both column pairs can coexist safely on one table
+ * (challenge_id/week_number are nullable now, this call never touches
+ * them, so subscription rows and Drop rows never collide).
+ *
+ * Every buyer of the same Drop item gets the SAME instance — matches the
+ * spec's design (§6): "generate the instance with a Drop-specific seed
+ * ... store the resulting instance_id on the entitlement row." Called
+ * once, at entitlement-confirmation time, from the purchase/confirm flow
+ * — not on every puzzle GET the way the subscription's lazy week-unlock
+ * pattern works, since a Drop item has no unlock gate to wait on.
+ */
+export async function generatePuzzleForDropItem({ dropRoomId, itemNumber, puzzleType, difficulty = 'medium', clubId }) {
+  // Return existing instance if already generated for this drop+item
+  const [existing] = await database.connection.execute(
+    `SELECT id, puzzle_type, difficulty, seed, puzzle_data, solution_data, meta
+     FROM fundraisely_puzzle_instances
+     WHERE drop_room_id = ? AND item_number = ?
+     LIMIT 1`,
+    [dropRoomId, itemNumber]
+  );
+
+  if (existing?.length) return existing[0];
+
+  // Generate fresh
+  const engine     = getEngine(puzzleType);
+  const seed       = `${dropRoomId}-item${itemNumber}-${puzzleType}`;
+  const instance   = engine.generate({ difficulty, seed });
+  const instanceId = uuidv4();
+
+  await database.connection.execute(
+    `INSERT INTO fundraisely_puzzle_instances
+       (id, drop_room_id, club_id, item_number, puzzle_type, difficulty, seed, puzzle_data, solution_data, meta)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      instanceId,
+      dropRoomId,
+      clubId,
+      itemNumber,
+      instance.puzzleType,
+      instance.difficulty,
+      instance.seed,
+      JSON.stringify(instance.puzzleData),
+      JSON.stringify(instance.solutionData),
+      JSON.stringify(instance.meta ?? {}),
+    ]
+  );
+
+  const [rows] = await database.connection.execute(
+    `SELECT id, puzzle_type, difficulty, seed, puzzle_data, solution_data, meta
+     FROM fundraisely_puzzle_instances WHERE id = ? LIMIT 1`,
+    [instanceId]
+  );
+
+  return rows[0];
+}
+
+/**
  * Strip solution_data before sending to client.
  * Call this on every GET response — never expose solutionData.
  */
