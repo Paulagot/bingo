@@ -58,7 +58,7 @@ const PuzzleResultPanel: React.FC<PuzzleResultPanelProps> = ({ scoreResult, time
           )}
           <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between font-bold text-gray-900">
             <span>Total</span>
-            <span className="font-mono text-indigo-700">{totalScore}</span>
+            <span className="font-mono text-[var(--puzzle-primary)]">{totalScore}</span>
           </div>
         </div>
       )}

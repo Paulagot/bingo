@@ -9,8 +9,9 @@
 // never drift apart visually.
 //
 // `accent` lets each activity keep its identity colour (teal for the
-// event chrome and quiz, #e9574f for elimination, #7c3aed for puzzles)
-// without duplicating the components.
+// event chrome and quiz, #e9574f for elimination, #7c3aed for puzzle
+// subscriptions, #e08a2c for puzzle drops) without duplicating the
+// components.
 
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
@@ -19,6 +20,7 @@ export const ACCENTS = {
   teal:   '#157f85',
   red:    '#e9574f',
   purple: '#7c3aed',
+  orange: '#e08a2c',
 } as const;
 
 export type AccentColor = string;
@@ -88,6 +90,7 @@ const RING: Record<string, string> = {
   [ACCENTS.teal]:   'focus:ring-[#157f85]',
   [ACCENTS.red]:    'focus:ring-[#e9574f]',
   [ACCENTS.purple]: 'focus:ring-[#7c3aed]',
+  [ACCENTS.orange]: 'focus:ring-[#e08a2c]',
 };
 
 export const inputClass = (hasError?: boolean | string, accent: AccentColor = ACCENTS.teal) =>

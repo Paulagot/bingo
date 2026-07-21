@@ -109,10 +109,22 @@ const SequenceOrderingRenderer: React.FC<SequenceOrderingRendererProps> = ({
   const [items, setItems] = useState<SequenceItem[]>(initItems);
   const dragIndex = useRef<number | null>(null);
 
+  // Reset only when the puzzle's actual *content* changes, not whenever the
+  // parent happens to pass a new puzzleData object with the same content.
+  // Resetting on object identity alone risked silently wiping an in-progress
+  // reorder on an unrelated parent re-render.
+  const puzzleSignature = useMemo(
+    () => safeItems.map(item => item.id).join('|'),
+    [safeItems]
+  );
+  const lastSignature = useRef<string | null>(null);
+
   useEffect(() => {
+    if (lastSignature.current === puzzleSignature) return;
+    lastSignature.current = puzzleSignature;
     setItems(initItems());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puzzleData]);
+  }, [puzzleSignature]);
 
   useEffect(() => {
     if (items.length > 0) {
@@ -162,9 +174,9 @@ const SequenceOrderingRenderer: React.FC<SequenceOrderingRendererProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Prompt card */}
-      <div className="relative overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 px-5 py-4 shadow-sm">
+      <div className="relative overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
         <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-sky-100/70" />
         <div className="relative">
           <div className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">
@@ -177,7 +189,7 @@ const SequenceOrderingRenderer: React.FC<SequenceOrderingRendererProps> = ({
       </div>
 
       {/* Order list */}
-      <div className="rounded-[2rem] border border-slate-200 bg-white px-4 py-5 shadow-sm">
+      <div className="rounded-[2rem] border border-slate-200 bg-white px-3 py-4 sm:px-4 sm:py-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">

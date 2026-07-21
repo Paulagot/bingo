@@ -16,7 +16,12 @@ import { utcToLocalDate, utcToLocalTime } from '../../../../utils/dateUtils';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
+  // ADDED 'puzzle_drop' — was missing, which is why a linked Drop
+  // activity's card always fell into the "No activity yet" branch even
+  // though activityMap DID have an entry (once QuizEventDashboard's own
+  // fix lands) — this component's own type union needed the same fix,
+  // since TS narrows on it and the runtime checks below keyed off it too.
+  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -27,7 +32,7 @@ export interface FundraiselyEventCardProps {
   activityStats?: RoomStats;
   outstandingCount?: number;
   onOpenDrawer: () => void;
-  onAddActivity: (type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub') => void;
+  onAddActivity: (type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop') => void;
   /** Omit to hide the Edit control (e.g. once the activity is no longer editable). */
   onEdit?: () => void;
   onPublish?: () => void;
@@ -45,6 +50,10 @@ const GAME_TYPE_COLOURS = {
   elimination:    { stripe: '#c8423b', label: 'Elimination' },
   ticketed_event: { stripe: '#0369a1', label: 'Ticketed Event' },
   puzzle_sub:     { stripe: '#7c3aed', label: 'Puzzle Subscription' },
+  // ADDED — same orange used for the wizard's Puzzle Drop accent
+  // (ACCENTS.orange in shared/ui.tsx), so the colour identity is
+  // consistent between the creation flow and the dashboard.
+  puzzle_drop:    { stripe: '#e08a2c', label: 'Puzzle Drop' },
 } satisfies Record<LinkedActivity['game_type'], { stripe: string; label: string }>;
 
 /**
@@ -111,7 +120,12 @@ function GameTypeIcon({ type, size = 14 }: { type: LinkedActivity['game_type']; 
   const s = { width: size, height: size };
   if (type === 'elimination') return <Trophy style={s} />;
   if (type === 'ticketed_event') return <Ticket style={s} />;
-  if (type === 'puzzle_sub') return <Puzzle style={s} />;
+  // ADDED — puzzle_drop falls through to Puzzle, same icon puzzle_sub
+  // uses. Listed explicitly (rather than relying on the final default)
+  // so it's clear this is a deliberate choice, not an oversight — Drop
+  // and Subscription share an icon but are distinguished by the stripe
+  // colour and label above.
+  if (type === 'puzzle_sub' || type === 'puzzle_drop') return <Puzzle style={s} />;
   return <Play style={s} />;
 }
 
@@ -120,7 +134,7 @@ function GameTypeIcon({ type, size = 14 }: { type: LinkedActivity['game_type']; 
 interface AddActivityDropdownProps {
   open: boolean;
   onToggle: () => void;
-  onSelect: (type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub') => void;
+  onSelect: (type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop') => void;
 }
 
 function AddActivityDropdown({ open, onToggle, onSelect }: AddActivityDropdownProps) {
@@ -145,6 +159,8 @@ function AddActivityDropdown({ open, onToggle, onSelect }: AddActivityDropdownPr
     { type: 'ticketed_event', label: 'Ticketed Event',  sub: 'Dinner, raffle, charity event…', Icon: Ticket },
     { type: 'elimination',    label: 'Elimination',     sub: 'Last player standing game',   Icon: Trophy },
     { type: 'puzzle_sub',     label: 'Puzzle Subscription', sub: 'Weekly puzzles, paid or free', Icon: Puzzle },
+    // ADDED
+    { type: 'puzzle_drop',    label: 'Puzzle Drop', sub: 'One-off puzzles for sale', Icon: Puzzle },
   ];
 
   return (

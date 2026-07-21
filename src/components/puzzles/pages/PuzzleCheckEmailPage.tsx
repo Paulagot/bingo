@@ -5,16 +5,35 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supporterAuthService } from '../services/SupporterAuthService';
 import PuzzlePageShell from '../ui/PuzzlePageShell';
 import PuzzlePrimaryButton from '../ui/PuzzlePrimaryButton';
+import { FUNDRAISELY_DEFAULT_THEME, type PuzzleBrandTheme } from '../ui/puzzleTheme';
 
 export default function PuzzleCheckEmailPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { email, challengeId, clubId } = (location.state ?? {}) as {
+  // Branding is passed through from PuzzleJoinPage via navigation state
+  // rather than fetched again here — this page never had its own
+  // challenge/club fetch, and adding one just to re-derive the same
+  // theme the join page already resolved would be a redundant round
+  // trip. Falls back to the default FundRaisely look if state is
+  // missing entirely (e.g. someone lands here directly via a bookmarked
+  // URL rather than the normal join flow).
+  const {
+    email,
+    challengeId,
+    clubId,
+    clubName,
+    theme,
+  } = (location.state ?? {}) as {
     email?: string;
     challengeId?: string;
     clubId?: string;
+    clubName?: string;
+    theme?: PuzzleBrandTheme;
   };
+
+  const resolvedTheme = theme ?? FUNDRAISELY_DEFAULT_THEME;
+  const displayClubName = clubName?.trim() || 'FundRaisely';
 
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
@@ -52,6 +71,8 @@ export default function PuzzleCheckEmailPage() {
 
   return (
     <PuzzlePageShell
+      theme={resolvedTheme}
+      clubName={clubName}
       rightHeaderContent={
         <div className="rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-2 shadow-sm">
           <p className="text-sm font-semibold text-[#2E6A46]">
@@ -105,7 +126,7 @@ export default function PuzzleCheckEmailPage() {
             <InfoCard
               emoji="1"
               title="Open your inbox"
-              text="Look for an email from FundRaisely."
+              text={`Look for an email from ${displayClubName}.`}
             />
 
             <InfoCard

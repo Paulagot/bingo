@@ -3,22 +3,22 @@
 // The single-flow replacement for "Create Event → find card → Add
 // Activity → Schedule modal". Three steps:
 //
-//   1. Type   — pick the activity (registry cards)
-//   2. Event  — event details, shaped by the chosen type
-//   3. Setup  — the activity's own config (extracted modal body)
+//   1. Type   - pick the activity (registry cards)
+//   2. Event  - event details, shaped by the chosen type
+//   3. Setup  - the activity's own config (extracted modal body)
 //
 // KEY BEHAVIOURS
-//   • Nothing is saved to the server until the final Create — steps 1–3
+//   • Nothing is saved to the server until the final Create - steps 1–3
 //     are pure client state, autosaved to localStorage on every change
 //     via useWizardStore. Refresh/crash/connection loss → resume banner.
 //   • The final Create runs submitChain (createEvent → createRoom →
 //     link) with persisted progress markers, so a mid-chain failure gets
 //     a Retry that re-runs only the missing calls. Backend untouched.
 //   • Closing mid-way shows a light "progress is saved on this device"
-//     confirm with Keep/Discard — never a scary data-loss warning,
+//     confirm with Keep/Discard - never a scary data-loss warning,
 //     because there is no data loss.
 //   • Legacy path: pass `existingEvent` (from an old activity-less event
-//     card's Add Activity menu) and the wizard skips step 2 entirely —
+//     card's Add Activity menu) and the wizard skips step 2 entirely -
 //     the event already exists, so the chain treats its id as phase-1
 //     complete and only creates + links the room.
 
@@ -41,7 +41,7 @@ interface Campaign { id: string; name: string; }
 interface Props {
   clubId:    string;
   onClose:   () => void;
-  /** Fires after the full chain succeeds — caller reloads events. */
+  /** Fires after the full chain succeeds - caller reloads events. */
   onDone:    (eventId: string, roomId: string) => void;
   campaigns?: Campaign[];
   /** Legacy Add-Activity path: the event already exists. */
@@ -58,7 +58,7 @@ function friendlyError(e: unknown): string {
   if (code === 'prize_description_required')      return 'Prize description is required.';
   if (code === 'no_credits')                      return "You've used your available activity credits for this plan. Upgrade to run more.";
   if (code === 'weeks_cap_exceeded')              return 'Your plan has a shorter maximum challenge length. Reduce the number of weeks or upgrade.';
-  if (code === 'challenge_created_room_missing')  return 'The challenge was created, but its room failed to set up — it cannot be linked yet. Contact support to retry.';
+  if (code === 'challenge_created_room_missing')  return 'The challenge was created, but its room failed to set up - it cannot be linked yet. Contact support to retry.';
   if (code.includes('402') || code.includes('no_credits')) return 'You have no credits remaining.';
   if (code.includes('403'))                       return 'Your plan does not allow this configuration.';
   return code || 'Something went wrong. Please try again.';
@@ -84,7 +84,7 @@ export default function CreateFundraiserWizard({
   }), [user, club]);
   const sym = currencySymbol(ctx.currency);
 
-  // Evaluated BEFORE begin() touches the store — decides the resume banner.
+  // Evaluated BEFORE begin() touches the store - decides the resume banner.
   const [resumePrompt, setResumePrompt] = useState(() => !isInjected && hasResumableDraft(clubId));
   const [resumeLabel]                   = useState(() => draftLabel());
   const [confirmClose, setConfirmClose] = useState(false);
@@ -174,7 +174,7 @@ export default function CreateFundraiserWizard({
         onProgress: setProgress,   // persisted markers → resumable retries
         onPhase:    setPhase,
       });
-      resetWizard(clubId);         // full success — clear the local draft
+      resetWizard(clubId);         // full success - clear the local draft
       onDone(eventId, roomId);
       onClose();
     } catch (e) {
@@ -226,7 +226,7 @@ export default function CreateFundraiserWizard({
                 {isInjected ? `Add activity to "${existingEvent!.title}"` : 'Create Fundraiser'}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>
-                Progress is autosaved on this device — nothing is saved online until the final step
+                Progress is autosaved on this device - nothing is saved online until the final step
               </p>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function CreateFundraiserWizard({
           </div>
         </div>
 
-        {/* ── Step-3 event context strip (read-only — entered once at step 2) ── */}
+        {/* ── Step-3 event context strip (read-only - entered once at step 2) ── */}
         {step === 2 && (
           <div className="px-6 py-2.5 flex-shrink-0"
             style={{ background: 'rgba(21,127,133,0.05)', borderBottom: '1px solid #dce1df' }}>
@@ -298,7 +298,7 @@ export default function CreateFundraiserWizard({
               <button type="button" onClick={handleCreate}
                 className="mt-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition hover:bg-white"
                 style={{ borderColor: '#fca5a5', color: '#dc2626' }}>
-                Retry — already-completed steps won't run again
+                Retry - already-completed steps won't run again
               </button>
             </ErrorBanner>
           )}
@@ -377,14 +377,14 @@ export default function CreateFundraiserWizard({
           </div>
         </div>
 
-        {/* ── Close confirm — friendly because nothing is lost ── */}
+        {/* ── Close confirm - friendly because nothing is lost ── */}
         {confirmClose && (
           <div className="absolute inset-0 z-10 flex items-center justify-center p-6"
             style={{ background: 'rgba(16,37,50,0.35)' }}>
             <div className="w-full max-w-sm rounded-xl p-5 shadow-xl" style={{ background: '#ffffff' }}>
               <h3 className="text-sm font-bold" style={{ color: '#102532' }}>Close for now?</h3>
               <p className="mt-1.5 text-xs" style={{ color: '#52636f' }}>
-                Your progress is saved on this device — you can pick up exactly where you left off next time.
+                Your progress is saved on this device - you can pick up exactly where you left off next time.
               </p>
               <div className="mt-4 flex items-center justify-end gap-2">
                 <button type="button"

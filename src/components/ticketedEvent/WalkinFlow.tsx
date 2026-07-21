@@ -143,7 +143,20 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           ? methodsData.paymentMethods
           : [];
 
-        const enabled = all.filter(m => m.isEnabled !== false);
+        // Walk-in check-in only supports payment collected at the door —
+        // cash in hand, or a card-tap terminal. Other on-night methods a
+        // club may have enabled (e.g. instant payment, pay-host) require a
+        // reference/claim step that doesn't fit the walk-in flow, so they're
+        // filtered out here even if the club has them switched on elsewhere.
+        // Matched on providerName (falling back to methodCategory) since
+        // that's the field actually carrying 'cash' / 'card_tap' — not
+        // methodCategory, which turned out to be a broader bucket.
+        const WALKIN_ALLOWED_METHODS = new Set(['cash', 'card_tap']);
+        const enabled = all.filter(m => {
+          if (m.isEnabled === false) return false;
+          const key = (m.providerName || m.methodCategory || '').toLowerCase();
+          return WALKIN_ALLOWED_METHODS.has(key);
+        });
         setMethods(enabled);
         if (enabled.length > 0 && enabled[0]) setSelectedMethod(enabled[0]);
 
@@ -194,7 +207,15 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           purchaserEmail:      email.trim() || null,
           playerName:          name.trim(),
           totalAmount:         amount,
-          paymentMethod:       selectedMethod!.providerName || selectedMethod!.methodCategory,
+          // The ledger's payment_method column only recognises the fixed
+          // set of canonical categories (cash, card, stripe, instant_payment,
+          // etc.) — methodCategory is that value. providerName is a
+          // club-editable free-text label (e.g. "Revolut", "AIB Instant
+          // Transfer") meant for display only; sending it here was causing
+          // the ledger insert to fail for any club-named provider the
+          // ledger schema doesn't recognise, silently orphaning the ticket
+          // (it was still created, just with no matching ledger row).
+          paymentMethod:       selectedMethod!.methodCategory,
           clubPaymentMethodId: selectedMethod!.id,
           confirmedByName:     token ? 'Door staff' : 'Admin',
           ticketTypeId:        selectedType?.id   ?? null,
@@ -441,7 +462,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           <h2 className="text-sm font-bold text-[#102532] mb-3">Payment method</h2>
 
           {methods.length === 0 ? (
-            <p className="text-sm text-[#8a9bab]">No on-night payment methods configured.</p>
+            <p className="text-sm text-[#8a9bab]">No cash or card-tap payment method configured for walk-ins.</p>
           ) : (
             <div className="space-y-2">
               {methods.map(method => {

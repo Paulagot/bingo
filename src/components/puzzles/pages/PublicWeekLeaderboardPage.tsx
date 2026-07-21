@@ -7,11 +7,13 @@
 
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { supporterAuthService } from '../services/SupporterAuthService';
 import {
   publicLeaderboardService,
   type WeekLeaderboard,
 } from '../services/publicLeaderboardService';
 import PuzzlePageShell from '../ui/PuzzlePageShell';
+import { resolvePuzzleTheme } from '../ui/puzzleTheme';
 import { formatDuration } from './PublicWallOfFamePage';
 
 const MEDAL_STYLES: Record<number, string> = {
@@ -34,6 +36,15 @@ export default function PublicWeekLeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
+  // Same "read once on mount" tradeoff as PublicWallOfFamePage — this is
+  // a public page a stranger might land on, so the link only shows for
+  // someone who's already a logged-in supporter.
+  const [isAuth] = useState(() => supporterAuthService.isAuthenticated());
+
+  // Same resolvePuzzleTheme(...challenge) pattern as PublicWallOfFamePage —
+  // WeekLeaderboard.challenge is the same PublicChallengeMeta shape.
+  const theme = resolvePuzzleTheme(board?.challenge);
+
   useEffect(() => {
     if (!challengeId || !Number.isInteger(weekNumber) || weekNumber < 1) {
       setPageError('Leaderboard not found.');
@@ -55,9 +66,9 @@ export default function PublicWeekLeaderboardPage() {
 
   if (loading) {
     return (
-      <PuzzlePageShell>
+      <PuzzlePageShell theme={theme} clubName={board?.challenge.clubName ?? undefined}>
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[#157F85]" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[var(--puzzle-primary)]" />
         </div>
       </PuzzlePageShell>
     );
@@ -65,7 +76,7 @@ export default function PublicWeekLeaderboardPage() {
 
   if (pageError || !board) {
     return (
-      <PuzzlePageShell>
+      <PuzzlePageShell theme={theme}>
         <div className="mx-auto max-w-xl rounded-[28px] border border-rose-200 bg-white p-8 text-center shadow-sm">
           <p className="mb-2 text-3xl">😕</p>
           <h1 className="mb-2 text-xl font-bold text-[#071A44]">
@@ -83,13 +94,26 @@ export default function PublicWeekLeaderboardPage() {
 
   return (
     <PuzzlePageShell
+      theme={theme}
+      clubName={challenge.clubName ?? undefined}
       rightHeaderContent={
-        <Link
-          to={`/leaderboards/${challenge.id}`}
-          className="inline-flex items-center justify-center rounded-full border border-[#D8D1C4] bg-white px-5 py-2.5 text-sm font-semibold text-[#071A44] shadow-sm transition hover:bg-[#F8F5EF]"
-        >
-          ← Wall of fame
-        </Link>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {isAuth ? (
+            <Link
+              to={`/challenges/${challenge.id}/play`}
+              className="inline-flex items-center justify-center rounded-full border border-[#D8D1C4] bg-white px-5 py-2.5 text-sm font-semibold text-[#071A44] shadow-sm transition hover:bg-[#F8F5EF]"
+            >
+              My puzzles →
+            </Link>
+          ) : null}
+
+          <Link
+            to={`/leaderboards/${challenge.id}`}
+            className="inline-flex items-center justify-center rounded-full border border-[#D8D1C4] bg-white px-5 py-2.5 text-sm font-semibold text-[#071A44] shadow-sm transition hover:bg-[#F8F5EF]"
+          >
+            ← Wall of fame
+          </Link>
+        </div>
       }
     >
       <div className="space-y-6">

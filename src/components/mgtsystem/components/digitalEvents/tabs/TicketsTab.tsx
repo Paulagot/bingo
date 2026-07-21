@@ -298,7 +298,7 @@ export default function TicketsTab({
       return 'Link a payment method first. Once a supported method is available, ticket sales will be active here.';
     }
     if (!checkingPaymentMethods && !hasTicketSafePaymentMethod) {
-      return 'Ticket sales need at least one online payment method. Cash and CardTap on-the-night payments can be used for admin-added players, but not for public ticket purchases.';
+      return 'Ticket sales need at least one online payment method. Cash and CardTap at the Door payments can be used for admin-added players, but not for public ticket purchases.';
     }
     return null;
   }, [canUseTicketing, hasLinkedPaymentMethods, checkingPaymentMethods, hasTicketSafePaymentMethod]);

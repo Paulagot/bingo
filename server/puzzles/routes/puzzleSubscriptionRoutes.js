@@ -5,6 +5,7 @@
 
 import express from 'express';
 import authenticateSupporter from '../../middleware/authenticateSupporter.js';
+import optionalAuthenticateSupporter from '../../middleware/optionalAuthenticateSupporter.js';
 import {
   joinFree,
   getEnrollmentStatus,
@@ -181,7 +182,11 @@ router.get('/challenge/:challengeId', async (req, res) => {
       `SELECT
          c.id, c.club_id, c.title, c.description, c.total_weeks,
          c.starts_at, c.weekly_price, c.currency, c.is_free, c.status,
-         cl.name AS club_name
+         cl.name AS club_name,
+         cl.brand_logo_url AS club_logo_url,
+         cl.brand_primary_color AS club_primary_color,
+         cl.brand_background_color AS club_background_color,
+         cl.brand_text_on_primary_color AS club_text_on_primary_color
        FROM fundraisely_puzzle_challenges c
        JOIN fundraisely_clubs cl ON cl.id = c.club_id
        WHERE c.id = ? AND c.status != 'cancelled'
@@ -201,7 +206,7 @@ router.get('/challenge/:challengeId', async (req, res) => {
  * Public. Returns the week schedule for a challenge.
  * Used by PlayerChallengePage — no club auth needed.
  */
-router.get('/schedule/:challengeId', async (req, res) => {
+router.get('/schedule/:challengeId', optionalAuthenticateSupporter, async (req, res) => {
   try {
     const [[challenge]] = await database.connection.execute(
       `SELECT id, total_weeks, starts_at
@@ -212,12 +217,20 @@ router.get('/schedule/:challengeId', async (req, res) => {
     );
     if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
 
+    const supporterId = req.supporter_id ?? null;
+
     const [schedule] = await database.connection.execute(
-      `SELECT week_number, puzzle_type, difficulty, unlocks_at
-       FROM fundraisely_puzzle_schedule
-       WHERE challenge_id = ?
-       ORDER BY week_number ASC`,
-      [req.params.challengeId]
+      `SELECT
+         s.week_number, s.puzzle_type, s.difficulty, s.unlocks_at,
+         sub.is_correct
+       FROM fundraisely_puzzle_schedule s
+       LEFT JOIN fundraisely_puzzle_submissions sub
+         ON sub.challenge_id = s.challenge_id
+        AND sub.week_number  = s.week_number
+        AND sub.player_id    = ?
+       WHERE s.challenge_id = ?
+       ORDER BY s.week_number ASC`,
+      [supporterId, req.params.challengeId]
     );
 
     res.json(schedule);
@@ -226,5 +239,7 @@ router.get('/schedule/:challengeId', async (req, res) => {
     res.status(500).json({ error: 'Failed to load schedule.' });
   }
 });
+
+
 
 export default router;

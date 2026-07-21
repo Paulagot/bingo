@@ -3,9 +3,13 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supporterAuthService } from '../services/SupporterAuthService';
+import {
+  supporterAuthService,
+  type PublicChallenge,
+} from '../services/SupporterAuthService';
 import PuzzlePageShell from '../ui/PuzzlePageShell';
 import PuzzlePrimaryButton from '../ui/PuzzlePrimaryButton';
+import { resolvePuzzleTheme } from '../ui/puzzleTheme';
 
 type Status = 'verifying' | 'success' | 'error';
 
@@ -19,6 +23,29 @@ export default function PuzzleAuthPage() {
 
   const token = searchParams.get('token');
   const challengeId = searchParams.get('challengeId');
+
+  // Club branding — this page is reached by clicking a link in an
+  // email, so it never inherits theme via navigation state the way
+  // PuzzleJoinPage's success path can. It only ever has challengeId
+  // from the URL, so it needs its own small getPublicChallenge fetch,
+  // run independently of the token verification below — a branding
+  // fetch failure should never affect whether the magic link itself
+  // verifies successfully, it should just fall back to the default
+  // FundRaisely look.
+  const [challenge, setChallenge] = useState<PublicChallenge | null>(null);
+  const theme = resolvePuzzleTheme(challenge);
+
+  useEffect(() => {
+    if (!challengeId) return;
+
+    supporterAuthService
+      .getPublicChallenge(challengeId)
+      .then(setChallenge)
+      .catch(() => {
+        // No branding available — resolvePuzzleTheme already falls
+        // back to the default theme when challenge stays null.
+      });
+  }, [challengeId]);
 
   useEffect(() => {
     if (!token) {
@@ -50,6 +77,8 @@ export default function PuzzleAuthPage() {
   if (status === 'verifying') {
     return (
       <PuzzlePageShell
+        theme={theme}
+        clubName={challenge?.club_name}
         rightHeaderContent={
           <div className="rounded-2xl border border-[#E8E0D3] bg-white px-4 py-2 shadow-sm">
             <p className="text-sm font-semibold text-[#071A44]">
@@ -64,7 +93,7 @@ export default function PuzzleAuthPage() {
         <div className="mx-auto flex min-h-[55vh] max-w-xl items-center justify-center">
           <div className="w-full rounded-[36px] border border-[#E8E0D3] bg-white p-8 text-center shadow-sm">
             <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[26px] bg-[#FFF2D9] shadow-sm">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[#157F85]" />
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[var(--puzzle-primary)]" />
             </div>
 
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#E36B2C]">
@@ -88,6 +117,8 @@ export default function PuzzleAuthPage() {
   if (status === 'error') {
     return (
       <PuzzlePageShell
+        theme={theme}
+        clubName={challenge?.club_name}
         rightHeaderContent={
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 shadow-sm">
             <p className="text-sm font-semibold text-rose-700">
@@ -150,6 +181,8 @@ export default function PuzzleAuthPage() {
 
   return (
     <PuzzlePageShell
+      theme={theme}
+      clubName={challenge?.club_name}
       rightHeaderContent={
         <div className="rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-2 shadow-sm">
           <p className="text-sm font-semibold text-[#2E6A46]">
@@ -181,7 +214,7 @@ export default function PuzzleAuthPage() {
           </p>
 
           <div className="mt-7 overflow-hidden rounded-full bg-[#F6F1E8]">
-            <div className="h-2 w-full origin-left animate-[fundraiselyGrow_1.5s_ease-in-out_forwards] rounded-full bg-[#157F85]" />
+            <div className="h-2 w-full origin-left animate-[fundraiselyGrow_1.5s_ease-in-out_forwards] rounded-full bg-[var(--puzzle-primary)]" />
           </div>
 
           <style>

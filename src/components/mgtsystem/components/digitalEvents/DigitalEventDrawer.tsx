@@ -8,6 +8,7 @@ import type { Web2RoomListItem as Room } from "../../../../shared/api/quiz.api";
 import type { RoomStats } from "../../services/quizRoomServices";
 import type { Event } from "../../types/event";
 import ReconciliationService from "../../services/QuizReconciliationService";
+import ticketedEventReconciliationService from "../../services/TicketedEventReconciliationService";
 import OverviewTabTicketedEvent from "./tabs/OverviewTabTicketedEvent";
 
 import OverviewTab from "./tabs/OverviewTab";
@@ -180,17 +181,50 @@ export default function DigitalEventDrawer({
     }
   }, [open, room?.room_id, isSubscription, fetchChallenge]);
 
-  const fetchAuditView = useCallback(async (roomId: string) => {
+  const fetchAuditView = useCallback(async (roomId: string, isTicketed: boolean) => {
     setAuditViewLoading(true);
     setAuditViewError(null);
     try {
       const data = (await ReconciliationService.getAuditView(roomId)) as any;
-      if (data.ok) {
-        setAuditView(data.view);
-        lastFetchedRoomId.current = roomId;
-      } else {
+      if (!data.ok) {
         setAuditViewError(data.error || "Failed to load reconciliation data");
+        return;
       }
+
+      let view = data.view;
+
+      // Ticketed events reconcile through a *separate* system
+      // (TicketedEventReconciliationService) that tracks manual adjustments —
+      // refunds, cash over/short, late payments, prize payouts, etc. The
+      // quiz audit-view endpoint above predates that table and never
+      // learned about it, so view.reconciliation comes back empty/zeroed
+      // for ticketed events. Overlay the *entire* ticketed reconciliation
+      // record here — the same source the Reconciliation tab itself already
+      // trusts — so every field Impact/Approval Totals read
+      // (finalTotal, adjustmentsNet, startingEntryFees, startingExtras,
+      // startingTotal, approvedAt, approvedBy) is correct, not just the
+      // handful I originally cherry-picked.
+      if (isTicketed) {
+        try {
+          const state = await ticketedEventReconciliationService.getState(roomId);
+          if (state?.reconciliation) {
+            view = {
+              ...view,
+              reconciliation: {
+                ...view.reconciliation,
+                ...state.reconciliation,
+              },
+            };
+          }
+        } catch (e) {
+          // Non-fatal — Impact/Approval just fall back to 0 / no approval
+          // date if this overlay fails; the rest of the audit view still works.
+          console.error('[DigitalEventDrawer] ticketed reconciliation overlay failed:', e);
+        }
+      }
+
+      setAuditView(view);
+      lastFetchedRoomId.current = roomId;
     } catch (e: any) {
       setAuditViewError(e?.message || "Network error");
     } finally {
@@ -206,9 +240,9 @@ export default function DigitalEventDrawer({
       return;
     }
     if (lastFetchedRoomId.current !== room.room_id) {
-      fetchAuditView(room.room_id);
+      fetchAuditView(room.room_id, isTicketedEvent);
     }
-  }, [open, room?.room_id, room?.status, isCompleted, isSubscription, fetchAuditView]);
+  }, [open, room?.room_id, room?.status, isCompleted, isSubscription, isTicketedEvent, fetchAuditView]);
 
   // ── Initial tab selection ──────────────────────────────────────────────────
   useEffect(() => {
@@ -240,7 +274,7 @@ export default function DigitalEventDrawer({
     if (onRefreshRoom) await onRefreshRoom();
     if (room?.room_id && isCompleted && !isSubscription) {
       lastFetchedRoomId.current = null;
-      await fetchAuditView(room.room_id);
+      await fetchAuditView(room.room_id, isTicketedEvent);
     }
     if (room?.room_id && isSubscription) {
       lastFetchedChallengeRoomId.current = null;

@@ -69,6 +69,7 @@ const WordSearchRenderer: React.FC<WordSearchRendererProps> = ({
   const [startCell, setStartCell] = useState<Cell | null>(null);
   const [hoverCell, setHoverCell] = useState<Cell | null>(null);
   const isDragging = useRef(false);
+  const gridRef = useRef<HTMLTableElement>(null);
 
   // Derived: all found words as a set
   const foundWords = new Set(foundEntries.map((e) => e.word));
@@ -125,6 +126,42 @@ const WordSearchRenderer: React.FC<WordSearchRendererProps> = ({
     setHoverCell(null);
   };
 
+  // ---- Touch support -------------------------------------------------
+  // Touch devices never fire onMouseEnter, so dragging a finger across the
+  // grid needs its own path: read the cell under the finger on every
+  // touchmove via elementFromPoint (same technique NonogramRenderer uses
+  // for its paint-drag), then reuse the existing mouse handlers' logic.
+  const cellFromTouch = (touch: React.Touch): Cell | null => {
+    const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+    const td = el?.closest('td[data-r]') as HTMLElement | null;
+    if (!td) return null;
+    const r = Number(td.dataset.r);
+    const c = Number(td.dataset.c);
+    if (Number.isNaN(r) || Number.isNaN(c)) return null;
+    return [r, c];
+  };
+
+  const handleTouchStart = (r: number, c: number, e: React.TouchEvent) => {
+    if (isReadOnly) return;
+    e.preventDefault(); // stop the page from scrolling while selecting
+    isDragging.current = true;
+    setStartCell([r, c]);
+    setHoverCell([r, c]);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || isReadOnly) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (!touch) return;
+    const cell = cellFromTouch(touch);
+    if (cell) setHoverCell(cell);
+  };
+
+  const handleTouchEnd = () => {
+    handleMouseUp();
+  };
+
   return (
     <div
       className="flex flex-col gap-6 select-none"
@@ -151,11 +188,15 @@ const WordSearchRenderer: React.FC<WordSearchRendererProps> = ({
       </div>
 
       {/* Grid */}
+      {/* Cell size shrinks for larger grids (hard = 15x15) so the board fits
+          typical phone viewports without forcing horizontal scroll mid-game.
+          touchAction: 'none' stops the browser from panning/scrolling the
+          page while the player is dragging a finger across the grid. */}
       <div
         className="overflow-x-auto"
-        style={{ cursor: isReadOnly ? 'default' : 'crosshair' }}
+        style={{ cursor: isReadOnly ? 'default' : 'crosshair', touchAction: isReadOnly ? 'auto' : 'none' }}
       >
-        <table className="mx-auto border-collapse">
+        <table ref={gridRef} className="mx-auto border-collapse">
           <tbody>
             {data.grid.map((row, r) => (
               <tr key={r}>
@@ -163,13 +204,21 @@ const WordSearchRenderer: React.FC<WordSearchRendererProps> = ({
                   const key = cellKey(r, c);
                   const foundColorIdx = foundCellMap.get(key);
                   const isInPreview = previewCellSet.has(key);
+                  const gridSize = data.grid.length;
+                  const cellPx = gridSize <= 10 ? 32 : gridSize <= 12 ? 28 : 22;
 
                   return (
                     <td
                       key={c}
+                      data-r={r}
+                      data-c={c}
                       onMouseDown={() => handleMouseDown(r, c)}
                       onMouseEnter={() => handleMouseEnter(r, c)}
-                      className={`w-8 h-8 text-center align-middle text-sm font-bold rounded transition-colors ${
+                      onTouchStart={(e) => handleTouchStart(r, c, e)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      style={{ width: cellPx, height: cellPx, fontSize: cellPx <= 24 ? 12 : 14 }}
+                      className={`text-center align-middle font-bold rounded transition-colors select-none ${
                         isInPreview
                           ? 'bg-indigo-300 text-white'
                           : foundColorIdx !== undefined

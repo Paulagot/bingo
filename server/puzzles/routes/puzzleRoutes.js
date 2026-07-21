@@ -8,7 +8,7 @@ import express from 'express';
 import database from '../../config/database.js';
 import { generatePuzzleForWeek, getClientPuzzleData } from '../services/puzzleGenerationService.js';
 import { validateAndScore } from '../services/puzzleValidationService.js';
-import { saveProgress, loadProgress } from '../services/puzzleProgressService.js';
+import { saveProgress, loadProgress, recordFirstView } from '../services/puzzleProgressService.js';
 import authenticateAny from '../../middleware/authenticateAny.js';
 
 const router = express.Router();
@@ -52,11 +52,28 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       });
 
       const clientData = getClientPuzzleData(instance);
+
+      // Timestamp the FIRST time this player is ever served a playable
+      // instance of this puzzle. This is what server-side scoring uses as
+      // the fallback start-of-session marker (see puzzleValidationService).
+      // Safe to call on every load — recordFirstView is INSERT IGNORE, so
+      // reloads never move the clock.
+      if (playerId) {
+        await recordFirstView({ instanceId: instance.id, playerId, clubId: fallbackClubId });
+      }
+
       const progress = playerId ? await loadProgress(instance.id, playerId) : null;
 
       return res.json({
         puzzle: clientData,
         progress: progress?.progressData ?? null,
+        // Cosmetic only — scoring already uses the server-tracked value
+        // regardless of what this shows. This just lets the resumed
+        // puzzle's visible timer pick up from real elapsed time instead of
+        // restarting at 0, so it doesn't look like the break never happened.
+        progressMeta: progress
+          ? { activeSeconds: progress.activeSeconds, savedAt: progress.updatedAt }
+          : null,
         previousSubmission: null,
       });
     }
@@ -157,6 +174,13 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       }
     }
 
+    // Same first-view timestamp as the fallback branch above. Only recorded
+    // when there's no previousSubmission — once a player has submitted,
+    // there's no session left to time.
+    if (playerId && !previousSubmission) {
+      await recordFirstView({ instanceId: instance.id, playerId, clubId });
+    }
+
     const progress = (!previousSubmission && playerId)
       ? await loadProgress(instance.id, playerId)
       : null;
@@ -164,6 +188,9 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
     return res.json({
       puzzle: clientData,
       progress: progress?.progressData ?? null,
+      progressMeta: progress
+        ? { activeSeconds: progress.activeSeconds, savedAt: progress.updatedAt }
+        : null,
       previousSubmission,
     });
 
@@ -176,6 +203,11 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
 /**
  * POST /api/puzzles/:instanceId/save
  * Body: { progressData }
+ *
+ * Called on autosave (interval + visibilitychange) from the client. Each
+ * call also advances the player's server-tracked active-time heartbeat —
+ * see puzzleProgressService.saveProgress for how that's capped so idle/
+ * backgrounded time never counts as "active."
  */
 router.post('/:instanceId/save', authenticateAny, async (req, res) => {
   try {
@@ -199,6 +231,11 @@ router.post('/:instanceId/save', authenticateAny, async (req, res) => {
 /**
  * POST /api/puzzles/:instanceId/submit
  * Body: { puzzleType, answer, timeTakenSeconds }
+ *
+ * timeTakenSeconds here is the client's own claim and is now only used as
+ * a last-resort fallback (and for anomaly comparison) — see
+ * puzzleValidationService.validateAndScore for the server-verified value
+ * that's actually used for scoring.
  */
 router.post('/:instanceId/submit', authenticateAny, async (req, res) => {
   try {

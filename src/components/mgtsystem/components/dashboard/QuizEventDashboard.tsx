@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { eventIntegrationsService } from '../../services/EventIntegrationsService';
 import QuizRoomsService, { type RoomStats } from '../../services/quizRoomServices';
 import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
+import ticketedEventReconciliationService from '../../services/TicketedEventReconciliationService';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
 import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
 import { DashboardFundraisingSummary } from '../progress/DashboardFundraisingSummary';
@@ -34,11 +35,14 @@ import NotificationsTicker from './NotificationsTicker';
 
 type ViewMode = 'table' | 'cards';
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed' | 'cancelled';
-type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
+// ADDED 'puzzle_drop' — was missing, which is what caused newly-created
+// Drop activities to never appear as "linked" anywhere in this dashboard.
+type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
+  // ADDED 'puzzle_drop'
+  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -97,10 +101,6 @@ export default function QuizEventDashboard() {
   const [eventsLoading, setEventsLoading]           = useState(true);
   const [eventsError, setEventsError]               = useState<string | null>(null);
   const [eventToEdit, setEventToEdit]               = useState<Event | null>(null);
-  // Create flow — CreateFundraiserWizard (replaces the old CreateEventForm
-  // create path). wizardEvent/wizardType carry the legacy Add-Activity
-  // case: the event already exists, so the wizard skips step 2 and jumps
-  // straight to the activity setup for that type.
   const [showWizard, setShowWizard]                 = useState(false);
   const [wizardEvent, setWizardEvent]               = useState<Event | null>(null);
   const [wizardType, setWizardType]                 = useState<ActivityTypeId | undefined>(undefined);
@@ -132,7 +132,6 @@ export default function QuizEventDashboard() {
 
   const [incomeSeries, setIncomeSeries] = useState<{ date: string; total: number }[]>([]);
 
-  // ── Mobile detection ────────────────────────────────────────────────────────
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
     const apply = () => { const m = mq.matches; setIsMobile(m); if (m) setViewMode('cards'); };
@@ -140,16 +139,17 @@ export default function QuizEventDashboard() {
     return () => mq.removeEventListener?.('change', apply);
   }, []);
 
-  // ── Status counts ───────────────────────────────────────────────────────────
   const statusCounts = useMemo(() => {
     const counts = { all: events.length, upcoming: 0, live: 0, completed: 0, cancelled: 0 };
     for (const e of events) {
       const activity   = activityMap[e.id];
       const roomStatus = activity?.status;
       // A puzzle_sub room's 'open' status means the challenge is actively
-      // running and billing weekly (see openPuzzleSubRoom on the backend)
-      // — that's a "live" state, not "upcoming" the way 'open' means for
-      // a quiz/elimination room waiting for its scheduled start.
+      // running and billing weekly — that's a "live" state. A puzzle_drop
+      // room's 'open' status means "on sale now" but Drop has no live/
+      // completed phase at all (§3.1) — its 'open' reads the same as
+      // quiz/elimination's 'open' (upcoming/active window), so it's
+      // deliberately NOT included in isRunningSubscription below.
       const isRunningSubscription = activity?.game_type === 'puzzle_sub' && roomStatus === 'open';
 
       if (roomStatus === 'live' || isRunningSubscription)           counts.live++;
@@ -161,7 +161,6 @@ export default function QuizEventDashboard() {
     return counts;
   }, [events, activityMap]);
 
-  // ── Filtered events ─────────────────────────────────────────────────────────
   const filteredEvents = useMemo(() => {
     let list = [...events];
 
@@ -208,7 +207,6 @@ export default function QuizEventDashboard() {
     return list;
   }, [events, statusFilter, gameTypeFilter, search, activityMap]);
 
-  // ── Game type counts ────────────────────────────────────────────────────────
   const gameTypeCounts = useMemo(() => {
     let base = [...events];
     if (statusFilter !== 'all') {
@@ -230,6 +228,8 @@ export default function QuizEventDashboard() {
       elimination:    base.filter(e => activityMap[e.id]?.game_type === 'elimination').length,
       ticketed_event: base.filter(e => activityMap[e.id]?.game_type === 'ticketed_event').length,
       puzzle_sub:     base.filter(e => activityMap[e.id]?.game_type === 'puzzle_sub').length,
+      // ADDED
+      puzzle_drop:    base.filter(e => activityMap[e.id]?.game_type === 'puzzle_drop').length,
     };
   }, [events, statusFilter, activityMap]);
 
@@ -237,8 +237,6 @@ export default function QuizEventDashboard() {
     (statusFilter !== 'all' ? 1 : 0) +
     (gameTypeFilter !== 'all' ? 1 : 0) +
     (search.trim() ? 1 : 0);
-
-  // ── Data loading ────────────────────────────────────────────────────────────
 
   const loadEntitlements = async () => {
     try {
@@ -251,8 +249,6 @@ export default function QuizEventDashboard() {
     }
   };
 
-  // ── loadActivities now returns the fresh rowMap so callers can sync
-  // drawerRoom without relying on stale closure state. ────────────────────────
   const loadActivities = async (eventList: Event[]): Promise<Record<string, Room>> => {
     try {
       const pairs = await Promise.all(
@@ -260,11 +256,17 @@ export default function QuizEventDashboard() {
           try {
             const res = await eventsService.getEventIntegrations(event.id);
             const integrations = res?.integrations || [];
+            // FIX: 'puzzle_drop' was missing from this list entirely — any
+            // event linked to a Drop activity would never match here, so
+            // `linked` stayed undefined and the card/row always rendered
+            // "No activity yet" regardless of what actually existed in
+            // the DB. This is the root cause of the reported bug.
             const linked = integrations.find((i: any) =>
               i.integration_type === 'quiz_web2' ||
               i.integration_type === 'elimination' ||
               i.integration_type === 'ticketed_event' ||
-              i.integration_type === 'puzzle_sub'
+              i.integration_type === 'puzzle_sub' ||
+              i.integration_type === 'puzzle_drop'
             );
             return [event.id, linked] as const;
           } catch {
@@ -279,6 +281,9 @@ export default function QuizEventDashboard() {
       for (const [eventId, integration] of pairs) {
         if (!integration?.external_ref) continue;
 
+        // FIX: added the 'puzzle_drop' branch — without it, even once the
+        // integration is found above, it would fall through to the final
+        // ': quiz' default and be mislabelled.
         const gameType: LinkedActivity['game_type'] =
           integration.integration_type === 'elimination'
             ? 'elimination'
@@ -286,7 +291,9 @@ export default function QuizEventDashboard() {
               ? 'ticketed_event'
               : integration.integration_type === 'puzzle_sub'
                 ? 'puzzle_sub'
-                : 'quiz';
+                : integration.integration_type === 'puzzle_drop'
+                  ? 'puzzle_drop'
+                  : 'quiz';
 
         newActivityMap[eventId] = {
           room_id:   integration.external_ref,
@@ -323,16 +330,18 @@ export default function QuizEventDashboard() {
           setRoomRowsMap(freshRowMap);
           setActivityMap(updatedActivityMap);
 
-          // Outstanding payments — only for completed rooms with a manual
-          // payment concept. Ticketed events reconcile separately; puzzle
-          // subscriptions are Stripe-only, so there's nothing unpaid to
-          // chase here — see quiz_payment_ledger writes in stripeWebhooks.js.
+          // Outstanding payments — puzzle_drop excluded here too, same
+          // reasoning as puzzle_sub/ticketed_event: this endpoint reads
+          // per-player-in-a-room unpaid state, which doesn't match Drop's
+          // per-purchase entitlement model. A Drop-specific outstanding-
+          // purchases view is separate future work, not this bug.
           const completedIds = Object.values(updatedActivityMap)
             .filter((a): a is LinkedActivity =>
               !!a &&
               a.status === 'completed' &&
               a.game_type !== 'ticketed_event' &&
-              a.game_type !== 'puzzle_sub'
+              a.game_type !== 'puzzle_sub' &&
+              a.game_type !== 'puzzle_drop'
             )
             .map(a => a.room_id);
 
@@ -353,14 +362,35 @@ export default function QuizEventDashboard() {
           console.error('Failed to load room rows:', e);
         }
 
-        // Stats and payment methods
         const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
         setRoomStatsMap(stats);
 
-        // Cumulative income time series for the dashboard chart
-QuizRoomsService.getRoomIncomeSeries(roomIds)
-  .then(series => setIncomeSeries(series))
-  .catch(() => {}); // non-blocking — chart falls back gracefully
+        const completedTicketedIds = Object.values(newActivityMap)
+          .filter(a => a.game_type === 'ticketed_event' && freshRowMap[a.room_id]?.status === 'completed')
+          .map(a => a.room_id);
+
+        if (completedTicketedIds.length > 0) {
+          const overlays = await Promise.all(
+            completedTicketedIds.map(id =>
+              ticketedEventReconciliationService.getState(id)
+                .then(state => ({ id, finalTotal: state?.reconciliation?.finalTotal }))
+                .catch(() => ({ id, finalTotal: undefined }))
+            )
+          );
+          setRoomStatsMap(prev => {
+            const next = { ...prev };
+            for (const { id, finalTotal } of overlays) {
+              if (finalTotal != null && next[id]) {
+                next[id] = { ...next[id], totalIncome: finalTotal };
+              }
+            }
+            return next;
+          });
+        }
+
+        QuizRoomsService.getRoomIncomeSeries(roomIds)
+          .then(series => setIncomeSeries(series))
+          .catch(() => {});
 
         const pmResults = await Promise.all(
           roomIds.map(id =>
@@ -376,25 +406,31 @@ QuizRoomsService.getRoomIncomeSeries(roomIds)
         pmResults.forEach(r => { pmMap[r.id] = r.hasLinked; });
         setPaymentMethodMap(pmMap);
 
-       const [quizLinks, eliminationLinks, ticketedLinks, subscriptionLinks] = await Promise.all([
-  eventIntegrationsService.lookupLinks({ integration_type: 'quiz_web2',      external_refs: roomIds }),
-  eventIntegrationsService.lookupLinks({ integration_type: 'elimination',     external_refs: roomIds }),
-  eventIntegrationsService.lookupLinks({ integration_type: 'ticketed_event',  external_refs: roomIds }),
-  eventIntegrationsService.lookupLinks({ integration_type: 'puzzle_sub',     external_refs: roomIds }),
-]);
+        // FIX: added a puzzleDropLinks lookup — without it, a Drop room's
+        // entry in linkedEventsMap never populates, breaking the drawer's
+        // "linked to event X" display and Unlink action for Drop
+        // specifically. Same missing-branch pattern as the fixes above.
+        const [quizLinks, eliminationLinks, ticketedLinks, subscriptionLinks, dropLinks] = await Promise.all([
+          eventIntegrationsService.lookupLinks({ integration_type: 'quiz_web2',      external_refs: roomIds }),
+          eventIntegrationsService.lookupLinks({ integration_type: 'elimination',     external_refs: roomIds }),
+          eventIntegrationsService.lookupLinks({ integration_type: 'ticketed_event',  external_refs: roomIds }),
+          eventIntegrationsService.lookupLinks({ integration_type: 'puzzle_sub',     external_refs: roomIds }),
+          eventIntegrationsService.lookupLinks({ integration_type: 'puzzle_drop',    external_refs: roomIds }),
+        ]);
 
-const leMap: Record<string, { eventId: string; eventTitle: string }> = {};
-for (const l of [
-  ...(quizLinks.links       || []),
-  ...(eliminationLinks.links || []),
-  ...(ticketedLinks.links    || []),
-  ...(subscriptionLinks.links || []),
-]) {
-  if (l.external_ref && l.event_id && l.event_title) {
-    leMap[l.external_ref] = { eventId: l.event_id, eventTitle: l.event_title };
-  }
-}
-setLinkedEventsMap(leMap);
+        const leMap: Record<string, { eventId: string; eventTitle: string }> = {};
+        for (const l of [
+          ...(quizLinks.links       || []),
+          ...(eliminationLinks.links || []),
+          ...(ticketedLinks.links    || []),
+          ...(subscriptionLinks.links || []),
+          ...(dropLinks.links || []),
+        ]) {
+          if (l.external_ref && l.event_id && l.event_title) {
+            leMap[l.external_ref] = { eventId: l.event_id, eventTitle: l.event_title };
+          }
+        }
+        setLinkedEventsMap(leMap);
       }
 
       return freshRowMap;
@@ -404,8 +440,6 @@ setLinkedEventsMap(leMap);
     }
   };
 
-  // ── loadEvents returns the fresh rowMap so onRefreshRoom can sync
-  // drawerRoom immediately, without waiting for React to flush state. ──────────
   const loadEvents = async (): Promise<Record<string, Room>> => {
     if (!clubId) return {};
     setEventsLoading(true);
@@ -434,7 +468,6 @@ setLinkedEventsMap(leMap);
     if (p === 'return' || p === 'refresh') setManagePaymentsOpen(true);
   }, [clubId]);
 
-  // Poll live rooms every 30s
   useEffect(() => {
     const liveIds = Object.values(activityMap)
       .filter(a => a.status === 'live')
@@ -446,8 +479,6 @@ setLinkedEventsMap(leMap);
     }, 30_000);
     return () => clearInterval(interval);
   }, [activityMap]);
-
-  // ── Actions ─────────────────────────────────────────────────────────────────
 
   const openRoom = (roomId: string, hostId: string) => {
     ['quiz-setup-v2','quiz-admins','fundraisely-quiz-setup-draft','current-room-id','current-host-id','current-contract-address']
@@ -472,13 +503,9 @@ setLinkedEventsMap(leMap);
     setDrawerOpen(true);
   };
 
-  // Legacy events with no activity yet: open the wizard at the activity
-  // step with the existing event injected — event creation is skipped and
-  // the wizard's submit chain only creates + links the room. All EDITING
-  // (event + activity together) goes through EditFundraiserModal.
   const handleAddActivity = (
     event: Event,
-    type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub'
+    type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop'
   ) => {
     setWizardEvent(event);
     setWizardType(type);
@@ -523,7 +550,6 @@ setLinkedEventsMap(leMap);
   const drawerOutstanding = drawerRoom ? (outstandingMap[drawerRoom.room_id] ?? 0) : 0;
   const drawerLinked      = drawerRoom ? linkedEventsMap[drawerRoom.room_id] : undefined;
 
-  // ── Game type filter buttons config ────────────────────────────────────────
   const gameTypeButtons: {
     key: GameTypeFilter;
     label: string;
@@ -535,11 +561,9 @@ setLinkedEventsMap(leMap);
     { key: 'elimination',    label: 'Elimination', icon: <Trophy className="h-3 w-3" />,    count: gameTypeCounts.elimination },
     { key: 'ticketed_event', label: 'Ticketed',    icon: <Ticket className="h-3 w-3" />,    count: gameTypeCounts.ticketed_event },
     { key: 'puzzle_sub',     label: 'Subscription', icon: <Puzzle className="h-3 w-3" />,   count: gameTypeCounts.puzzle_sub },
+    // ADDED
+    { key: 'puzzle_drop',    label: 'Drop',         icon: <Puzzle className="h-3 w-3" />,   count: gameTypeCounts.puzzle_drop },
   ];
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ backgroundColor: '#f6f1e8' }}>
@@ -721,7 +745,6 @@ setLinkedEventsMap(leMap);
               })}
 
               {[
-                { label: 'Puzzle', icon: <Puzzle className="h-3 w-3" /> },
                 { label: 'Other',  icon: <Sparkles className="h-3 w-3" /> },
               ].map(({ label, icon }) => (
                 <div key={label}
@@ -903,8 +926,6 @@ setLinkedEventsMap(leMap);
 
       {eventToEdit && canEditFundraiser(activityMap[eventToEdit.id]) && (() => {
         const activity = activityMap[eventToEdit.id] ?? null;
-        // Prefer the drawer's room row when it matches — it carries the
-        // freshest config_json (handleOpenDrawer refreshes it).
         const roomForEdit = activity
           ? (drawerRoom?.room_id === activity.room_id
               ? drawerRoom
@@ -942,9 +963,6 @@ setLinkedEventsMap(leMap);
           onSaved={async () => { await loadEvents(); }}
           onLinked={async () => { await loadEvents(); }}
           onRefreshRoom={async () => {
-            // loadEvents now returns the fresh rowMap synchronously within the
-            // same async chain, so we can update drawerRoom before React flushes
-            // the setState calls — avoiding the stale closure problem.
             const freshRowMap = await loadEvents();
             if (drawerRoom) {
               const fresh = freshRowMap[drawerRoom.room_id];

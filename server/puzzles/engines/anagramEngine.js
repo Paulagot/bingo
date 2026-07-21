@@ -13,6 +13,17 @@ import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 // Word bank — load from DB in production, hardcoded for MVP
 // ---------------------------------------------------------------------------
 
+// Scoring settings scale with word length / difficulty (5/6/7 letters),
+// matching the pattern used by cryptogramEngine, nonogramEngine, etc.
+// Previously this engine paid a flat baseScore + bonus window regardless of
+// difficulty, so a hard 7-letter word scored the same as an easy 5-letter
+// one — no incentive to play harder difficulties.
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 45, bonusIdeal: 15, bonusGood: 30, bonusMax: 90 },
+  [Difficulty.MEDIUM]: { baseScore: 60, bonusIdeal: 20, bonusGood: 30, bonusMax: 120 },
+  [Difficulty.HARD]:   { baseScore: 80, bonusIdeal: 25, bonusGood: 45, bonusMax: 180 },
+};
+
 const WORD_BANK = {
   [Difficulty.EASY]: [
     { word: 'TIGER',  clue: 'Animal'    },
@@ -153,7 +164,7 @@ export function validate(input, solution) {
  * @param {{ validationResult: object, submission?: object, timeTakenSeconds?: number }} args
  * @returns {PuzzleScoreResult}
  */
-export function score({ validationResult, submission, timeTakenSeconds }) {
+export function score({ validationResult, submission, timeTakenSeconds, difficulty }) {
   if (!validationResult.valid) {
     return {
       completed: false,
@@ -168,15 +179,16 @@ export function score({ validationResult, submission, timeTakenSeconds }) {
   const actualTimeTaken =
     submission?.timeTakenSeconds ?? timeTakenSeconds ?? null;
 
-  const bonusScore = calcTimeBonus(actualTimeTaken, 20, 30, 120);
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const bonusScore = calcTimeBonus(actualTimeTaken, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
 
   return {
     completed: true,
     correct: true,
-    baseScore: 60,
+    baseScore: settings.baseScore,
     bonusScore,
     penaltyScore: 0,
-    totalScore: 60 + bonusScore,
+    totalScore: settings.baseScore + bonusScore,
   };
 }
 

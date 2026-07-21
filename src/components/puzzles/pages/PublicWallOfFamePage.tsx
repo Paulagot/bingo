@@ -1,18 +1,20 @@
 // src/components/puzzles/pages/PublicWallOfFamePage.tsx
 //
-// PUBLIC page — no auth. The shareable "wall of fame" for a challenge:
+// PUBLIC page  no auth. The shareable "wall of fame" for a challenge:
 // one card per week showing the top 3, linking through to each week's full
 // board. Doubles as the recruitment page: visitors see the podiums and a
 // join button. Never shows answers, solutions, or emails.
 
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { supporterAuthService } from '../services/SupporterAuthService';
 import {
   publicLeaderboardService,
   type LeaderboardSummary,
   type WeekSummary,
 } from '../services/publicLeaderboardService';
 import PuzzlePageShell from '../ui/PuzzlePageShell';
+import { resolvePuzzleTheme } from '../ui/puzzleTheme';
 
 const PUZZLE_TYPE_LABELS: Record<string, string> = {
   anagram: 'Anagram',
@@ -46,6 +48,23 @@ export default function PublicWallOfFamePage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
+  // Read once on mount  this is a public page a stranger might land on,
+  // so the link only appears for someone who happens to already be a
+  // logged-in supporter (e.g. followed a "share" link from their own
+  // player page). Not reactive to login/logout happening elsewhere,
+  // same tradeoff PlayerChallengePage's isAuth state accepts, and fine
+  // here since nothing on this page changes auth state.
+  const [isAuth] = useState(() => supporterAuthService.isAuthenticated());
+
+  // Club branding  publicLeaderboardService returns challenge meta in
+  // camelCase (clubPrimaryColor etc.), a different casing convention
+  // than SupporterAuthService's snake_case PublicChallenge.
+  // resolvePuzzleTheme accepts either, so this works the same way as
+  // every other themed page: falls back to the default FundRaisely
+  // look until summary.challenge has loaded or if the club has no
+  // branding set.
+  const theme = resolvePuzzleTheme(summary?.challenge);
+
   useEffect(() => {
     if (!challengeId) {
       setPageError('Challenge not found.');
@@ -67,9 +86,9 @@ export default function PublicWallOfFamePage() {
 
   if (loading) {
     return (
-      <PuzzlePageShell>
+      <PuzzlePageShell theme={theme} clubName={summary?.challenge.clubName ?? undefined}>
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[#157F85]" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[var(--puzzle-primary)]" />
         </div>
       </PuzzlePageShell>
     );
@@ -77,7 +96,7 @@ export default function PublicWallOfFamePage() {
 
   if (pageError || !summary) {
     return (
-      <PuzzlePageShell>
+      <PuzzlePageShell theme={theme}>
         <div className="mx-auto max-w-xl rounded-[28px] border border-rose-200 bg-white p-8 text-center shadow-sm">
           <p className="mb-2 text-3xl">😕</p>
           <h1 className="mb-2 text-xl font-bold text-[#071A44]">
@@ -97,26 +116,39 @@ export default function PublicWallOfFamePage() {
 
   return (
     <PuzzlePageShell
+      theme={theme}
+      clubName={challenge.clubName ?? undefined}
       rightHeaderContent={
-        <div
-          className={`rounded-2xl border px-4 py-2 shadow-sm ${
-            isFinal
-              ? 'border-[#F3D79B] bg-[#FFF2D9]'
-              : 'border-[#D8E8D8] bg-[#EEF8EF]'
-          }`}
-        >
-          <p
-            className={`text-sm font-semibold ${
-              isFinal ? 'text-[#8A5A00]' : 'text-[#2E6A46]'
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {isAuth ? (
+            <Link
+              to={`/challenges/${challenge.id}/play`}
+              className="inline-flex items-center justify-center rounded-full border border-[#D8D1C4] bg-white px-4 py-2 text-sm font-semibold text-[#071A44] shadow-sm transition hover:bg-[#F8F5EF]"
+            >
+              My puzzles →
+            </Link>
+          ) : null}
+
+          <div
+            className={`rounded-2xl border px-4 py-2 shadow-sm ${
+              isFinal
+                ? 'border-[#F3D79B] bg-[#FFF2D9]'
+                : 'border-[#D8E8D8] bg-[#EEF8EF]'
             }`}
           >
-            {isFinal ? 'Final results' : 'Challenge in progress'}
-          </p>
-          <p className={`text-xs ${isFinal ? 'text-[#A6842E]' : 'text-[#5F7D6A]'}`}>
-            {isFinal
-              ? 'These podiums are locked in'
-              : 'Boards update as players submit'}
-          </p>
+            <p
+              className={`text-sm font-semibold ${
+                isFinal ? 'text-[#8A5A00]' : 'text-[#2E6A46]'
+              }`}
+            >
+              {isFinal ? 'Final results' : 'Challenge in progress'}
+            </p>
+            <p className={`text-xs ${isFinal ? 'text-[#A6842E]' : 'text-[#5F7D6A]'}`}>
+              {isFinal
+                ? 'These podiums are locked in'
+                : 'Boards update as players submit'}
+            </p>
+          </div>
         </div>
       }
     >
@@ -132,14 +164,14 @@ export default function PublicWallOfFamePage() {
 
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5F5A54]">
             The top solvers for each weekly puzzle. Everyone plays the same
-            puzzles from week one, whenever they join — so every board below
+            puzzles from week one, whenever they join  so every board below
             is a fair, head-to-head contest.
           </p>
 
           {!isFinal ? (
             <Link
               to={`/challenges/${challenge.id}/play`}
-              className="mt-6 inline-flex items-center justify-center rounded-full bg-[#071A44] px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#12295C]"
+              className="mt-6 inline-flex items-center justify-center rounded-full bg-[var(--puzzle-primary)] px-7 py-3 text-sm font-semibold text-[var(--puzzle-text-on-primary)] shadow-sm transition hover:opacity-95"
             >
               Join the challenge →
             </Link>
@@ -208,7 +240,7 @@ function WeekPodiumCard({
 
       {week.top.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[#D8D1C4] bg-[#FBF8F3] p-4 text-center text-sm text-[#6E6A63]">
-          No one has cracked this one yet — the podium is wide open.
+          No one has cracked this one yet  the podium is wide open.
         </p>
       ) : (
         <ol className="space-y-2">

@@ -17,6 +17,19 @@ export interface PublicChallengeMeta {
   title: string;
   status: 'active' | 'completed';
   totalWeeks: number;
+  // Club branding — sourced from fundraisely_clubs.brand_* via
+  // getPublicChallengeMeta's join in challengeService.js. All nullable:
+  // a club with no branding set returns nulls here, and
+  // resolvePuzzleTheme (puzzleTheme.ts) falls back to the default
+  // FundRaisely look in that case. Named camelCase to match this
+  // service's existing convention (totalWeeks etc.) — resolvePuzzleTheme
+  // accepts both this casing and SupporterAuthService's snake_case
+  // equivalents.
+  clubName: string | null;
+  clubLogoUrl: string | null;
+  clubPrimaryColor: string | null;
+  clubBackgroundColor: string | null;
+  clubTextOnPrimaryColor: string | null;
 }
 
 export interface WeekLeaderboardEntry {

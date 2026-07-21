@@ -17,16 +17,14 @@
 //   • integrationType — the exact string eventIntegrationsService.link()
 //     expects. These MUST stay in sync with the backend
 //     EventIntegrationsService (quiz_web2 / elimination / ticketed_event /
-//     puzzle_sub).
+//     puzzle_sub / puzzle_drop).
 //   • defaultConfig / validate / createRoom / Step — the activity's own
 //     config lifecycle. createRoom performs ONLY the room-creation call
 //     the old Schedule modal made; event creation and linking are the
 //     submit chain's job (see submitChain.ts) so the backend sequence
 //     stays exactly: createEvent → create room → link.
 //
-// Rollout note: all four types are now live (`available: true`). The
-// `available: false` mechanism remains for staging future types (e.g.
-// Puzzle Drop) as "coming soon" cards before their Step lands.
+// Rollout note: all five types are now live (`available: true`).
 
 import type React from 'react';
 import { Sparkles, Trophy, Ticket, Puzzle, type LucideIcon } from 'lucide-react';
@@ -34,10 +32,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 import eliminationMgmtService from '../services/EliminationMgmtService';
 import ticketedEventMgmtService from '../services/TicketedEventMgmtService';
+import puzzleDropMgmtService from '../../mgtsystem/services/PuzzleDropMgmtService';
 import type { PrimaryActionType } from '../types/event';
 import type { PaymentMethodSelectorMode } from '../shared/PaymentMethodSelector';
 import { ACCENTS } from '../shared/ui';
 import { localToUtc } from './tz';
+import { currencySymbol } from '../shared/CurrencySelect';
 
 import EliminationActivityStep, {
   type EliminationConfig,
@@ -55,6 +55,11 @@ import SubscriptionActivityStep, {
   defaultSubscriptionConfig,
   validateSubscriptionConfig,
 } from './steps/activities/SubscriptionActivityStep';
+import PuzzleDropActivityStep, {
+  type PuzzleDropConfig,
+  defaultPuzzleDropConfig,
+  validatePuzzleDropConfig,
+} from './steps/activities/PuzzleDropActivityStep';
 import { challengeService, type Currency } from '../../puzzles/services/ChallengeService';
 import QuizActivityStep, {
   type QuizWizardConfig,
@@ -66,10 +71,9 @@ import { roomApi } from '@/shared/api';
 
 // ── Shared shapes ─────────────────────────────────────────────────────────────
 
-export type ActivityTypeId = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
-// ↑ extend with 'puzzle_drop' when it lands; nothing else changes shape.
+export type ActivityTypeId = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
 
-export type IntegrationType = 'quiz_web2' | 'elimination' | 'ticketed_event' | 'puzzle_sub';
+export type IntegrationType = 'quiz_web2' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
 
 /**
  * The event as the wizard knows it BEFORE it exists on the server.
@@ -210,7 +214,7 @@ const elimination: ActivityTypeDef<EliminationConfig> = {
   Step: EliminationActivityStep,
 };
 
-// ── All four activity types are live in the wizard ───────────────────────────
+// ── All five activity types are live in the wizard ────────────────────────────
 
 const quiz: ActivityTypeDef<QuizWizardConfig> = {
   id:              'quiz',
@@ -402,6 +406,65 @@ const puzzleSub: ActivityTypeDef<SubscriptionConfig> = {
   Step: SubscriptionActivityStep,
 };
 
+// ── Puzzle Drop (new) ──────────────────────────────────────────────────────────
+
+const puzzleDrop: ActivityTypeDef<PuzzleDropConfig> = {
+  id:              'puzzle_drop',
+  integrationType: 'puzzle_drop',
+
+  label:       'Puzzle Drop',
+  description: 'One-off puzzles for sale — perfect for in-person selling',
+  icon:        Puzzle,
+  accent:      ACCENTS.orange,
+  available:   true,
+
+  eventType:         'Puzzle Drop',
+  primaryActionType: 'buy',
+
+  // Platform-hosted online, same as puzzleSub — but a single go-on-sale
+  // date/time, not a start+duration ('datetime', not 'startPlusWeeks'):
+  // Drop has no "how many weeks does this run" concept (§3.1 — status
+  // just flips scheduled→open once scheduled_at passes, no end date).
+  showLocation: false,
+  dateMode:     'datetime',
+
+  // No advance/on-the-night split — just one purchase moment (§4.2).
+  paymentMode:   'single',
+  defaultConfig: defaultPuzzleDropConfig,
+  validate:      validatePuzzleDropConfig,
+
+  async createRoom(cfg, draftEvent, ctx) {
+    const sym = currencySymbol(ctx.currency);
+    const roomId = uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
+
+    const result = await puzzleDropMgmtService.createDrop({
+      roomId,
+      hostId:   ctx.hostId,
+      hostName: ctx.hostName,
+      scheduledAt: draftEvent.start_datetime
+        || (draftEvent.event_date ? `${draftEvent.event_date}T19:00:00` : null),
+      timeZone: draftEvent.time_zone,
+      currency: ctx.currency,
+      currencySymbol: sym,
+      dropTitle: draftEvent.title || null,
+      items: cfg.items.map(i => ({
+        puzzleType: i.puzzleType,
+        difficulty: i.difficulty,
+      })),
+      pricingTiers: cfg.pricingTiers.map(t => ({
+        quantity: parseInt(t.quantity, 10),
+        price: parseFloat(t.price),
+        label: t.label.trim() || undefined,
+      })),
+      onnightMethodIds: cfg.paymentMethods.onnightMethodIds,
+    });
+
+    return result.roomId ?? roomId;
+  },
+
+  Step: PuzzleDropActivityStep,
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 export const ACTIVITY_TYPES: ActivityTypeDef<any>[] = [
@@ -409,6 +472,7 @@ export const ACTIVITY_TYPES: ActivityTypeDef<any>[] = [
   elimination,
   ticketedEvent,
   puzzleSub,
+  puzzleDrop,
 ];
 
 export function getActivityDef(id: ActivityTypeId): ActivityTypeDef<any> {

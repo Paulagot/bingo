@@ -40,7 +40,7 @@ export default function SetupTabSubscription({ challenge, challengeLoading, onEd
       {challenge.status === 'draft' ? (
         <div className="flex items-center justify-between rounded-lg border border-[rgba(124,58,237,0.3)] bg-[rgba(124,58,237,0.06)] p-3">
           <p className="text-xs text-[#4c1d95]">
-            Still a draft — the schedule and price can be edited before this challenge is activated.
+            Still a draft - the schedule and price can be edited before this challenge is activated.
           </p>
           <button type="button" onClick={onEdit}
             className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"

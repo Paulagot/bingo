@@ -218,13 +218,13 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
   const gridGap = size === 3 ? 'gap-3' : 'gap-2.5';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Puzzle intro */}
-      <div className="relative overflow-hidden rounded-[2rem] border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 px-5 py-5 shadow-sm">
+      <div className="relative overflow-hidden rounded-[2rem] border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-indigo-100/80" />
         <div className="absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-cyan-100/70" />
 
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.24em] text-indigo-500">
               Picture scramble
@@ -235,7 +235,7 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
             </div>
 
             <div className="mt-1 text-sm font-medium text-slate-500">
-              Tap a highlighted tile beside the blank space to slide it.
+              Tap a tile beside the blank space to slide it.
             </div>
           </div>
 
@@ -262,36 +262,35 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
       </div>
 
       {/* Main board */}
-    {/* Main board */}
-<div className="mx-auto w-full max-w-[540px]">
-  <div
-    className={`w-full rounded-[2rem] bg-slate-950 ${boardPadding} shadow-2xl ring-1 ring-black/10`}
-    style={{
-      aspectRatio: '1 / 1',
-    }}
-  >
-    <div
-      className={`grid h-full w-full ${gridGap} rounded-[1.5rem] bg-slate-900 p-2`}
-      style={{
-        gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${size}, minmax(0, 1fr))`,
-      }}
-    >
-      {flat.map((value, index) => (
-        <Tile
-          key={`${value}-${index}`}
-          value={value}
-          index={index}
-          size={size}
-          imageUrl={imageUrl}
-          isMovable={movableIndexes.has(index)}
-          isReadOnly={isReadOnly}
-          onClick={handleTileClick}
-        />
-      ))}
-    </div>
-  </div>
-</div>
+      <div className={`mx-auto w-full ${boardMaxWidth}`}>
+        <div
+          className={`w-full rounded-[2rem] bg-slate-950 ${boardPadding} shadow-2xl ring-1 ring-black/10`}
+          style={{
+            aspectRatio: '1 / 1',
+          }}
+        >
+          <div
+            className={`grid h-full w-full ${gridGap} rounded-[1.5rem] bg-slate-900 p-2`}
+            style={{
+              gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${size}, minmax(0, 1fr))`,
+            }}
+          >
+            {flat.map((value, index) => (
+              <Tile
+                key={`${value}-${index}`}
+                value={value}
+                index={index}
+                size={size}
+                imageUrl={imageUrl}
+                isMovable={movableIndexes.has(index)}
+                isReadOnly={isReadOnly}
+                onClick={handleTileClick}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Preview */}
       {hasImage && (
@@ -324,18 +323,9 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
         </div>
       )}
 
-      {/* Help */}
-      <div className="mx-auto w-full max-w-[520px] rounded-[2rem] border border-slate-200 bg-slate-50 px-4 py-4">
-        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-          How to play
-        </div>
-
-        <ul className="mt-2 space-y-2 text-sm font-medium text-slate-500">
-          <li>Only tiles beside the blank space can move.</li>
-          <li>Movable tiles have a small green dot.</li>
-          <li>Rebuild the full picture as fast as you can.</li>
-        </ul>
-      </div>
+      {/* How to play now lives in the shared overlay button (see PuzzleShell) —
+          this used to duplicate that same content in its own card here,
+          which was one of the larger contributors to mobile scroll length. */}
 
       {/* Solved state */}
       {solved && !isReadOnly && (

@@ -5,7 +5,7 @@ import { Header } from './components/GeneralSite2/Header';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import { Game } from './pages/Game';
 
-import SummerQuestApp from './summerquest/src/SummerQuestApp';
+
 
 
 import { Landing } from './pages/Landing';
@@ -176,6 +176,8 @@ const WalkinPage = lazy(() =>
   }))
 );
 
+const PlayerOverallLeaderboardPage = lazy(() => import('./components/puzzles/pages/PlayerOverallLeaderboardPage'));
+
 const DonateEmbedPage = lazy(() => import('./components/embed/DonateEmbedPage'));
 
 const Web3QuizPage = lazy(() => import('./pages/web3/quiz'));
@@ -212,6 +214,10 @@ const PeerFundraiserEditor = lazy(() => import('./pages/peer/PeerFundraiserEdito
 const PeerManagePage = lazy(() => import('./pages/peer/PeerManagePage'));
 const PeerSupportPage = lazy(() => import('./pages/peer/PeerSupportPage'));
 const PeerStripeSuccess = lazy(() => import('./pages/peer/PeerStripeSuccess'));
+
+const PuzzleDropLandingPage = lazy(() => import('./components/puzzles/pages/PuzzleDropLandingPage'));
+const PuzzleDropPlayPage = lazy(() => import('./components/puzzles/pages/PuzzleDropPlayPage'));
+const PuzzleDropStripeSuccessPage = lazy(() => import('./components/puzzles/pages/PuzzleDropStripeSuccessPage'));
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -846,6 +852,15 @@ export default function App() {
         />
 
         <Route
+  path="/challenges/:challengeId/standings"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PlayerOverallLeaderboardPage />
+    </Suspense>
+  }
+/>
+
+        <Route
           path="/challenges/:challengeId/puzzle/:week"
           element={
             <Suspense fallback={<LoadingSpinner message="Loading Puzzle..." />}>
@@ -890,6 +905,33 @@ export default function App() {
   }
 />
 
+<Route
+  path="/puzzle-drop/:dropRoomId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleDropLandingPage />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/puzzle-drop/:dropRoomId/success"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleDropStripeSuccessPage />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/puzzle-drop/play/:entitlementId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Puzzle..." />}>
+      <PuzzleDropPlayPage />
+    </Suspense>
+  }
+/>
+
     
 
         <Route
@@ -918,7 +960,7 @@ export default function App() {
     </Suspense>
   }
 />
-        <Route path="/summer-quest/*" element={<SummerQuestApp />} />
+
         
 
         {/* Final app 404 */}

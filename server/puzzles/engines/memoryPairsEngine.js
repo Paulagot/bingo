@@ -27,6 +27,27 @@ const PAIR_COUNTS = {
   [Difficulty.HARD]:   18,  // 6×6 grid
 };
 
+// Scoring settings scale with pair count / difficulty — previously this
+// engine paid a flat baseScore regardless of difficulty, so 8-pair easy and
+// 18-pair hard scored identically.
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 60,  bonusIdeal: 15, bonusGood: 45, bonusMax: 150 },
+  [Difficulty.MEDIUM]: { baseScore: 85,  bonusIdeal: 20, bonusGood: 60, bonusMax: 250 },
+  [Difficulty.HARD]:   { baseScore: 120, bonusIdeal: 30, bonusGood: 90, bonusMax: 400 },
+};
+
+// Soft, capped bonus for finishing close to the theoretical minimum number
+// of attempts (= pairCount, i.e. never flipping a wrong pair). `attempts`
+// comes from the client the same way timeTakenSeconds does, so — like the
+// time bonus — this is a minor, gameable-but-low-stakes signal, not an
+// authoritative one. It rewards genuinely careful play without letting
+// anyone inflate the *base* (correctness) score.
+function attemptsEfficiencyBonus(attempts, pairCount) {
+  if (!Number.isFinite(attempts) || attempts <= 0 || !pairCount) return 0;
+  const ratio = Math.min(1, pairCount / attempts); // 1 = perfect run
+  return Math.round(ratio * 25);
+}
+
 export function generate(config) {
   const { difficulty = Difficulty.MEDIUM } = config;
   const seed = config.seed ?? `memoryPairs-${difficulty}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -53,8 +74,17 @@ export function generate(config) {
     difficulty,
     seed,
     puzzleData: {
-      cards: cards.map(c => ({ id: c.id })), // IDs only — emoji sent separately
-      cardEmojis: cards.map(c => c.emoji),   // parallel array — stripped server-side before send
+      cards: cards.map(c => ({ id: c.id })), // IDs only, to keep card *order* separate from the emoji lookup
+      // NOTE: cardEmojis IS sent to the client as-is — the renderer needs
+      // the full mapping up front to reveal a card's face the instant it's
+      // flipped, without a round-trip per flip. That means a player who
+      // opens devtools can technically read every pair before playing.
+      // This is a known, accepted trade-off for a casual/family game (it's
+      // how virtually every client-rendered memory-match game works) rather
+      // than a bug — but if this puzzle type ever needs to be cheat-proof,
+      // the real fix is a per-flip "reveal" endpoint rather than trying to
+      // hide this array, and that's a larger change than a comment.
+      cardEmojis: cards.map(c => c.emoji),
       rows,
       cols,
       pairCount,
@@ -103,11 +133,25 @@ export function validate(playerAnswer, solutionData) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, difficulty }) {
   if (!validationResult.valid) return { completed: false, correct: false, baseScore: 0, bonusScore: 0, penaltyScore: 0, totalScore: 0 };
-  // Full bonus within 60s, decays to 0 at 5 min
-  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 20, 60, 300);
-  return { completed: true, correct: true, baseScore: 80, bonusScore, penaltyScore: 0, totalScore: 80 + bonusScore };
+
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const timeBonus = calcTimeBonus(submission.timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
+
+  const pairCount = submission?.answer?.foundPairs?.length ?? undefined;
+  const attemptsBonus = attemptsEfficiencyBonus(submission?.answer?.attempts, pairCount);
+
+  const bonusScore = timeBonus + attemptsBonus;
+
+  return {
+    completed: true,
+    correct: true,
+    baseScore: settings.baseScore,
+    bonusScore,
+    penaltyScore: 0,
+    totalScore: settings.baseScore + bonusScore,
+  };
 }
 
 export default { generate, validate, score };

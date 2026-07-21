@@ -1,16 +1,16 @@
 // src/components/mgtsystem/wizard/steps/activity/SubscriptionActivityStep.tsx
 //
 // The BODY of the old ScheduleSubscriptionModal, extracted for:
-//   • step 3 of CreateFundraiserWizard (create) — WITH the agreed UX
+//   • step 3 of CreateFundraiserWizard (create) - WITH the agreed UX
 //     changes: NO title field (the event title flows through), NO
 //     starts-date/weeks inputs (those moved to step 2 via the
-//     'startPlusWeeks' date mode — this step reads them off draftEvent
+//     'startPlusWeeks' date mode - this step reads them off draftEvent
 //     for display), and the shared locked PaymentMethodSelector notice
 //     (subscriptions are Stripe-only, nothing to choose).
-//   • ScheduleSubscriptionModal (edit) — pass `editMode` and the
+//   • ScheduleSubscriptionModal (edit) - pass `editMode` and the
 //     challenge-level fields the modal has always edited come back:
 //     title, starts date, weeks stepper, and the per-week schedule
-//     pickers (create mode never shows pickers — the backend
+//     pickers (create mode never shows pickers - the backend
 //     auto-generates the schedule; see scheduleGeneratorService.js).
 //
 // No API calls, no submit button. Config in via value/onChange.
@@ -25,14 +25,14 @@ import type { ActivityStepProps } from '../../activityRegistry';
 // ── Config shape + lifecycle (imported by the registry & edit modal) ─────────
 
 export interface SubscriptionConfig {
-  /** Edit mode only — create mode uses the event title. */
+  /** Edit mode only - create mode uses the event title. */
   title:       string;
   description: string;
-  /** Edit mode only ("YYYY-MM-DD") — create mode uses draftEvent. */
+  /** Edit mode only ("YYYY-MM-DD") - create mode uses draftEvent. */
   startsAt:    string;
-  /** Edit mode only — create mode uses draftEvent.weeks. */
+  /** Edit mode only - create mode uses draftEvent.weeks. */
   totalWeeks:  number;
-  /** Edit mode only — create mode lets the backend generate it. */
+  /** Edit mode only - create mode lets the backend generate it. */
   schedule:    ScheduleEntry[];
   isFree:      boolean;
   priceInput:  string;
@@ -126,7 +126,7 @@ export default function SubscriptionActivityStep({
       {/* ── 1. Challenge details ── */}
       <Section>
         <SectionHeader icon={<Puzzle className="h-4 w-4" />} title="Challenge details" accent={ACCENT}
-          subtitle={editMode ? undefined : `Named after your event — "${draftEvent.title || 'Untitled event'}"`} />
+          subtitle={editMode ? undefined : `Named after your event - "${draftEvent.title || 'Untitled event'}"`} />
         <div className="space-y-3">
 
           {editMode && (
@@ -194,11 +194,11 @@ export default function SubscriptionActivityStep({
       <Section>
         <SectionHeader icon={<span className="text-sm">{sym}</span>} title="Pricing" accent={ACCENT} />
         <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm font-medium" style={{ color: '#102532' }}>
+          {/* <label className="flex items-center gap-2 text-sm font-medium" style={{ color: '#102532' }}>
             <input type="checkbox" checked={value.isFree}
               onChange={e => set('isFree', e.target.checked)} disabled={disabled} />
-            Free challenge — no Stripe payment required
-          </label>
+            Free challenge - no Stripe payment required
+          </label> */}
           {!value.isFree && (
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: '#52636f' }}>
@@ -218,7 +218,7 @@ export default function SubscriptionActivityStep({
       {/* ── 3. Sponsors ── */}
       <Section>
         <SectionHeader icon={<span className="text-sm">🤝</span>} title="Sponsors" accent={ACCENT}
-          subtitle="Optional — organisations supporting this challenge" />
+          subtitle="Optional - organisations supporting this challenge" />
         <div className="space-y-2">
           {value.sponsors.map((sponsor, i) => (
             <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
@@ -247,14 +247,14 @@ export default function SubscriptionActivityStep({
       </Section>
 
       {/* ── 4. Week schedule ── */}
-      {/* Create mode: no pickers — the backend auto-generates the schedule
+      {/* Create mode: no pickers - the backend auto-generates the schedule
           (see scheduleGeneratorService.js). Edit mode: the generated
           schedule is shown and stays tweakable per week while the
           challenge is a draft. */}
       <Section>
         <SectionHeader icon={<span className="text-sm">🧩</span>} title="Weekly puzzles" accent={ACCENT}
           subtitle={editMode
-            ? 'What unlocks each week, in order — tweak any week while this is still a draft'
+            ? 'What unlocks each week, in order - tweak any week while this is still a draft'
             : 'Picked for you'} />
         {editMode ? (
           <div className="space-y-2">
@@ -292,7 +292,7 @@ export default function SubscriptionActivityStep({
         )}
       </Section>
 
-      {/* ── 5. Payment — Stripe only, nothing to choose ── */}
+      {/* ── 5. Payment - Stripe only, nothing to choose ── */}
       {/* The shared locked notice (see PaymentMethodSelector.tsx). Only in
           create mode; the edit modal never showed it. */}
       {!editMode && (

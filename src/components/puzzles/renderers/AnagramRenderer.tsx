@@ -138,14 +138,14 @@ const AnagramRenderer: React.FC<AnagramRendererProps> = ({
 
   return (
     <div
-      className="space-y-6 outline-none"
+      className="space-y-4 sm:space-y-6 outline-none"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       aria-label="Anagram puzzle"
     >
       {/* Clue card */}
       {data.clue && (
-        <div className="relative overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-indigo-50 px-5 py-4 shadow-sm">
+        <div className="relative overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-indigo-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
           <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-violet-100/70" />
           <div className="relative">
             <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-500">
@@ -159,7 +159,7 @@ const AnagramRenderer: React.FC<AnagramRendererProps> = ({
       )}
 
       {/* Answer slots */}
-      <div className="rounded-[2rem] border border-slate-200 bg-white px-4 py-5 shadow-sm">
+      <div className="rounded-[2rem] border border-slate-200 bg-white px-3 py-4 sm:px-4 sm:py-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
@@ -202,7 +202,7 @@ const AnagramRenderer: React.FC<AnagramRendererProps> = ({
       </div>
 
       {/* Letter bank */}
-      <div className="rounded-[2rem] border border-slate-200 bg-gradient-to-b from-slate-50 to-white px-4 py-5 shadow-sm">
+      <div className="rounded-[2rem] border border-slate-200 bg-gradient-to-b from-slate-50 to-white px-3 py-4 sm:px-4 sm:py-5 shadow-sm">
         <div className="mb-4 text-center text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
           Scrambled letters
         </div>
@@ -241,7 +241,7 @@ const AnagramRenderer: React.FC<AnagramRendererProps> = ({
             Clear word
           </button>
 
-          {isComplete && (
+          {isComplete && !isReadOnly && (
             <div className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
               Ready to submit
             </div>

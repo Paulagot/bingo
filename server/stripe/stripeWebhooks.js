@@ -7,6 +7,10 @@
 //   4. Pre-registers Stripe walk-in players into in-memory elimination rooms.
 //   5. Confirms and fulfils peer-to-peer fundraiser orders.
 //   6. Cancels expired peer-to-peer Stripe orders.
+//   7. Confirms Puzzle Drop purchases (checkout.session.completed,
+//      type === 'puzzle_drop_purchase') — reuses confirmDropPurchase, the
+//      exact same function the admin manual-confirm route already uses.
+//      No new confirmation logic added anywhere for this.
 
 import Stripe from 'stripe';
 import { connection, TABLE_PREFIX } from '../config/database.js';
@@ -34,6 +38,8 @@ import {
   confirmPeerOrder,
   cancelExpiredPeerOrder,
 } from '../peerFundraising/services/peerOrderCompletionService.js';
+import { confirmDropPurchase } from '../puzzles/services/puzzleDropService.js';
+
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20',
@@ -459,7 +465,7 @@ export async function stripeWebhookHandler(req, res) {
     // checkout.session.completed
     // ─────────────────────────────────────────────────────────────────────────
 
-    else if (event.type === 'checkout.session.completed') {
+  else if (event.type === 'checkout.session.completed') {
       const session         = event.data.object;
       const type            = session?.metadata?.type;
       const sessionId       = session?.id;
@@ -881,6 +887,54 @@ export async function stripeWebhookHandler(req, res) {
             }
           );
         }
+      }
+
+      // ── Puzzle Drop purchase ────────────────────────────────────────────────
+      //
+      // Entitlements + ledger row already exist at 'expected' (created by
+      // puzzleDropStripeCheckout.js before this session existed — see
+      // that file's header comment for why). This just flips them to
+      // 'confirmed' via confirmDropPurchase, the EXACT SAME function the
+      // admin manual-confirm route uses — no new confirmation logic here
+      // at all, just a different caller.
+      else if (type === 'puzzle_drop_purchase') {
+        const entitlementId = session?.metadata?.entitlementId;
+
+        if (!entitlementId) {
+          console.warn(
+            '[StripeWebhook] puzzle_drop_purchase is missing entitlementId',
+            { sessionId }
+          );
+        } else {
+          try {
+            const result = await confirmDropPurchase({
+              entitlementId,
+              confirmedBy: 'webhook_auto',
+              confirmedByName: 'Stripe',
+              confirmedByRole: 'system',
+            });
+
+            if (DEBUG) {
+              console.log(
+                '[StripeWebhook] Puzzle Drop purchase confirmed:',
+                {
+                  entitlementId,
+                  sessionId,
+                  confirmedEntitlementIds: result.confirmedEntitlementIds,
+                }
+              );
+            }
+          } catch (dropErr) {
+            // 'entitlement_already_confirmed' is expected on a rare
+            // duplicate delivery even after the STRIPE_EVENTS_TABLE
+            // idempotency check above (e.g. a retried delivery for an
+            // event.id Stripe considers new) — non-fatal either way.
+            console.error(
+              '[StripeWebhook] Puzzle Drop confirm failed (non-fatal):',
+              { entitlementId, sessionId, error: dropErr.message }
+            );
+          }
+        }
       } else {
         console.warn(
           '[StripeWebhook] Unknown checkout metadata type:',
@@ -1046,6 +1100,27 @@ export async function stripeWebhookHandler(req, res) {
                 session?.metadata?.playerId,
               roomId:
                 session?.metadata?.roomId,
+            }
+          );
+        }
+      }
+
+      // ── Puzzle Drop ─────────────────────────────────────────────────────────
+      //
+      // Unlike ticket_purchase, we do NOT hard-delete the entitlement/
+      // ledger rows on expiry — leaving them at 'expected' forever is
+      // harmless (they were never playable, never counted as sold, and
+      // the club can still see them in reconciliation as an abandoned
+      // attempt if needed). Deleting would require cascading cleanup
+      // across entitlements + ledger that isn't worth building for a
+      // session that simply timed out.
+      else if (type === 'puzzle_drop_purchase') {
+        if (DEBUG) {
+          console.log(
+            '[StripeWebhook] Expired puzzle_drop_purchase — entitlements left at expected:',
+            {
+              sessionId,
+              entitlementId: session?.metadata?.entitlementId,
             }
           );
         }
