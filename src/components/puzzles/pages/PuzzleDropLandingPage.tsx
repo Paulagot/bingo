@@ -31,12 +31,14 @@ import {
   publicPuzzleDropService,
   type PublicDropInfo,
   type PurchaseDropResult,
+  type RecoveredEntitlement,
 } from '../services/publicPuzzleDropService';
 import PuzzlePageShell from '../ui/PuzzlePageShell';
 import PuzzlePrimaryButton from '../ui/PuzzlePrimaryButton';
 import { resolvePuzzleTheme } from '../ui/puzzleTheme';
 import { PaymentMethodSelector, type ClubPaymentMethod } from '../../Quiz/shared/PaymentMethodSelector';
 import { PaymentInstructions } from '../../Quiz/shared/PaymentInstructions';
+import CryptoFixedFeeStep from '../../Quiz/joinroom/crypto/CryptoFixedFeeStep';
 
 const PUZZLE_TYPE_LABELS: Record<string, string> = {
   anagram: 'Anagram',
@@ -54,7 +56,7 @@ const PUZZLE_TYPE_LABELS: Record<string, string> = {
   memoryPairs: 'Memory Pairs',
 };
 
-type Step = 'select' | 'payment-method' | 'payment-instructions' | 'success';
+type Step = 'select' | 'payment-method' | 'payment-instructions' | 'crypto-payment' | 'success';
 
 function currencyFmt(amount: number, symbol: string) {
   return `${symbol}${amount.toFixed(2)}`;
@@ -88,6 +90,38 @@ export default function PuzzleDropLandingPage() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const [purchaseResult, setPurchaseResult] = useState<PurchaseDropResult | null>(null);
+
+  // "Already bought this?" recovery — see publicPuzzleDropService.ts's
+  // recoverAccess comment for why this is a convenience lookup, not
+  // strong auth. Kept separate from the main purchase flow's step state
+  // since it's a small collapsible section, not a full-page transition.
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoverEmail, setRecoverEmail] = useState('');
+  const [recoverLoading, setRecoverLoading] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
+  const [recoveredEntitlements, setRecoveredEntitlements] = useState<RecoveredEntitlement[] | null>(null);
+
+  async function handleRecover() {
+    setRecoverError(null);
+    setRecoveredEntitlements(null);
+
+    if (!recoverEmail.trim()) return setRecoverError('Enter the email you used to buy.');
+    if (!dropRoomId) return;
+
+    setRecoverLoading(true);
+    try {
+      const result = await publicPuzzleDropService.recoverAccess(dropRoomId, recoverEmail.trim());
+      if (result.entitlements.length === 0) {
+        setRecoverError("We couldn't find any purchases for that email on this Drop.");
+      } else {
+        setRecoveredEntitlements(result.entitlements);
+      }
+    } catch (err) {
+      setRecoverError((err as Error).message || 'Could not look up your purchases. Please try again.');
+    } finally {
+      setRecoverLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!dropRoomId) {
@@ -148,12 +182,12 @@ export default function PuzzleDropLandingPage() {
       const methods = await publicPuzzleDropService.getPaymentMethods(dropRoomId);
       // instant_payment (cash/Revolut/bank etc.) goes through
       // PaymentInstructions below. stripe goes straight to Stripe
-      // Checkout via handleSelectMethod's branch — see that function.
-      // Crypto isn't wired yet, so it's still filtered out here.
+      // Checkout, crypto goes to CryptoFixedFeeStep — see
+      // handleSelectMethod's branches for both.
       setPaymentMethods(
         methods.filter(m => {
           const cat = m.methodCategory?.toLowerCase();
-          return cat === 'instant_payment' || cat === 'stripe';
+          return cat === 'instant_payment' || cat === 'stripe' || cat === 'crypto';
         })
       );
     } catch {
@@ -181,6 +215,30 @@ export default function PuzzleDropLandingPage() {
         window.location.href = result.url;
       } catch (err) {
         setConfirmError((err as Error).message || 'Could not start checkout. Please try again.');
+        setConfirming(false);
+      }
+      return;
+    }
+
+    if (category === 'crypto') {
+      // useAppKit()/useDisconnect() inside CryptoFixedFeeStep throw
+      // synchronously on mount if createAppKit() hasn't resolved yet
+      // (src/web3Init.ts defers this globally for performance — it's
+      // only initialized on pages that actually need wallet access,
+      // exactly matching this situation). Must AWAIT it, not just call
+      // it — it's async (dynamic imports under the hood), so firing it
+      // without waiting would let the component mount before AppKit is
+      // actually ready.
+      setSelectedMethod(method); // set BEFORE the await, so the spinner below can tell this is a crypto wait, not a stale Stripe one
+      setConfirming(true);
+      setConfirmError(null);
+      try {
+        const { initAppKit } = await import('../../../web3Init');
+        await initAppKit();
+        setStep('crypto-payment');
+      } catch (err) {
+        setConfirmError((err as Error).message || 'Could not initialize wallet support. Please try again.');
+      } finally {
         setConfirming(false);
       }
       return;
@@ -234,6 +292,95 @@ export default function PuzzleDropLandingPage() {
     );
   }
 
+  if (info.status === 'completed') {
+    return (
+      <PuzzlePageShell theme={theme} clubName={info.clubName ?? undefined}>
+        <div className="mx-auto max-w-3xl space-y-6">
+          <section className="rounded-[36px] border border-[#E8E0D3] bg-white p-6 shadow-sm sm:p-8">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#E36B2C]">
+              Puzzle Drop
+            </p>
+            <h1 className="font-serif text-4xl leading-tight text-[#071A44] sm:text-5xl">
+              {info.title}
+            </h1>
+            <div className="mt-6 rounded-[28px] border border-[#E8E0D3] bg-[#FBF8F3] p-6 text-center">
+              <p className="mb-2 text-3xl">🧩</p>
+              <p className="text-base font-semibold text-[#071A44]">
+                This Drop is no longer selling new puzzles
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-sm text-[#6E6A63]">
+                {info.clubName ?? 'The organiser'} has closed this Drop to new purchases.
+                Already bought a puzzle? Use the link below to find your access link again.
+              </p>
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-[#E8E0D3] bg-[#FBF8F3] p-5">
+            {!recoverOpen ? (
+              <button
+                type="button"
+                onClick={() => setRecoverOpen(true)}
+                className="text-sm font-semibold text-[#071A44] underline"
+              >
+                Already bought this? Recover your links →
+              </button>
+            ) : (
+              <div>
+                <p className="mb-3 text-sm font-semibold text-[#071A44]">
+                  Enter the email you used when you bought:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="email"
+                    value={recoverEmail}
+                    onChange={e => setRecoverEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="min-w-[220px] flex-1 rounded-2xl border border-[#D8D1C4] bg-white px-4 py-2.5 text-sm text-[#071A44] outline-none focus:border-[var(--puzzle-primary)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRecover}
+                    disabled={recoverLoading}
+                    className="rounded-2xl bg-[var(--puzzle-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--puzzle-text-on-primary)] shadow-sm transition hover:opacity-95 disabled:opacity-50"
+                  >
+                    {recoverLoading ? 'Looking…' : 'Find my links'}
+                  </button>
+                </div>
+
+                {recoverError && (
+                  <p className="mt-3 text-sm text-rose-700">{recoverError}</p>
+                )}
+
+                {recoveredEntitlements && recoveredEntitlements.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {recoveredEntitlements.map(ent => {
+                      const playUrl = `${window.location.origin}/puzzle-drop/play/${ent.entitlementId}?token=${ent.accessToken}`;
+                      return (
+                        <div key={ent.entitlementId} className="rounded-2xl border border-[#D8D1C4] bg-white p-3">
+                          <p className="mb-1 text-xs font-semibold text-[#071A44]">
+                            Puzzle {ent.itemNumber ?? ''}
+                            {ent.paymentStatus !== 'confirmed' && (
+                              <span className="ml-2 rounded-full bg-[#FFF2D9] px-2 py-0.5 text-[10px] font-semibold text-[#8A5A00]">
+                                payment pending
+                              </span>
+                            )}
+                          </p>
+                          <a href={playUrl} className="break-all text-xs text-[var(--puzzle-primary)] underline">
+                            {playUrl}
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
+      </PuzzlePageShell>
+    );
+  }
+
   return (
     <PuzzlePageShell theme={theme} clubName={info.clubName ?? undefined}>
       <div className="mx-auto max-w-3xl space-y-6">
@@ -250,6 +397,70 @@ export default function PuzzleDropLandingPage() {
             you'd like to pay, and start playing right away.
           </p>
         </section>
+
+        {step === 'select' && (
+          <section className="rounded-[28px] border border-[#E8E0D3] bg-[#FBF8F3] p-5">
+            {!recoverOpen ? (
+              <button
+                type="button"
+                onClick={() => setRecoverOpen(true)}
+                className="text-sm font-semibold text-[#071A44] underline"
+              >
+                Already bought this? Recover your links →
+              </button>
+            ) : (
+              <div>
+                <p className="mb-3 text-sm font-semibold text-[#071A44]">
+                  Enter the email you used when you bought:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="email"
+                    value={recoverEmail}
+                    onChange={e => setRecoverEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="min-w-[220px] flex-1 rounded-2xl border border-[#D8D1C4] bg-white px-4 py-2.5 text-sm text-[#071A44] outline-none focus:border-[var(--puzzle-primary)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRecover}
+                    disabled={recoverLoading}
+                    className="rounded-2xl bg-[var(--puzzle-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--puzzle-text-on-primary)] shadow-sm transition hover:opacity-95 disabled:opacity-50"
+                  >
+                    {recoverLoading ? 'Looking…' : 'Find my links'}
+                  </button>
+                </div>
+
+                {recoverError && (
+                  <p className="mt-3 text-sm text-rose-700">{recoverError}</p>
+                )}
+
+                {recoveredEntitlements && recoveredEntitlements.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {recoveredEntitlements.map(ent => {
+                      const playUrl = `${window.location.origin}/puzzle-drop/play/${ent.entitlementId}?token=${ent.accessToken}`;
+                      return (
+                        <div key={ent.entitlementId} className="rounded-2xl border border-[#D8D1C4] bg-white p-3">
+                          <p className="mb-1 text-xs font-semibold text-[#071A44]">
+                            Puzzle {ent.itemNumber ?? ''}
+                            {ent.paymentStatus !== 'confirmed' && (
+                              <span className="ml-2 rounded-full bg-[#FFF2D9] px-2 py-0.5 text-[10px] font-semibold text-[#8A5A00]">
+                                payment pending
+                              </span>
+                            )}
+                          </p>
+                          <a href={playUrl} className="break-all text-xs text-[var(--puzzle-primary)] underline">
+                            {playUrl}
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         {step === 'select' && (
           <section className="rounded-[36px] border border-[#E8E0D3] bg-white p-6 shadow-sm sm:p-8">
@@ -372,7 +583,11 @@ export default function PuzzleDropLandingPage() {
             {confirming ? (
               <div className="flex items-center gap-3 py-6">
                 <div className="h-6 w-6 animate-spin rounded-full border-4 border-[#D8D1C4] border-t-[var(--puzzle-primary)]" />
-                <p className="text-sm text-[#6E6A63]">Redirecting to Stripe…</p>
+                <p className="text-sm text-[#6E6A63]">
+                  {selectedMethod?.methodCategory?.toLowerCase() === 'crypto'
+                    ? 'Getting your wallet ready…'
+                    : 'Redirecting to Stripe…'}
+                </p>
               </div>
             ) : (
               <>
@@ -408,6 +623,67 @@ export default function PuzzleDropLandingPage() {
               onBack={() => setStep('payment-method')}
               error={confirmError}
               confirming={confirming}
+            />
+          </section>
+        )}
+
+        {step === 'crypto-payment' && selectedMethod && selectedTier && dropRoomId && (
+          <section className="rounded-[36px] border border-[#E8E0D3] bg-white p-6 shadow-sm sm:p-8">
+            <button type="button" onClick={() => setStep('payment-method')} className="mb-4 text-sm font-semibold text-[#071A44] underline">
+              ← Back
+            </button>
+            <CryptoFixedFeeStep
+              mode="ticket"
+              roomId={dropRoomId}
+              selectedMethod={selectedMethod}
+              totalFiatAmount={Number(selectedTier.price)}
+              // Drop has no entry-fee/extras split — the whole tier price
+              // is one lump sum, so entryFeeAmount carries all of it and
+              // extrasAmount is 0. The component's own internal fraction
+              // math (entryFeeAmount / totalFiatAmount) then works out to
+              // 1, meaning entryFeeRaw ends up carrying the full raw
+              // on-chain amount — see the backend route's comment on why
+              // it reads entryFeeRaw, not a generic "rawAmount" field.
+              entryFeeAmount={Number(selectedTier.price)}
+              extrasAmount={0}
+              selectedExtras={[]}
+              fiatCurrency={info.currency}
+              currencySymbol={info.currencySymbol}
+              purchaserName={buyerName.trim()}
+              purchaserEmail={buyerEmail.trim()}
+              playerName={buyerName.trim()}
+              // itemIds has no home in this component's own POST body (it
+              // only knows generic quiz fee fields) — threaded through
+              // the confirmEndpoint URL's query string instead, which the
+              // backend route reads via req.query.itemIds.
+              confirmEndpoint={`/api/puzzle-drop/${dropRoomId}/crypto/confirm?itemIds=${encodeURIComponent(JSON.stringify(selectedItemIds))}`}
+              onBack={() => setStep('payment-method')}
+              onSuccess={async (result) => {
+                // The component's own onSuccess only carries its narrow
+                // FixedFeeConfirmResult shape (txHash, ledgerAmount,
+                // ledgerCurrency, etc.) — no room for Drop's entitlements/
+                // access tokens. Re-fetch them the same way the Stripe
+                // success page does, reusing that exact route: it's a
+                // generic payment_reference lookup under the hood, so
+                // passing txHash as the "sessionId" works identically.
+                try {
+                  const session = await publicPuzzleDropService.getStripeSession(dropRoomId, result.txHash);
+                  setPurchaseResult({
+                    ok: true,
+                    ledgerId: Number(result.web3TransactionId) || 0,
+                    totalAmount: result.ledgerAmount,
+                    currency: result.ledgerCurrency,
+                    entitlements: session.entitlements.map(e => ({
+                      entitlementId: e.entitlementId,
+                      itemNumber: e.itemNumber ?? 0,
+                      accessToken: e.accessToken,
+                    })),
+                  });
+                  setStep('success');
+                } catch {
+                  setConfirmError('Payment verified, but we could not load your access links. Please use the "Already bought this?" recovery option above with your email.');
+                }
+              }}
             />
           </section>
         )}

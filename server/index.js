@@ -115,8 +115,9 @@ import challengeRouter from './puzzles/routes/challengeRoutes.js';
 import supporterAuthRouter from './supporters/routes/supporterAuthRoutes.js';
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
 import subscriptionReconciliationRoutes from './puzzles/routes/subscriptionReconciliationRoutes.js';
+import puzzleDropReconciliationRoutes from './puzzles/routes/puzzleDropReconciliationRoutes.js';
 import puzzleDropRouter from './puzzles/routes/puzzleDropRoutes.js';
-console.log('✅ puzzleDropRouter imported:', typeof puzzleDropRouter);
+import clubIncomeReportRouter from './mgtsystem/routes/clubIncomeReport.js';
 
 
 
@@ -964,6 +965,13 @@ app.use(
   '/api/subscription-reconciliation',
   subscriptionReconciliationRoutes,
 );
+
+app.use(
+  '/api/puzzle-drop-reconciliation',
+  puzzleDropReconciliationRoutes,
+);
+
+app.use('/api/income-report', clubIncomeReportRouter);
 
 app.use('/api/puzzle-drop', puzzleDropRouter);
 

@@ -1,0 +1,79 @@
+[35mserver/campaigns/services/campaignCryptoVerificationService.js[m[36m:[m[32m6[m[36m:[m//   - Does NOT validate the payment method against a room's [1;31mlinked_payment_methods_json[m.
+[35mserver/campaigns/services/campaignCryptoVerificationService.js[m[36m:[m[32m36[m[36m:[m * Unlike the room-based version, this does NOT check [1;31mlinked_payment_methods_json[m
+[35mserver/campaigns/services/campaignEntryExpansionService.js[m[36m:[m[32m50[m[36m:[m * fundraisely_campaigns.[1;31mlinked_payment_methods_json[m.
+[35mserver/campaigns/services/campaignEntryExpansionService.js[m[36m:[m[32m54[m[36m:[m * look up from the room's [1;31mlinked_payment_methods_json[m).
+[35mserver/campaigns/services/campaignEntryExpansionService.js[m[36m:[m[32m61[m[36m:[m      `SELECT [1;31mlinked_payment_methods_json[m FROM ${T_CAMPAIGNS} WHERE id = ? LIMIT 1`,
+[35mserver/campaigns/services/campaignEntryExpansionService.js[m[36m:[m[32m65[m[36m:[m    const linked = parseJson(campRows[0]?.[1;31mlinked_payment_methods_json[m, {});
+[35mserver/campaigns/services/campaignPaymentMethodsService.js[m[36m:[m[32m5[m[36m:[m// fundraisely_campaigns.[1;31mlinked_payment_methods_json[m instead of the room table.
+[35mserver/campaigns/services/campaignPaymentMethodsService.js[m[36m:[m[32m32[m[36m:[m    `SELECT id, club_id, [1;31mlinked_payment_methods_json[m
+[35mserver/campaigns/services/campaignPaymentMethodsService.js[m[36m:[m[32m38[m[36m:[m  const linked = parseJson(campRows[0].[1;31mlinked_payment_methods_json[m, {});
+[35mserver/campaigns/services/campaignPaymentMethodsService.js[m[36m:[m[32m93[m[36m:[m     SET [1;31mlinked_payment_methods_json[m = ?
+[35mserver/campaigns/services/campaignPaymentMethodsService.js[m[36m:[m[32m109[m[36m:[m    `SELECT club_id, [1;31mlinked_payment_methods_json[m
+[35mserver/campaigns/services/campaignPaymentMethodsService.js[m[36m:[m[32m115[m[36m:[m  const { club_id: clubId, [1;31mlinked_payment_methods_json[m } = campRows[0];
+[35mserver/campaigns/services/campaignPaymentMethodsService.js[m[36m:[m[32m116[m[36m:[m  const linked  = parseJson([1;31mlinked_payment_methods_json[m, {});
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m217[m[36m:[m       [1;31mlinked_payment_methods_json[m,
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m230[m[36m:[m    [1;31mlinked_payment_methods_json[m: typeof row.[1;31mlinked_payment_methods_json[m === 'string'
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m231[m[36m:[m      ? JSON.parse(row.[1;31mlinked_payment_methods_json[m)
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m232[m[36m:[m      : (row.[1;31mlinked_payment_methods_json[m ?? null),
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m249[m[36m:[m       [1;31mlinked_payment_methods_json[m,
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m261[m[36m:[m    typeof row.[1;31mlinked_payment_methods_json[m === 'string'
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m262[m[36m:[m      ? JSON.parse(row.[1;31mlinked_payment_methods_json[m)
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m263[m[36m:[m      : (row.[1;31mlinked_payment_methods_json[m ?? null);
+[35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m270[m[36m:[m    [1;31mlinked_payment_methods_json[m: linkedPaymentMethods,
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m165[m[36m:[m   *   • Pull the room's [1;31mlinked_payment_methods_json[m → event (FLIPPED — the
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m264[m[36m:[m          `SELECT [1;31mlinked_payment_methods_json[m
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m271[m[36m:[m        if (room?.[1;31mlinked_payment_methods_json[m) {
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m272[m[36m:[m          const linked = typeof room.[1;31mlinked_payment_methods_json[m === 'string'
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m273[m[36m:[m            ? JSON.parse(room.[1;31mlinked_payment_methods_json[m)
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m274[m[36m:[m            : room.[1;31mlinked_payment_methods_json[m;
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m319[m[36m:[m   * Re-sync a room's CURRENT [1;31mlinked_payment_methods_json[m up to whichever
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m328[m[36m:[m   * own [1;31mlinked_payment_methods_json[m, passing the room/activity id. Safe to
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m348[m[36m:[m        `SELECT [1;31mlinked_payment_methods_json[m
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m355[m[36m:[m      if (!room?.[1;31mlinked_payment_methods_json[m) return;
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m357[m[36m:[m      const linked = typeof room.[1;31mlinked_payment_methods_json[m === 'string'
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m358[m[36m:[m        ? JSON.parse(room.[1;31mlinked_payment_methods_json[m)
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m359[m[36m:[m        : room.[1;31mlinked_payment_methods_json[m;
+[35mserver/mgtsystem/services/EventService.js[m[36m:[m[32m71[m[36m:[m   * [1;31mlinked_payment_methods_json[m at all.
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m46[m[36m:[m      `SELECT [1;31mlinked_payment_methods_json[m 
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m56[m[36m:[m    if (quizRows?.[0]?.[1;31mlinked_payment_methods_json[m) {
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m57[m[36m:[m      const linkedData = quizRows[0].[1;31mlinked_payment_methods_json[m;
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m99[m[36m:[m       SET [1;31mlinked_payment_methods_json[m = ?,
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m120[m[36m:[m        [1;31mlinked_payment_methods_json[m 
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m135[m[36m:[m    console.log('[QuizPaymentMethodsService] [1;31mlinked_payment_methods_json[m:', room.[1;31mlinked_payment_methods_json[m);
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m138[m[36m:[m    if (room.[1;31mlinked_payment_methods_json[m) {
+[35mserver/mgtsystem/services/QuizPaymentMethodsService.js[m[36m:[m[32m139[m[36m:[m      const linked = room.[1;31mlinked_payment_methods_json[m;
+[35mserver/mgtsystem/services/quizTicketService.js[m[36m:[m[32m144[m[36m:[m      [1;31mlinked_payment_methods_json[m,
+[35mserver/mgtsystem/services/quizTicketService.js[m[36m:[m[32m162[m[36m:[m    row.[1;31mlinked_payment_methods_json[m,
+[35mserver/peerFundraising/services/peerPaymentMethodsService.js[m[36m:[m[32m46[m[36m:[m  const linked = parseJson(f.[1;31mlinked_payment_methods_json[m, {});
+[35mserver/peerFundraising/services/peerPaymentMethodsService.js[m[36m:[m[32m70[m[36m:[m  await connection.execute(`UPDATE ${F} SET [1;31mlinked_payment_methods_json[m=? WHERE id=? AND club_id=?`, [json,id,clubId]);
+[35mserver/peerFundraising/services/peerPaymentMethodsService.js[m[36m:[m[32m75[m[36m:[m  const linked = parseJson(f.[1;31mlinked_payment_methods_json[m, {});
+[35mserver/puzzles/services/puzzleDropService.js[m[36m:[m[32m184[m[36m:[m            config_json, [1;31mlinked_payment_methods_json[m, game_type
+[35mserver/puzzles/services/puzzleDropService.js[m[36m:[m[32m203[m[36m:[m  const linkedPaymentMethods = parseJsonMaybe(row.[1;31mlinked_payment_methods_json[m, {});
+[35mserver/puzzles/services/puzzleSubRoomService.js[m[36m:[m[32m15[m[36m:[m//     [1;31mlinked_payment_methods_json[m stays empty; the Stripe connection is
+[35mserver/puzzles/services/puzzleSubRoomService.js[m[36m:[m[32m158[m[36m:[m       [1;31mlinked_payment_methods_json[m,
+[35mserver/puzzles/services/puzzleSubRoomService.js[m[36m:[m[32m222[m[36m:[m       [1;31mlinked_payment_methods_json[m,
+[35mserver/quiz/api/web2-rooms.js[m[36m:[m[32m110[m[36m:[m        [1;31mlinked_payment_methods_json[m,
+[35mserver/quiz/api/web2-rooms.js[m[36m:[m[32m152[m[36m:[m        [1;31mlinked_payment_methods_json[m,
+[35mserver/quiz/api/web2-rooms.js[m[36m:[m[32m303[m[36m:[m         [1;31mlinked_payment_methods_json[m,
+[35mserver/quiz/handlers/sharedUtils.js[m[36m:[m[32m114[m[36m:[m        `SELECT [1;31mlinked_payment_methods_json[m 
+[35mserver/quiz/handlers/sharedUtils.js[m[36m:[m[32m121[m[36m:[m      if (linkedMethodsRows?.[0]?.[1;31mlinked_payment_methods_json[m) {
+[35mserver/quiz/handlers/sharedUtils.js[m[36m:[m[32m122[m[36m:[m        const linkedData = linkedMethodsRows[0].[1;31mlinked_payment_methods_json[m;
+[35mserver/quiz/services/cryptoSolanaPaymentVerificationService.js[m[36m:[m[32m109[m[36m:[m       [1;31mlinked_payment_methods_json[m
+[35mserver/quiz/services/cryptoSolanaPaymentVerificationService.js[m[36m:[m[32m134[m[36m:[m  const linked = parseJsonMaybe(room.[1;31mlinked_payment_methods_json[m, {});
+[35mserver/ticketedEvent/api/ticketedEventMgmtService.js[m[36m:[m[32m205[m[36m:[m       [1;31mlinked_payment_methods_json[m, created_at, updated_at
+[35mserver/ticketedEvent/api/ticketedEventMgmtService.js[m[36m:[m[32m232[m[36m:[m       [1;31mlinked_payment_methods_json[m, created_at, updated_at
+[35msrc/components/campaigns/management/CampaignPaymentsTab.tsx[m[36m:[m[32m5[m[36m:[m//   - operates on campaign-level [1;31mlinked_payment_methods_json[m
+[35msrc/components/mgtsystem/modals/EditFundraiserModal.tsx[m[36m:[m[32m180[m[36m:[m      paymentMethods:   parseLinkedPaymentMethods(room?.[1;31mlinked_payment_methods_json[m),
+[35msrc/components/mgtsystem/modals/EditFundraiserModal.tsx[m[36m:[m[32m187[m[36m:[m    base.paymentMethods = parseLinkedPaymentMethods(room?.[1;31mlinked_payment_methods_json[m);
+[35msrc/components/mgtsystem/modals/EditFundraiserModal.tsx[m[36m:[m[32m215[m[36m:[m      ? parseLinkedPaymentMethods(room?.[1;31mlinked_payment_methods_json[m)
+[35msrc/components/mgtsystem/modals/ScheduleEliminationModal.tsx[m[36m:[m[32m65[m[36m:[m  const rawLinked = existingRoom?.[1;31mlinked_payment_methods_json[m;
+[35msrc/components/mgtsystem/modals/ScheduleQuizModal.tsx[m[36m:[m[32m21[m[36m:[m// column ([1;31mlinked_payment_methods_json[m), validated and written via
+[35msrc/components/mgtsystem/modals/ScheduleQuizModal.tsx[m[36m:[m[32m59[m[36m:[m  // Hydrated from the room's own [1;31mlinked_payment_methods_json[m on edit — NOT
+[35msrc/components/mgtsystem/modals/ScheduleQuizModal.tsx[m[36m:[m[32m63[m[36m:[m    const rawLinked = existingRoom?.[1;31mlinked_payment_methods_json[m;
+[35msrc/components/mgtsystem/modals/ScheduleTicketedEventModal.tsx[m[36m:[m[32m190[m[36m:[m  const rawLinkedPaymentMethods = existingRoom?.[1;31mlinked_payment_methods_json[m;
+[35msrc/components/mgtsystem/services/EliminationMgmtService.ts[m[36m:[m[32m60[m[36m:[m  [1;31mlinked_payment_methods_json[m: LinkedPaymentMethods | string | null;
+[35msrc/components/mgtsystem/services/TicketedEventMgmtService.ts[m[36m:[m[32m84[m[36m:[m  [1;31mlinked_payment_methods_json[m: LinkedPaymentMethods | string | null;
+[35msrc/components/mgtsystem/wizard/activityRegistry.tsx[m[36m:[m[32m253[m[36m:[m    // of config, and writes them to [1;31mlinked_payment_methods_json[m
+[35msrc/components/mgtsystem/wizard/steps/activities/QuizActivityStep.tsx[m[36m:[m[32m23[m[36m:[m//     column ([1;31mlinked_payment_methods_json[m) written via
+[35msrc/services/PeerService.ts[m[36m:[m[32m42[m[36m:[m  [1;31mlinked_payment_methods_json[m?: {
+[35msrc/shared/api/quiz.api.ts[m[36m:[m[32m99[m[36m:[m  [1;31mlinked_payment_methods_json[m?: LinkedPaymentMethods | string | null;

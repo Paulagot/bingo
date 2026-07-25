@@ -1,13 +1,13 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/LeaderboardTabSubscription.tsx
 //
 // Brings the standalone ChallengeLeaderboardPage's data into the drawer,
-// rather than duplicating that page's full UI — getLeaderboard is the
+// rather than duplicating that page's full UI - getLeaderboard is the
 // same endpoint, fetched once in DigitalEventDrawer alongside the
 // challenge and passed down here (same pattern as auditView for
 // Report/Approval).
 //
 // Rows expand to the same week-by-week breakdown as the full page
-// (score, time, correct — never answers or solutions; the backend
+// (score, time, correct - never answers or solutions; the backend
 // doesn't send them). Header links out to the full club page and the
 // PUBLIC wall of fame, which is the shareable/recruitment URL.
 
@@ -19,7 +19,7 @@ import { ChevronDown, ChevronUp, Crown, ExternalLink, Globe, Trophy } from 'luci
 interface Props {
   leaderboard: LeaderboardEntry[];
   leaderboardLoading: boolean;
-  /** Challenge id — enables the full-page and public wall-of-fame links.
+  /** Challenge id - enables the full-page and public wall-of-fame links.
    *  Optional so the drawer still renders while the challenge resolves. */
   challengeId?: string;
 }
@@ -49,7 +49,7 @@ export default function LeaderboardTabSubscription({
   if (!leaderboard.length) {
     return (
       <div className="p-5 text-sm text-[#52636f]">
-        No submissions yet — the leaderboard fills in once subscribers start solving weekly puzzles.
+        No submissions yet - the leaderboard fills in once subscribers start solving weekly puzzles.
       </div>
     );
   }

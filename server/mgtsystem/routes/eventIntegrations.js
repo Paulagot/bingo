@@ -54,10 +54,33 @@ router.post('/api/event-integrations/lookup', authenticateToken, async (req, res
 });
 
 /**
- * --------------------------------------------------------
- * Parameterised routes - keep these AFTER collection routes
- * --------------------------------------------------------
+ * POST /api/event-integrations/by-events
+ * Body: { event_ids: string[] }
+ * Returns all integrations linked to the supplied event IDs.
  */
+router.post('/api/event-integrations/by-events', authenticateToken, async (req, res) => {
+  try {
+    const clubId = req.club_id;
+    const { event_ids } = req.body || {};
+
+    if (!Array.isArray(event_ids) || event_ids.length === 0) {
+      return res.status(400).json({ error: 'event_ids[] is required' });
+    }
+
+    const integrations = await svc.lookupByEventIds({
+      clubId,
+      eventIds: event_ids,
+    });
+
+    res.json({
+      integrations,
+      total: integrations.length,
+    });
+  } catch (err) {
+    console.error('[eventIntegrations] batch event lookup error:', err);
+    res.status(500).json({ error: 'Failed to lookup event integrations' });
+  }
+});
 
 /**
  * GET /api/events/:eventId/integrations

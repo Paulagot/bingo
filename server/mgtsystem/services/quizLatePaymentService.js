@@ -28,6 +28,38 @@ export async function getUnpaidPlayersForRoom(roomId) {
   return rows;
 }
 
+export async function getUnpaidPlayerCountsForRooms(roomIds) {
+  const ids = Array.from(new Set((roomIds || []).filter(Boolean))).slice(0, 200);
+
+  if (ids.length === 0) return {};
+
+  const placeholders = ids.map(() => '?').join(',');
+
+  const sql = `
+    SELECT
+      room_id AS roomId,
+      COUNT(DISTINCT player_id) AS unpaidCount
+    FROM ${LEDGER_TABLE}
+    WHERE room_id IN (${placeholders})
+      AND status IN ('expected', 'claimed', 'disputed')
+    GROUP BY room_id
+  `;
+
+  const [rows] = await connection.execute(sql, ids);
+
+  const counts = {};
+
+  for (const roomId of ids) {
+    counts[roomId] = 0;
+  }
+
+  for (const row of rows || []) {
+    counts[row.roomId] = Number(row.unpaidCount || 0);
+  }
+
+  return counts;
+}
+
 /**
  * Mark a player's outstanding ledger rows as confirmed + flag them as late.
  * This is intentionally DB-driven (post-event).

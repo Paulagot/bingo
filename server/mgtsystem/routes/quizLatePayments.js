@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUnpaidPlayersForRoom, markPlayerPaidLate, writeOffPlayerPayment, } from '../services/quizLatePaymentService.js';
+import { getUnpaidPlayersForRoom, getUnpaidPlayerCountsForRooms, markPlayerPaidLate, writeOffPlayerPayment, } from '../services/quizLatePaymentService.js';
 
 const router = express.Router();
 
@@ -14,6 +14,34 @@ router.get('/unpaid', async (req, res) => {
   } catch (err) {
     console.error('[quizLatePayments] unpaid error', err);
     return res.status(500).json({ ok: false, message: 'Failed to load unpaid players' });
+  }
+});
+
+// POST unpaid player counts for multiple rooms
+router.post('/unpaid-counts', async (req, res) => {
+  try {
+    const { roomIds } = req.body || {};
+
+    if (!Array.isArray(roomIds) || roomIds.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'roomIds[] is required',
+      });
+    }
+
+    const counts = await getUnpaidPlayerCountsForRooms(roomIds);
+
+    return res.json({
+      ok: true,
+      counts,
+    });
+  } catch (err) {
+    console.error('[quizLatePayments] unpaid-counts error', err);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to load unpaid player counts',
+    });
   }
 });
 

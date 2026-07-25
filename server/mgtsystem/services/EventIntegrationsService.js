@@ -6,7 +6,7 @@ import database from '../../config/database.js';
 // not event → room, so the update helper from that service isn't needed
 // in this file anymore.
 
-const VALID_TYPES = ['quiz_web2', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop']; // add more later: quiz_web3, bingo_web2, etc.
+const VALID_TYPES = ['quiz_web2', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop', 'sponsored_activity']; // add more later: quiz_web3, bingo_web2, etc.
 
 class EventIntegrationsService {
 
@@ -106,6 +106,40 @@ class EventIntegrationsService {
     return rows || [];
   }
 
+  /**
+ * Batch lookup integrations by event IDs.
+ * Returns all linked activities for the supplied club-owned events.
+ */
+async lookupByEventIds({ clubId, eventIds }) {
+  const ids = Array.from(new Set((eventIds || []).filter(Boolean))).slice(0, 200);
+
+  if (ids.length === 0) return [];
+
+  const placeholders = ids.map(() => '?').join(',');
+
+  const [rows] = await database.connection.execute(
+    `SELECT
+       id,
+       event_id,
+       club_id,
+       integration_type,
+       external_ref,
+       status,
+       scheduled_at,
+       ended_at,
+       time_zone,
+       created_at,
+       updated_at
+     FROM fundraisely_event_integrations
+     WHERE club_id = ?
+       AND event_id IN (${placeholders})
+     ORDER BY created_at DESC`,
+    [clubId, ...ids]
+  );
+
+  return rows || [];
+}
+
   async listIntegrations({ eventId, clubId }) {
     await this._assertEventOwned({ eventId, clubId });
 
@@ -149,7 +183,7 @@ class EventIntegrationsService {
       time_zone:    null,
     };
 
-    if (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event' || integration_type === 'puzzle_sub' || integration_type === 'puzzle_drop') {
+    if (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event' || integration_type === 'puzzle_sub' || integration_type === 'puzzle_drop' || integration_type === 'sponsored_activity') {
       const room = await this._loadQuizWeb2Room({ roomId: external_ref, clubId });
       cached = {
         status:       room.status       || null,
@@ -182,7 +216,7 @@ class EventIntegrationsService {
     try {
       const eventData = await this._loadEventSyncData({ eventId });
 
-      if (eventData && (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event' || integration_type === 'puzzle_sub' || integration_type === 'puzzle_drop')) {
+      if (eventData && (integration_type === 'quiz_web2' || integration_type === 'elimination' || integration_type === 'ticketed_event' || integration_type === 'puzzle_sub' || integration_type === 'puzzle_drop' || integration_type === 'sponsored_activity')) {
         const scheduledAt = eventData.start_datetime || eventData.event_date || null;
         const timeZone    = eventData.time_zone || null;
 
@@ -192,7 +226,10 @@ class EventIntegrationsService {
           const setClauses = [];
           const params = [];
 
-          if (scheduledAt) { setClauses.push('scheduled_at = ?'); params.push(scheduledAt); }
+          if (scheduledAt && integration_type !== 'sponsored_activity') {
+            setClauses.push('scheduled_at = ?');
+            params.push(scheduledAt);
+          }
           if (timeZone)    { setClauses.push('time_zone = ?');    params.push(timeZone); }
 
           if (setClauses.length > 0) {
@@ -207,7 +244,10 @@ class EventIntegrationsService {
             // Also update the cached values we just inserted into event_integrations
             const eiSetClauses = [];
             const eiParams = [];
-            if (scheduledAt) { eiSetClauses.push('scheduled_at = ?'); eiParams.push(scheduledAt); }
+            if (scheduledAt && integration_type !== 'sponsored_activity') {
+              eiSetClauses.push('scheduled_at = ?');
+              eiParams.push(scheduledAt);
+            }
             if (timeZone)    { eiSetClauses.push('time_zone = ?');    eiParams.push(timeZone); }
             eiParams.push(insertedId);
             await database.connection.execute(
@@ -304,7 +344,7 @@ class EventIntegrationsService {
         `SELECT event_id
          FROM fundraisely_event_integrations
          WHERE external_ref = ? AND club_id = ?
-           AND integration_type IN ('quiz_web2', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop')`,
+           AND integration_type IN ('quiz_web2', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop', 'sponsored_activity')`,
         [roomId, clubId]
       );
 

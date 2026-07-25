@@ -10,6 +10,26 @@
 // DELETE /room/:roomId/adjustments/:id — delete adjustment row
 // POST /room/:roomId/approve      — approve and lock reconciliation
 // POST /room/:roomId/dispute-payment — mark a claimed payment as disputed
+//
+// v2 CHANGES (the duplicate-reconciliation fix):
+//   1. /approve no longer uses INSERT … ON DUPLICATE KEY UPDATE. That
+//      pattern only updates in place if room_id has a UNIQUE index —
+//      it doesn't (and can't: subscriptions/drops need many rows per
+//      room), so every approval silently INSERTED a second header row,
+//      orphaning the draft the adjustments were linked to (produced
+//      ghost drafts 81/83/85/87/90, then 92/93 live). Approval now
+//      UPDATEs the draft row by its exact id — the same pattern
+//      approveCurrentPeriod already uses for subs/drops — and returns
+//      409 if already approved, so re-approval can't stack duplicates
+//      either (the D153E66F 73/76/77 triple).
+//   2. adjustmentsNet is computed via the shared classifier
+//      (server/shared/adjustmentClassifier.js) — the single source of
+//      truth — instead of a local switch. Unclassified adjustments are
+//      logged and excluded rather than silently ignored.
+//   3. The ledger stamp uses the KNOWN reconciliation id, not a
+//      "SELECT id … LIMIT 1" subquery that could grab the wrong row.
+//   4. Adjustments with a NULL reconciliation_id for the room are
+//      claimed at approval so the audit chain is complete.
 
 import express from 'express';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
@@ -19,7 +39,9 @@ import {
   addAdjustment as addAdjustmentRow,
   updateAdjustment as updateAdjustmentRow,
   deleteAdjustment as deleteAdjustmentRow,
+  getFinalTotalsForRooms,
 } from './ticketedEventReconciliationService.js';
+import { computeAdjustmentsNet } from '../../shared/adjustmentClassifier.js';
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -42,6 +64,37 @@ function parseConfig(raw) {
 // ─── GET /room/:roomId ────────────────────────────────────────────────────────
 // Returns: { meta, reconciliation, adjustments, summary }
 
+
+// POST /final-totals
+// Body: { roomIds: string[] }
+// Returns latest reconciliation final total for each room.
+router.post('/final-totals', async (req, res) => {
+  try {
+    const { roomIds } = req.body || {};
+
+    if (!Array.isArray(roomIds) || roomIds.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'roomIds[] is required',
+      });
+    }
+
+    const totals = await getFinalTotalsForRooms(roomIds);
+
+    return res.json({
+      ok: true,
+      totals,
+    });
+  } catch (err) {
+    console.error('[ticketedEventReconciliation] final-totals error', err);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to load reconciliation totals',
+    });
+  }
+});
+
 router.get('/room/:roomId', async (req, res) => {
   const { roomId } = req.params;
   try {
@@ -63,7 +116,9 @@ router.get('/room/:roomId', async (req, res) => {
       hostName:       config.hostName         ?? 'Host',
     };
 
-    // Reconciliation record (may not exist yet)
+    // Reconciliation record (may not exist yet). ORDER BY id DESC so the
+    // newest row wins deterministically even if historical duplicates
+    // exist from before the v2 fix.
     const [[recon]] = await connection.execute(
       `SELECT * FROM ${RECON_TABLE} WHERE room_id = ? ORDER BY id DESC LIMIT 1`,
       [roomId]
@@ -111,7 +166,6 @@ router.get('/room/:roomId', async (req, res) => {
       [roomId]
     );
 
-    
     // By ticket type breakdown — null ticket_type_id = legacy room with no types
     const [byTicketType] = await connection.execute(
       `SELECT
@@ -128,7 +182,7 @@ router.get('/room/:roomId', async (req, res) => {
       [roomId]
     );
 
-   const summary = {
+    const summary = {
       entryFees:        Number(summaryRow?.entry_fees      ?? 0),
       extras:           Number(summaryRow?.extras          ?? 0),
       startingTotal:    Number(summaryRow?.starting_total  ?? 0),
@@ -139,7 +193,6 @@ router.get('/room/:roomId', async (req, res) => {
         extras:     Number(r.extras     ?? 0),
         total:      Number(r.total      ?? 0),
       })),
-      // ← ADD THIS:
       byTicketType: byTicketType.map(r => ({
         ticketTypeId:   r.ticket_type_id,
         ticketTypeName: r.ticket_type_name,
@@ -204,8 +257,6 @@ router.get('/room/:roomId/payment-view', async (req, res) => {
   const { roomId } = req.params;
   try {
     // ── Confirmed rows — grouped by confirmer
-    // payment_reference is included in SELECT + GROUP BY so we can derive saleType.
-    // 'WALKIN' is set explicitly by POST /checkin/:roomId/walkin on every walk-in row.
     const [confirmedRows] = await connection.execute(
       `SELECT
          l.player_id,
@@ -257,9 +308,6 @@ router.get('/room/:roomId/payment-view', async (req, res) => {
       const amt   = Number(row.total_amount || 0);
       group.totalAmount += amt;
 
-      // saleType: walk-ins are identified by payment_reference = 'WALKIN'.
-      // The walk-in checkin endpoint always sets this value, making it a
-      // reliable signal that requires no frontend guesswork.
       const saleType = row.payment_reference === 'WALKIN' ? 'walk_in' : 'advance';
 
       group.players.push({
@@ -271,7 +319,7 @@ router.get('/room/:roomId/payment-view', async (req, res) => {
         paymentReference: row.payment_reference  ?? null,
         amount:           amt,
         status:           'confirmed',
-        saleType,           // ← 'walk_in' | 'advance'
+        saleType,
       });
     }
 
@@ -372,14 +420,7 @@ router.post('/room/:roomId/adjustments', async (req, res) => {
     const currency = config.currency ?? 'EUR';
 
     // Ensure a draft reconciliation row exists so this adjustment has a
-    // reconciliation_id to link to — the intent already documented at
-    // the top of ticketedEventReconciliationService.js, just not
-    // actually wired up here before. addAdjustmentRow/updateAdjustmentRow
-    // below also only ever touch columns that really exist on this table
-    // (ts, reconciliation_id, adjustment_type, amount, currency,
-    // payment_method, reason_code, note, created_by) — the previous
-    // inline SQL here referenced a non-existent `updated_at` column,
-    // which is why every "Add Entry" click was silently failing.
+    // reconciliation_id to link to.
     const draft = await ensureDraftReconciliation(roomId, room.club_id);
     if (draft.approved) {
       return res.status(409).json({ error: 'Reconciliation already approved — adjustments are locked' });
@@ -442,8 +483,6 @@ router.patch('/room/:roomId/adjustments/:id', async (req, res) => {
   }
 
   try {
-    // Only ever sets columns that actually exist on this table — no
-    // updated_at reference, unlike the inline SQL this replaced.
     const ok = await updateAdjustmentRow(roomId, id, patch);
     if (!ok) return res.status(404).json({ error: 'Adjustment not found' });
     res.json({ ok: true });
@@ -468,6 +507,9 @@ router.delete('/room/:roomId/adjustments/:id', async (req, res) => {
 });
 
 // ─── POST /room/:roomId/approve ───────────────────────────────────────────────
+// v2: approves the draft row IN PLACE (UPDATE by id) instead of the old
+// INSERT … ON DUPLICATE KEY UPDATE, which — with no unique index on
+// room_id — inserted a duplicate header on every approval.
 
 router.post('/room/:roomId/approve', async (req, res) => {
   const { roomId }   = req.params;
@@ -490,7 +532,23 @@ router.post('/room/:roomId/approve', async (req, res) => {
       });
     }
 
-    // Recalculate totals fresh
+    const [[room]] = await connection.execute(
+      `SELECT club_id FROM ${ROOMS_TABLE} WHERE room_id = ?`, [roomId]
+    );
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+
+    // ── Get (or create) the draft and refuse re-approval ────────────────
+    // ensureDraftReconciliation returns the existing row for this room
+    // (creating one only if none exists — e.g. an approval with zero
+    // adjustments). If it's already approved, block: re-approval was the
+    // other path that stacked duplicate rows (D153E66F's 73/76/77).
+    const draft = await ensureDraftReconciliation(roomId, room.club_id);
+    if (draft.approved) {
+      return res.status(409).json({ error: 'Reconciliation already approved' });
+    }
+    const reconciliationId = draft.id;
+
+    // ── Recalculate starting totals fresh from the ledger ───────────────
     const [[totals]] = await connection.execute(
       `SELECT
          SUM(CASE WHEN ledger_type = 'entry_fee'     THEN amount ELSE 0 END) AS entry_fees,
@@ -501,57 +559,58 @@ router.post('/room/:roomId/approve', async (req, res) => {
       [roomId]
     );
 
+    // ── Net adjustments via the shared classifier ───────────────────────
     const [adjustmentRows] = await connection.execute(
-      `SELECT adjustment_type, reason_code, amount FROM ${ADJUSTMENTS_TABLE} WHERE room_id = ?`,
+      `SELECT id, adjustment_type, reason_code, amount
+       FROM ${ADJUSTMENTS_TABLE} WHERE room_id = ?`,
       [roomId]
     );
 
-    let moneyIn = 0, moneyOut = 0;
-    for (const a of adjustmentRows) {
-      const amt = Number(a.amount || 0);
-      switch (a.adjustment_type) {
-        case 'received':     moneyIn  += amt; break;
-        case 'refund':
-        case 'fee':
-        case 'prize_payout': moneyOut += amt; break;
-        case 'cash_over_short':
-          if (a.reason_code === 'cash_over')  moneyIn  += amt;
-          else if (a.reason_code === 'cash_short') moneyOut += amt;
-          break;
-      }
+    const { net: adjustmentsNet, unclassified } = computeAdjustmentsNet(adjustmentRows);
+    if (unclassified.length > 0) {
+      console.warn(
+        `[TicketedRecon] ${unclassified.length} unclassified adjustment(s) excluded from net`,
+        `for room ${roomId}:`,
+        unclassified.map(u => `id=${u.id} type=${u.adjustment_type} reason=${u.reason_code}`)
+      );
     }
 
-    const startingTotal  = Number(totals.starting_total  ?? 0);
-    const adjustmentsNet = moneyIn - moneyOut;
-    const finalTotal     = startingTotal + adjustmentsNet;
-    const [[room]]       = await connection.execute(
-      `SELECT club_id FROM ${ROOMS_TABLE} WHERE room_id = ?`, [roomId]
-    );
+    const startingTotal = Number(totals.starting_total ?? 0);
+    const finalTotal    = startingTotal + adjustmentsNet;
 
-    // Upsert reconciliation record
-    await connection.execute(
-      `INSERT INTO ${RECON_TABLE}
-         (room_id, club_id, starting_entry_fees, starting_extras, starting_total,
-          adjustments_net, final_total, approved_by, approved_at, notes,
-          created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), NOW())
-       ON DUPLICATE KEY UPDATE
-         starting_entry_fees = VALUES(starting_entry_fees),
-         starting_extras     = VALUES(starting_extras),
-         starting_total      = VALUES(starting_total),
-         adjustments_net     = VALUES(adjustments_net),
-         final_total         = VALUES(final_total),
-         approved_by         = VALUES(approved_by),
-         approved_at         = NOW(),
-         notes               = VALUES(notes),
-         updated_at          = NOW()`,
+    // ── Approve IN PLACE on the draft row ───────────────────────────────
+    const [updateResult] = await connection.execute(
+      `UPDATE ${RECON_TABLE}
+       SET starting_entry_fees = ?,
+           starting_extras     = ?,
+           starting_total      = ?,
+           adjustments_net     = ?,
+           final_total         = ?,
+           approved_by         = ?,
+           approved_at         = NOW(),
+           notes               = ?,
+           updated_at          = NOW()
+       WHERE id = ? AND approved_at IS NULL`,
       [
-        roomId, room.club_id,
         Number(totals.entry_fees ?? 0),
         Number(totals.extras     ?? 0),
         startingTotal, adjustmentsNet, finalTotal,
         approvedBy.trim(), notes?.trim() ?? null,
+        reconciliationId,
       ]
+    );
+    if (updateResult.affectedRows === 0) {
+      // Raced with another approval between the draft check and now
+      return res.status(409).json({ error: 'Reconciliation already approved' });
+    }
+
+    // Adjustments added before any draft existed carry a NULL
+    // reconciliation_id — claim them so the audit chain is complete.
+    await connection.execute(
+      `UPDATE ${ADJUSTMENTS_TABLE}
+       SET reconciliation_id = ?
+       WHERE room_id = ? AND reconciliation_id IS NULL`,
+      [reconciliationId, roomId]
     );
 
     // Stamp reconciliation_status on the room
@@ -561,29 +620,24 @@ router.post('/room/:roomId/approve', async (req, res) => {
       [roomId]
     );
 
-    // Stamp every confirmed ledger row that fed these totals with which
-    // reconciliation it was settled under and who approved it. This was
-    // previously never written anywhere, even though reconciliation_id /
-    // reconciled_at / reconciled_by / reconciled_by_name all exist on
-    // the ledger table — the totals were computed from these rows, but
-    // the rows themselves were never marked as reconciled. Unlike
-    // subscriptions (which are period-bounded by date), a ticketed event
-    // only ever has one reconciliation for its whole lifetime, so this
-    // is a plain room-wide stamp with no date window needed.
+    // Stamp every confirmed ledger row with the KNOWN reconciliation id
+    // (the old code used a "SELECT id … LIMIT 1" subquery, which was
+    // ambiguous whenever duplicate header rows existed).
     await connection.execute(
       `UPDATE ${LEDGER_TABLE}
-       SET reconciliation_id  = (SELECT id FROM ${RECON_TABLE} WHERE room_id = ? LIMIT 1),
+       SET reconciliation_id  = ?,
            reconciled_at      = NOW(),
            reconciled_by      = ?,
            reconciled_by_name = ?
        WHERE room_id = ? AND status = 'confirmed' AND reconciliation_id IS NULL`,
-      [roomId, approvedBy.trim(), approvedBy.trim(), roomId]
+      [reconciliationId, approvedBy.trim(), approvedBy.trim(), roomId]
     );
 
     res.json({
       ok: true,
       data: {
         roomId,
+        reconciliationId: String(reconciliationId),
         startingTotal,
         adjustmentsNet,
         finalTotal,

@@ -4,13 +4,13 @@
 // Session completes: /puzzle-drop/:dropRoomId/success?entitlementId=...&session_id=...
 //
 // Stripe's success_url can only carry small values, not a full set of
-// access tokens for a multi-item purchase — so this page calls
+// access tokens for a multi-item purchase - so this page calls
 // publicPuzzleDropService.getStripeSession to retrieve them, the same
 // way the instant-payment success screen on PuzzleDropLandingPage.tsx
 // gets them directly from the purchase() response.
 //
 // Webhook timing is NOT guaranteed relative to the browser's redirect
-// back from Checkout — the webhook could land before or after this page
+// back from Checkout - the webhook could land before or after this page
 // loads. So this polls briefly (a few short retries) while pending
 // rather than treating "not confirmed yet" as an error.
 
@@ -37,7 +37,7 @@ export default function PuzzleDropStripeSuccessPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const pollCount = useRef(0);
 
-  // No club branding fetch here — same deliberate simplification as
+  // No club branding fetch here - same deliberate simplification as
   // PuzzleDropPlayPage.tsx; default theme only.
   const theme = resolvePuzzleTheme(null);
 
@@ -109,7 +109,7 @@ export default function PuzzleDropStripeSuccessPage() {
             <>
               <h2 className="mb-2 font-serif text-3xl text-[#071A44]">Confirming your payment…</h2>
               <p className="mb-6 text-sm text-[#5F7D6A]">
-                Stripe says your payment went through — we're just finishing setting up your puzzles.
+                Stripe says your payment went through - we're just finishing setting up your puzzles.
                 This page will update automatically in a few seconds.
               </p>
               <div className="flex items-center gap-3">
@@ -121,7 +121,7 @@ export default function PuzzleDropStripeSuccessPage() {
             <>
               <h2 className="mb-2 font-serif text-3xl text-[#071A44]">Payment confirmed 🎉</h2>
               <p className="mb-6 text-sm text-[#5F7D6A]">
-                Save these links now — each one unlocks a puzzle:
+                Save these links now - each one unlocks a puzzle:
               </p>
               <div className="space-y-3">
                 {(entitlements ?? []).map(ent => {

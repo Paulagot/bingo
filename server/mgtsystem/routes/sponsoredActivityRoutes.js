@@ -1,0 +1,10 @@
+import express from 'express';
+import authenticateToken from '../../middleware/auth.js';
+import { createSponsoredActivity, getSponsoredActivity, updateSponsoredActivity } from '../services/sponsoredActivityService.js';
+const router = express.Router();
+router.use(authenticateToken);
+const fail = (res, e) => res.status(e?.statusCode || 500).json({ error: e?.message || 'internal_error', ...(e?.currentStatus && { currentStatus: e.currentStatus }) });
+router.post('/', async (req,res) => { try { const result = await createSponsoredActivity({ clubId:req.club_id, ...req.body }); res.status(201).json(result); } catch(e){ fail(res,e); } });
+router.get('/:roomId', async (req,res) => { try { const room = await getSponsoredActivity({ clubId:req.club_id, roomId:req.params.roomId }); if(!room) return res.status(404).json({error:'not_found'}); res.json({room}); } catch(e){ fail(res,e); } });
+router.patch('/:roomId', async (req,res) => { try { res.json(await updateSponsoredActivity({ clubId:req.club_id, roomId:req.params.roomId, ...req.body })); } catch(e){ fail(res,e); } });
+export default router;

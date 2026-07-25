@@ -28,12 +28,6 @@ import { generatePuzzleForDropItem } from './puzzleGenerationService.js';
 const paymentMethodsService = new QuizPaymentMethodsService();
 const eventIntegrationsService = new EventIntegrationsService();
 
-/**
- * MySQL DATETIME rejects ISO strings like "2026-06-19T20:41:00.000Z" — it
- * needs "2026-06-19 20:41:00". Same conversion challengeService.js's
- * toMysqlDateTime does; duplicated here rather than imported since that
- * function isn't exported from challengeService.js.
- */
 function toMysqlUtcDateTime(value) {
   if (value === null || value === undefined || value === '') return null;
   const d = value instanceof Date ? value : new Date(value);
@@ -42,12 +36,6 @@ function toMysqlUtcDateTime(value) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 }
 
-/**
- * Parses a value MySQL returned for a DATETIME column as a UTC timestamp
- * (ms). Handles both possible shapes the driver can hand back — a JS Date
- * object, or a "YYYY-MM-DD HH:MM:SS" string with no timezone marker —
- * same dual-handling challengeService.js's fromMysqlDateTimeAsUtc does.
- */
 function fromMysqlDateTimeAsUtcMs(value) {
   if (!value) return null;
   if (value instanceof Date) return value.getTime();
@@ -169,7 +157,7 @@ export async function createDrop({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Room config reads (mirrors quizTicketService.getRoomConfig's shape)
+// Room config reads
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function maybeOpenDropRoom({ roomId, clubId, status, scheduledAt }) {
@@ -365,7 +353,7 @@ export async function validateDropStripePaymentMethod({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Entitlements — basic reads
+// Entitlements
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getEntitlementByAccessToken(accessToken) {
@@ -555,12 +543,12 @@ export async function createDropEntitlements({
   itemIds,
   buyerName,
   buyerEmail,
-  paymentMethod,          // raw value — normalised below via normalizePaymentMethod
-  paymentSource,          // 'player_selected' | 'player_claimed' | 'onchain_auto' | 'webhook_auto'
+  paymentMethod,
+  paymentSource,
   paymentReference = null,
   externalTransactionId = null,
   clubPaymentMethodId,
-  initialStatus,          // 'expected' | 'claimed' | 'confirmed'
+  initialStatus,
 }) {
   if (!Array.isArray(itemIds) || itemIds.length === 0) {
     throw new Error('at_least_one_item_required');
@@ -689,13 +677,6 @@ export async function createDropEntitlements({
   };
 }
 
-/**
- * Stripe-specific follow-up: the ledger row is created BEFORE the Stripe
- * Checkout Session exists (createDropEntitlements needs the total amount
- * to build the session, so entitlements/ledger come first) — this patches
- * the session id onto that ledger row afterward, same two-step pattern
- * quizTicketService.createTicketStripeCheckout uses for ticket purchases.
- */
 export async function attachStripeSessionToLedger({ ledgerId, sessionId }) {
   await database.connection.execute(
     `UPDATE fundraisely_quiz_payment_ledger
@@ -705,13 +686,6 @@ export async function attachStripeSessionToLedger({ ledgerId, sessionId }) {
   );
 }
 
-/**
- * Looks up every entitlement sharing a ledger row whose payment_reference
- * matches a Stripe session id — used by the buyer's post-checkout success
- * page to retrieve access tokens, since Stripe's success_url can only
- * carry small values (entitlementId), not the full set of tokens for a
- * multi-item purchase.
- */
 export async function getEntitlementsBySessionId({ dropRoomId, sessionId }) {
   const [[ledgerRow]] = await database.connection.execute(
     `SELECT id
@@ -724,16 +698,6 @@ export async function getEntitlementsBySessionId({ dropRoomId, sessionId }) {
   return getEntitlementsByLedgerId(ledgerRow.id);
 }
 
-/**
- * Admin confirms a Drop purchase — mirrors quizTicketService.confirmTicketPayment,
- * but operates on every entitlement sharing the purchase's ledger_id at
- * once (one payment covers the whole bundle, not one item at a time — see
- * createDropEntitlements's comment on the shared-ledger-row design).
- *
- * Generates the puzzle instance for each entitlement now, if it wasn't
- * already generated at purchase time (it won't have been — this path is
- * only reached for entitlements that started 'claimed').
- */
 export async function confirmDropPurchase({ entitlementId, confirmedBy, confirmedByName, confirmedByRole }) {
   const entitlement = await getEntitlementById(entitlementId);
   if (!entitlement) throw new Error('entitlement_not_found');
@@ -799,7 +763,7 @@ export async function confirmDropPurchase({ entitlementId, confirmedBy, confirme
 export async function getPublicDropMeta({ dropRoomId }) {
   const room = await getDropRoomConfig(dropRoomId);
   if (!room) return null;
-  if (room.status !== 'open') return null;
+  if (room.status !== 'open' && room.status !== 'completed') return null;
 
   const [rows] = await database.connection.execute(
     `SELECT
@@ -855,7 +819,7 @@ export async function getDropItemLeaderboard({ dropRoomId, itemNumber }) {
        ss.time_taken_seconds,
        ss.submitted_at
      FROM fundraisely_puzzle_submissions ss
-     JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id
+     JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id COLLATE utf8mb4_unicode_ci
      WHERE ss.drop_room_id = ? AND ss.item_number = ?
      ORDER BY ss.total_score DESC, ss.time_taken_seconds ASC, ss.submitted_at ASC`,
     [dropRoomId, itemNumber]
@@ -876,6 +840,102 @@ export async function getDropItemLeaderboard({ dropRoomId, itemNumber }) {
       submittedAt: row.submitted_at ?? null,
     })),
   };
+}
+
+export async function completeDrop({ roomId, clubId }) {
+  const room = await getDropRoomConfig(roomId);
+  if (!room) throw new Error('drop_not_found');
+  if (room.clubId !== clubId) throw new Error('access_denied');
+  if (room.status === 'completed') {
+    throw new Error('drop_already_completed');
+  }
+
+  await database.connection.execute(
+    `UPDATE ${WEB2_ROOMS_TABLE}
+     SET status = 'completed', updated_at = UTC_TIMESTAMP()
+     WHERE room_id = ? AND club_id = ?`,
+    [roomId, clubId]
+  );
+
+  if (DEBUG) {
+    console.log('[PuzzleDropService] ✅ Drop marked completed:', { roomId, clubId });
+  }
+
+  return { ok: true, roomId, status: 'completed' };
+}
+
+export async function getDropPurchasesForClub({ roomId, clubId }) {
+  const room = await getDropRoomConfig(roomId);
+  if (!room || room.clubId !== clubId) return null;
+
+  const [rows] = await database.connection.execute(
+    `SELECT
+       e.id            AS entitlement_id,
+       e.item_id,
+       e.buyer_email,
+       e.buyer_name,
+       e.payment_status,
+       e.ledger_id,
+       e.created_at    AS entitlement_created_at,
+       i.item_number,
+       i.puzzle_type,
+       l.amount,
+       l.currency,
+       l.payment_method,
+       l.payment_source,
+       l.status         AS ledger_status,
+       l.confirmed_at,
+       l.confirmed_by_name,
+       l.payment_reference,
+       l.created_at     AS ledger_created_at
+     FROM ${DROP_ENTITLEMENTS_TABLE} e
+     JOIN ${DROP_ITEMS_TABLE} i ON i.id = e.item_id
+     LEFT JOIN fundraisely_quiz_payment_ledger l ON l.id = e.ledger_id
+     WHERE e.drop_room_id = ?
+     ORDER BY e.created_at DESC`,
+    [roomId]
+  );
+
+  const purchasesById = new Map();
+
+  for (const row of rows) {
+    const key = row.ledger_id || `no-ledger:${row.entitlement_id}`;
+
+    if (!purchasesById.has(key)) {
+      purchasesById.set(key, {
+        ledgerId: row.ledger_id,
+        buyerName: row.buyer_name,
+        buyerEmail: row.buyer_email,
+        amount: row.amount !== null ? Number(row.amount) : null,
+        currency: row.currency || room.config?.currency || 'EUR',
+        paymentMethod: row.payment_method,
+        paymentSource: row.payment_source,
+        paymentReference: row.payment_reference,
+        status: row.ledger_status || row.payment_status,
+        confirmedAt: row.confirmed_at,
+        confirmedByName: row.confirmed_by_name,
+        createdAt: row.ledger_created_at || row.entitlement_created_at,
+        // needed so the Purchases tab knows which entitlementId to pass
+        // to the existing confirm route — confirming ANY one entitlement
+        // on this ledger confirms all siblings (see confirmDropPurchase)
+        primaryEntitlementId: row.entitlement_id,
+        items: [],
+      });
+    }
+
+    purchasesById.get(key).items.push({
+      entitlementId: row.entitlement_id,
+      itemNumber: row.item_number,
+      puzzleType: row.puzzle_type,
+      paymentStatus: row.payment_status,
+    });
+  }
+
+  const purchases = [...purchasesById.values()].sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  );
+
+  return { purchases };
 }
 
 export async function getPublicDropSummary({ dropRoomId }) {
@@ -899,7 +959,7 @@ export async function getPublicDropSummary({ dropRoomId }) {
          ) AS item_rank,
          COUNT(*) OVER (PARTITION BY ss.item_number) AS item_player_count
        FROM fundraisely_puzzle_submissions ss
-       JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id
+       JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id COLLATE utf8mb4_unicode_ci
        WHERE ss.drop_room_id = ?
      ) ranked
      WHERE item_rank <= 3
@@ -934,4 +994,23 @@ export async function getPublicDropSummary({ dropRoomId }) {
       top: topByItem[item.item_number]?.top ?? [],
     })),
   };
+}
+export async function openDropNow({ roomId, clubId }) {
+  const room = await getDropRoomConfig(roomId);
+  if (!room) throw new Error('drop_not_found');
+  if (room.clubId !== clubId) throw new Error('access_denied');
+  if (room.status !== 'scheduled') {
+    throw new Error('drop_not_schedulable'); // already open/completed/cancelled
+  }
+
+  await database.connection.execute(
+    `UPDATE ${WEB2_ROOMS_TABLE}
+     SET status = 'open', updated_at = UTC_TIMESTAMP()
+     WHERE room_id = ? AND club_id = ? AND status = 'scheduled'`,
+    [roomId, clubId]
+  );
+
+  if (DEBUG) console.log('[PuzzleDropService] 🔓 Drop opened manually by host:', { roomId, clubId });
+
+  return { ok: true, roomId, status: 'open' };
 }

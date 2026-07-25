@@ -21,9 +21,17 @@
 //     card's Add Activity menu) and the wizard skips step 2 entirely -
 //     the event already exists, so the chain treats its id as phase-1
 //     complete and only creates + links the room.
+//   • CREDIT CHECK (new): the moment a type is picked in step 0, its
+//     entitlements are fetched (useEntitlements — same hook/cache the
+//     rest of the app already uses) and checked BEFORE the user is
+//     allowed to advance to steps 2–3. This surfaces "no credits" right
+//     away instead of after filling in the whole form. The server-side
+//     402 in runSubmitChain (via friendlyError) remains as a safety net
+//     for the rare case credits changed between step 0 and final submit
+//     (e.g. another admin at the same club used the last credit).
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, ChevronLeft, RotateCcw } from 'lucide-react';
+import { X, Calendar, ChevronLeft, RotateCcw, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../../features/auth';
 import { currencySymbol } from '../shared/CurrencySelect';
 import { utcToLocalInput } from '../../../utils/dateUtils';
@@ -33,6 +41,7 @@ import type { Event, EventValidationErrors } from '../types/event';
 import { getActivityDef, type ActivityTypeId } from './activityRegistry';
 import { useWizardStore, hasResumableDraft, draftLabel, emptyEventFields } from './useWizardStore';
 import { runSubmitChain, buildDraftEvent, SubmitChainError, PHASE_LABEL, type SubmitPhase } from './submitChain';
+import { useEntitlements, hasCreditsFor, creditStatusLabel } from '../../Quiz/hooks/useEntitlements';
 import TypeStep from './steps/TypeStep';
 import EventDetailsStep, { validateEventFields } from './steps/EventDetailsStep';
 
@@ -131,6 +140,22 @@ export default function CreateFundraiserWizard({
   const config    = def ? (activityConfigs[def.id] ?? def.defaultConfig()) : null;
   const draftEvent = buildDraftEvent(eventFields);
 
+  // ── Credit check for the selected activity ──────────────────────────────
+  // Fires as soon as a type is chosen. FREE plans are siloed per activity
+  // type (see entitlements.js's credit_key logic) so a club can easily
+  // have credits for one type and none for another — this needs to be
+  // checked per-type, every time the selection changes, not just once.
+  const {
+    ents: selectedEnts,
+    loading: entsLoading,
+  } = useEntitlements((activityType ?? 'quiz') as any);
+
+  const noCredits =
+    !isInjected &&
+    activityType !== null &&
+    !entsLoading &&
+    !hasCreditsFor(selectedEnts);
+
   // ── Navigation ──────────────────────────────────────────────────────────
   const stepsMeta = isInjected
     ? [{ id: 0 as const, label: 'Type' }, { id: 2 as const, label: 'Setup' }]
@@ -146,6 +171,7 @@ export default function CreateFundraiserWizard({
     setError(null);
     if (step === 0) {
       if (!def || !def.available) return;
+      if (noCredits) return; // blocked — inline banner explains why
       // Seed this type's config the first time it's chosen.
       if (!activityConfigs[def.id]) setActivityConfig(def.id, def.defaultConfig());
       setStep(isInjected ? 2 : 1);
@@ -304,11 +330,40 @@ export default function CreateFundraiserWizard({
           )}
 
           {step === 0 && (
-            <TypeStep
-              selected={activityType}
-              onSelect={t => { setActivityType(t); setResumePrompt(false); }}
-              disabled={submitting}
-            />
+            <>
+              <TypeStep
+                selected={activityType}
+                onSelect={t => { setActivityType(t); setResumePrompt(false); }}
+                disabled={submitting}
+              />
+
+              {activityType && entsLoading && (
+                <p className="text-xs" style={{ color: '#8a9bab' }}>
+                  Checking your plan credits…
+                </p>
+              )}
+
+              {activityType && !entsLoading && noCredits && (
+                <div className="flex items-start gap-3 rounded-lg border px-4 py-3"
+                  style={{ background: '#fef2f2', borderColor: '#fca5a5' }}>
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-500" />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#dc2626' }}>
+                      {creditStatusLabel(selectedEnts, activityType as any)
+                        || "You've used your available credits for this activity type."}
+                    </p>
+                    <p className="mt-1 text-xs" style={{ color: '#991b1b' }}>
+                      Upgrade your plan to create another one, or choose a different activity type.
+                    </p>
+                    <a href="/settings/billing"
+                      className="mt-2 inline-block text-xs font-semibold underline"
+                      style={{ color: '#dc2626' }}>
+                      Go to billing
+                    </a>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {step === 1 && def && (
@@ -355,7 +410,7 @@ export default function CreateFundraiserWizard({
             </button>
             {step !== 2 ? (
               <button type="button" onClick={goContinue}
-                disabled={submitting || (step === 0 && (!def || !def.available))}
+                disabled={submitting || (step === 0 && (!def || !def.available || entsLoading || noCredits))}
                 className="rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
                 style={{ background: '#157f85' }}>
                 Continue

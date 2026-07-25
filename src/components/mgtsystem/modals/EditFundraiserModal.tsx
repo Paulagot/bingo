@@ -48,7 +48,7 @@ import { Calendar, X, Save, Lock, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../../features/auth';
 import { currencySymbol } from '../shared/CurrencySelect';
 import { utcToLocalInput, detectTimezone } from '../../../utils/dateUtils';
-import { ErrorBanner, SectionHeader } from '../shared/ui';
+import { ErrorBanner } from '../shared/ui';
 import eventsService from '../services/eventsServices';
 import eliminationMgmtService from '../services/EliminationMgmtService';
 import ticketedEventMgmtService from '../services/TicketedEventMgmtService';
@@ -78,6 +78,8 @@ import PuzzleDropActivityStep, {
   type PuzzleDropConfig, defaultPuzzleDropConfig, validatePuzzleDropConfig,
 } from '../wizard/steps/activities/PuzzleDropActivityStep';
 import puzzleDropMgmtService, { type DropDetail } from '../services/PuzzleDropMgmtService';
+import sponsoredActivityMgmtService from '../services/SponsoredActivityMgmtService';
+import SponsoredActivityStep, { type SponsoredActivityConfig, defaultSponsoredActivityConfig, validateSponsoredActivityConfig } from '../wizard/steps/activities/SponsoredActivityStep';
 
 // ADDED 'puzzle_drop'. Note this is a LOCAL type alias, duplicated
 // (under a different name, 'GameType' vs 'LinkedActivity') across at
@@ -86,7 +88,7 @@ import puzzleDropMgmtService, { type DropDetail } from '../services/PuzzleDropMg
 // export — e.g. from activityRegistry.tsx, which already has
 // ActivityTypeId as the canonical list — so adding a 6th activity type
 // later doesn't require hunting down every duplicate union again.
-type GameType = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
+type GameType = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
 
 interface Campaign { id: string; name: string; }
 
@@ -241,6 +243,21 @@ export default function EditFundraiserModal({
   // Subscription: fetch the challenge (it holds the editable config)
   const [subConfig, setSubConfig]   = useState<SubscriptionConfig>(defaultSubscriptionConfig);
   const [challenge, setChallenge]   = useState<Challenge | null>(null);
+  const [sponsoredConfig, setSponsoredConfig] = useState<SponsoredActivityConfig>(() => {
+    const base = defaultSponsoredActivityConfig();
+    if (gameType !== 'sponsored_activity' || !room?.config_json) return base;
+    const cfg: any = typeof room.config_json === 'string' ? JSON.parse(room.config_json) : room.config_json;
+    return {
+      ...base,
+      activityKind: cfg.activityKind || 'walk',
+      customActivityLabel: cfg.customActivityLabel || '',
+      sponsorshipOpensAt: room.scheduled_at ? utcToLocalInput(room.scheduled_at, tz) : '',
+      sponsorshipClosesAt: room.ended_at ? utcToLocalInput(room.ended_at, tz) : '',
+      suggestedAmounts: Array.isArray(cfg.suggestedAmounts) ? cfg.suggestedAmounts.map(String) : base.suggestedAmounts,
+      paymentMethods: parseLinkedPaymentMethods(room.linked_payment_methods_json),
+    };
+  });
+
   const [subLoading, setSubLoading] = useState(gameType === 'puzzle_sub');
   useEffect(() => {
     if (gameType !== 'puzzle_sub' || !activity) return;
@@ -343,6 +360,7 @@ export default function EditFundraiserModal({
       if (gameType === 'ticketed_event')  aErrs = validateTicketedEventConfig(ticketedConfig);
       if (gameType === 'quiz')            aErrs = validateQuizConfig(quizConfig);
       if (gameType === 'puzzle_drop')     aErrs = validatePuzzleDropConfig(dropConfig);
+      if (gameType === 'sponsored_activity') aErrs = validateSponsoredActivityConfig(sponsoredConfig);
       if (gameType === 'puzzle_sub' && challenge) {
         if (!subConfig.title.trim()) aErrs = { form: 'Challenge title is required' };
         else if (!subConfig.isFree) {
@@ -455,6 +473,18 @@ export default function EditFundraiserModal({
             ticketMethodIds:  quizConfig.paymentMethods.ticketMethodIds,
             onnightMethodIds: quizConfig.paymentMethods.onnightMethodIds,
           } as any);
+
+        } else if (gameType === 'sponsored_activity') {
+          await sponsoredActivityMgmtService.update(activity.room_id, {
+            sponsorshipOpensAt: localToUtc(sponsoredConfig.sponsorshipOpensAt, fields.time_zone),
+            sponsorshipClosesAt: localToUtc(sponsoredConfig.sponsorshipClosesAt, fields.time_zone),
+            timeZone: fields.time_zone,
+            activityKind: sponsoredConfig.activityKind,
+            customActivityLabel: sponsoredConfig.customActivityLabel.trim() || undefined,
+            suggestedAmounts: sponsoredConfig.suggestedAmounts.map(Number).filter(n => Number.isFinite(n) && n > 0),
+            currency,
+            onnightMethodIds: sponsoredConfig.paymentMethods.onnightMethodIds,
+          });
 
         } else if (gameType === 'puzzle_sub' && challenge) {
           const parsedPrice = parseFloat(subConfig.priceInput);
@@ -619,6 +649,12 @@ export default function EditFundraiserModal({
                 <QuizActivityStep
                   editMode
                   value={quizConfig} onChange={setQuizConfig}
+                  draftEvent={draftEvent} disabled={submitting}
+                  errors={activityErrors} currency={currency}
+                />
+              ) : gameType === 'sponsored_activity' ? (
+                <SponsoredActivityStep
+                  value={sponsoredConfig} onChange={setSponsoredConfig}
                   draftEvent={draftEvent} disabled={submitting}
                   errors={activityErrors} currency={currency}
                 />

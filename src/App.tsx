@@ -218,6 +218,8 @@ const PeerStripeSuccess = lazy(() => import('./pages/peer/PeerStripeSuccess'));
 const PuzzleDropLandingPage = lazy(() => import('./components/puzzles/pages/PuzzleDropLandingPage'));
 const PuzzleDropPlayPage = lazy(() => import('./components/puzzles/pages/PuzzleDropPlayPage'));
 const PuzzleDropStripeSuccessPage = lazy(() => import('./components/puzzles/pages/PuzzleDropStripeSuccessPage'));
+const PuzzleDropItemLeaderboardPage = lazy(() => import('./components/puzzles/pages/PuzzleDropItemLeaderboardPage'));
+const PuzzleDropWallOfFamePage = lazy(() => import('./components/puzzles/pages/PuzzleDropWallOfFamePage'));
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -484,14 +486,14 @@ export default function App() {
         />
 
         {/*
-          Previously missing entirely — PeerStripeSuccess.tsx existed as a
+          Previously missing entirely - PeerStripeSuccess.tsx existed as a
           file but was never imported or routed here, so the URL
           peerStripeCheckoutService.js has been generating since it was
           written (…/fundraise/:clubSlug/:fundraiserSlug/order-success)
           had nowhere to land. React Router v6 ranks routes by specificity
           (a literal segment like "order-success" always outranks the
           dynamic :participantSlug below), so this works correctly
-          regardless of where it's declared relative to that route —
+          regardless of where it's declared relative to that route -
           unlike the Express backend routes, ordering isn't load-bearing here.
         */}
         <Route
@@ -919,6 +921,24 @@ export default function App() {
   element={
     <Suspense fallback={<LoadingSpinner message="Loading..." />}>
       <PuzzleDropStripeSuccessPage />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/puzzle-drop/:dropRoomId/leaderboard"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleDropWallOfFamePage />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/puzzle-drop/:dropRoomId/items/:itemNumber/leaderboard"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleDropItemLeaderboardPage />
     </Suspense>
   }
 />

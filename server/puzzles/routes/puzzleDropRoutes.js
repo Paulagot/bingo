@@ -44,41 +44,35 @@ import {
   createDropEntitlements,
   confirmDropPurchase,
   validateDropManualPaymentMethod,
+  validateDropCryptoPaymentMethod,
   getEntitlementsBySessionId,
+  getEntitlementsForRoomAndEmail,
+   completeDrop,
+   openDropNow,
+  getDropPurchasesForClub,
 } from '../services/puzzleDropService.js';
+import { verifySolanaTransfer } from '../../quiz/services/cryptoSolanaPaymentVerificationService.js';
 import { generatePuzzleForDropItem, getClientPuzzleData } from '../services/puzzleGenerationService.js';
 import { validateAndScore } from '../services/puzzleValidationService.js';
 import { saveProgress, loadProgress, recordFirstView } from '../services/puzzleProgressService.js';
 import { createDropStripeCheckout } from '../../stripe/puzzleDropStripeCheckout.js';
+import { sendPuzzleDropConfirmationEmail } from '../services/puzzleDropEmailService.js';
+import {
+  resolveEntitlements,
+  consumeCredit,
+} from '../../policy/entitlements.js';
 
 const router = express.Router();
 
 // ⚠️ TEMPORARY DIAGNOSTIC — remove once the routing issue is found.
-// Logs every request that reaches this router, before any route matching
-// happens, so we can tell "never got here" apart from "got here but no
-// route matched."
-router.use((req, res, next) => {
-  console.log('[puzzleDropRoutes] 🔎 incoming:', req.method, req.originalUrl);
-  next();
-});
+// router.use((req, res, next) => {
+//   console.log('[puzzleDropRoutes] 🔎 incoming:', req.method, req.originalUrl);
+//   next();
+// });
 
 // ─── PUBLIC ROUTES ────────────────────────────────────────────────────────────
-// Registered first, same ordering rationale as challengeRoutes.js: 'public'
-// would otherwise risk being matched as a dynamic param by a route
-// registered above it. No auth middleware — the service layer's status
-// gate ('open' only) is the guard, same pattern as getPublicChallengeMeta.
-//
-// Response shapes are IDENTICAL to challengeService.js's getWeekLeaderboard
-// / getPublicLeaderboardSummary (field names kept as `weekNumber`/`weeks`/
-// `challenge` even though these are items/a drop — see puzzleDropService.js
-// comments) so PublicWeekLeaderboardPage.tsx / PublicWallOfFamePage.tsx can
-// be reused. Wiring an actual Drop-specific frontend service + routes to
-// call these, and deciding the final URL scheme those pages navigate to,
-// is deferred to the frontend leaderboard-reuse piece — this is the
-// backend half only.
 
 // GET /api/puzzle-drop/public/:dropRoomId/info
-// The buyer landing page's one call: branding + items + pricing tiers.
 router.get('/public/:dropRoomId/info', async (req, res) => {
   try {
     const info = await getPublicDropInfo({ dropRoomId: req.params.dropRoomId });
@@ -122,12 +116,35 @@ router.get('/public/:dropRoomId/items/:itemNumber/leaderboard', async (req, res)
   }
 });
 
-// fundraisely_puzzle_submissions.player_id is varchar(36) — NOT varchar(64)
-// like the ledger table's player_id. A prefixed synthetic id (the
-// ticket_${ticketId} convention quizTicketService.js uses) would not fit,
-// since entitlement ids are already full 36-char UUIDs. So Drop uses the
-// entitlement's own id directly as player_id: no prefix needed, already
-// guaranteed unique per item-purchase, and fits the column exactly.
+// GET /api/puzzle-drop/public/:dropRoomId/recover?email=...
+router.get('/public/:dropRoomId/recover', async (req, res) => {
+  try {
+    const { dropRoomId } = req.params;
+    const email = String(req.query.email || '').trim();
+
+    if (!email) return res.status(400).json({ error: 'email is required' });
+
+    const entitlements = await getEntitlementsForRoomAndEmail(dropRoomId, email);
+
+    const withItemNumbers = await Promise.all(
+      entitlements.map(async (e) => {
+        const item = await getDropItemById(e.item_id);
+        return {
+          entitlementId: e.id,
+          itemNumber: item?.item_number ?? null,
+          accessToken: e.access_token,
+          paymentStatus: e.payment_status,
+        };
+      })
+    );
+
+    res.json({ ok: true, entitlements: withItemNumbers });
+  } catch (err) {
+    console.error('[puzzleDropRoutes] recover error:', err);
+    res.status(500).json({ error: 'Failed to look up your purchases.' });
+  }
+});
+
 function dropPlayerId(entitlementId) {
   return entitlementId;
 }
@@ -143,17 +160,7 @@ function getTokenFromRequest(req) {
 }
 
 // ─── CLUB-SIDE CREATION ────────────────────────────────────────────────────
-// POST /api/puzzle-drop
-// Body: { roomId, scheduledAt, timeZone, currency, currencySymbol, dropTitle,
-//         items: [{puzzleType, difficulty}], pricingTiers: [{quantity, price, label}],
-//         onnightMethodIds: number[] }
-//
-// Counterpart to eliminationMgmtService.scheduleRoom / ticketedEventMgmtService
-// .scheduleEvent — called from PuzzleDropActivityStep's registry createRoom(),
-// which generates roomId client-side the same way every other activity type
-// does (uuidv4().replace(/-/g,'').slice(0,16).toUpperCase()) and passes it in,
-// rather than letting the server mint it. hostId/hostName/clubId come from
-// the authenticated request, never the body.
+// ─── CLUB-SIDE CREATION ────────────────────────────────────────────────────
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const {
@@ -164,10 +171,32 @@ router.post('/', authenticateToken, async (req, res) => {
     if (!roomId) return res.status(400).json({ error: 'roomId is required' });
     if (!scheduledAt) return res.status(400).json({ error: 'scheduledAt is required' });
 
+    const clubId = req.club_id;
+
+    // ── Entitlements gate ──────────────────────────────────────────────────
+    // Mirrors challengeRoutes.js POST / exactly: resolve entitlements for
+    // this scope, block on no credits, create, then consume the credit
+    // (non-fatal if the consume step itself fails — the Drop has already
+    // been created at that point, same reasoning as every other activity
+    // type's create route).
+    const ents = await resolveEntitlements({ userId: clubId, scope: 'puzzle_drop' });
+
+    console.log(`[puzzleDropRoutes] 🔑 Entitlements — plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
+
+    if ((ents.game_credits_remaining ?? 0) <= 0) {
+      return res.status(402).json({
+        error: 'no_credits',
+        message: ents.plan_code === 'FREE'
+          ? "You've used your one free Puzzle Drop. Upgrade your plan to run more."
+          : "You've used all your activity credits this month. Upgrade for more.",
+        upgradeUrl: '/settings/billing',
+      });
+    }
+
     const result = await createDrop({
       roomId,
-      clubId: req.club_id,
-      hostId: req.user?.id ?? req.club_id,
+      clubId,
+      hostId: req.user?.id ?? clubId,
       hostName: req.user?.name ?? null,
       scheduledAt,
       timeZone,
@@ -179,6 +208,15 @@ router.post('/', authenticateToken, async (req, res) => {
       onnightMethodIds: onnightMethodIds || [],
     });
 
+    const creditResult = await consumeCredit(clubId, 'puzzle_drop', ents.plan_code);
+    if (!creditResult.ok) {
+      console.error(
+        `[puzzleDropRoutes] ⚠️ Credit consume failed after Drop creation — club: ${clubId} room: ${result.roomId}`,
+      );
+    } else {
+      console.log(`[puzzleDropRoutes] ✅ Credit consumed — club: ${clubId}`);
+    }
+
     res.status(201).json(result);
   } catch (err) {
     console.error('[puzzleDropRoutes] create error:', err);
@@ -187,8 +225,6 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // ─── CLUB-SIDE EDIT ────────────────────────────────────────────────────────
-// GET /api/puzzle-drop/:roomId — combined room+items+tiers read, for
-// seeding EditFundraiserModal's PuzzleDropActivityStep.
 router.get('/:roomId', authenticateToken, async (req, res) => {
   try {
     const detail = await getDropDetailForClub({ roomId: req.params.roomId, clubId: req.club_id });
@@ -200,9 +236,6 @@ router.get('/:roomId', authenticateToken, async (req, res) => {
   }
 });
 
-// PATCH /api/puzzle-drop/:roomId — edit a Drop. Only succeeds while
-// status === 'scheduled' (updateDrop's own guard) — see that function's
-// header comment for why this is safe.
 router.patch('/:roomId', authenticateToken, async (req, res) => {
   try {
     const {
@@ -233,35 +266,7 @@ router.patch('/:roomId', authenticateToken, async (req, res) => {
   }
 });
 
-// ─── PURCHASE ──────────────────────────────────────────────────────────────
-// POST /api/puzzle-drop/:dropRoomId/purchase
-// Body: { itemIds: string[], buyerName, buyerEmail, paymentReference, clubPaymentMethodId }
-//
-// Instant-payment / cash claim path ONLY. This is what PaymentInstructions'
-// onConfirmPaid callback calls (spec §5.3) — the buyer has already worked
-// through the copy-reference → pay → confirm UI client-side, so this call
-// creates entitlements directly at 'claimed', same single-step shape as
-// quizTicketService.createTicketWithPayment. A club admin still has to
-// confirm before puzzle_instance_id is generated and the puzzle becomes
-// playable — see the /confirm route below.
-//
-// Crypto and Stripe are NOT handled here — they go through their own
-// confirmed-payment paths (crypto: a dedicated /crypto/confirm route,
-// mirroring CryptoFixedFeeStep's confirmEndpoint contract; Stripe:
-// deferred pending a decision on which of the two patterns spec §5.2
-// allows to follow). Both of those, once verified, call
-// createDropEntitlements with initialStatus: 'confirmed' instead.
-//
-// Magic-link email: NOT sent from this route yet. Spec §5.4 says the
-// access email must go out immediately on purchase regardless of
-// confirmation state — but Drop's access mechanism, as built in this
-// file's requireDropAccess, is simpler than the subscription's JWT-based
-// magic-link system: it's just a URL carrying entitlementId + the
-// entitlement's own access_token, no verify/exchange step needed. Sending
-// that email still needs a mailer call this codebase's email utility
-// (referenced elsewhere as ../../utils/ticketEmail.js) hasn't been shown
-// yet — wiring the actual send is the next piece of work, not guessed at
-// here to avoid assuming a transport/signature with zero evidence for it.
+// ─── PURCHASE (instant/cash) ───────────────────────────────────────────────
 router.post('/:dropRoomId/purchase', async (req, res) => {
   try {
     const { dropRoomId } = req.params;
@@ -276,13 +281,6 @@ router.post('/:dropRoomId/purchase', async (req, res) => {
     const room = await getDropRoomConfig(dropRoomId);
     if (!room) return res.status(404).json({ error: 'Drop not found' });
 
-    // Status gate — a Drop only accepts purchases once it's actually on
-    // sale ('open', flipped lazily by getDropRoomConfig once scheduled_at
-    // has passed). This didn't exist before and is added now specifically
-    // because it's the precondition that makes updateDrop's wholesale
-    // items/pricing-tiers replacement (while status === 'scheduled') safe
-    // — without this gate, a purchase could theoretically land against an
-    // item that a club then edits away.
     if (room.status !== 'open') {
       return res.status(409).json({
         error: 'drop_not_on_sale',
@@ -326,15 +324,6 @@ router.post('/:dropRoomId/purchase', async (req, res) => {
 });
 
 // ─── STRIPE CHECKOUT ────────────────────────────────────────────────────────
-// POST /api/puzzle-drop/:dropRoomId/stripe/checkout
-// Body: { itemIds, buyerName, buyerEmail, appOrigin }
-//
-// Creates the entitlements + ledger row (at 'expected') and a Stripe
-// Checkout Session, returning the URL for the frontend to redirect to.
-// See puzzleDropStripeCheckout.js's header comment for why this differs
-// from the instant-payment /purchase route above — Drop's itemIds can't
-// safely round-trip through Stripe metadata, so entitlements are created
-// up front rather than deferred to the webhook.
 router.post('/:dropRoomId/stripe/checkout', async (req, res) => {
   try {
     const { dropRoomId } = req.params;
@@ -368,15 +357,6 @@ router.post('/:dropRoomId/stripe/checkout', async (req, res) => {
 });
 
 // GET /api/puzzle-drop/:dropRoomId/stripe/session/:sessionId
-//
-// The post-checkout success page's one call: Stripe's success_url can
-// only carry small values (entitlementId, session_id) — not the full set
-// of access tokens for a multi-item purchase. This looks up every
-// entitlement sharing that session's ledger row and returns their tokens,
-// once confirmed. If the webhook hasn't landed yet, returns pending: true
-// so the frontend can poll briefly rather than error out — Stripe
-// webhooks and the browser's redirect back from Checkout are not
-// guaranteed to arrive in any particular order.
 router.get('/:dropRoomId/stripe/session/:sessionId', async (req, res) => {
   try {
     const { dropRoomId, sessionId } = req.params;
@@ -407,12 +387,129 @@ router.get('/:dropRoomId/stripe/session/:sessionId', async (req, res) => {
   }
 });
 
+// ─── CRYPTO CONFIRM ─────────────────────────────────────────────────────────
+// POST /api/puzzle-drop/:dropRoomId/crypto/confirm?itemIds=<JSON array>
+//
+// itemIds is read from the QUERY STRING, not the body — CryptoFixedFeeStep.tsx
+// builds its own POST body internally and has no field for it. The real
+// body fields it sends (ticket mode): clubPaymentMethodId, network, txHash,
+// senderWallet, tokenMint, entryFeeRaw, purchaserName, purchaserEmail, playerName.
+router.post('/:dropRoomId/crypto/confirm', async (req, res) => {
+  try {
+    const { dropRoomId } = req.params;
+    const {
+      clubPaymentMethodId, txHash, network, senderWallet, tokenMint,
+      entryFeeRaw, purchaserName, purchaserEmail, playerName,
+    } = req.body;
+
+    let itemIds = [];
+    try {
+      itemIds = JSON.parse(req.query.itemIds || '[]');
+    } catch {
+      return res.status(400).json({ error: 'itemIds query param must be valid JSON' });
+    }
+
+    const buyerEmail = purchaserEmail;
+    const buyerName = purchaserName || playerName;
+
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+      return res.status(400).json({ error: 'itemIds is required (as a JSON array in the query string)' });
+    }
+    if (!buyerEmail) return res.status(400).json({ error: 'purchaserEmail is required' });
+    if (!clubPaymentMethodId) return res.status(400).json({ error: 'clubPaymentMethodId is required' });
+    if (!txHash) return res.status(400).json({ error: 'txHash is required' });
+    if (!senderWallet) return res.status(400).json({ error: 'senderWallet is required' });
+    if (!entryFeeRaw) return res.status(400).json({ error: 'entryFeeRaw is required' });
+
+    const room = await getDropRoomConfig(dropRoomId);
+    if (!room) return res.status(404).json({ error: 'Drop not found' });
+
+    if (room.status !== 'open') {
+      return res.status(409).json({ error: 'drop_not_on_sale', message: 'This Drop is not yet on sale.' });
+    }
+
+    const validatedMethod = await validateDropCryptoPaymentMethod({
+      clubId: room.clubId,
+      linkedPaymentMethods: room.linkedPaymentMethods,
+      clubPaymentMethodId,
+    });
+
+    const walletAddress = validatedMethod.methodConfig?.walletAddress;
+    if (!walletAddress) {
+      return res.status(500).json({ error: 'club_wallet_not_configured' });
+    }
+
+    const [[existingLedgerRow]] = await database.connection.execute(
+      `SELECT id FROM fundraisely_quiz_payment_ledger WHERE external_transaction_id = ? LIMIT 1`,
+      [txHash]
+    );
+    if (existingLedgerRow) {
+      return res.status(409).json({ error: 'tx_already_used', message: 'This transaction has already been used.' });
+    }
+
+    const verification = await verifySolanaTransfer({
+      txHash,
+      network: network || 'mainnet-beta',
+      senderWallet,
+      recipientWallet: walletAddress,
+      tokenMint: tokenMint || null,
+      rawAmount: entryFeeRaw,
+    });
+
+    if (!verification?.ok) {
+      return res.status(402).json({
+        error: 'payment_not_verified',
+        message: verification?.error || 'Could not verify this transaction on-chain.',
+      });
+    }
+
+const result = await createDropEntitlements({
+      dropRoomId,
+      itemIds,
+      buyerName,
+      buyerEmail,
+      paymentMethod: 'crypto',
+      paymentSource: 'onchain_auto',
+      paymentReference: txHash,
+      externalTransactionId: txHash,
+      clubPaymentMethodId: validatedMethod.id,
+      initialStatus: 'confirmed',
+    });
+
+    // NEW — crypto confirms entitlements directly, bypassing confirmDropPurchase,
+    // so the email needs to be sent here instead.
+    try {
+      await sendPuzzleDropConfirmationEmail({
+        clubId: room.clubId,
+        dropRoomId,
+        dropTitle: room.config?.dropTitle,
+        buyerEmail,
+        buyerName,
+        ledgerId: result.ledgerId,
+        items: result.entitlements.map((e) => ({
+          entitlementId: e.id,
+          itemNumber: e.itemNumber,
+          puzzleType: e.puzzleType,
+          accessToken: e.accessToken,
+        })),
+      });
+    } catch (emailErr) {
+      console.error('[puzzleDropRoutes] ⚠️ Confirmation email failed (non-fatal):', emailErr.message);
+    }
+
+    res.json({
+      ok: true,
+      ledgerAmount: result.totalAmount,
+      ledgerCurrency: result.currency,
+      web3TransactionId: result.ledgerId,
+    });
+  } catch (err) {
+    console.error('[puzzleDropRoutes] crypto confirm error:', err);
+    res.status(400).json({ error: err.message || 'Failed to confirm crypto payment.' });
+  }
+});
+
 // ─── ADMIN CONFIRM ─────────────────────────────────────────────────────────
-// POST /api/puzzle-drop/entitlements/:entitlementId/confirm
-// Club admin confirms a manual (instant/cash) payment — mirrors
-// quizTicketService.confirmTicketPayment. Confirms every entitlement that
-// shares the same purchase (same ledger_id), not just the one named in
-// the URL — see confirmDropPurchase's comment for why.
 router.post('/entitlements/:entitlementId/confirm', authenticateToken, async (req, res) => {
   try {
     const { entitlementId } = req.params;
@@ -436,14 +533,6 @@ router.post('/entitlements/:entitlementId/confirm', authenticateToken, async (re
 
 // ─── PLAY ROUTES ───────────────────────────────────────────────────────────
 
-
-/**
- * Loads the entitlement for :entitlementId, checks the supplied token
- * matches its access_token, and attaches it to req.dropEntitlement.
- * 404s rather than 401s on a token mismatch — deliberately not confirming
- * whether the entitlementId itself exists to someone probing without the
- * right token.
- */
 async function requireDropAccess(req, res, next) {
   try {
     const { entitlementId } = req.params;
@@ -466,19 +555,6 @@ async function requireDropAccess(req, res, next) {
   }
 }
 
-/**
- * GET /api/puzzle-drop/entitlements/:entitlementId/puzzle
- *
- * Returns the puzzle instance for this entitlement's item, plus saved
- * progress — same response shape as puzzleRoutes.js's GET route, so the
- * frontend puzzle-player component can be reused unmodified.
- *
- * If payment isn't confirmed yet, returns 402 with the entitlement's
- * status rather than puzzle data — this is the "payment pending host
- * confirmation" state the spec (§5.4) says the magic link should land on
- * when clicked before the club has confirmed a manual payment. Same link
- * works once confirmed; no new email needed.
- */
 router.get('/entitlements/:entitlementId/puzzle', requireDropAccess, async (req, res) => {
   try {
     const entitlement = req.dropEntitlement;
@@ -501,10 +577,6 @@ router.get('/entitlements/:entitlementId/puzzle', requireDropAccess, async (req,
       return res.status(404).json({ error: 'Drop not found' });
     }
 
-    // Idempotent — returns the existing instance if one was already
-    // generated (e.g. by the purchase/confirm flow at entitlement
-    // creation time per spec §6). Safe to call unconditionally here
-    // regardless of whether entitlement.puzzle_instance_id is populated.
     const instance = await generatePuzzleForDropItem({
       dropRoomId: entitlement.drop_room_id,
       itemNumber: item.item_number,
@@ -561,10 +633,6 @@ router.get('/entitlements/:entitlementId/puzzle', requireDropAccess, async (req,
   }
 });
 
-/**
- * POST /api/puzzle-drop/entitlements/:entitlementId/save
- * Body: { instanceId, progressData }
- */
 router.post('/entitlements/:entitlementId/save', requireDropAccess, async (req, res) => {
   try {
     const entitlement = req.dropEntitlement;
@@ -588,14 +656,6 @@ router.post('/entitlements/:entitlementId/save', requireDropAccess, async (req, 
   }
 });
 
-/**
- * POST /api/puzzle-drop/entitlements/:entitlementId/submit
- * Body: { instanceId, puzzleType, answer, timeTakenSeconds }
- *
- * Reuses puzzleValidationService.validateAndScore completely unmodified —
- * same server-trusted timing, same scoring logic, same answer-never-sent-
- * to-client rule as the subscription (spec §2/§6: "Engines: zero changes").
- */
 router.post('/entitlements/:entitlementId/submit', requireDropAccess, async (req, res) => {
   try {
     const entitlement = req.dropEntitlement;
@@ -626,6 +686,51 @@ router.post('/entitlements/:entitlementId/submit', requireDropAccess, async (req
   } catch (err) {
     console.error('[puzzleDropRoutes] submit error:', err);
     res.status(500).json({ error: 'Failed to submit puzzle.' });
+  }
+});
+
+// ─── CLUB-SIDE: mark completed ─────────────────────────────────────────────
+router.post('/:roomId/complete', authenticateToken, async (req, res) => {
+  try {
+    const result = await completeDrop({ roomId: req.params.roomId, clubId: req.club_id });
+    res.json(result);
+  } catch (err) {
+    console.error('[puzzleDropRoutes] complete error:', err);
+    const msg = err.message || '';
+    if (msg === 'drop_not_found') return res.status(404).json({ error: msg });
+    if (msg === 'access_denied')  return res.status(403).json({ error: msg });
+    if (msg === 'drop_already_completed') {
+      return res.status(409).json({ error: msg, message: 'This Drop is already marked as completed.' });
+    }
+    res.status(400).json({ error: msg || 'Failed to complete Drop.' });
+  }
+});
+
+// ─── CLUB-SIDE: purchases list ──────────────────────────────────────────────
+router.get('/:roomId/purchases', authenticateToken, async (req, res) => {
+  try {
+    const result = await getDropPurchasesForClub({ roomId: req.params.roomId, clubId: req.club_id });
+    if (!result) return res.status(404).json({ error: 'Drop not found' });
+    res.json(result);
+  } catch (err) {
+    console.error('[puzzleDropRoutes] GET purchases error:', err);
+    res.status(500).json({ error: 'Failed to load purchases.' });
+  }
+});
+
+router.post('/:roomId/open', authenticateToken, async (req, res) => {
+  try {
+    const result = await openDropNow({ roomId: req.params.roomId, clubId: req.club_id });
+    res.json(result);
+  } catch (err) {
+    console.error('[puzzleDropRoutes] open error:', err);
+    const msg = err.message || '';
+    if (msg === 'drop_not_found') return res.status(404).json({ error: msg });
+    if (msg === 'access_denied')  return res.status(403).json({ error: msg });
+    if (msg === 'drop_not_schedulable') {
+      return res.status(409).json({ error: msg, message: 'This Drop is already open or has ended.' });
+    }
+    res.status(400).json({ error: msg || 'Failed to open Drop.' });
   }
 });
 

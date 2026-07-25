@@ -1,6 +1,6 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/SubscriptionLinkPanel.tsx
 //
-// Fills the slot the Tickets tab occupies for other activity types — there's
+// Fills the slot the Tickets tab occupies for other activity types - there's
 // nothing to sell here, just a join link supporters use to sign up and start
 // paying weekly via Stripe. Same copy-to-clipboard interaction/fallback as
 // TicketEmbedCodePanel's CodeBlock (Clipboard API first, execCommand fallback).
@@ -87,8 +87,8 @@ export default function SubscriptionLinkPanel({ challenge, challengeLoading }: P
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" />
             <p className="text-xs text-amber-900">
               {challenge.status === 'draft'
-                ? 'This challenge is still a draft — activate it from the Launch tab before sharing this link.'
-                : `This challenge is ${challenge.status} — new sign-ups aren't being accepted.`}
+                ? 'This challenge is still a draft - activate it from the Launch tab before sharing this link.'
+                : `This challenge is ${challenge.status} - new sign-ups aren't being accepted.`}
             </p>
           </div>
         )}
@@ -106,7 +106,7 @@ export default function SubscriptionLinkPanel({ challenge, challengeLoading }: P
           </button>
           {state === 'failed' && (
             <p className="mt-2 text-xs text-red-600">
-              Couldn't copy automatically — select the link above and copy it manually (Ctrl/Cmd+C).
+              Couldn't copy automatically - select the link above and copy it manually (Ctrl/Cmd+C).
             </p>
           )}
         </div>
