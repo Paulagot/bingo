@@ -1,0 +1,124 @@
+]633;E;echo "=== EventGoalProgress ===";beafb861-f60d-4079-9e14-5ea2674f18a2]633;C=== EventGoalProgress ===
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:12:import { EventGoalProgress } from '../progress/EventGoalProgress';
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:410:        <EventGoalProgress
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:1:// src/components/mgtsystem/components/progress/EventGoalProgress.tsx
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:13:interface EventGoalProgressProps {
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:24:export function EventGoalProgress({
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:30:}: EventGoalProgressProps) {
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:110:export default EventGoalProgress;
+
+=== EventIncomeChip ===
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:1:// src/components/mgtsystem/components/progress/EventIncomeChip.tsx
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:12:interface EventIncomeChipProps {
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:18:export function EventIncomeChip({
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:22:}: EventIncomeChipProps) {
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:96:export default EventIncomeChip;
+
+=== DashboardFundraisingSummary ===
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:10:import { DashboardFundraisingSummary } from '../progress/DashboardFundraisingSummary';
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:636:<DashboardFundraisingSummary
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:1:// src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:18:export interface DashboardFundraisingSummaryProps {
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:49:export function DashboardFundraisingSummary({
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:54:}: DashboardFundraisingSummaryProps) {
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:508:export default DashboardFundraisingSummary;
+src/components/mgtsystem/modals/EditFundraiserModal.tsx:85:// DashboardFundraisingSummary.tsx). Worth considering a single shared
+
+=== RoomStats ===
+server/mgtsystem/routes/quizStats.js:3:import { getRoomStats, getBatchRoomStats, getRoomIncomeTimeSeries } from '../services/quizStatsService.js';
+server/mgtsystem/routes/quizStats.js:27:    const stats = await getRoomStats(roomId);
+server/mgtsystem/routes/quizStats.js:64:    const statsMap = await getBatchRoomStats(roomIds);
+server/mgtsystem/services/quizStatsService.js:14:export async function getRoomStats(roomId) {
+server/mgtsystem/services/quizStatsService.js:67:export async function getBatchRoomStats(roomIds) {
+server/quiz/gameplayEngines/services/StatsService.js:685:  static exportRoomStats(roomId) {
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:10:import type { RoomStats } from '../../services/quizRoomServices';
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:32:  activityStats?: RoomStats;
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:113:function getTicketsSold(stats?: RoomStats): number {
+src/components/mgtsystem/components/cards/FundraiselyEventRow.tsx:9:import type { RoomStats } from '../../services/quizRoomServices';
+src/components/mgtsystem/components/cards/FundraiselyEventRow.tsx:19:function getTicketsSold(stats?: RoomStats): number {
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:5:import QuizRoomsService, { type RoomStats } from '../../services/quizRoomServices';
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:115:  const [roomStatsMap, setRoomStatsMap]             = useState<Record<string, RoomStats>>({});
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:365:        const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:366:        setRoomStatsMap(stats);
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:380:          setRoomStatsMap(prev => {
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:477:      const stats = await QuizRoomsService.batchGetRoomStats(liveIds).catch(() => ({}));
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:478:      setRoomStatsMap(prev => ({ ...prev, ...stats }));
+src/components/mgtsystem/components/digitalEvents/DigitalEventDrawer.tsx:8:import type { RoomStats } from "../../services/quizRoomServices";
+src/components/mgtsystem/components/digitalEvents/DigitalEventDrawer.tsx:77:  stats?: RoomStats;
+src/components/mgtsystem/components/digitalEvents/tabs/ImpactTabSubscription.tsx:18:import type { RoomStats } from '../../../services/quizRoomServices';
+src/components/mgtsystem/components/digitalEvents/tabs/ImpactTabSubscription.tsx:23:  stats?: RoomStats;
+src/components/mgtsystem/components/digitalEvents/tabs/OverviewTab.tsx:21:import type { RoomStats } from '../../../services/quizRoomServices';
+src/components/mgtsystem/components/digitalEvents/tabs/OverviewTab.tsx:27:  stats?: RoomStats;
+src/components/mgtsystem/components/digitalEvents/tabs/OverviewTabTicketedEvent.tsx:12:import type { RoomStats } from '../../../services/quizRoomServices';
+src/components/mgtsystem/components/digitalEvents/tabs/OverviewTabTicketedEvent.tsx:27:  stats?:           RoomStats;
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:6:import type { RoomStats } from '../../services/quizRoomServices';
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:21:  roomStatsMap: Record<string, RoomStats>;
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:29:  roomStatsMap: Record<string, RoomStats>
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:10:import type { RoomStats } from '../../services/quizRoomServices';
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:15:  activityStats?: RoomStats;
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:9:import type { RoomStats } from '../../services/quizRoomServices';
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:14:  activityStats?: RoomStats;
+src/components/mgtsystem/services/quizRoomServices.ts:39:export interface RoomStats {
+src/components/mgtsystem/services/quizRoomServices.ts:59:  async getRoomStats(roomId: string): Promise<RoomStats> {
+src/components/mgtsystem/services/quizRoomServices.ts:60:    const response = await this.request<{ ok: boolean; stats: RoomStats }>(
+src/components/mgtsystem/services/quizRoomServices.ts:77:  async batchGetRoomStats(roomIds: string[]): Promise<Record<string, RoomStats>> {
+src/components/mgtsystem/services/quizRoomServices.ts:82:    const response = await this.request<{ ok: boolean; stats: Record<string, RoomStats> }>(
+
+=== getRoomStats ===
+server/mgtsystem/routes/quizStats.js:3:import { getRoomStats, getBatchRoomStats, getRoomIncomeTimeSeries } from '../services/quizStatsService.js';
+server/mgtsystem/routes/quizStats.js:27:    const stats = await getRoomStats(roomId);
+server/mgtsystem/services/quizStatsService.js:14:export async function getRoomStats(roomId) {
+src/components/mgtsystem/services/quizRoomServices.ts:59:  async getRoomStats(roomId: string): Promise<RoomStats> {
+
+=== batchGetRoomStats ===
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:365:        const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:477:      const stats = await QuizRoomsService.batchGetRoomStats(liveIds).catch(() => ({}));
+src/components/mgtsystem/services/quizRoomServices.ts:77:  async batchGetRoomStats(roomIds: string[]): Promise<Record<string, RoomStats>> {
+
+=== getRoomIncomeSeries ===
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:391:        QuizRoomsService.getRoomIncomeSeries(roomIds)
+src/components/mgtsystem/services/quizRoomServices.ts:66:  async getRoomIncomeSeries(roomIds: string[]): Promise<{ date: string; total: number }[]> {
+
+=== roomStatsMap ===
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:115:  const [roomStatsMap, setRoomStatsMap]             = useState<Record<string, RoomStats>>({});
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:548:  const drawerStats       = drawerRoom ? roomStatsMap[drawerRoom.room_id] : undefined;
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:639:  roomStatsMap={roomStatsMap}
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:871:                const stats       = activity ? roomStatsMap[activity.room_id] : undefined;
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:894:              const stats       = activity ? roomStatsMap[activity.room_id] : undefined;
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:21:  roomStatsMap: Record<string, RoomStats>;
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:29:  roomStatsMap: Record<string, RoomStats>
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:31:  const stats = activity ? roomStatsMap[activity.room_id] : undefined;
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:52:  roomStatsMap,
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:75:      const confirmed = confirmedForEvent(event, activity, roomStatsMap);
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:85:  }, [events, activityMap, roomStatsMap]);
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:118:        const confirmed = confirmedForEvent(e, activity, roomStatsMap);
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:129:  }, [incomeSeries, events, activityMap, roomStatsMap]);
+
+=== activityStats ===
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:32:  activityStats?: RoomStats;
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:238:  activityStats,
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:248:  const ticketsSold  = getTicketsSold(activityStats);
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:249:  const totalIncome  = activityStats?.totalIncome ?? 0;
+src/components/mgtsystem/components/cards/FundraiselyEventCard.tsx:412:          activityStats={activityStats}
+src/components/mgtsystem/components/cards/FundraiselyEventRow.tsx:47:  activityStats,
+src/components/mgtsystem/components/cards/FundraiselyEventRow.tsx:56:  const ticketsSold  = getTicketsSold(activityStats);
+src/components/mgtsystem/components/cards/FundraiselyEventRow.tsx:57:  const totalIncome  = activityStats?.totalIncome ?? 0;
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:878:                    activityStats={stats}
+src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx:901:                  activityStats={stats}
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:5:// income (activityStats.totalIncome) and event.actual_amount.
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:15:  activityStats?: RoomStats;
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:26:  activityStats,
+src/components/mgtsystem/components/progress/EventGoalProgress.tsx:37:  const ledgerIncome   = activityStats?.totalIncome ?? 0;
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:14:  activityStats?: RoomStats;
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:20:  activityStats,
+src/components/mgtsystem/components/progress/EventIncomeChip.tsx:26:  const ledgerIncome   = activityStats?.totalIncome ?? 0;
+
+=== income-series endpoint ===
+server/mgtsystem/routes/quizStats.js:84:router.post('/rooms/income-series', async (req, res) => {
+src/components/mgtsystem/components/progress/DashboardFundraisingSummary.tsx:22:  /** Daily confirmed income series from /quiz/web2/rooms/income-series */
+src/components/mgtsystem/services/quizRoomServices.ts:68:    `/quiz/web2/rooms/income-series`,
+
+=== batch-stats endpoint ===
+server/mgtsystem/routes/quizStats.js:47: * POST /api/quiz/web2/rooms/batch-stats
+server/mgtsystem/routes/quizStats.js:51:router.post('/rooms/batch-stats', async (req, res) => {
+src/components/mgtsystem/services/quizRoomServices.ts:83:      `/quiz/web2/rooms/batch-stats`,

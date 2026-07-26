@@ -7,14 +7,15 @@ import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsServ
 import ticketedEventReconciliationService from '../../services/TicketedEventReconciliationService';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
 import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
-import { DashboardFundraisingSummary } from '../progress/DashboardFundraisingSummary';
+
 import ManageDonationButtonModal from '../../modals/ManageDonationButtonModal'; 
 import TotalIncomeReportButton from './TotalIncomeReportButton';
+
 
 import {
   CreditCard, Calendar, PlusCircle, RefreshCw,
   Trophy, CalendarDays, CheckCircle,
-  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket, LogOut, Gift
+  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket, LogOut, Gift, Footprints
 } from 'lucide-react';
 
 import { quizApi } from '../../../../shared/api';
@@ -37,12 +38,12 @@ type ViewMode = 'table' | 'cards';
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed' | 'cancelled';
 // ADDED 'puzzle_drop' — was missing, which is what caused newly-created
 // Drop activities to never appear as "linked" anywhere in this dashboard.
-type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
+type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
 
 interface LinkedActivity {
   room_id: string;
   // ADDED 'puzzle_drop'
-  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
+  game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -130,7 +131,7 @@ export default function QuizEventDashboard() {
   const featureAccess    = useMemo(() => getFeatureAccess(ents), [ents]);
   const creditsRemaining = useMemo(() => extractCreditsRemaining(ents), [ents]);
 
-  const [incomeSeries, setIncomeSeries] = useState<{ date: string; total: number }[]>([]);
+
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
@@ -230,6 +231,7 @@ export default function QuizEventDashboard() {
       puzzle_sub:     base.filter(e => activityMap[e.id]?.game_type === 'puzzle_sub').length,
       // ADDED
       puzzle_drop:    base.filter(e => activityMap[e.id]?.game_type === 'puzzle_drop').length,
+      sponsored_activity: base.filter(e => activityMap[e.id]?.game_type === 'sponsored_activity').length,
     };
   }, [events, statusFilter, activityMap]);
 
@@ -251,29 +253,35 @@ export default function QuizEventDashboard() {
 
   const loadActivities = async (eventList: Event[]): Promise<Record<string, Room>> => {
     try {
-      const pairs = await Promise.all(
-        eventList.map(async (event) => {
-          try {
-            const res = await eventsService.getEventIntegrations(event.id);
-            const integrations = res?.integrations || [];
-            // FIX: 'puzzle_drop' was missing from this list entirely — any
-            // event linked to a Drop activity would never match here, so
-            // `linked` stayed undefined and the card/row always rendered
-            // "No activity yet" regardless of what actually existed in
-            // the DB. This is the root cause of the reported bug.
-            const linked = integrations.find((i: any) =>
-              i.integration_type === 'quiz_web2' ||
-              i.integration_type === 'elimination' ||
-              i.integration_type === 'ticketed_event' ||
-              i.integration_type === 'puzzle_sub' ||
-              i.integration_type === 'puzzle_drop'
-            );
-            return [event.id, linked] as const;
-          } catch {
-            return [event.id, null] as const;
-          }
-        })
-      );
+  const eventIds = eventList.map(event => event.id);
+
+const response = await eventIntegrationsService.lookupByEventIds(eventIds);
+const integrations = response?.integrations || [];
+
+const validTypes = new Set([
+  'quiz_web2',
+  'elimination',
+  'ticketed_event',
+  'puzzle_sub',
+  'puzzle_drop',
+  'sponsored_activity',
+]);
+
+const integrationByEventId = new Map<string, any>();
+
+for (const integration of integrations) {
+  if (
+    validTypes.has(integration.integration_type) &&
+    !integrationByEventId.has(integration.event_id)
+  ) {
+    integrationByEventId.set(integration.event_id, integration);
+  }
+}
+
+const pairs = eventList.map(event => [
+  event.id,
+  integrationByEventId.get(event.id) ?? null,
+] as const);
 
       const newActivityMap: Record<string, LinkedActivity> = {};
       const roomIds: string[] = [];
@@ -293,7 +301,9 @@ export default function QuizEventDashboard() {
                 ? 'puzzle_sub'
                 : integration.integration_type === 'puzzle_drop'
                   ? 'puzzle_drop'
-                  : 'quiz';
+                  : integration.integration_type === 'sponsored_activity'
+                    ? 'sponsored_activity'
+                    : 'quiz';
 
         newActivityMap[eventId] = {
           room_id:   integration.external_ref,
@@ -341,22 +351,28 @@ export default function QuizEventDashboard() {
               a.status === 'completed' &&
               a.game_type !== 'ticketed_event' &&
               a.game_type !== 'puzzle_sub' &&
-              a.game_type !== 'puzzle_drop'
+              a.game_type !== 'puzzle_drop' &&
+              a.game_type !== 'sponsored_activity'
             )
             .map(a => a.room_id);
+if (completedIds.length > 0) {
+  try {
+    const response =
+      await quizLatePaymentsService.getUnpaidPlayerCounts(completedIds);
 
-          if (completedIds.length > 0) {
-            const outResults = await Promise.all(
-              completedIds.map(id =>
-                quizLatePaymentsService.getUnpaidPlayers(id)
-                  .then(res => ({ id, count: res.players?.length || 0 }))
-                  .catch(() => ({ id, count: 0 }))
-              )
-            );
-            const outMap: Record<string, number> = {};
-            outResults.forEach(r => { outMap[r.id] = r.count; });
-            setOutstandingMap(outMap);
-          }
+    setOutstandingMap(response.counts ?? {});
+  } catch {
+    const emptyMap: Record<string, number> = {};
+
+    for (const roomId of completedIds) {
+      emptyMap[roomId] = 0;
+    }
+
+    setOutstandingMap(emptyMap);
+  }
+} else {
+  setOutstandingMap({});
+}
 
         } catch (e) {
           console.error('Failed to load room rows:', e);
@@ -369,53 +385,75 @@ export default function QuizEventDashboard() {
           .filter(a => a.game_type === 'ticketed_event' && freshRowMap[a.room_id]?.status === 'completed')
           .map(a => a.room_id);
 
-        if (completedTicketedIds.length > 0) {
-          const overlays = await Promise.all(
-            completedTicketedIds.map(id =>
-              ticketedEventReconciliationService.getState(id)
-                .then(state => ({ id, finalTotal: state?.reconciliation?.finalTotal }))
-                .catch(() => ({ id, finalTotal: undefined }))
-            )
-          );
-          setRoomStatsMap(prev => {
-            const next = { ...prev };
-            for (const { id, finalTotal } of overlays) {
-              if (finalTotal != null && next[id]) {
-                next[id] = { ...next[id], totalIncome: finalTotal };
-              }
-            }
-            return next;
-          });
+     if (completedTicketedIds.length > 0) {
+  try {
+    const response =
+      await ticketedEventReconciliationService.getFinalTotals(
+        completedTicketedIds
+      );
+
+    setRoomStatsMap(prev => {
+      const next = { ...prev };
+
+      for (const roomId of completedTicketedIds) {
+        const finalTotal = response.totals?.[roomId];
+
+        if (finalTotal != null && next[roomId]) {
+          next[roomId] = {
+            ...next[roomId],
+            totalIncome: finalTotal,
+          };
         }
+      }
 
-        QuizRoomsService.getRoomIncomeSeries(roomIds)
-          .then(series => setIncomeSeries(series))
-          .catch(() => {});
+      return next;
+    });
+  } catch (error) {
+    console.error(
+      'Failed to load ticketed event reconciliation totals:',
+      error
+    );
+  }
+}
 
-        const pmResults = await Promise.all(
-          roomIds.map(id =>
-            quizPaymentMethodsService.getQuizPaymentMethods(id)
-              .then(res => ({
-                id,
-                hasLinked: (res.ticket_method_ids ?? res.linked_method_ids ?? []).length > 0,
-              }))
-              .catch(() => ({ id, hasLinked: false }))
-          )
-        );
-        const pmMap: Record<string, boolean> = {};
-        pmResults.forEach(r => { pmMap[r.id] = r.hasLinked; });
-        setPaymentMethodMap(pmMap);
+const pmMap: Record<string, boolean> = {};
+
+for (const roomId of roomIds) {
+  const raw = freshRowMap[roomId]?.linked_payment_methods_json;
+
+  let linked: any = raw;
+
+  if (typeof raw === 'string') {
+    try {
+      linked = JSON.parse(raw);
+    } catch {
+      linked = null;
+    }
+  }
+
+  const methodIds = [
+    ...(Array.isArray(linked?.ticket_method_ids) ? linked.ticket_method_ids : []),
+    ...(Array.isArray(linked?.onnight_method_ids) ? linked.onnight_method_ids : []),
+    ...(Array.isArray(linked?.linked_method_ids) ? linked.linked_method_ids : []),
+    ...(Array.isArray(linked?.payment_method_ids) ? linked.payment_method_ids : []),
+  ];
+
+  pmMap[roomId] = methodIds.length > 0;
+}
+
+setPaymentMethodMap(pmMap);
 
         // FIX: added a puzzleDropLinks lookup — without it, a Drop room's
         // entry in linkedEventsMap never populates, breaking the drawer's
         // "linked to event X" display and Unlink action for Drop
         // specifically. Same missing-branch pattern as the fixes above.
-        const [quizLinks, eliminationLinks, ticketedLinks, subscriptionLinks, dropLinks] = await Promise.all([
+        const [quizLinks, eliminationLinks, ticketedLinks, subscriptionLinks, dropLinks, sponsoredLinks] = await Promise.all([
           eventIntegrationsService.lookupLinks({ integration_type: 'quiz_web2',      external_refs: roomIds }),
           eventIntegrationsService.lookupLinks({ integration_type: 'elimination',     external_refs: roomIds }),
           eventIntegrationsService.lookupLinks({ integration_type: 'ticketed_event',  external_refs: roomIds }),
           eventIntegrationsService.lookupLinks({ integration_type: 'puzzle_sub',     external_refs: roomIds }),
           eventIntegrationsService.lookupLinks({ integration_type: 'puzzle_drop',    external_refs: roomIds }),
+          eventIntegrationsService.lookupLinks({ integration_type: 'sponsored_activity', external_refs: roomIds }),
         ]);
 
         const leMap: Record<string, { eventId: string; eventTitle: string }> = {};
@@ -425,6 +463,7 @@ export default function QuizEventDashboard() {
           ...(ticketedLinks.links    || []),
           ...(subscriptionLinks.links || []),
           ...(dropLinks.links || []),
+          ...(sponsoredLinks.links || []),
         ]) {
           if (l.external_ref && l.event_id && l.event_title) {
             leMap[l.external_ref] = { eventId: l.event_id, eventTitle: l.event_title };
@@ -440,25 +479,34 @@ export default function QuizEventDashboard() {
     }
   };
 
-  const loadEvents = async (): Promise<Record<string, Room>> => {
-    if (!clubId) return {};
-    setEventsLoading(true);
-    setEventsError(null);
-    try {
-      const res = await eventsService.getClubEvents(clubId);
-      const loaded = res.events || [];
-      setEvents(loaded);
-      if (loaded.length > 0) {
-        return await loadActivities(loaded);
-      }
-      return {};
-    } catch (e: any) {
-      setEventsError(e?.message || 'Failed to load events');
-      return {};
-    } finally {
-      setEventsLoading(false);
+ const loadEvents = async (): Promise<Record<string, Room>> => {
+  if (!clubId) return {};
+
+  setEventsLoading(true);
+  setEventsError(null);
+
+  try {
+    const res = await eventsService.getClubEvents(clubId);
+    const loaded = res.events || [];
+
+    setEvents(loaded);
+
+    // The main event list is ready. Render it immediately.
+    setEventsLoading(false);
+
+    // Related activity, room and payment data can populate afterward.
+    if (loaded.length > 0) {
+      return await loadActivities(loaded);
     }
-  };
+
+    return {};
+  } catch (e: any) {
+    setEventsError(e?.message || 'Failed to load events');
+    return {};
+  } finally {
+    setEventsLoading(false);
+  }
+};
 
   useEffect(() => { loadEntitlements(); }, []);
   useEffect(() => { loadEvents(); }, [clubId]);
@@ -505,7 +553,7 @@ export default function QuizEventDashboard() {
 
   const handleAddActivity = (
     event: Event,
-    type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop'
+    type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity'
   ) => {
     setWizardEvent(event);
     setWizardType(type);
@@ -563,6 +611,7 @@ export default function QuizEventDashboard() {
     { key: 'puzzle_sub',     label: 'Subscription', icon: <Puzzle className="h-3 w-3" />,   count: gameTypeCounts.puzzle_sub },
     // ADDED
     { key: 'puzzle_drop',    label: 'Drop',         icon: <Puzzle className="h-3 w-3" />,   count: gameTypeCounts.puzzle_drop },
+    { key: 'sponsored_activity', label: 'Sponsored', icon: <Footprints className="h-3 w-3" />, count: gameTypeCounts.sponsored_activity },
   ];
 
   return (
@@ -630,16 +679,6 @@ export default function QuizEventDashboard() {
         </div>
 
  
-
-        {/* ── Fundraising summary ── */}
-{!eventsLoading && events.length > 0 && (
-<DashboardFundraisingSummary
-  events={events}
-  activityMap={activityMap}
-  roomStatsMap={roomStatsMap}
-  incomeSeries={incomeSeries}
-/>
-)}
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -874,11 +913,11 @@ export default function QuizEventDashboard() {
                   <FundraiselyEventRow
                     key={event.id}
                     event={event}
-                    linkedActivity={activity}
+                    linkedActivity={activity as any}
                     activityStats={stats}
                     outstandingCount={outstanding}
                     onOpenDrawer={() => handleOpenDrawer(event)}
-                    onAddActivity={(type) => handleAddActivity(event, type)}
+                    onAddActivity={(type) => handleAddActivity(event, type as ActivityTypeId)}
                     onEdit={canEditFundraiser(activityMap[event.id]) ? () => setEventToEdit(event) : undefined}
                     onPublish={() => handlePublish(event)}
                     onUnpublish={() => handleUnpublish(event)}
@@ -901,7 +940,7 @@ export default function QuizEventDashboard() {
                   activityStats={stats}
                   outstandingCount={outstanding}
                   onOpenDrawer={() => handleOpenDrawer(event)}
-                  onAddActivity={(type) => handleAddActivity(event, type)}
+                  onAddActivity={(type) => handleAddActivity(event, type as ActivityTypeId)}
                   onEdit={canEditFundraiser(activityMap[event.id]) ? () => setEventToEdit(event) : undefined}
                   onPublish={() => handlePublish(event)}
                   onUnpublish={() => handleUnpublish(event)}

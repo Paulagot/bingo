@@ -1,11 +1,11 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/ImpactTabSubscription.tsx
 //
-// Borrows ImpactTab's StatCard/SectionHead/CollapsibleSection structure —
-// and now its hero banner too — kept in this feature's own violet
+// Borrows ImpactTab's StatCard/SectionHead/CollapsibleSection structure -
+// and now its hero banner too - kept in this feature's own violet
 // identity rather than the teal quiz/elimination palette, same choice
 // OverviewTabSubscription made. Deliberately does NOT duplicate the full
-// leaderboard list here — that already has its own dedicated tab
-// (LeaderboardTabSubscription) — this shows a compact top-3 preview
+// leaderboard list here - that already has its own dedicated tab
+// (LeaderboardTabSubscription) - this shows a compact top-3 preview
 // instead, the way a summary should. No volunteers/prize-awards/feedback
 // sections: none of those concepts exist for subscriptions today, so
 // nothing to port for them.
@@ -100,7 +100,7 @@ export default function ImpactTabSubscription({ stats, challenge, challengeLoadi
   const subscriberCount = challenge.player_count ?? 0;
   const statusMeta = getStatusMeta(challenge.status);
 
-  // Weeks actually released so far — NOT total_weeks. A 4-week challenge
+  // Weeks actually released so far - NOT total_weeks. A 4-week challenge
   // in its 2nd week has only ever offered 2 puzzles; using total_weeks as
   // the denominator would understate completion by counting weeks nobody
   // could possibly have solved yet.
@@ -111,15 +111,15 @@ export default function ImpactTabSubscription({ stats, challenge, challengeLoadi
     Math.floor((now - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
   ));
 
-  // "Total puzzles solved" — every submission across every subscriber,
+  // "Total puzzles solved" - every submission across every subscriber,
   // summed from each entry's own weeksCompleted.
   const totalPuzzlesSolved = leaderboard.reduce((sum, e) => sum + e.weeksCompleted, 0);
 
-  // Completion rate — puzzles solved vs. puzzles actually released
+  // Completion rate - puzzles solved vs. puzzles actually released
   // (subscribers × released weeks, not total weeks). This is a
   // simplification: it doesn't account for subscribers who joined
   // partway through and so never had every released week available to
-  // them personally — a per-subscriber version would be more precise,
+  // them personally - a per-subscriber version would be more precise,
   // but this is a reasonable challenge-wide approximation.
   const maxPossibleReleased = subscriberCount * releasedWeeks;
   const completionRate = maxPossibleReleased > 0 ? Math.round((totalPuzzlesSolved / maxPossibleReleased) * 100) : null;
@@ -171,8 +171,8 @@ export default function ImpactTabSubscription({ stats, challenge, challengeLoadi
         <Heart className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#7c3aed]" />
         <p className="text-xs text-[#4c1d95]">
           {isOngoing
-            ? "This challenge is still running — the totals below are as of right now, and will keep changing as weekly payments and puzzle submissions come in."
-            : 'Totals as of the most recent data. A trailing subscriber payment or two may still land after a challenge is marked complete — see the monthly reconciliation for a settled figure.'}
+            ? "This challenge is still running - the totals below are as of right now, and will keep changing as weekly payments and puzzle submissions come in."
+            : 'Totals as of the most recent data. A trailing subscriber payment or two may still land after a challenge is marked complete - see the monthly reconciliation for a settled figure.'}
         </p>
       </div>
 
@@ -185,7 +185,7 @@ export default function ImpactTabSubscription({ stats, challenge, challengeLoadi
           value={totalPuzzlesSolved}
           helper={`Across all ${subscriberCount} subscriber${subscriberCount !== 1 ? 's' : ''}`} />
         <StatCard icon={<Calendar className="h-4 w-4" />} label="Completion rate"
-          value={completionRate !== null ? `${completionRate}%` : '—'}
+          value={completionRate !== null ? `${completionRate}%` : '-'}
           helper="Solved vs. puzzles released so far" />
       </div>
 

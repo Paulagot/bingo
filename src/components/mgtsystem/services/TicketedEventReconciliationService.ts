@@ -89,6 +89,21 @@ class TicketedEventReconciliationService extends BaseService {
     );
   }
 
+  async getFinalTotals(
+  roomIds: string[]
+): Promise<{
+  ok: true;
+  totals: Record<string, number | null>;
+}> {
+  return this.request(
+    `${this.base}/final-totals`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ roomIds }),
+    },
+  );
+}
+
   async addAdjustment(
     roomId: string,
     payload: {

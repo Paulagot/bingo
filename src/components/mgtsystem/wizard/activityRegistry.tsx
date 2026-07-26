@@ -3,7 +3,7 @@
 // THE single source of truth for activity types in the create flow.
 //
 // Adding a new activity (e.g. Puzzle Drop) means adding ONE entry here
-// plus its Step component — no wizard surgery, no new if/else chains in
+// plus its Step component - no wizard surgery, no new if/else chains in
 // QuizEventDashboard. Each entry declares:
 //
 //   • how the type appears on the step-1 card (label / description / icon)
@@ -13,12 +13,12 @@
 //     dateMode ('datetime' = single date & time; 'startPlusWeeks' =
 //     start date + duration, used by subscription-style activities)
 //   • which PaymentMethodSelector mode its step-3 uses ('split' /
-//     'single' / 'locked' — see PaymentMethodSelector.tsx)
-//   • integrationType — the exact string eventIntegrationsService.link()
+//     'single' / 'locked' - see PaymentMethodSelector.tsx)
+//   • integrationType - the exact string eventIntegrationsService.link()
 //     expects. These MUST stay in sync with the backend
 //     EventIntegrationsService (quiz_web2 / elimination / ticketed_event /
 //     puzzle_sub / puzzle_drop).
-//   • defaultConfig / validate / createRoom / Step — the activity's own
+//   • defaultConfig / validate / createRoom / Step - the activity's own
 //     config lifecycle. createRoom performs ONLY the room-creation call
 //     the old Schedule modal made; event creation and linking are the
 //     submit chain's job (see submitChain.ts) so the backend sequence
@@ -27,12 +27,13 @@
 // Rollout note: all five types are now live (`available: true`).
 
 import type React from 'react';
-import { Sparkles, Trophy, Ticket, Puzzle, type LucideIcon } from 'lucide-react';
+import { Sparkles, Trophy, Ticket, Puzzle, Footprints, type LucideIcon } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 import eliminationMgmtService from '../services/EliminationMgmtService';
 import ticketedEventMgmtService from '../services/TicketedEventMgmtService';
 import puzzleDropMgmtService from '../../mgtsystem/services/PuzzleDropMgmtService';
+import sponsoredActivityMgmtService from '../services/SponsoredActivityMgmtService';
 import type { PrimaryActionType } from '../types/event';
 import type { PaymentMethodSelectorMode } from '../shared/PaymentMethodSelector';
 import { ACCENTS } from '../shared/ui';
@@ -60,6 +61,11 @@ import PuzzleDropActivityStep, {
   defaultPuzzleDropConfig,
   validatePuzzleDropConfig,
 } from './steps/activities/PuzzleDropActivityStep';
+import SponsoredActivityStep, {
+  type SponsoredActivityConfig,
+  defaultSponsoredActivityConfig,
+  validateSponsoredActivityConfig,
+} from './steps/activities/SponsoredActivityStep';
 import { challengeService, type Currency } from '../../puzzles/services/ChallengeService';
 import QuizActivityStep, {
   type QuizWizardConfig,
@@ -71,14 +77,14 @@ import { roomApi } from '@/shared/api';
 
 // ── Shared shapes ─────────────────────────────────────────────────────────────
 
-export type ActivityTypeId = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
+export type ActivityTypeId = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
 
-export type IntegrationType = 'quiz_web2' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop';
+export type IntegrationType = 'quiz_web2' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
 
 /**
  * The event as the wizard knows it BEFORE it exists on the server.
  * Step-3 components and createRoom read from this instead of a real
- * Event row — it carries exactly the fields the old Schedule modals
+ * Event row - it carries exactly the fields the old Schedule modals
  * read off their `event` prop.
  */
 export interface DraftEvent {
@@ -125,7 +131,7 @@ export interface ActivityTypeDef<C = unknown> {
   accent:            string;
   available:         boolean;
 
-  // Auto-stamped event fields — the user never enters these
+  // Auto-stamped event fields - the user never enters these
   eventType:         string;             // → event.type
   primaryActionType: PrimaryActionType;  // → event.primary_action_type
 
@@ -143,14 +149,14 @@ export interface ActivityTypeDef<C = unknown> {
   Step:              React.ComponentType<ActivityStepProps<C>>;
 }
 
-// ── Elimination (fully wired — proves the pattern) ────────────────────────────
+// ── Elimination (fully wired - proves the pattern) ────────────────────────────
 
 const elimination: ActivityTypeDef<EliminationConfig> = {
   id:              'elimination',
   integrationType: 'elimination',
 
   label:       'Last One Standing',
-  description: 'Elimination game — one entry fee, one big prize',
+  description: 'Elimination game - one entry fee, one big prize',
   icon:        Trophy,
   accent:      ACCENTS.red,
   available:   true,
@@ -168,7 +174,7 @@ const elimination: ActivityTypeDef<EliminationConfig> = {
   async createRoom(cfg, draftEvent, ctx) {
     // Same payload the old ScheduleEliminationModal built, with
     // scheduledAt/timeZone now coming from the wizard's draft event
-    // (single source — entered once at step 2, never re-typed).
+    // (single source - entered once at step 2, never re-typed).
     const prizes = [{
       place:       1,
       value:       cfg.prizeValue ? Number(cfg.prizeValue) : null,
@@ -178,8 +184,8 @@ const elimination: ActivityTypeDef<EliminationConfig> = {
 
     const roomId = uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
 
-    // Built as a separate const and SPREAD into the call — exactly like
-    // the old modal — because ScheduleEliminationPayload doesn't declare
+    // Built as a separate const and SPREAD into the call - exactly like
+    // the old modal - because ScheduleEliminationPayload doesn't declare
     // the flat prizeDescription/prizeValue fields, but the backend still
     // reads them during the config_json migration. Spreading sidesteps
     // TS's excess-property check on object literals without a cast.
@@ -196,7 +202,7 @@ const elimination: ActivityTypeDef<EliminationConfig> = {
       prizeDescription: cfg.prizeDescription.trim(),
       prizeValue:       cfg.prizeValue ? Number(cfg.prizeValue) : undefined,
       // Payment methods are activity-level, written directly onto the
-      // room — see PaymentMethodSelector.tsx / eliminationMgmtService.js.
+      // room - see PaymentMethodSelector.tsx / eliminationMgmtService.js.
       ticketMethodIds:  cfg.paymentMethods.ticketMethodIds,
       onnightMethodIds: cfg.paymentMethods.onnightMethodIds,
     };
@@ -238,9 +244,9 @@ const quiz: ActivityTypeDef<QuizWizardConfig> = {
 
   async createRoom(cfg, _draftEvent, _ctx) {
     // Quiz config lives in useQuizSetupStore (see QuizActivityStep header)
-    // — by the time we get here the step has already synced the event's
+    // - by the time we get here the step has already synced the event's
     // date/timezone/currency into it. This is the old modal's create path
-    // verbatim: reuse store ids if present (safe retry — a re-run after a
+    // verbatim: reuse store ids if present (safe retry - a re-run after a
     // network failure reuses the SAME roomId instead of minting another).
     const state = useQuizSetupStore.getState();
     const { generateRoomId, generateHostId } = await import('@/components/Quiz/utils/idUtils');
@@ -248,7 +254,7 @@ const quiz: ActivityTypeDef<QuizWizardConfig> = {
     const hostId = state.hostId || generateHostId();
     useQuizSetupStore.getState().setRoomIds(roomId, hostId);
 
-    // Payment methods passed alongside config/roomId/hostId — POST
+    // Payment methods passed alongside config/roomId/hostId - POST
     // /create-room reads these as top-level body fields, NOT as part
     // of config, and writes them to linked_payment_methods_json
     // directly (same pattern as scheduleEliminationRoom).
@@ -279,7 +285,7 @@ const ticketedEvent: ActivityTypeDef<TicketedEventConfig> = {
   integrationType: 'ticketed_event',
 
   label:       'Ticketed Event',
-  description: 'Sell tickets for a night, gala or show — capacity, prizes, sponsors',
+  description: 'Sell tickets for a night, gala or show - capacity, prizes, sponsors',
   icon:        Ticket,
   accent:      ACCENTS.teal,
   available:   true,
@@ -299,7 +305,7 @@ const ticketedEvent: ActivityTypeDef<TicketedEventConfig> = {
     const sym = currencySymbol(ctx.currency);
 
     // Same shaping the old modal's handleSubmit did before calling
-    // scheduleEvent — filter unnamed/unpriced types, slugify ids, convert
+    // scheduleEvent - filter unnamed/unpriced types, slugify ids, convert
     // per-type sale deadlines from the EVENT's timezone to UTC.
     const validTicketTypes = cfg.ticketTypes
       .filter(t => t.name.trim() && t.price)
@@ -357,7 +363,7 @@ const puzzleSub: ActivityTypeDef<SubscriptionConfig> = {
   primaryActionType: 'register',
 
   // Always online & platform-hosted: no location section at all, and the
-  // event is saved with location_type 'online' and no URL (agreed —
+  // event is saved with location_type 'online' and no URL (agreed -
   // events can be created without location details). Start date + weeks
   // are entered ONCE at step 2 ('startPlusWeeks' mode) and consumed here
   // via draftEvent.
@@ -374,7 +380,7 @@ const puzzleSub: ActivityTypeDef<SubscriptionConfig> = {
     const currencyValue = cfg.isFree ? undefined : (ctx.currency.toLowerCase() as Currency);
 
     const challenge = await challengeService.createChallenge({
-      // The event title IS the challenge title — entered once at step 2,
+      // The event title IS the challenge title - entered once at step 2,
       // never re-typed (the old modal's duplicate title field is gone).
       title:       draftEvent.title,
       description: cfg.description.trim() || undefined,
@@ -382,7 +388,7 @@ const puzzleSub: ActivityTypeDef<SubscriptionConfig> = {
       startsAt:    draftEvent.start_datetime
         ? new Date(draftEvent.start_datetime).toISOString()
         : new Date(draftEvent.event_date).toISOString(),
-      // Create mode: omit the schedule — the backend auto-generates one
+      // Create mode: omit the schedule - the backend auto-generates one
       // (shuffled type rotation, difficulty ramp) from the live engine
       // list. Tweakable per week afterwards while the challenge is draft.
       puzzleSchedule: undefined,
@@ -394,7 +400,7 @@ const puzzleSub: ActivityTypeDef<SubscriptionConfig> = {
         .map(s => ({ name: s.name.trim(), role: s.role?.trim() || undefined })),
     });
 
-    // room_id is created server-side alongside the challenge (non-fatal —
+    // room_id is created server-side alongside the challenge (non-fatal -
     // see challengeService.createChallenge). Without it there is nothing
     // to link, so surface a distinct error the wizard can explain.
     if (!challenge.room_id) {
@@ -413,7 +419,7 @@ const puzzleDrop: ActivityTypeDef<PuzzleDropConfig> = {
   integrationType: 'puzzle_drop',
 
   label:       'Puzzle Drop',
-  description: 'One-off puzzles for sale — perfect for in-person selling',
+  description: 'One-off puzzles for sale - perfect for in-person selling',
   icon:        Puzzle,
   accent:      ACCENTS.orange,
   available:   true,
@@ -421,14 +427,14 @@ const puzzleDrop: ActivityTypeDef<PuzzleDropConfig> = {
   eventType:         'Puzzle Drop',
   primaryActionType: 'buy',
 
-  // Platform-hosted online, same as puzzleSub — but a single go-on-sale
+  // Platform-hosted online, same as puzzleSub - but a single go-on-sale
   // date/time, not a start+duration ('datetime', not 'startPlusWeeks'):
-  // Drop has no "how many weeks does this run" concept (§3.1 — status
+  // Drop has no "how many weeks does this run" concept (§3.1 - status
   // just flips scheduled→open once scheduled_at passes, no end date).
   showLocation: false,
   dateMode:     'datetime',
 
-  // No advance/on-the-night split — just one purchase moment (§4.2).
+  // No advance/on-the-night split - just one purchase moment (§4.2).
   paymentMode:   'single',
   defaultConfig: defaultPuzzleDropConfig,
   validate:      validatePuzzleDropConfig,
@@ -465,6 +471,44 @@ const puzzleDrop: ActivityTypeDef<PuzzleDropConfig> = {
   Step: PuzzleDropActivityStep,
 };
 
+
+
+// ── Sponsored Activity ───────────────────────────────────────────────────────
+const sponsoredActivity: ActivityTypeDef<SponsoredActivityConfig> = {
+  id: 'sponsored_activity',
+  integrationType: 'sponsored_activity',
+  label: 'Sponsored Activity',
+  description: 'Sponsored walk, readathon, run or other club challenge',
+  icon: Footprints,
+  accent: ACCENTS.teal,
+  available: true,
+  eventType: 'Sponsored Activity',
+  primaryActionType: 'donate',
+  showLocation: true,
+  dateMode: 'datetime',
+  paymentMode: 'single',
+  defaultConfig: defaultSponsoredActivityConfig,
+  validate: validateSponsoredActivityConfig,
+  async createRoom(cfg, _draftEvent, ctx) {
+    const roomId = uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
+    const result = await sponsoredActivityMgmtService.create({
+      roomId,
+      hostId: ctx.hostId,
+      hostName: ctx.hostName,
+      sponsorshipOpensAt: localToUtc(cfg.sponsorshipOpensAt, _draftEvent.time_zone),
+      sponsorshipClosesAt: localToUtc(cfg.sponsorshipClosesAt, _draftEvent.time_zone),
+      timeZone: _draftEvent.time_zone,
+      activityKind: cfg.activityKind,
+      customActivityLabel: cfg.customActivityLabel.trim() || undefined,
+      suggestedAmounts: cfg.suggestedAmounts.map(Number).filter(n => Number.isFinite(n) && n > 0),
+      currency: ctx.currency,
+      onnightMethodIds: cfg.paymentMethods.onnightMethodIds,
+    });
+    return result.roomId ?? roomId;
+  },
+  Step: SponsoredActivityStep,
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 export const ACTIVITY_TYPES: ActivityTypeDef<any>[] = [
@@ -473,6 +517,7 @@ export const ACTIVITY_TYPES: ActivityTypeDef<any>[] = [
   ticketedEvent,
   puzzleSub,
   puzzleDrop,
+  sponsoredActivity,
 ];
 
 export function getActivityDef(id: ActivityTypeId): ActivityTypeDef<any> {
@@ -484,7 +529,7 @@ export function getActivityDef(id: ActivityTypeId): ActivityTypeDef<any> {
 /**
  * Reverse lookup for EDITING an existing event: matches the event.type
  * string the wizard stamped at creation (e.g. "Quiz Night"). Returns
- * null for legacy/free-form types — callers fall back to a generic
+ * null for legacy/free-form types - callers fall back to a generic
  * shape (location shown, single date/time).
  */
 export function getActivityDefByEventType(eventType: string | null | undefined): ActivityTypeDef<any> | null {

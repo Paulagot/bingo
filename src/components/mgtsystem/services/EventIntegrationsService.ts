@@ -64,11 +64,22 @@ class EventIntegrationsService extends BaseService {
     );
   }
 
-  /**
-   * --------------------------------------------------------
-   * Parameterised routes (eventId) - keep after static routes
-   * --------------------------------------------------------
-   */
+/**
+ * Batch lookup: resolve event IDs to all linked integrations.
+ * POST /api/event-integrations/by-events
+ */
+lookupByEventIds(eventIds: string[]) {
+  return this.request<{
+    integrations: EventIntegration[];
+    total: number;
+  }>(
+    `/event-integrations/by-events`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ event_ids: eventIds }),
+    }
+  );
+}
 
   /**
    * List all integrations for a specific event

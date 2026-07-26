@@ -7,24 +7,42 @@
 // URL: /ticketed-event/checkin/:roomId?hostId=xxx  (logged-in host)
 //      /ticketed-event/checkin/:roomId?token=xxx   (door staff operator token)
 //
-// UPDATED: AdminsTab now persists to the backend (GET/POST/DELETE against
-// /api/ticketed-event/admins/room/:roomId) instead of living only in local
-// React state — staff lists now survive a page refresh and feed into the
-// Impact tab's volunteer count.
+// UPDATED (settlement guard):
+//   - Tickets carry settlementMode + canConfirmManually from the API. Confirm
+//     only renders when the server says a human can verify the payment.
+//     Stripe/crypto show a read-only "clearing" state instead.
+//   - The Payments tab is split: "needs confirming" (actionable) vs "clearing
+//     on their own" (read-only). Previously everything pending looked
+//     identical and actionable, which is how a declined card got marked paid.
+//   - confirmPayment reads the response. It used to swallow every error, so a
+//     rejection looked like success until the next refresh.
+//   - Collect at door — when an online payment fails, re-collect as cash or
+//     card tap instead of pretending the original payment landed.
+//
+// UPDATED (polling):
+//   - isOpen was a useState nothing ever set, so the 30s poll never ran and
+//     the dashboard only updated on manual refresh. It's now derived from
+//     roomInfo.status.
+//   - Polling pauses while the tab is hidden and refreshes immediately when
+//     it comes back — a phone in a pocket shouldn't hit the API all night.
+//   - loadData takes { silent } so a failed poll no longer replaces the whole
+//     screen with the error state. Only initial load and manual refresh do.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
   Users, CheckCircle2, XCircle, Clock, CreditCard,
   Search, Loader2, Shield, QrCode, RefreshCw,
-  X, UserPlus, Link as LinkIcon, ChevronDown, ChevronUp,
-  AlertTriangle, ScanLine, ExternalLink,
+  X, UserPlus, Link as LinkIcon,
+  AlertTriangle, ScanLine, Banknote,
 } from 'lucide-react';
 
 import { QRScannerTab } from './QRScannerTab';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type SettlementMode = 'auto' | 'manual';
 
 interface TicketRow {
   ticketId:         string;
@@ -32,6 +50,7 @@ interface TicketRow {
   purchaserEmail:   string;
   playerName:       string;
   entryFee:         number;
+  extrasTotal?:     number;
   totalAmount:      number;
   currency:         string;
   paymentStatus:    'payment_claimed' | 'payment_confirmed' | 'refunded';
@@ -40,8 +59,22 @@ interface TicketRow {
   paymentReference: string;
   purchasedAt:      string;
   confirmedAt:      string | null;
+  confirmedByName?: string | null;
   redeemedAt:       string | null;
   joinToken:        string;
+
+  // Settlement policy — computed server-side, never derived in the client.
+  // Optional so the dashboard still works if the frontend ships first.
+  methodLabel?:        string | null;
+  settlementMode?:     SettlementMode;
+  canConfirmManually?: boolean;
+}
+
+interface DoorMethod {
+  id:             number;
+  methodCategory: string;
+  providerName:   string;
+  methodLabel:    string;
 }
 
 interface RoomInfo {
@@ -103,6 +136,19 @@ function getTokenFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get('token');
 }
 
+// The API sends these flags. If an older API build is deployed, fall back to
+// "manual" so the dashboard keeps behaving exactly as it did before — the
+// server-side guard still blocks anything it shouldn't allow.
+function isAutoSettled(ticket: TicketRow): boolean {
+  return ticket.settlementMode === 'auto';
+}
+
+function canConfirm(ticket: TicketRow): boolean {
+  if (ticket.paymentStatus !== 'payment_claimed') return false;
+  if (ticket.canConfirmManually !== undefined) return ticket.canConfirmManually;
+  return !isAutoSettled(ticket);
+}
+
 // ─── Payment badge ────────────────────────────────────────────────────────────
 
 const PaymentBadge: React.FC<{ status: TicketRow['paymentStatus'] }> = ({ status }) => {
@@ -144,121 +190,175 @@ const CheckInBadge: React.FC<{ status: TicketRow['redemptionStatus']; redeemedAt
   );
 };
 
-// ─── QR Scanner component ─────────────────────────────────────────────────────
-// Uses html5-qrcode if available, falls back to manual token entry
+// ─── Awaiting-clearance badge ─────────────────────────────────────────────────
+// Shown instead of a Confirm button for Stripe/crypto. There is nothing for a
+// person to do here, so the UI shouldn't offer them a button.
 
-const QRScanner: React.FC<{
-  roomId:      string;
-  token:       string | null;
-  onResult:    (result: ScanResult) => void;
-}> = ({ roomId, token, onResult }) => {
-  const [manualToken, setManualToken] = useState('');
-  const [scanning,    setScanning]    = useState(false);
-  const [lastResult,  setLastResult]  = useState<ScanResult | null>(null);
+const AwaitingBadge: React.FC<{ label?: string | null }> = ({ label }) => (
+  <span
+    title="This payment confirms on its own once it clears."
+    className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700"
+  >
+    <Clock className="h-3 w-3" /> Clearing{label ? ` · ${label}` : ''}
+  </span>
+);
 
-  const handleScan = async (joinToken: string) => {
-    if (!joinToken.trim()) return;
-    setScanning(true);
+// ─── Collect at door ──────────────────────────────────────────────────────────
+// When an online payment doesn't land, take the money in person and move the
+// ticket onto a real door method. Keeps the books honest — the ticket ends up
+// recorded as cash/card tap, not as a card payment that never cleared.
+
+const CollectAtDoorDialog: React.FC<{
+  roomId:  string;
+  token:   string | null;
+  ticket:  TicketRow;
+  sym:     string;
+  onClose: () => void;
+  onDone:  () => void;
+}> = ({ roomId, token, ticket, sym, onClose, onDone }) => {
+  const [methods,  setMethods]  = useState<DoorMethod[]>([]);
+  const [selected, setSelected] = useState<DoorMethod | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res  = await fetch(`/api/ticketed-event/checkin/${roomId}/door-methods`, {
+          headers: getAuthHeaders(token),
+        });
+        const data = await res.json().catch(() => ({ methods: [] }));
+        if (cancelled) return;
+        const list: DoorMethod[] = Array.isArray(data.methods) ? data.methods : [];
+        setMethods(list);
+        setSelected(list[0] ?? null);
+      } catch {
+        if (!cancelled) setError('Could not load payment methods. Try again.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [roomId, token]);
+
+  const handleCollect = async () => {
+    if (!selected || saving) return;
+    setSaving(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/ticketed-event/checkin/${roomId}/scan`, {
-        method:  'POST',
-        headers: getAuthHeaders(token),
-        body:    JSON.stringify({ joinToken: joinToken.trim() }),
-      });
-      const data: ScanResult = await res.json();
-      setLastResult(data);
-      onResult(data);
-      setManualToken('');
-    } catch {
-      const errResult: ScanResult = { ok: false, message: 'Scan failed. Please try again.' };
-      setLastResult(errResult);
-      onResult(errResult);
-    } finally {
-      setScanning(false);
+      const res = await fetch(
+        `/api/ticketed-event/checkin/${roomId}/tickets/${ticket.ticketId}/collect-at-door`,
+        {
+          method:  'POST',
+          headers: getAuthHeaders(token),
+          body:    JSON.stringify({ clubPaymentMethodId: selected.id }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Could not record the payment.');
+      onDone();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not record the payment.');
+      setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Scan result feedback */}
-      {lastResult && (
-        <div className={`rounded-xl border p-4 ${
-          !lastResult.ok
-            ? 'border-red-200 bg-red-50'
-            : lastResult.alreadyUsed
-              ? 'border-yellow-200 bg-yellow-50'
-              : 'border-green-200 bg-green-50'
-        }`}>
-          <div className="flex items-center gap-3">
-            {!lastResult.ok ? (
-              <XCircle className="h-8 w-8 text-red-500 flex-shrink-0" />
-            ) : lastResult.alreadyUsed ? (
-              <AlertTriangle className="h-8 w-8 text-yellow-500 flex-shrink-0" />
-            ) : (
-              <CheckCircle2 className="h-8 w-8 text-green-500 flex-shrink-0" />
-            )}
-            <div>
-              <p className={`font-bold text-sm ${
-                !lastResult.ok ? 'text-red-800' : lastResult.alreadyUsed ? 'text-yellow-800' : 'text-green-800'
-              }`}>
-                {lastResult.message}
-              </p>
-              {lastResult.purchaserName && (
-                <p className="text-xs text-gray-600 mt-0.5">{lastResult.purchaserName}</p>
-              )}
-            </div>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl overflow-hidden">
+        <div className="flex items-start justify-between gap-3 border-b border-[#dce1df] px-5 py-4">
+          <div>
+            <h3 className="text-sm font-bold text-[#102532]">Collect at door</h3>
+            <p className="text-xs text-[#52636f] mt-0.5">
+              {ticket.purchaserName} · {sym}{ticket.totalAmount.toFixed(2)}
+            </p>
           </div>
-        </div>
-      )}
-
-      {/* Manual token entry — always available as fallback */}
-      <div className="rounded-xl border border-[#dce1df] bg-white p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <ScanLine className="h-5 w-5 text-[#157f85]" />
-          <h3 className="text-sm font-bold text-[#102532]">Manual check-in</h3>
-        </div>
-        <p className="text-xs text-[#52636f] mb-3">
-          Enter the ticket token from a guest's confirmation email, or paste from a scanned QR code.
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Ticket token…"
-            value={manualToken}
-            onChange={e => setManualToken(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && manualToken.trim()) handleScan(manualToken); }}
-            className="flex-1 rounded-lg border border-[#dce1df] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#157f85]"
-          />
-          <button
-            type="button"
-            onClick={() => handleScan(manualToken)}
-            disabled={!manualToken.trim() || scanning}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#157f85] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0e6268] disabled:opacity-40 transition-colors"
-          >
-            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            Check in
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-4 w-4" />
           </button>
         </div>
-      </div>
 
-      {/* QR camera note */}
-      <div className="rounded-xl border border-[rgba(21,127,133,0.2)] bg-[rgba(21,127,133,0.04)] p-4 text-center">
-        <QrCode className="h-8 w-8 text-[#157f85] mx-auto mb-2" />
-        <p className="text-sm font-semibold text-[#102532]">Camera scanning</p>
-        <p className="text-xs text-[#52636f] mt-1">
-          Use your phone's camera app to scan the guest QR code. It will open the check-in URL automatically,
-          or copy the token into the field above.
-        </p>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-xs text-[#52636f]">
+            Take the money in person and record it against this ticket. The original
+            online payment stays unpaid in the records.
+          </p>
+
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+              <p className="text-xs text-red-700">{error}</p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-[#157f85]" />
+            </div>
+          ) : methods.length === 0 ? (
+            <div className="rounded-lg border border-[#dce1df] bg-[#fbf8f2] px-3 py-4 text-center">
+              <p className="text-xs text-[#52636f]">
+                No cash or card-tap method set up for this club. Add one in payment
+                settings, then collect again.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {methods.map(method => {
+                const isSelected = selected?.id === method.id;
+                return (
+                  <button
+                    key={method.id}
+                    type="button"
+                    onClick={() => setSelected(method)}
+                    className={`w-full rounded-xl border-2 px-4 py-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-[#157f85] bg-[rgba(21,127,133,0.06)]'
+                        : 'border-[#dce1df] bg-white hover:border-[#b8c6b0]'
+                    }`}
+                  >
+                    <p className={`text-sm font-semibold ${isSelected ? 'text-[#157f85]' : 'text-[#102532]'}`}>
+                      {method.methodLabel}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 border-t border-[#dce1df] px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-[#dce1df] bg-white px-4 py-2.5 text-sm font-semibold text-[#52636f] hover:bg-[#f6f1e8] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleCollect}
+            disabled={!selected || saving || loading}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#157f85] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0e6268] disabled:opacity-40 transition-colors"
+          >
+            {saving
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Banknote className="h-4 w-4" />}
+            Collect {sym}{ticket.totalAmount.toFixed(2)}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
 // ─── Admins tab ───────────────────────────────────────────────────────────────
-// Now persists to the backend: GET on mount, POST on add, DELETE on remove.
+// Persists to the backend: GET on mount, POST on add, DELETE on remove.
 // This is what feeds config_json.admins, which the Impact tab reads for the
 // volunteer count. Door staff added here can also generate operator-token
-// invite links the same as before.
+// invite links.
 
 const AdminsTab: React.FC<{
   roomId: string;
@@ -346,8 +446,8 @@ const AdminsTab: React.FC<{
 
       setAdmins(prev => [...prev, data.admin]);
       setNewName('');
-    } catch (e: any) {
-      setAddError(e?.message || 'Failed to add staff member');
+    } catch (e: unknown) {
+      setAddError(e instanceof Error ? e.message : 'Failed to add staff member');
     } finally {
       setAdding(false);
     }
@@ -397,8 +497,9 @@ const AdminsTab: React.FC<{
       )}
 
       <p className="text-xs text-[#8a9bab]">
-        Door staff can scan QR codes and confirm payments. They cannot close the event.
-        Staff added here also appear in the Impact tab as event volunteers.
+        Door staff can scan QR codes and confirm cash, card-tap and transfer payments.
+        Card and crypto payments confirm on their own. Staff added here also appear in
+        the Impact tab as event volunteers.
       </p>
 
       {loadingList ? (
@@ -511,27 +612,32 @@ const StatsStrip: React.FC<{
 
 interface CheckinDashboardProps {
   roomId:  string;
-  hostId?: string;
+  hostId?: string;   // passed by CheckinPage; the room is resolved from roomId
 }
 
-export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, hostId }) => {
+export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId }) => {
   const token    = getTokenFromUrl();
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
 
-  const [isOpen,      setIsOpen]      = useState(false);
-  const [activeTab,   setActiveTab]   = useState<ActiveTab>('attendees');
-  const [roomInfo,    setRoomInfo]    = useState<RoomInfo | null>(null);
-  const [tickets,     setTickets]     = useState<TicketRow[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState<string | null>(null);
-  const [searchTerm,  setSearchTerm]  = useState('');
-  const [confirming,  setConfirming]  = useState<string | null>(null);
-  const [lastScan,    setLastScan]    = useState<ScanResult | null>(null);
+  const [activeTab,    setActiveTab]    = useState<ActiveTab>('attendees');
+  const [roomInfo,     setRoomInfo]     = useState<RoomInfo | null>(null);
+  const [tickets,      setTickets]      = useState<TicketRow[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
+  const [searchTerm,   setSearchTerm]   = useState('');
+  const [confirming,   setConfirming]   = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [lastScan,     setLastScan]     = useState<ScanResult | null>(null);
+  const [collectFor,   setCollectFor]   = useState<TicketRow | null>(null);
 
   // ── Load data ────────────────────────────────────────────────────────────
-  const loadData = useCallback(async () => {
+  // silent: true is used by the poll. A failed background refresh must not
+  // replace a working screen with the full-page error state — door staff
+  // would lose the attendee list over one flaky request on venue wifi.
+  const loadData = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
     try {
-      setError(null);
+      if (!silent) setError(null);
       const headers = getAuthHeaders(token);
 
       const [infoRes, ticketsRes] = await Promise.all([
@@ -549,34 +655,92 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
 
       setRoomInfo(infoData);
       setTickets(ticketsData.tickets || []);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to load');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to load';
+      if (silent) {
+        console.warn('[CheckinDashboard] background refresh failed:', message);
+      } else {
+        setError(message);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [roomId, token]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Poll every 30s when open
+  // ── Polling ──────────────────────────────────────────────────────────────
+  // Derived from the room status. This used to be a useState flag nothing ever
+  // set, so the interval never started and the dashboard only updated on a
+  // manual refresh — stale rows are exactly what leads to someone confirming a
+  // payment by hand that the gateway had already settled or declined.
+  const isOpen = roomInfo?.status === 'open';
+
+  // Skip a tick if the previous request is still in flight, so a slow
+  // connection doesn't stack up overlapping requests.
+  const pollInFlight = useRef(false);
+
+  const pollOnce = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (pollInFlight.current) return;
+    pollInFlight.current = true;
+    try {
+      await loadData({ silent: true });
+    } finally {
+      pollInFlight.current = false;
+    }
+  }, [loadData]);
+
   useEffect(() => {
     if (!isOpen) return;
-    const interval = setInterval(loadData, 30_000);
-    return () => clearInterval(interval);
-  }, [isOpen, loadData]);
+
+    const interval = setInterval(pollOnce, 60_000);
+
+    // Refresh the moment staff bring the app back to the foreground — that's
+    // when they most need current data, and ticks were skipped while the
+    // screen was off.
+    const onVisibilityChange = () => {
+      if (!document.hidden) pollOnce();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [isOpen, pollOnce]);
 
   // ── Confirm payment ──────────────────────────────────────────────────────
+  // Reads the response. The old version swallowed every error, so a rejected
+  // confirm looked identical to a successful one until the next refresh.
   const confirmPayment = async (ticketId: string) => {
     setConfirming(ticketId);
+    setConfirmError(null);
     try {
-      await fetch(`/api/ticketed-event/checkin/${roomId}/tickets/${ticketId}/confirm`, {
-        method:  'PATCH',
-        headers: getAuthHeaders(token),
-        body:    JSON.stringify({ confirmedByName: token ? 'Door staff' : 'Admin' }),
-      });
-      await loadData();
-    } catch { /* ignore */ }
-    finally { setConfirming(null); }
+      const res = await fetch(
+        `/api/ticketed-event/checkin/${roomId}/tickets/${ticketId}/confirm`,
+        {
+          method:  'PATCH',
+          headers: getAuthHeaders(token),
+          body:    JSON.stringify({ confirmedByName: token ? 'Door staff' : 'Admin' }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Could not confirm this payment.');
+      await loadData({ silent: true });
+    } catch (e: unknown) {
+      setConfirmError(e instanceof Error ? e.message : 'Could not confirm this payment.');
+      // Refresh anyway so the row reflects whatever the server actually holds
+      await loadData({ silent: true });
+    } finally {
+      setConfirming(null);
+    }
+  };
+
+  const handleCollected = async () => {
+    setCollectFor(null);
+    setConfirmError(null);
+    await loadData({ silent: true });
   };
 
   // ── Derived stats ────────────────────────────────────────────────────────
@@ -587,8 +751,16 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
     pending:   tickets.filter(t => t.paymentStatus === 'payment_claimed').length,
   }), [tickets]);
 
+  // Payments needing a human — cash, card tap, transfers. These are the ones
+  // where a person checking IS the verification.
   const pendingPayments = useMemo(
-    () => tickets.filter(t => t.paymentStatus === 'payment_claimed'),
+    () => tickets.filter(t => canConfirm(t)),
+    [tickets]
+  );
+
+  // Payments settling elsewhere — Stripe, crypto. Read-only.
+  const awaitingGateway = useMemo(
+    () => tickets.filter(t => t.paymentStatus === 'payment_claimed' && isAutoSettled(t)),
     [tickets]
   );
 
@@ -607,7 +779,8 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
   const tabs = [
     { id: 'attendees' as const, label: 'Attendees', icon: <Users className="h-4 w-4" />,      badge: null as number | null },
     { id: 'scanner'   as const, label: 'Scanner',   icon: <ScanLine className="h-4 w-4" />,   badge: null },
-    { id: 'payments'  as const, label: 'Payments',  icon: <CreditCard className="h-4 w-4" />, badge: stats.pending > 0 ? stats.pending : null },
+    // Badge counts only what a person can actually act on.
+    { id: 'payments'  as const, label: 'Payments',  icon: <CreditCard className="h-4 w-4" />, badge: pendingPayments.length > 0 ? pendingPayments.length : null },
     { id: 'admins'    as const, label: 'Staff',     icon: <Shield className="h-4 w-4" />,     badge: null },
   ];
 
@@ -633,7 +806,7 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
           <p className="text-xs text-[#52636f] mt-1">{error}</p>
           <button
             type="button"
-            onClick={loadData}
+            onClick={() => loadData()}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#157f85] px-4 py-2 text-sm font-semibold text-white"
           >
             <RefreshCw className="h-4 w-4" /> Retry
@@ -654,15 +827,15 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
           </div>
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${
-              roomInfo?.status === 'open'
+              isOpen
                 ? 'bg-green-50 text-green-700 border-green-200'
                 : 'bg-[#f6f1e8] text-[#52636f] border-[#dce1df]'
             }`}>
-              {roomInfo?.status === 'open' ? '🟢 Check-in open' : roomInfo?.status}
+              {isOpen ? '🟢 Check-in open' : roomInfo?.status}
             </span>
             <button
               type="button"
-              onClick={loadData}
+              onClick={() => loadData()}
               className="rounded-lg p-1.5 text-[#8a9bab] hover:bg-[#f6f1e8] transition-colors"
             >
               <RefreshCw className="h-4 w-4" />
@@ -680,6 +853,25 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
           pending={stats.pending}
           confirmed={stats.confirmed}
         />
+
+        {/* Confirm error — e.g. a blocked manual confirm on a card payment */}
+        {confirmError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800">{confirmError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmError(null)}
+                className="text-red-400 hover:text-red-600 flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Walk-in button */}
         <button
@@ -805,18 +997,34 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-sm font-bold text-[#102532]">{sym}{ticket.totalAmount.toFixed(2)}</p>
+
+                            {/* Confirm only where a person can actually verify */}
                             {ticket.paymentStatus === 'payment_claimed' && (
-                              <button
-                                type="button"
-                                onClick={() => confirmPayment(ticket.ticketId)}
-                                disabled={confirming === ticket.ticketId}
-                                className="mt-1 inline-flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50"
-                              >
-                                {confirming === ticket.ticketId
-                                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                                  : <CheckCircle2 className="h-3 w-3" />}
-                                Confirm
-                              </button>
+                              canConfirm(ticket) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => confirmPayment(ticket.ticketId)}
+                                  disabled={confirming === ticket.ticketId}
+                                  className="mt-1 inline-flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  {confirming === ticket.ticketId
+                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                    : <CheckCircle2 className="h-3 w-3" />}
+                                  Confirm
+                                </button>
+                              ) : (
+                                <div className="mt-1 flex flex-col items-end gap-1">
+                                  <AwaitingBadge label={ticket.methodLabel} />
+                                  <button
+                                    type="button"
+                                    onClick={() => setCollectFor(ticket)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-[#dce1df] bg-white px-2 py-1 text-xs font-semibold text-[#52636f] hover:bg-[#f6f1e8] transition-colors"
+                                  >
+                                    <Banknote className="h-3 w-3" />
+                                    Collect at door
+                                  </button>
+                                </div>
+                              )
                             )}
                           </div>
                         </div>
@@ -828,7 +1036,7 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
             )}
 
             {/* ── Scanner ── */}
-           {activeTab === 'scanner' && (
+            {activeTab === 'scanner' && (
               <QRScannerTab
                 roomId={roomId}
                 token={token}
@@ -837,45 +1045,93 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
 
             {/* ── Payments ── */}
             {activeTab === 'payments' && (
-              <div className="space-y-3">
-                {pendingPayments.length === 0 ? (
-                  <div className="rounded-xl border border-[#dce1df] bg-[#fbf8f2] p-6 text-center">
-                    <CheckCircle2 className="mx-auto mb-2 h-10 w-10 text-green-400" />
-                    <p className="font-semibold text-[#102532] text-sm">All payments confirmed</p>
-                    <p className="mt-1 text-xs text-[#8a9bab]">No pending payments.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-                      <strong>{pendingPayments.length}</strong> payment{pendingPayments.length !== 1 ? 's' : ''} need confirmation
+              <div className="space-y-5">
+
+                {/* Needs a person */}
+                <div className="space-y-3">
+                  {pendingPayments.length === 0 ? (
+                    <div className="rounded-xl border border-[#dce1df] bg-[#fbf8f2] p-6 text-center">
+                      <CheckCircle2 className="mx-auto mb-2 h-10 w-10 text-green-400" />
+                      <p className="font-semibold text-[#102532] text-sm">Nothing to confirm</p>
+                      <p className="mt-1 text-xs text-[#8a9bab]">
+                        Every payment you can verify has been confirmed.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                        <strong>{pendingPayments.length}</strong> payment{pendingPayments.length !== 1 ? 's' : ''} need confirming
+                      </div>
+                      <ul className="space-y-2">
+                        {pendingPayments.map(ticket => (
+                          <li key={ticket.ticketId} className="rounded-xl border border-[#dce1df] bg-white p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-[#102532] text-sm truncate">{ticket.purchaserName}</p>
+                                <p className="text-xs text-[#8a9bab] mt-0.5 truncate">
+                                  {ticket.methodLabel || ticket.paymentMethod} · {ticket.paymentReference || 'No ref'}
+                                </p>
+                                <p className="text-sm font-bold text-[#102532] mt-1">{sym}{ticket.totalAmount.toFixed(2)}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => confirmPayment(ticket.ticketId)}
+                                disabled={confirming === ticket.ticketId}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50 flex-shrink-0"
+                              >
+                                {confirming === ticket.ticketId
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                Confirm
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+
+                {/* Settling elsewhere — read-only, no Confirm button anywhere */}
+                {awaitingGateway.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-blue-900">
+                        {awaitingGateway.length} clearing on their own
+                      </p>
+                      <p className="text-xs text-blue-800 mt-0.5">
+                        Card and crypto payments confirm automatically once they clear.
+                        Nothing to do here. If one fails and the guest pays in person,
+                        use Collect at door.
+                      </p>
                     </div>
                     <ul className="space-y-2">
-                      {pendingPayments.map(ticket => (
-                        <li key={ticket.ticketId} className="rounded-xl border border-[#dce1df] bg-white p-3">
+                      {awaitingGateway.map(ticket => (
+                        <li key={ticket.ticketId} className="rounded-xl border border-[#dce1df] bg-[#fbf8f2] p-3">
                           <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-semibold text-[#102532] text-sm">{ticket.purchaserName}</p>
-                              <p className="text-xs text-[#8a9bab] mt-0.5">
-                                {ticket.paymentMethod} · {ticket.paymentReference || 'No ref'}
+                            <div className="min-w-0">
+                              <p className="font-semibold text-[#102532] text-sm truncate">{ticket.purchaserName}</p>
+                              <p className="text-xs text-[#8a9bab] mt-0.5 truncate">
+                                {ticket.methodLabel || ticket.paymentMethod}
                               </p>
                               <p className="text-sm font-bold text-[#102532] mt-1">{sym}{ticket.totalAmount.toFixed(2)}</p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => confirmPayment(ticket.ticketId)}
-                              disabled={confirming === ticket.ticketId}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50"
-                            >
-                              {confirming === ticket.ticketId
-                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <CheckCircle2 className="h-3.5 w-3.5" />}
-                              Confirm
-                            </button>
+                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                              <AwaitingBadge />
+                              <button
+                                type="button"
+                                onClick={() => setCollectFor(ticket)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-[#dce1df] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#52636f] hover:bg-white/60 transition-colors"
+                              >
+                                <Banknote className="h-3.5 w-3.5" />
+                                Collect at door
+                              </button>
+                            </div>
                           </div>
                         </li>
                       ))}
                     </ul>
-                  </>
+                  </div>
                 )}
               </div>
             )}
@@ -888,6 +1144,18 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId, host
           </div>
         </div>
       </div>
+
+      {/* Collect at door */}
+      {collectFor && (
+        <CollectAtDoorDialog
+          roomId={roomId}
+          token={token}
+          ticket={collectFor}
+          sym={sym}
+          onClose={() => setCollectFor(null)}
+          onDone={handleCollected}
+        />
+      )}
     </div>
   );
 };

@@ -48,6 +48,12 @@ export interface RoundDefinition {
 }
 
 export interface ParsedConfig {
+  gameType?: string;
+  activityKind?: string;
+  customActivityLabel?: string | null;
+  suggestedAmounts?: number[];
+  allowOtherAmount?: boolean;
+  currency?: string;
   prizes?: Prize[];
   entryFee?: string;
   hostName?: string;
@@ -83,7 +89,7 @@ export interface LinkedPaymentMethods {
 export type Web2RoomListItem = {
   room_id: string;
   host_id: string;
-  game_type?: 'quiz' | 'elimination';
+  game_type?: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
   status: string;
   scheduled_at: string | null;
   time_zone: string | null;

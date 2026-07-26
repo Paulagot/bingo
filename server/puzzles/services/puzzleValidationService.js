@@ -39,8 +39,16 @@ export async function validateAndScore({
   }
 
   // ── 2. Load the stored solution — never trust the client ─────────────────
+  // Reads BOTH id pairs — challenge_id/week_number (subscription) and
+  // drop_room_id/item_number (Drop) — off the instance row. Exactly one
+  // pair is populated per instance (see the puzzle_instances migration's
+  // "never both, never neither" rule), so whichever pair is non-null here
+  // is simply carried through onto the submission row below. This is what
+  // lets this one function serve both puzzle products unmodified — no
+  // branching on "is this a Drop instance," just pass-through of whatever
+  // the instance actually has.
   const [rows] = await database.connection.execute(
-    `SELECT challenge_id, week_number, difficulty, solution_data
+    `SELECT challenge_id, week_number, drop_room_id, item_number, difficulty, solution_data
      FROM fundraisely_puzzle_instances
      WHERE id = ? LIMIT 1`,
     [instanceId]
@@ -48,7 +56,7 @@ export async function validateAndScore({
 
   if (!rows?.length) throw new Error('Puzzle instance not found');
 
-  const { challenge_id, week_number, difficulty, solution_data } = rows[0];
+  const { challenge_id, week_number, drop_room_id, item_number, difficulty, solution_data } = rows[0];
   const solutionData =
     typeof solution_data === 'string' ? JSON.parse(solution_data) : solution_data;
 
@@ -90,18 +98,26 @@ export async function validateAndScore({
   // only one row per player per puzzle. We no longer use ON DUPLICATE KEY
   // UPDATE — if somehow a race condition fires a duplicate, MySQL will throw
   // and the second request will be rejected cleanly.
+  //
+  // challenge_id/week_number and drop_room_id/item_number are inserted
+  // straight through from what was read off the instance in step 2 — one
+  // pair will be null, the other populated, matching whichever kind of
+  // instance this is. See fundraisely_puzzle_submissions migration v3.
   await database.connection.execute(
     `INSERT INTO fundraisely_puzzle_submissions
-       (instance_id, player_id, club_id, challenge_id, week_number, puzzle_type,
+       (instance_id, player_id, club_id, challenge_id, week_number,
+        drop_room_id, item_number, puzzle_type,
         answer, is_correct, total_score, base_score, bonus_score, penalty_score,
         time_taken_seconds, reported_time_taken_seconds, time_anomaly)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       instanceId,
       playerId,
       clubId,
       challenge_id,
       week_number,
+      drop_room_id,
+      item_number,
       puzzleType,
       JSON.stringify(answer),
       scoreResult.correct ? 1 : 0,

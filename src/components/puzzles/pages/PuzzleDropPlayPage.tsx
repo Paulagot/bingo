@@ -17,9 +17,14 @@
 //   - No club branding fetch — uses the default theme. A public
 //     branding-by-room lookup could be added later; skipped here rather
 //     than guessed at.
+//   - After submitting, shows links to this item's leaderboard and the
+//     Drop's overall "wall of fame" (PuzzleDropItemLeaderboardPage.tsx /
+//     PuzzleDropWallOfFamePage.tsx) — flagged as a gap and fixed once it
+//     was noticed there was previously nowhere to navigate to after
+//     completing a puzzle.
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import PuzzleShell from '../PuzzleShell';
 import { getPuzzleMeta } from '../PuzzleMeta';
 import { puzzleDropPlayService, PaymentPendingError } from '../services/puzzleDropPlayService';
@@ -34,6 +39,7 @@ interface LoadedPuzzleData {
   progressMeta: PuzzleProgressMeta | null;
   previousSubmission: PuzzleScoreResult | null;
   itemNumber: number;
+  dropRoomId: string;
 }
 
 export default function PuzzleDropPlayPage() {
@@ -85,6 +91,7 @@ export default function PuzzleDropPlayPage() {
           progressMeta: data.previousSubmission ? null : (data.progressMeta ?? null),
           previousSubmission: data.previousSubmission ?? null,
           itemNumber: data.itemNumber,
+          dropRoomId: data.dropRoomId,
         });
       })
       .catch((err: Error) => {
@@ -243,6 +250,31 @@ export default function PuzzleDropPlayPage() {
             </span>
           ) : null}
         </div>
+
+        {/* Previously this was a dead end — the score showed with nowhere
+            to go afterward. Now offers both a per-item leaderboard link
+            and the Drop's overall wall-of-fame. */}
+        {alreadySubmitted && loadedData?.dropRoomId && (
+          <div className="mb-4 rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] p-4">
+            <p className="mb-3 text-sm font-medium text-[#2E6A46]">
+              🎉 Nice work — see how you stack up:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to={`/puzzle-drop/${loadedData.dropRoomId}/items/${loadedData.itemNumber}/leaderboard`}
+                className="inline-flex items-center justify-center rounded-full bg-[var(--puzzle-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--puzzle-text-on-primary)] shadow-sm transition hover:opacity-95"
+              >
+                View this puzzle's leaderboard →
+              </Link>
+              <Link
+                to={`/puzzle-drop/${loadedData.dropRoomId}/leaderboard`}
+                className="inline-flex items-center justify-center rounded-full border border-[#D8D1C4] bg-white px-5 py-2.5 text-sm font-semibold text-[#071A44] shadow-sm transition hover:bg-[#F8F5EF]"
+              >
+                See all puzzles →
+              </Link>
+            </div>
+          </div>
+        )}
 
         {saveConfirmed ? (
           <div className="mb-4 rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-3">

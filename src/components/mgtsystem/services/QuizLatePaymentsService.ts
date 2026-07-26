@@ -36,6 +36,18 @@ class QuizLatePaymentsService extends BaseService {
     return this.request(`/mgtsystem/quiz-late-payments/unpaid?${qs}`);
   }
 
+  async getUnpaidPlayerCounts(
+  roomIds: string[]
+): Promise<{ ok: true; counts: Record<string, number> }> {
+  return this.request(
+    `/mgtsystem/quiz-late-payments/unpaid-counts`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ roomIds }),
+    }
+  );
+}
+
   async markLatePaid(payload: MarkLatePaidPayload): Promise<{ ok: true; updated: number }> {
     return this.request(`/mgtsystem/quiz-late-payments/mark-late-paid`, {
       method: 'POST',

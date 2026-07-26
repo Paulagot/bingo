@@ -24,7 +24,7 @@ export interface PublicDropPricingTier {
 export interface PublicDropInfo {
   id: string; // roomId
   title: string;
-  status: 'open'; // getPublicDropInfo only ever returns 'open' drops
+  status: 'scheduled' | 'open' | 'completed'; // getPublicDropInfo only ever returns 'open' drops
   currency: string;
   currencySymbol: string;
   clubName: string | null;
@@ -85,6 +85,18 @@ export interface StripeSessionResult {
    *  Checkout aren't guaranteed to arrive in any particular order. */
   pending: boolean;
   entitlements: StripeSessionEntitlement[];
+}
+
+export interface RecoveredEntitlement {
+  entitlementId: string;
+  itemNumber: number | null;
+  accessToken: string;
+  paymentStatus: 'expected' | 'claimed' | 'confirmed';
+}
+
+export interface RecoverAccessResult {
+  ok: true;
+  entitlements: RecoveredEntitlement[];
 }
 
 class PublicPuzzleDropService extends BaseService {
@@ -149,6 +161,16 @@ class PublicPuzzleDropService extends BaseService {
    */
   getStripeSession(dropRoomId: string, sessionId: string) {
     return this.request<StripeSessionResult>(`/puzzle-drop/${dropRoomId}/stripe/session/${sessionId}`);
+  }
+
+  /**
+   * "Already bought this?" recovery lookup — see the backend route's
+   * comment on why this is a convenience lookup, not strong auth.
+   */
+  recoverAccess(dropRoomId: string, email: string) {
+    return this.request<RecoverAccessResult>(
+      `/puzzle-drop/public/${dropRoomId}/recover?email=${encodeURIComponent(email)}`
+    );
   }
 }
 

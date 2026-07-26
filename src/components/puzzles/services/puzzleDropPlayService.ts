@@ -29,6 +29,65 @@ interface LoadDropPuzzleResult {
   progressMeta: { activeSeconds: number; savedAt: string } | null;
   previousSubmission: PuzzleScoreResult | null;
   itemNumber: number;
+  dropRoomId: string;
+}
+
+// ── Leaderboard types ─────────────────────────────────────────────────────
+// Field names (weekNumber/weeks/challenge) are kept exactly as the backend
+// sends them, even though these represent items/a drop — see
+// puzzleDropService.js's comments on this. Structurally identical to
+// publicLeaderboardService.ts's WeekLeaderboard/LeaderboardSummary types.
+
+export interface DropLeaderboardMeta {
+  id: string;
+  title: string;
+  status: string;
+  clubName: string | null;
+  clubLogoUrl: string | null;
+  clubPrimaryColor: string | null;
+  clubBackgroundColor: string | null;
+  clubTextOnPrimaryColor: string | null;
+}
+
+export interface DropItemLeaderboardEntry {
+  rank: number;
+  playerName: string;
+  totalScore: number;
+  isCorrect: boolean;
+  timeTakenSeconds: number | null;
+  submittedAt: string | null;
+}
+
+export interface DropItemLeaderboard {
+  challenge: DropLeaderboardMeta;
+  weekNumber: number; // the item number
+  puzzleType: string;
+  difficulty: string;
+  isFinal: boolean;
+  entries: DropItemLeaderboardEntry[];
+}
+
+export interface DropSummaryTopEntry {
+  rank: number;
+  playerName: string;
+  totalScore: number;
+  isCorrect: boolean;
+  timeTakenSeconds: number | null;
+}
+
+export interface DropSummaryItem {
+  weekNumber: number; // the item number
+  puzzleType: string;
+  difficulty: string;
+  isUnlocked: boolean;
+  playerCount: number;
+  top: DropSummaryTopEntry[];
+}
+
+export interface DropLeaderboardSummary {
+  challenge: DropLeaderboardMeta;
+  isFinal: boolean;
+  weeks: DropSummaryItem[]; // the items
 }
 
 function authHeaders(token: string): Record<string, string> {
@@ -102,5 +161,25 @@ export const puzzleDropPlayService = {
       body: JSON.stringify({ instanceId, progressData }),
       keepalive: true,
     }).catch(() => { /* best-effort — nothing to do if this fails */ });
+  },
+
+  // ── Leaderboards — public routes, no token needed ────────────────────────
+  // Hit the routes puzzleDropRoutes.js already exposes (built alongside
+  // the rest of Drop's backend, before the buyer-facing UI existed to
+  // link to them). No auth headers here — same "never send a token to a
+  // public endpoint" convention as publicLeaderboardService.ts.
+
+  async getItemLeaderboard(dropRoomId: string, itemNumber: number): Promise<DropItemLeaderboard> {
+    const res = await fetch(`${API_BASE}/public/${dropRoomId}/items/${itemNumber}/leaderboard`);
+    const data = await parseJsonSafe(res);
+    if (!res.ok) throw new Error(data?.error || 'Failed to load leaderboard');
+    return data;
+  },
+
+  async getLeaderboardSummary(dropRoomId: string): Promise<DropLeaderboardSummary> {
+    const res = await fetch(`${API_BASE}/public/${dropRoomId}/leaderboard-summary`);
+    const data = await parseJsonSafe(res);
+    if (!res.ok) throw new Error(data?.error || 'Failed to load leaderboard summary');
+    return data;
   },
 };

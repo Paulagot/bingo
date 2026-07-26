@@ -82,8 +82,9 @@ export async function getReconciliationByRoomId(roomId) {
        archive_generated_at, archive_sha256,
        created_at, updated_at
      FROM ${RECONCILIATION_TABLE}
-     WHERE room_id = ?
-     LIMIT 1`,
+    WHERE room_id = ?
+ORDER BY id DESC
+LIMIT 1`,
     [roomId]
   );
 
@@ -156,6 +157,18 @@ export async function getReconciliationsByClubId(clubId, options = {}) {
  * Insert or update the reconciliation header row.
  * Now accepts finalLeaderboard and prizeAwards.
  */
+/**
+ * Insert or update the reconciliation header row.
+ * Accepts finalLeaderboard and prizeAwards.
+ *
+ * v2: explicit select-then-update-or-insert. The old
+ * INSERT … ON DUPLICATE KEY UPDATE only updates in place if room_id has
+ * a UNIQUE index — it doesn't (and can't: subscriptions/drops need many
+ * rows per room), so a re-approval inserted a duplicate header row (the
+ * same bug the ticketed-event approve had — ghost drafts 81/83/85/87/90
+ * and the D153E66F 73/76/77 triple). Now: the newest row for the room
+ * wins and is updated in place; insert only when none exists.
+ */
 export async function upsertReconciliation(reconciliationData) {
   const {
     roomId,
@@ -168,54 +181,64 @@ export async function upsertReconciliation(reconciliationData) {
     approvedBy,
     approvedAt,
     notes             = null,
-    finalLeaderboard  = null,   // NEW
-    prizeAwards       = null,   // NEW
+    finalLeaderboard  = null,
+    prizeAwards       = null,
   } = reconciliationData;
 
   if (!roomId || !clubId || typeof finalTotal === 'undefined') {
     throw new Error('Missing required fields: roomId, clubId, finalTotal');
   }
 
-  const sql = `
-    INSERT INTO ${RECONCILIATION_TABLE} (
-      room_id, club_id,
-      starting_entry_fees, starting_extras, starting_total,
-      adjustments_net, final_total,
-      approved_by, approved_at, notes,
-      final_leaderboard, prize_awards
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      starting_entry_fees = VALUES(starting_entry_fees),
-      starting_extras     = VALUES(starting_extras),
-      starting_total      = VALUES(starting_total),
-      adjustments_net     = VALUES(adjustments_net),
-      final_total         = VALUES(final_total),
-      approved_by         = VALUES(approved_by),
-      approved_at         = VALUES(approved_at),
-      notes               = VALUES(notes),
-      final_leaderboard   = VALUES(final_leaderboard),
-      prize_awards        = VALUES(prize_awards),
-      updated_at          = UTC_TIMESTAMP()
-  `;
-
-  const [result] = await connection.execute(sql, [
-    roomId, clubId,
-    startingEntryFees, startingExtras, startingTotal,
-    adjustmentsNet, finalTotal,
-    approvedBy || null,
-    approvedAt ? new Date(approvedAt) : null,
-    notes,
-    finalLeaderboard ? JSON.stringify(finalLeaderboard) : null,
-    prizeAwards      ? JSON.stringify(prizeAwards)      : null,
-  ]);
-
-  if (result.insertId) return result.insertId.toString();
-
-  const [rows] = await connection.execute(
-    `SELECT id FROM ${RECONCILIATION_TABLE} WHERE room_id = ?`,
+  const [existing] = await connection.execute(
+    `SELECT id FROM ${RECONCILIATION_TABLE}
+     WHERE room_id = ? ORDER BY id DESC LIMIT 1`,
     [roomId]
   );
-  return rows[0].id.toString();
+
+  if (existing.length > 0) {
+    const reconciliationId = existing[0].id;
+    await connection.execute(
+      `UPDATE ${RECONCILIATION_TABLE}
+       SET starting_entry_fees = ?, starting_extras = ?, starting_total = ?,
+           adjustments_net = ?, final_total = ?,
+           approved_by = ?, approved_at = ?, notes = ?,
+           final_leaderboard = ?, prize_awards = ?,
+           updated_at = UTC_TIMESTAMP()
+       WHERE id = ?`,
+      [
+        startingEntryFees, startingExtras, startingTotal,
+        adjustmentsNet, finalTotal,
+        approvedBy || null,
+        approvedAt ? new Date(approvedAt) : null,
+        notes,
+        finalLeaderboard ? JSON.stringify(finalLeaderboard) : null,
+        prizeAwards      ? JSON.stringify(prizeAwards)      : null,
+        reconciliationId,
+      ]
+    );
+    return reconciliationId.toString();
+  }
+
+  const [result] = await connection.execute(
+    `INSERT INTO ${RECONCILIATION_TABLE} (
+       room_id, club_id,
+       starting_entry_fees, starting_extras, starting_total,
+       adjustments_net, final_total,
+       approved_by, approved_at, notes,
+       final_leaderboard, prize_awards
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      roomId, clubId,
+      startingEntryFees, startingExtras, startingTotal,
+      adjustmentsNet, finalTotal,
+      approvedBy || null,
+      approvedAt ? new Date(approvedAt) : null,
+      notes,
+      finalLeaderboard ? JSON.stringify(finalLeaderboard) : null,
+      prizeAwards      ? JSON.stringify(prizeAwards)      : null,
+    ]
+  );
+  return result.insertId.toString();
 }
 
 export async function updateArchiveMetadata(roomId, archiveData) {
