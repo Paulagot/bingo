@@ -819,7 +819,7 @@ export async function getDropItemLeaderboard({ dropRoomId, itemNumber }) {
        ss.time_taken_seconds,
        ss.submitted_at
      FROM fundraisely_puzzle_submissions ss
-     JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id COLLATE utf8mb4_unicode_ci
+     JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id
      WHERE ss.drop_room_id = ? AND ss.item_number = ?
      ORDER BY ss.total_score DESC, ss.time_taken_seconds ASC, ss.submitted_at ASC`,
     [dropRoomId, itemNumber]
@@ -959,7 +959,7 @@ export async function getPublicDropSummary({ dropRoomId }) {
          ) AS item_rank,
          COUNT(*) OVER (PARTITION BY ss.item_number) AS item_player_count
        FROM fundraisely_puzzle_submissions ss
-       JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id COLLATE utf8mb4_unicode_ci
+       JOIN ${DROP_ENTITLEMENTS_TABLE} e ON e.id = ss.player_id
        WHERE ss.drop_room_id = ?
      ) ranked
      WHERE item_rank <= 3

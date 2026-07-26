@@ -220,6 +220,7 @@ const PuzzleDropPlayPage = lazy(() => import('./components/puzzles/pages/PuzzleD
 const PuzzleDropStripeSuccessPage = lazy(() => import('./components/puzzles/pages/PuzzleDropStripeSuccessPage'));
 const PuzzleDropItemLeaderboardPage = lazy(() => import('./components/puzzles/pages/PuzzleDropItemLeaderboardPage'));
 const PuzzleDropWallOfFamePage = lazy(() => import('./components/puzzles/pages/PuzzleDropWallOfFamePage'));
+const SponsorPage = lazy(() => import('./pages/sponsor/SponsorPage'));
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -903,6 +904,15 @@ export default function App() {
   element={
     <Suspense fallback={<LoadingSpinner message="Loading..." />}>
       <PuzzleNotifyPage />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/sponsor/:roomId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading sponsorship page..." />}>
+      <SponsorPage />
     </Suspense>
   }
 />

@@ -101,6 +101,9 @@ import ticketsRouter from './mgtsystem/routes/quizTicketsRouter.js';
 import quizPaymentMethodsRoutes from './mgtsystem/routes/quizPaymentMethodsRoutes.js';
 import quizLatePayments from './mgtsystem/routes/quizLatePayments.js';
 import donationButtonRoutes from './mgtsystem/routes/donationButtonRoutes.js';
+import sponsoredActivityRoutes from './mgtsystem/routes/sponsoredActivityRoutes.js';
+import sponsoredActivityPublicRoutes from './mgtsystem/routes/sponsoredActivityPublicRoutes.js';
+import sponsoredActivityReconciliationRoutes from './mgtsystem/routes/sponsoredActivityReconciliationRoutes.js';
 import quizPersonalisedRoundRouter from './mgtsystem/routes/quizPersonalisedRoundRouter.js';
 import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 
@@ -869,6 +872,21 @@ app.use(
 app.use(
   '/api',
   donationButtonRoutes,
+);
+
+app.use(
+  '/api/sponsored-activity',
+  sponsoredActivityRoutes,
+);
+
+app.use(
+  '/api/sponsored-activity-public',
+  sponsoredActivityPublicRoutes,
+);
+
+app.use(
+  '/api/sponsored-activity-reconciliation',
+  sponsoredActivityReconciliationRoutes,
 );
 
 app.use(
@@ -1916,5 +1934,3 @@ httpServer.on(
     process.exit(1);
   },
 );
-
-

@@ -390,7 +390,10 @@ export default function TotalIncomeReportModal({ clubId, clubName, onClose }: To
                           : <ChevronDown className="h-3.5 w-3.5" />}
                       </button>
                       {ticketsExpanded && (
-                        <div className="mt-1 divide-y rounded-lg" style={{ border: `1px solid ${BORDER}` }}>
+                        <div
+                          className="mt-1 divide-y rounded-lg"
+                          style={{ border: `1px solid ${BORDER}`, maxHeight: '308px', overflowY: 'auto' }}
+                        >
                           {report.income.tickets.byType.map(t => (
                             <div key={t.ticketTypeName} className="flex items-center justify-between px-2.5 py-1.5">
                               <div>
@@ -454,10 +457,10 @@ export default function TotalIncomeReportModal({ clubId, clubName, onClose }: To
                   </button>
 
                   {donationsExpanded && (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto" style={{ maxHeight: '420px', overflowY: 'auto' }}>
                       <table className="w-full text-sm">
-                        <thead>
-                          <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#ffffff' }}>
+                          <tr style={{ borderBottom: `1px solid ${BORDER}`, boxShadow: `inset 0 -1px 0 ${BORDER}` }}>
                             <th className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTE }}>Donor</th>
                             <th className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTE }}>Method</th>
                             <th className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTE }}>Wallet / token</th>
@@ -560,7 +563,10 @@ export default function TotalIncomeReportModal({ clubId, clubName, onClose }: To
                       </div>
                     </button>
                     {adjIncomeExpanded && incomeRows.length > 0 && (
-                      <div className="divide-y" style={{ background: '#fbf8f2', borderTop: `1px solid ${BORDER}` }}>
+                      <div
+                        className="divide-y"
+                        style={{ background: '#fbf8f2', borderTop: `1px solid ${BORDER}`, maxHeight: '378px', overflowY: 'auto' }}
+                      >
                         {incomeRows.map(r => <AdjustmentRowView key={r.id} row={r} />)}
                       </div>
                     )}
@@ -609,13 +615,21 @@ export default function TotalIncomeReportModal({ clubId, clubName, onClose }: To
                           </div>
                         </button>
                         {expensesExpanded && (
-                          <div className="divide-y" style={{ background: '#fbf8f2', borderTop: `1px solid ${BORDER}` }}>
-                            {expenseRows.map(r => <AdjustmentRowView key={r.id} row={r} />)}
-                            <div className="flex items-center justify-between px-4 py-2.5" style={{ background: RED_BG }}>
+                          <>
+                            <div
+                              className="divide-y"
+                              style={{ background: '#fbf8f2', borderTop: `1px solid ${BORDER}`, maxHeight: '378px', overflowY: 'auto' }}
+                            >
+                              {expenseRows.map(r => <AdjustmentRowView key={r.id} row={r} />)}
+                            </div>
+                            <div
+                              className="flex items-center justify-between px-4 py-2.5"
+                              style={{ background: RED_BG, borderTop: `1px solid ${BORDER}` }}
+                            >
                               <p className="text-xs font-bold" style={{ color: INK }}>Total expenses</p>
                               <p className="text-sm font-bold" style={{ color: RED }}>−{formatMoney(report.expenses.total)}</p>
                             </div>
-                          </div>
+                          </>
                         )}
                       </>
                     )}

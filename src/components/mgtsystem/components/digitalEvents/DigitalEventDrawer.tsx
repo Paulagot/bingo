@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   X, Eye, Settings, CreditCard, Ticket,
-  Play, BarChart3, Scale, Heart, QrCode, Trophy, ReceiptText, Puzzle,
+  Play, BarChart3, Scale, Heart, QrCode, Trophy, ReceiptText, Puzzle, Footprints,
 } from "lucide-react";
 import type { Web2RoomListItem as Room } from "../../../../shared/api/quiz.api";
 import type { RoomStats } from "../../services/quizRoomServices";
@@ -39,6 +39,11 @@ import LeaderboardTabDrop from './tabs/LeaderboardTabDrop';
 import ImpactTabDrop from './tabs/ImpactTabDrop';
 import LaunchTabDrop from './tabs/LaunchTabDrop';
 import DropReconciliationTab from './tabs/reconciliation/DropReconciliationTab';
+import OverviewTabSponsoredActivity from './tabs/OverviewTabSponsoredActivity';
+import SponsoredContributionsTab from './tabs/SponsoredContributionsTab';
+import ImpactTabSponsoredActivity from './tabs/ImpactTabSponsoredActivity';
+import ManageSponsoredActivityTab from './tabs/ManageSponsoredActivityTab';
+import SponsoredActivityReconciliationTab from './tabs/reconciliation/SponsoredActivityReconciliationTab';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -139,6 +144,7 @@ export default function DigitalEventDrawer({
   const isSubscription  = (room as any)?.game_type === 'puzzle_sub';
   // Drop flag — same pattern as isSubscription/isTicketedEvent above.
   const isDrop          = (room as any)?.game_type === 'puzzle_drop';
+  const isSponsored     = (room as any)?.game_type === 'sponsored_activity';
   const canUseTicketing = featureAccess?.ticketing === true;
   const canUsePayments  = featureAccess?.quizPayments === true;
 
@@ -232,7 +238,7 @@ export default function DigitalEventDrawer({
     // Drop never uses the quiz auditView system — it has its own
     // reconciliation backend/tab entirely — so skip this fetch for Drop,
     // same as the isSubscription skip already does.
-    if (!isCompleted || isSubscription || isDrop) {
+    if (!isCompleted || isSubscription || isDrop || isSponsored) {
       setAuditView(null);
       lastFetchedRoomId.current = null;
       return;
@@ -240,12 +246,14 @@ export default function DigitalEventDrawer({
     if (lastFetchedRoomId.current !== room.room_id) {
       fetchAuditView(room.room_id, isTicketedEvent);
     }
-  }, [open, room?.room_id, room?.status, isCompleted, isSubscription, isDrop, isTicketedEvent, fetchAuditView]);
+  }, [open, room?.room_id, room?.status, isCompleted, isSubscription, isDrop, isSponsored, isTicketedEvent, fetchAuditView]);
 
   // ── Initial tab selection ──────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
-      if (isDrop) {
+      if (isSponsored) {
+        setActiveTab(room?.status === 'scheduled' ? 'overview' : 'impact');
+      } else if (isDrop) {
         // Drop has no completed/live reshuffle — Overview first always.
         // Purchases stays relevant the whole time this is on sale rather
         // than being a "wind-down" tab like Impact is for the others, so
@@ -276,7 +284,7 @@ export default function DigitalEventDrawer({
 
   const handleRefresh = useCallback(async () => {
     if (onRefreshRoom) await onRefreshRoom();
-    if (room?.room_id && isCompleted && !isSubscription && !isDrop) {
+    if (room?.room_id && isCompleted && !isSubscription && !isDrop && !isSponsored) {
       lastFetchedRoomId.current = null;
       await fetchAuditView(room.room_id, isTicketedEvent);
     }
@@ -287,7 +295,7 @@ export default function DigitalEventDrawer({
     // Drop has no extra fetch here — each Drop tab (Overview, Setup,
     // Purchases, Leaderboard, Impact, Reconciliation, Launch) owns and
     // re-fetches its own data internally when needed.
-  }, [onRefreshRoom, room?.room_id, isCompleted, isSubscription, isDrop, fetchAuditView, fetchChallenge, isTicketedEvent]);
+  }, [onRefreshRoom, room?.room_id, isCompleted, isSubscription, isDrop, isSponsored, fetchAuditView, fetchChallenge, isTicketedEvent]);
 
   if (!open || !room) return null;
 
@@ -357,7 +365,19 @@ export default function DigitalEventDrawer({
   const dropReconciliationTab = { id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> };
   const dropLaunchTab         = { id: "launch" as TabId, label: "Launch", icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled Drops" };
 
-  const tabs: Tab[] = isDrop
+  const sponsoredOverviewTab = { id: 'overview' as TabId, label: 'Overview', icon: <Eye className="h-3.5 w-3.5" /> };
+  const sponsoredContributionsTab = { id: 'tickets' as TabId, label: 'Contributions', icon: <ReceiptText className="h-3.5 w-3.5" /> };
+  const sponsoredReconciliationTab = { id: 'reconciliation' as TabId, label: 'Reconciliation', icon: <Scale className="h-3.5 w-3.5" /> };
+  const sponsoredImpactTab = { id: 'impact' as TabId, label: 'Impact', icon: <Heart className="h-3.5 w-3.5" /> };
+  const sponsoredManageTab = { id: 'launch' as TabId, label: 'Manage', icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: 'Not available for cancelled activities' };
+
+  const sponsoredIsScheduled = room.status === 'scheduled';
+
+  const tabs: Tab[] = isSponsored
+    ? sponsoredIsScheduled
+      ? [sponsoredOverviewTab, sponsoredManageTab, sponsoredContributionsTab, sponsoredReconciliationTab, sponsoredImpactTab]
+      : [sponsoredImpactTab, sponsoredContributionsTab, sponsoredReconciliationTab, sponsoredManageTab, sponsoredOverviewTab]
+    : isDrop
     ? [dropOverviewTab, dropSetupTab, dropPurchasesTab, dropLeaderboardTab, dropImpactTab, dropReconciliationTab, dropLaunchTab]
     : isSubscription
       ? isSubscriptionLive
@@ -427,6 +447,13 @@ export default function DigitalEventDrawer({
                   Puzzle Subscription
                 </span>
               )}
+              {isSponsored && (
+                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+                  style={{ background: 'rgba(21,127,133,0.1)', color: '#157f85', borderColor: 'rgba(21,127,133,0.3)' }}>
+                  <Footprints className="h-3 w-3" />
+                  Sponsored Activity
+                </span>
+              )}
               {isDrop && (
                 <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
                   style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', borderColor: 'rgba(124,58,237,0.3)' }}>
@@ -486,7 +513,9 @@ export default function DigitalEventDrawer({
         <div className="flex flex-1 flex-col overflow-y-auto">
 
           {activeTab === "impact" && (
-            isDrop
+            isSponsored
+              ? <ImpactTabSponsoredActivity roomId={room.room_id} config={config} />
+              : isDrop
               ? <ImpactTabDrop
                   roomId={room.room_id}
                   config={config}
@@ -511,7 +540,9 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "overview" && (
-            isDrop
+            isSponsored
+              ? <OverviewTabSponsoredActivity room={room} config={config} linkedEventTitle={linkedEventTitle} />
+              : isDrop
               ? <OverviewTabDrop
                   roomId={room.room_id}
                   stats={stats}
@@ -557,7 +588,9 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "tickets" && (
-            isDrop
+            isSponsored
+              ? <SponsoredContributionsTab roomId={room.room_id} config={config} roomStatus={room.status} />
+              : isDrop
               ? <PurchasesTabDrop
                   roomId={room.room_id}
                   config={config}
@@ -575,7 +608,9 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "launch" && (
-            isDrop
+            isSponsored
+              ? <ManageSponsoredActivityTab room={room} config={config} endedAt={(room as any).ended_at ?? null} onEditFundraiser={onEditFundraiser ?? (() => {})} onStatusChanged={handleRefresh} />
+              : isDrop
               ? <LaunchTabDrop
                   roomId={room.room_id}
                   status={room.status as any}
@@ -604,7 +639,9 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "reconciliation" && (
-            isDrop
+            isSponsored
+              ? <SponsoredActivityReconciliationTab roomId={room.room_id} currencySymbol={({ EUR: '€', GBP: '£', USD: '$' } as Record<string,string>)[String(config?.currency || 'EUR').toUpperCase()] ?? '€'} hostName={confirmedByName ?? config?.hostName ?? 'Host'} />
+              : isDrop
               ? <DropReconciliationTab
                   roomId={room.room_id}
                   currencySymbol={config?.currencySymbol ?? '€'}

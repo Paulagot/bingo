@@ -39,6 +39,10 @@ import {
   cancelExpiredPeerOrder,
 } from '../peerFundraising/services/peerOrderCompletionService.js';
 import { confirmDropPurchase } from '../puzzles/services/puzzleDropService.js';
+import {
+  confirmSponsoredContributionAutomatic,
+  expireSponsoredStripeContribution,
+} from '../mgtsystem/services/sponsoredActivityPublicService.js';
 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -733,6 +737,34 @@ export async function stripeWebhookHandler(req, res) {
         }
       }
 
+      // ── Sponsored Activity contribution ───────────────────────────────
+
+      else if (type === 'sponsored_activity_contribution') {
+        const contributionId = session?.metadata?.contributionId;
+
+        if (!contributionId) {
+          console.warn(
+            '[StripeWebhook] sponsored_activity_contribution is missing contributionId',
+            { sessionId }
+          );
+        } else {
+          const result = await confirmSponsoredContributionAutomatic({
+            contributionId,
+            externalCheckoutId: sessionId,
+            externalTransactionId: paymentIntentId || sessionId,
+            confirmedByName: 'Stripe',
+          });
+
+          if (DEBUG) {
+            console.log('[StripeWebhook] Sponsored contribution confirmed:', {
+              contributionId,
+              sessionId,
+              result,
+            });
+          }
+        }
+      }
+
       // ── Puzzle subscription ────────────────────────────────────────────────
 
       else if (type === 'puzzle_subscription') {
@@ -1008,6 +1040,31 @@ export async function stripeWebhookHandler(req, res) {
                 updated,
               }
             );
+          }
+        }
+      }
+
+      // ── Sponsored Activity contribution ───────────────────────────────
+
+      else if (type === 'sponsored_activity_contribution') {
+        const contributionId = session?.metadata?.contributionId;
+
+        if (!contributionId) {
+          console.warn(
+            '[StripeWebhook] Expired sponsored contribution missing contributionId',
+            { sessionId }
+          );
+        } else {
+          const expired = await expireSponsoredStripeContribution({
+            externalCheckoutId: sessionId,
+          });
+
+          if (DEBUG) {
+            console.log('[StripeWebhook] Sponsored contribution expired:', {
+              contributionId,
+              sessionId,
+              expired,
+            });
           }
         }
       }
