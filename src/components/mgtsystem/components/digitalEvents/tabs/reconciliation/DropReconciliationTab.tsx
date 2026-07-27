@@ -45,7 +45,7 @@ export default function DropReconciliationTab({ roomId, currencySymbol = '€', 
   const [notes, setNotes]             = useState('');
   const [approving, setApproving]     = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
-  const [approveOk, setApproveOk]     = useState(false);
+
 
   const isApproved = !!current?.approvedAt;
 
@@ -92,7 +92,7 @@ export default function DropReconciliationTab({ roomId, currencySymbol = '€', 
         notes: notes.trim() || null,
       });
       setCurrent(res.reconciliation);
-      setApproveOk(true);
+    
       const summaryRes = await puzzleDropReconciliationService.getSummary(roomId);
       setSummary(summaryRes.summary);
     } catch (e: any) {
@@ -127,7 +127,7 @@ export default function DropReconciliationTab({ roomId, currencySymbol = '€', 
       if (a.adjustmentType === 'cash_over_short') {
         return net + (a.reasonCode === 'cash_over' ? a.amount : -a.amount);
       }
-      return net - a.amount; // refund / fee / prize_payout
+      return net - a.amount; // refund / fee / prize_payout / expense
     }, 0);
 
   return (

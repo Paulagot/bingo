@@ -12,6 +12,7 @@
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { calculateStartingTotalsFromLedger } from '../../mgtsystem/services/quizReconciliationService.js';
+import { computeAdjustmentsNet } from '../../shared/adjustmentClassifier.js';
 
 const RECONCILIATION_TABLE = `${TABLE_PREFIX}quiz_reconciliation`;
 const ROOMS_TABLE          = `${TABLE_PREFIX}web2_quiz_rooms`;
@@ -390,24 +391,12 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
     [dbRoomId]
   );
 
-  let adjustmentsNet = 0;
-  for (const row of (Array.isArray(adjRows) ? adjRows : [])) {
-    const amt = parseFloat(row.total) || 0;
-    switch (row.adjustment_type) {
-      case 'received':
-        adjustmentsNet += amt;
-        break;
-      case 'refund':
-      case 'fee':
-      case 'prize_payout':
-        adjustmentsNet -= amt;
-        break;
-      case 'cash_over_short':
-        if (row.reason_code === 'cash_over') adjustmentsNet += amt;
-        else if (row.reason_code === 'cash_short') adjustmentsNet -= amt;
-        break;
-    }
+  const classified = computeAdjustmentsNet(Array.isArray(adjRows) ? adjRows : []);
+  if (classified.unclassified.length > 0) {
+    console.error('[EliminationStats] Unclassified adjustments block approval:', classified.unclassified);
+    throw new Error('One or more reconciliation adjustments have an invalid type or reason code.');
   }
+  const adjustmentsNet = classified.net;
 
   const finalTotal = startingTotal + adjustmentsNet;
 
@@ -515,7 +504,7 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
 export async function saveAdjustmentEntry({
   roomId,
   clubId,
-  adjustmentType,   // 'received' | 'refund' | 'fee' | 'cash_over_short' | 'prize_payout'
+  adjustmentType,   // 'received' | 'refund' | 'fee' | 'cash_over_short' | 'prize_payout' | 'expense'
   amount,
   currency = 'EUR',
   paymentMethod = null,

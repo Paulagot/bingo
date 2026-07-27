@@ -22,6 +22,7 @@
 //                          balance, and next period's opening balance
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
+import { computeAdjustmentsNet } from '../../shared/adjustmentClassifier.js';
 
 const RECON_TABLE  = `${TABLE_PREFIX}quiz_reconciliation`;
 const ADJ_TABLE    = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
@@ -214,19 +215,12 @@ export async function approveCurrentPeriod({ roomId, clubId, reconciliationId, a
   const receipts = await getPeriodReceipts(roomId, draft.periodStart);
 
   const adjustments = await getAdjustmentsForReconciliation(reconciliationId);
-  let moneyIn = 0, moneyOut = 0;
-  for (const a of adjustments) {
-    switch (a.adjustmentType) {
-      case 'received':     moneyIn  += a.amount; break;
-      case 'refund':
-      case 'fee':          moneyOut += a.amount; break;
-      case 'cash_over_short':
-        if (a.reasonCode === 'cash_over')  moneyIn  += a.amount;
-        else if (a.reasonCode === 'cash_short') moneyOut += a.amount;
-        break;
-    }
+  const classified = computeAdjustmentsNet(adjustments);
+  if (classified.unclassified.length > 0) {
+    console.error('[Reconciliation] Unclassified adjustments block approval:', classified.unclassified);
+    throw new Error('unclassified_adjustments');
   }
-  const adjustmentsNet = moneyIn - moneyOut;
+  const adjustmentsNet = classified.net;
 
   const startingTotal = draft.openingBalance + receipts.total;
   const closingBalance = startingTotal + adjustmentsNet;

@@ -98,10 +98,11 @@ const METHOD_META: Record<string, { label: string; Icon: typeof Coins }> = {
 
 const ADJUSTMENT_LABELS: Record<string, string> = {
   received: 'Money received',
-  refund: 'Refunds',
-  fee: 'Fees',
-  prize_payout: 'Prize payouts',
+  refund: 'Refund',
+  fee: 'Fee',
+  prize_payout: 'Prize payout',
   cash_over_short: 'Cash over/short',
+  expense: 'Expense',
 };
 
 function adjustmentLabel(a: Pick<AdjustmentLine, 'adjustmentType' | 'reasonCode'>) {
@@ -113,29 +114,79 @@ function adjustmentLabel(a: Pick<AdjustmentLine, 'adjustmentType' | 'reasonCode'
   return base;
 }
 
+function reasonLabel(reasonCode: string | null) {
+  if (!reasonCode) return 'No reason supplied';
+
+  return reasonCode
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
+
 /** One approved adjustment row inside an expanded section */
 function AdjustmentRowView({ row }: { row: AdjustmentDetailRow }) {
   const isIncome = row.kind === 'income';
-  const sub = [
-    `Room ${row.roomId.length > 10 ? `${row.roomId.slice(0, 8)}…` : row.roomId}`,
+
+  const meta = [
     row.ts ? formatDate(row.ts) : null,
-    row.createdBy || null,
-    row.method !== 'unknown' ? row.method.replace('_', ' ') : null,
-  ].filter(Boolean).join(' · ');
+    `Room ${row.roomId.length > 10 ? `${row.roomId.slice(0, 8)}…` : row.roomId}`,
+    row.method !== 'unknown'
+      ? row.method.replace(/_/g, ' ')
+      : null,
+    row.createdBy ? `Added by ${row.createdBy}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
-    <div className="flex items-start justify-between gap-3 px-4 py-2.5">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold" style={{ color: INK }}>{adjustmentLabel(row)}</p>
-        <p className="text-[10px] capitalize" style={{ color: MUTE }}>{sub}</p>
-        {row.note && (
-          <p className="text-[10px] mt-0.5 italic truncate" style={{ color: MUTE }} title={row.note}>
-            "{row.note}"
+    <div className="px-4 py-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-bold" style={{ color: INK }}>
+              {ADJUSTMENT_LABELS[row.adjustmentType] || row.adjustmentType}
+            </p>
+
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              style={{
+                background: isIncome ? 'rgba(21,127,133,0.1)' : RED_BG,
+                color: isIncome ? TEAL : RED,
+              }}
+            >
+              {reasonLabel(row.reasonCode)}
+            </span>
+          </div>
+
+          <p className="mt-1 text-[10px] capitalize" style={{ color: MUTE }}>
+            {meta}
           </p>
-        )}
+
+          <div
+            className="mt-2 rounded-lg px-3 py-2"
+            style={{ background: '#ffffff', border: `1px solid ${BORDER}` }}
+          >
+            <p
+              className="text-[10px] font-semibold uppercase tracking-wide"
+              style={{ color: MUTE }}
+            >
+              Note
+            </p>
+            <p
+              className="mt-0.5 whitespace-pre-wrap break-words text-xs"
+              style={{ color: row.note ? INK : MUTE }}
+            >
+              {row.note || 'No note supplied'}
+            </p>
+          </div>
+        </div>
+
+        <p
+          className="flex-shrink-0 text-sm font-bold"
+          style={{ color: isIncome ? TEAL : RED }}
+        >
+          {isIncome ? '+' : '−'}{formatMoney(row.amount)}
+        </p>
       </div>
-      <p className="flex-shrink-0 text-xs font-bold" style={{ color: isIncome ? TEAL : RED }}>
-        {isIncome ? '+' : '−'}{formatMoney(row.amount)}
-      </p>
     </div>
   );
 }
