@@ -25,6 +25,10 @@ export interface PublicChallenge {
   is_free:      0 | 1;
   status:       string;
   club_name:    string;
+  club_logo_url?:               string | null;
+  club_primary_color?:          string | null;
+  club_background_color?:       string | null;
+  club_text_on_primary_color?:  string | null;
 }
 
 export interface ScheduleRow {
@@ -32,6 +36,7 @@ export interface ScheduleRow {
   puzzle_type: string;
   difficulty:  string;
   unlocks_at:  string | null;
+  is_correct:  0 | 1 | null;
 }
 
 export interface SupporterChallenge {
@@ -46,6 +51,35 @@ export interface SupporterChallenge {
   currency:          string;
   enrolled_at:       string;
   enrollment_status: string;
+}
+
+// ── Overall / cumulative leaderboard ──────────────────────────────────────────
+//
+// Mirrors ChallengeService's LeaderboardEntry/LeaderboardWeek shape (same
+// backend response — GET /puzzle-challenges/:challengeId/leaderboard, which
+// is authenticateAny and returns identical JSON for a club token or a
+// supporter token). Kept as a separate local type here rather than imported
+// from ChallengeService, since that service is club-side (mgtsystem) and
+// this one is the player-side auth service — they shouldn't depend on each
+// other. No answers/solutions in this payload; see challengeService.js's
+// getLeaderboard for why that's safe to expose.
+
+export interface SupporterLeaderboardWeek {
+  weekNumber:       number;
+  puzzleType:       string;
+  isCorrect:        boolean;
+  totalScore:       number;
+  timeTakenSeconds: number | null;
+  submittedAt:      string | null;
+}
+
+export interface SupporterLeaderboardEntry {
+  rank:           number;
+  playerId:       number;
+  playerName:     string;
+  totalScore:     number;
+  weeksCompleted: number;
+  weeks:          SupporterLeaderboardWeek[];
 }
 
 class SupporterAuthService extends BaseService {
@@ -181,6 +215,19 @@ class SupporterAuthService extends BaseService {
 
   getMyChallenges() {
     return this.request<SupporterChallenge[]>('/puzzle-subscriptions/my-challenges');
+  }
+
+  /**
+   * Cumulative leaderboard across every week of the challenge. Same
+   * endpoint the club dashboard's ChallengeLeaderboardPage uses
+   * (GET /puzzle-challenges/:challengeId/leaderboard), but called here
+   * with the supporter's own bearer token — the route is authenticateAny,
+   * so either token is accepted and the JSON shape is identical.
+   */
+  getOverallLeaderboard(challengeId: string) {
+    return this.request<SupporterLeaderboardEntry[]>(
+      `/puzzle-challenges/${challengeId}/leaderboard`
+    );
   }
 }
 

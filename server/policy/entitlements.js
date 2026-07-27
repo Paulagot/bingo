@@ -527,7 +527,7 @@ export async function grantCredits(clubId, creditKey, amount) {
 
     if (result.affectedRows === 0) return false;
 
-    console.log(`[Credits] ✅ Granted ${amount} credits to club "${clubId}" key="${creditKey}"`);
+    console.log(`[🔑 Entitlements Granted ${amount} credits to club "${clubId}" key="${creditKey}"`);
     return true;
   } catch (error) {
     console.error(`[Credits] ❌ grantCredits failed for club "${clubId}" key "${creditKey}":`, error);

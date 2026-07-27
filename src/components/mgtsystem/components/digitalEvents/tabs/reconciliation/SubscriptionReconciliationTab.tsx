@@ -46,7 +46,7 @@ export default function SubscriptionReconciliationTab({ roomId, currencySymbol =
   const [notes, setNotes]             = useState('');
   const [approving, setApproving]     = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
-  const [approveOk, setApproveOk]     = useState(false);
+
 
   const isApproved = !!current?.approvedAt;
 
@@ -94,7 +94,7 @@ export default function SubscriptionReconciliationTab({ roomId, currencySymbol =
         notes: notes.trim() || null,
       });
       setCurrent(res.reconciliation);
-      setApproveOk(true);
+   
       // Refresh the lifetime summary too — this period's numbers now count
       // toward it, and a new draft period will open the next time someone
       // adds an adjustment or approves again.

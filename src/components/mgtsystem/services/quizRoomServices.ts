@@ -14,6 +14,7 @@ export interface Web2RoomRow {
   room_caps_json?: string | any | null;
   created_at: string;
   updated_at: string;
+  linked_payment_methods_json?: string | Record<string, unknown> | null;
 }
 
 export interface ListWeb2RoomsParams {
@@ -53,23 +54,6 @@ class QuizRoomsService extends BaseService {
     return this.request<ListWeb2RoomsResponse>(`/quiz/web2/rooms?${qs}`);
   }
   
-  /**
-   * Get statistics for a specific room
-   */
-  async getRoomStats(roomId: string): Promise<RoomStats> {
-    const response = await this.request<{ ok: boolean; stats: RoomStats }>(
-      `/quiz/web2/rooms/${roomId}/stats`
-    );
-    return response.stats;
-  }
-
-  async getRoomIncomeSeries(roomIds: string[]): Promise<{ date: string; total: number }[]> {
-  const response = await this.request<{ ok: boolean; series: { date: string; total: number }[] }>(
-    `/quiz/web2/rooms/income-series`,
-    { method: 'POST', body: JSON.stringify({ roomIds }) }
-  );
-  return response.series;
-}
   
   /**
    * Batch load stats for multiple rooms (efficient - single DB query!)

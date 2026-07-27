@@ -104,6 +104,23 @@ const NumberPathRenderer: React.FC<NumberPathRendererProps> = ({
     });
   }, [drawing, isReadOnly]);
 
+  // Touch devices fire onTouchStart but never onMouseEnter, so without this
+  // the path never grows past its starting cell on mobile — onTouchMove has
+  // to look up whatever cell is currently under the finger itself.
+  const handleTouchMoveOnGrid = useCallback((e: React.TouchEvent) => {
+    if (!drawing || isReadOnly) return;
+    e.preventDefault(); // stop the page scrolling while a path is being drawn
+    const touch = e.touches[0];
+    if (!touch) return;
+    const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+    const cellEl = el?.closest('[data-r]') as HTMLElement | null;
+    if (!cellEl) return;
+    const r = Number(cellEl.dataset.r);
+    const c = Number(cellEl.dataset.c);
+    if (Number.isNaN(r) || Number.isNaN(c)) return;
+    handleCellEnter(r, c);
+  }, [drawing, isReadOnly, handleCellEnter]);
+
   const handleCellUp = useCallback(() => {
     if (!drawing) return;
     setGridState(prev => {
@@ -146,7 +163,12 @@ const NumberPathRenderer: React.FC<NumberPathRendererProps> = ({
 
       <div
         className="border-2 border-gray-400 inline-block select-none"
-        style={{ display: 'grid', gridTemplateColumns: `repeat(${size}, 1fr)` }}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          touchAction: isReadOnly ? 'auto' : 'none',
+        }}
+        onTouchMove={handleTouchMoveOnGrid}
       >
         {Array.from({ length: size }, (_, r) =>
           Array.from({ length: size }, (_, c) => {
@@ -160,9 +182,11 @@ const NumberPathRenderer: React.FC<NumberPathRendererProps> = ({
             return (
               <div
                 key={`${r}-${c}`}
+                data-r={r}
+                data-c={c}
                 onMouseDown={() => handleCellDown(r, c)}
                 onMouseEnter={() => handleCellEnter(r, c)}
-                onTouchStart={() => handleCellDown(r, c)}
+                onTouchStart={(e) => { e.preventDefault(); handleCellDown(r, c); }}
                 className={[
                   cellSize,
                   'flex items-center justify-center border border-gray-200 cursor-crosshair font-bold transition-colors',

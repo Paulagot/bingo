@@ -950,7 +950,7 @@ export default function ManageDonationButtonModal({
                 )}
               </section>
 
-              <section
+              {/* <section
                 className="rounded-xl p-4 space-y-3"
                 style={{ background: '#ffffff', border: '1px solid #dce1df' }}
               >
@@ -1002,7 +1002,7 @@ export default function ManageDonationButtonModal({
                   manual link clears any trackable selections. With multiple trackable methods,
                   supporters choose which to pay with at checkout.
                 </p>
-              </div>
+              </div> */}
 
               <div className="flex justify-end">
                 <button

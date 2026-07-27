@@ -15,13 +15,13 @@ export default function PuzzlePrimaryButton({
   return (
     <button
       {...props}
-      className={[
-        'inline-flex items-center justify-center gap-2 rounded-full',
-        'bg-[#071A44] px-6 py-3 text-sm font-semibold text-white',
-        'shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50',
-        fullWidth ? 'w-full' : '',
-        className,
-      ].join(' ')}
+  className={[
+  'inline-flex items-center justify-center gap-2 rounded-full',
+  'bg-[var(--puzzle-primary)] px-6 py-3 text-sm font-semibold text-[var(--puzzle-text-on-primary)]',
+  'shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50',
+  fullWidth ? 'w-full' : '',
+  className,
+].join(' ')}
     >
       {children}
     </button>

@@ -129,12 +129,12 @@ export async function availableRooms(fid,clubId) {
             e.title AS event_title, e.summary AS event_summary, e.description AS event_description
      FROM ${R} r
      LEFT JOIN ${TABLE_PREFIX}event_integrations ei
-       ON ei.external_ref COLLATE utf8mb4_unicode_ci = r.room_id COLLATE utf8mb4_unicode_ci
-       AND ei.club_id COLLATE utf8mb4_unicode_ci = r.club_id COLLATE utf8mb4_unicode_ci
+       ON ei.external_ref = r.room_id
+       AND ei.club_id = r.club_id
        AND ei.integration_type IN ('quiz_web2','elimination','ticketed_event','puzzle_sub','puzzle_drop')
      LEFT JOIN ${TABLE_PREFIX}events e
-       ON e.id COLLATE utf8mb4_unicode_ci = ei.event_id COLLATE utf8mb4_unicode_ci
-       AND e.club_id COLLATE utf8mb4_unicode_ci = r.club_id COLLATE utf8mb4_unicode_ci
+       ON e.id = ei.event_id
+       AND e.club_id = r.club_id
      WHERE r.club_id=? AND r.status NOT IN ('completed','cancelled')
      ORDER BY CASE r.status WHEN 'scheduled' THEN 1 WHEN 'open' THEN 2 WHEN 'live' THEN 3 ELSE 4 END,
               r.scheduled_at ASC,r.created_at DESC`,[clubId]);
@@ -523,12 +523,12 @@ export async function publicPayload(clubSlug,fundraiserSlug,participantSlug=null
        FROM ${PI} i
        LEFT JOIN ${R} r ON r.room_id=i.target_room_id AND r.club_id=i.club_id
        LEFT JOIN ${TABLE_PREFIX}event_integrations ei
-         ON ei.external_ref COLLATE utf8mb4_unicode_ci = i.target_room_id COLLATE utf8mb4_unicode_ci
-         AND ei.club_id COLLATE utf8mb4_unicode_ci = i.club_id COLLATE utf8mb4_unicode_ci
+         ON ei.external_ref = i.target_room_id
+         AND ei.club_id = i.club_id
          AND ei.integration_type IN ('quiz_web2','elimination','ticketed_event','puzzle_sub','puzzle_drop')
        LEFT JOIN ${TABLE_PREFIX}events e
-         ON e.id COLLATE utf8mb4_unicode_ci = ei.event_id COLLATE utf8mb4_unicode_ci
-         AND e.club_id COLLATE utf8mb4_unicode_ci = i.club_id COLLATE utf8mb4_unicode_ci
+         ON e.id = ei.event_id
+         AND e.club_id = i.club_id
        WHERE i.pack_id IN (${ph})`,ids);
 
     // Same one-room-linked-to-multiple-events dedupe as availableRooms.

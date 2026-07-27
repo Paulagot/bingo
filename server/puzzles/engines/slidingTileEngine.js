@@ -32,6 +32,14 @@ const SCRAMBLE_MOVES = {
   [Difficulty.HARD]: 75,
 };
 
+// Scoring settings scale with grid size / scramble depth — previously flat
+// regardless of difficulty, even though hard scrambles 5x deeper than easy.
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 70,  bonusIdeal: 20, bonusGood: 40, bonusMax: 150 },
+  [Difficulty.MEDIUM]: { baseScore: 100, bonusIdeal: 30, bonusGood: 60, bonusMax: 300 },
+  [Difficulty.HARD]:   { baseScore: 140, bonusIdeal: 45, bonusGood: 90, bonusMax: 450 },
+};
+
 // These files should exist in:
 // public/images/puzzles/sliding/
 //
@@ -228,6 +236,10 @@ export function generate(config) {
     solutionData: {
       solvedGrid,
       size,
+      // Rough reference for a soft "solved efficiently" bonus — the number
+      // of moves used to scramble the board isn't a true optimal-solution
+      // lower bound, but it's a reasonable par to beat.
+      movesPar: moves,
     },
 
     meta: {
@@ -280,7 +292,19 @@ export function validate(playerAnswer, solutionData) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+// Soft, capped bonus for finishing in relatively few moves. moveCount is
+// client-reported (same trust level as timeTakenSeconds), so this is kept
+// small and only ever adds to the bonus slice, never the base correctness
+// score — a player who reports a suspiciously low moveCount gains at most
+// this modest amount, not a leaderboard-dominating one.
+function moveEfficiencyBonus(moveCount, movesPar) {
+  if (!Number.isFinite(moveCount) || !Number.isFinite(movesPar) || movesPar <= 0) return 0;
+  if (moveCount <= movesPar) return 15;
+  if (moveCount <= movesPar * 1.5) return 7;
+  return 0;
+}
+
+export function score({ validationResult, submission, difficulty, solutionData }) {
   if (!validationResult.valid) {
     return {
       completed: false,
@@ -292,15 +316,18 @@ export function score({ validationResult, submission }) {
     };
   }
 
-  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 30, 60, 300);
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const timeBonus = calcTimeBonus(submission.timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
+  const efficiencyBonus = moveEfficiencyBonus(submission?.answer?.moveCount, solutionData?.movesPar);
+  const bonusScore = timeBonus + efficiencyBonus;
 
   return {
     completed: true,
     correct: true,
-    baseScore: 100,
+    baseScore: settings.baseScore,
     bonusScore,
     penaltyScore: 0,
-    totalScore: 100 + bonusScore,
+    totalScore: settings.baseScore + bonusScore,
   };
 }
 

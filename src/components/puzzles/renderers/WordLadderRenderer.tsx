@@ -239,14 +239,6 @@ const WordLadderRenderer: React.FC<WordLadderRendererProps> = ({
     });
   }, []);
 
-  const clearMiddleSteps = useCallback(() => {
-    setSteps([
-      startWord,
-      ...Array.from({ length: starterRows }, () => ''),
-      endWord,
-    ]);
-  }, [startWord, endWord, starterRows]);
-
   const completedMiddleRows = steps
     .slice(1, -1)
     .filter(word => word.length === wordLength)
@@ -284,98 +276,32 @@ const WordLadderRenderer: React.FC<WordLadderRendererProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Intro */}
-      <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 px-5 py-5 shadow-sm">
-        <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-sky-100/80" />
-        <div className="absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-indigo-100/60" />
-
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">
-              Word ladder
-            </div>
-
-            <div className="mt-1 text-xl font-black text-slate-900">
-              {data.theme ?? `${startWord} to ${endWord}`}
-            </div>
-
-            <div className="mt-1 text-sm font-medium text-slate-500">
-              Change one letter at a time. Every step must be a real word.
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm ring-1 ring-slate-200">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Target
-              </div>
-              <div className="text-xl font-black text-slate-900">
-                {data.minSteps}
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm ring-1 ring-slate-200">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Filled
-              </div>
-              <div className="text-xl font-black text-slate-900">
-                {completedMiddleRows}/{middleRowsUsed}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Start/end summary */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-center">
-          <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
-            Start
-          </div>
-          <div className="mt-1 text-2xl font-black tracking-widest text-indigo-800">
-            {startWord}
-          </div>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Intro — collapsed to a single compact row. Previously this had an
+          eyebrow label ("Word ladder") that just repeated the page title
+          right above it, a subtitle repeating the one-letter-at-a-time
+          rule (already stated in the section below AND in the How to play
+          overlay), and two boxed stat cards — all of which added height
+          without adding new information on a screen already tight on
+          vertical space. */}
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2.5">
+        <div className="truncate text-base font-black text-slate-900">
+          {data.theme ?? `${startWord} to ${endWord}`}
         </div>
 
-        <div className="text-2xl font-black text-slate-300">
-          →
-        </div>
-
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-center">
-          <div className="text-[10px] font-black uppercase tracking-widest text-emerald-500">
-            Goal
-          </div>
-          <div className="mt-1 text-2xl font-black tracking-widest text-emerald-800">
-            {endWord}
-          </div>
+        <div className="flex shrink-0 items-center gap-3 text-xs font-bold text-slate-500">
+          <span>Target <span className="text-slate-900">{data.minSteps}</span></span>
+          <span>Filled <span className="text-slate-900">{completedMiddleRows}/{middleRowsUsed}</span></span>
         </div>
       </div>
 
       {/* Ladder */}
-      <div className="mx-auto w-full max-w-md rounded-[2rem] border border-slate-200 bg-white px-4 py-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
-              Build the chain
-            </div>
-            <div className="mt-1 text-sm font-medium text-slate-500">
-              Each row should change exactly one letter.
-            </div>
-          </div>
-
-          {!isReadOnly && (
-            <button
-              type="button"
-              onClick={clearMiddleSteps}
-              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-500 transition hover:bg-slate-100"
-            >
-              Reset
-            </button>
-          )}
+      <div className="mx-auto w-full max-w-md rounded-[2rem] border border-slate-200 bg-white px-3 py-4 shadow-sm sm:px-4 sm:py-5">
+        <div className="mb-3 text-[11px] font-black uppercase tracking-[0.22em] text-slate-400 sm:mb-4">
+          Build the chain
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {steps.map((word, index) => {
             const isFirst = index === 0;
             const isLast = index === steps.length - 1;
@@ -394,12 +320,12 @@ const WordLadderRenderer: React.FC<WordLadderRendererProps> = ({
             return (
               <div key={`${index}-${isFixed ? word : 'row'}`} className="relative">
                 {index > 0 && (
-                  <div className="mx-auto mb-2 h-5 w-1 rounded-full bg-slate-200" />
+                  <div className="mx-auto mb-1 h-3 w-1 rounded-full bg-slate-200" />
                 )}
 
                 <div
                   className={[
-                    'rounded-3xl border px-3 py-3 transition',
+                    'rounded-3xl border px-3 py-2.5 transition',
                     isFixed
                       ? 'border-indigo-100 bg-indigo-50/60'
                       : isInvalid
@@ -409,7 +335,7 @@ const WordLadderRenderer: React.FC<WordLadderRendererProps> = ({
                           : 'border-slate-200 bg-slate-50',
                   ].join(' ')}
                 >
-                  <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                       {isFirst ? 'Start word' : isLast ? 'End word' : `Step ${index}`}
                     </div>

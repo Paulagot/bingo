@@ -101,6 +101,9 @@ import ticketsRouter from './mgtsystem/routes/quizTicketsRouter.js';
 import quizPaymentMethodsRoutes from './mgtsystem/routes/quizPaymentMethodsRoutes.js';
 import quizLatePayments from './mgtsystem/routes/quizLatePayments.js';
 import donationButtonRoutes from './mgtsystem/routes/donationButtonRoutes.js';
+import sponsoredActivityRoutes from './mgtsystem/routes/sponsoredActivityRoutes.js';
+import sponsoredActivityPublicRoutes from './mgtsystem/routes/sponsoredActivityPublicRoutes.js';
+import sponsoredActivityReconciliationRoutes from './mgtsystem/routes/sponsoredActivityReconciliationRoutes.js';
 import quizPersonalisedRoundRouter from './mgtsystem/routes/quizPersonalisedRoundRouter.js';
 import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 
@@ -115,11 +118,11 @@ import challengeRouter from './puzzles/routes/challengeRoutes.js';
 import supporterAuthRouter from './supporters/routes/supporterAuthRoutes.js';
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
 import subscriptionReconciliationRoutes from './puzzles/routes/subscriptionReconciliationRoutes.js';
+import puzzleDropReconciliationRoutes from './puzzles/routes/puzzleDropReconciliationRoutes.js';
+import puzzleDropRouter from './puzzles/routes/puzzleDropRoutes.js';
+import clubIncomeReportRouter from './mgtsystem/routes/clubIncomeReport.js';
 
-import {
-  mountSummerQuestRoutes,
-  setupSummerQuestDatabase,
-} from './summerquest/server/index.js';
+
 
 import ticketsSummaryRouter from './quiz/api/ticketsSummaryRouter.js';
 
@@ -225,16 +228,7 @@ app.use(
   }),
 );
 
-/*
-|--------------------------------------------------------------------------
-| Summer Quest
-|--------------------------------------------------------------------------
-*/
 
-mountSummerQuestRoutes(
-  app,
-  connection,
-);
 
 /*
 |--------------------------------------------------------------------------
@@ -881,6 +875,21 @@ app.use(
 );
 
 app.use(
+  '/api/sponsored-activity',
+  sponsoredActivityRoutes,
+);
+
+app.use(
+  '/api/sponsored-activity-public',
+  sponsoredActivityPublicRoutes,
+);
+
+app.use(
+  '/api/sponsored-activity-reconciliation',
+  sponsoredActivityReconciliationRoutes,
+);
+
+app.use(
   '/api',
   donationCheckoutRoutes,
 );
@@ -974,6 +983,15 @@ app.use(
   '/api/subscription-reconciliation',
   subscriptionReconciliationRoutes,
 );
+
+app.use(
+  '/api/puzzle-drop-reconciliation',
+  puzzleDropReconciliationRoutes,
+);
+
+app.use('/api/income-report', clubIncomeReportRouter);
+
+app.use('/api/puzzle-drop', puzzleDropRouter);
 
 app.use(
   '/api/web3-transactions',
@@ -1896,13 +1914,7 @@ httpServer.on(
 
     startStripeCleanupJob();
 
-    await setupSummerQuestDatabase(
-      connection,
-    );
-
-    console.log(
-      '🗄️ Summer Quest ready',
-    );
+  
   } catch (dbError) {
     console.error(
       '❌ Database initialization failed:',
@@ -1922,5 +1934,3 @@ httpServer.on(
     process.exit(1);
   },
 );
-
-

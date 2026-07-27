@@ -95,6 +95,41 @@ export async function getReconciliationByRoomId(roomId) {
   };
 }
 
+export async function getFinalTotalsForRooms(roomIds) {
+  const ids = Array.from(new Set((roomIds || []).filter(Boolean))).slice(0, 200);
+
+  if (ids.length === 0) return {};
+
+  const placeholders = ids.map(() => '?').join(',');
+
+  const [rows] = await connection.execute(
+    `SELECT
+       qr.room_id AS roomId,
+       qr.final_total AS finalTotal
+     FROM ${RECONCILIATION_TABLE} qr
+     INNER JOIN (
+       SELECT room_id, MAX(id) AS latest_id
+       FROM ${RECONCILIATION_TABLE}
+       WHERE room_id IN (${placeholders})
+       GROUP BY room_id
+     ) latest ON latest.latest_id = qr.id`,
+    ids
+  );
+
+  const totals = {};
+
+  for (const roomId of ids) {
+    totals[roomId] = null;
+  }
+
+  for (const row of rows || []) {
+    totals[row.roomId] =
+      row.finalTotal == null ? null : Number(row.finalTotal);
+  }
+
+  return totals;
+}
+
 // ─── Adjustments ──────────────────────────────────────────────────────────────
 
 export async function getAdjustmentsByRoomId(roomId) {

@@ -128,6 +128,14 @@ const SEQUENCE_BANK = {
   ],
 };
 
+// Scoring settings scale with item count / difficulty — previously flat
+// regardless of difficulty.
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 55, bonusIdeal: 20, bonusGood: 35, bonusMax: 120 },
+  [Difficulty.MEDIUM]: { baseScore: 70, bonusIdeal: 25, bonusGood: 45, bonusMax: 180 },
+  [Difficulty.HARD]:   { baseScore: 90, bonusIdeal: 30, bonusGood: 60, bonusMax: 260 },
+};
+
 // ---------------------------------------------------------------------------
 // generate
 // ---------------------------------------------------------------------------
@@ -190,20 +198,21 @@ export function validate(input, solution) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, difficulty }) {
   if (!validationResult.valid) {
     return { completed: false, correct: false, baseScore: 0, bonusScore: 0, penaltyScore: 0, totalScore: 0 };
   }
 
-  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 25, 45, 180);
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
 
   return {
     completed:    true,
     correct:      true,
-    baseScore:    70,
+    baseScore:    settings.baseScore,
     bonusScore,
     penaltyScore: 0,
-    totalScore:   70 + bonusScore,
+    totalScore:   settings.baseScore + bonusScore,
   };
 }
 

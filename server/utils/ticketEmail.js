@@ -116,9 +116,9 @@ export async function getTicketWithRoomConfig(ticketId) {
        c.name AS club_name
      FROM ${TICKETS_TABLE} t
      LEFT JOIN ${ROOMS_TABLE} r
-       ON r.room_id COLLATE utf8mb4_0900_ai_ci = t.room_id COLLATE utf8mb4_0900_ai_ci
+       ON r.room_id  = t.room_id 
      LEFT JOIN ${CLUBS_TABLE_LOCAL} c
-       ON c.id COLLATE utf8mb4_0900_ai_ci = t.club_id COLLATE utf8mb4_0900_ai_ci
+       ON c.id  = t.club_id 
      WHERE t.ticket_id = ? LIMIT 1`,
     [ticketId]
   );

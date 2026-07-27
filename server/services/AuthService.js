@@ -94,7 +94,7 @@ export class AuthService {
         );
 
         // ✅ ADD THIS — seed the per-activity credit rows for FREE plan
-const FREE_CREDIT_KEYS = ['quiz', 'elimination', 'ticketed_event'];
+const FREE_CREDIT_KEYS = ['quiz', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop', 'sponsored_activity'];
 for (const key of FREE_CREDIT_KEYS) {
   await conn.execute(
     `INSERT INTO ${PREFIX}club_credit_balances (club_id, credit_key, balance, updated_at)

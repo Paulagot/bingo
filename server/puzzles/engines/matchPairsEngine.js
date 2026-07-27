@@ -64,6 +64,30 @@ const MATCH_PAIRS_BANK = {
         { leftId: 'chips', rightId: 'basket' },
       ],
     },
+    {
+      prompt: 'Match the shape to its number of sides',
+      leftItems: [
+        { id: 'triangle', label: '🔺 Triangle' },
+        { id: 'square',   label: '🟦 Square' },
+        { id: 'pentagon', label: '⬠ Pentagon' },
+        { id: 'hexagon',  label: '⬡ Hexagon' },
+        { id: 'octagon',  label: '🛑 Octagon' },
+      ],
+      rightItems: [
+        { id: '3', label: '3 sides' },
+        { id: '4', label: '4 sides' },
+        { id: '5', label: '5 sides' },
+        { id: '6', label: '6 sides' },
+        { id: '8', label: '8 sides' },
+      ],
+      pairs: [
+        { leftId: 'triangle', rightId: '3' },
+        { leftId: 'square',   rightId: '4' },
+        { leftId: 'pentagon', rightId: '5' },
+        { leftId: 'hexagon',  rightId: '6' },
+        { leftId: 'octagon',  rightId: '8' },
+      ],
+    },
   ],
 
   [Difficulty.MEDIUM]: [
@@ -236,20 +260,90 @@ const MATCH_PAIRS_BANK = {
 };
 
 // ---------------------------------------------------------------------------
+// Template self-check — runs once at module load. Catches exactly the class
+// of bug that shipped previously (fields referenced by generate()/validate()
+// that don't actually exist on the template) before it can crash a request.
+// ---------------------------------------------------------------------------
+
+function assertValidTemplate(difficulty, template, index) {
+  const label = `${difficulty} template #${index}`;
+
+  if (typeof template.prompt !== 'string' || template.prompt.trim() === '') {
+    throw new Error(`${label}: missing a non-empty "prompt".`);
+  }
+  if (!Array.isArray(template.leftItems) || !Array.isArray(template.rightItems) || !Array.isArray(template.pairs)) {
+    throw new Error(`${label}: leftItems, rightItems, and pairs must all be arrays.`);
+  }
+
+  const leftIds  = new Set(template.leftItems.map(i => i.id));
+  const rightIds = new Set(template.rightItems.map(i => i.id));
+
+  if (leftIds.size !== template.leftItems.length) {
+    throw new Error(`${label}: leftItems has duplicate ids.`);
+  }
+  if (rightIds.size !== template.rightItems.length) {
+    throw new Error(`${label}: rightItems has duplicate ids.`);
+  }
+  for (const item of [...template.leftItems, ...template.rightItems]) {
+    if (typeof item.label !== 'string' || item.label.trim() === '') {
+      throw new Error(`${label}: item "${item.id}" has no label.`);
+    }
+  }
+
+  if (template.pairs.length !== template.leftItems.length || template.pairs.length !== template.rightItems.length) {
+    throw new Error(`${label}: pairs count (${template.pairs.length}) must match leftItems (${template.leftItems.length}) and rightItems (${template.rightItems.length}).`);
+  }
+
+  const pairedLeft  = new Set();
+  const pairedRight = new Set();
+  for (const p of template.pairs) {
+    if (!leftIds.has(p.leftId))  throw new Error(`${label}: pair references unknown leftId "${p.leftId}".`);
+    if (!rightIds.has(p.rightId)) throw new Error(`${label}: pair references unknown rightId "${p.rightId}".`);
+    if (pairedLeft.has(p.leftId))  throw new Error(`${label}: leftId "${p.leftId}" is paired more than once.`);
+    if (pairedRight.has(p.rightId)) throw new Error(`${label}: rightId "${p.rightId}" is paired more than once.`);
+    pairedLeft.add(p.leftId);
+    pairedRight.add(p.rightId);
+  }
+  // Every declared item must be used in exactly one pair — no orphans.
+  for (const id of leftIds)  if (!pairedLeft.has(id))  throw new Error(`${label}: leftItem "${id}" is never paired.`);
+  for (const id of rightIds) if (!pairedRight.has(id)) throw new Error(`${label}: rightItem "${id}" is never paired.`);
+}
+
+function validateAllTemplates() {
+  for (const difficulty of Object.keys(MATCH_PAIRS_BANK)) {
+    MATCH_PAIRS_BANK[difficulty].forEach((template, i) => assertValidTemplate(difficulty, template, i));
+  }
+}
+
+validateAllTemplates();
+
+// ---------------------------------------------------------------------------
+// Scoring settings scale with pair count / difficulty
+// ---------------------------------------------------------------------------
+
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 50, bonusIdeal: 15, bonusGood: 40,  bonusMax: 150 },
+  [Difficulty.MEDIUM]: { baseScore: 70, bonusIdeal: 25, bonusGood: 60,  bonusMax: 240 },
+  [Difficulty.HARD]:   { baseScore: 95, bonusIdeal: 35, bonusGood: 90,  bonusMax: 360 },
+};
+
+// ---------------------------------------------------------------------------
 // generate
 // ---------------------------------------------------------------------------
 
 export function generate(config) {
   const { difficulty = Difficulty.MEDIUM } = config;
-  const seed = config.seed ?? `${difficulty}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const seed = config.seed ?? `matchPairs-${difficulty}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const rng   = createSeededRandom(seed);
-  const bank  = PAIRS_BANK[difficulty] ?? PAIRS_BANK[Difficulty.MEDIUM];
+  const bank  = MATCH_PAIRS_BANK[difficulty] ?? MATCH_PAIRS_BANK[Difficulty.MEDIUM];
 
   const template = bank[Math.floor(rng() * bank.length)];
   const pairs    = template.pairs;
 
-  const leftItems  = pairs.map(p => ({ id: p.leftId,  label: p.leftLabel  }));
-  const rightItems = shuffleArray(pairs.map(p => ({ id: p.rightId, label: p.rightLabel })), rng);
+  // Left column stays in template order; only the right column is shuffled,
+  // so the player has to actually think about the matches.
+  const leftItems  = template.leftItems;
+  const rightItems = shuffleArray(template.rightItems, rng);
 
   const matches = pairs.map(p => ({ leftId: p.leftId, rightId: p.rightId }));
 
@@ -258,7 +352,7 @@ export function generate(config) {
     difficulty,
     seed,
     puzzleData: {
-      theme:      template.theme,
+      prompt: template.prompt,
       leftItems,
       rightItems, // shuffled — player must match these to left items
     },
@@ -266,6 +360,7 @@ export function generate(config) {
       matches,
     },
     meta: {
+      prompt: template.prompt,
       pairCount: pairs.length,
     },
   };
@@ -276,32 +371,39 @@ export function generate(config) {
 // ---------------------------------------------------------------------------
 
 export function validate(input, solution) {
-  const submitted = input.matches;
+  const submitted = input?.matches;
   const correct   = solution.matches;
 
   if (!Array.isArray(submitted) || submitted.length === 0) {
     return { valid: false, reason: 'No matches submitted.' };
   }
 
-  if (submitted.length !== correct.length) {
-    return { valid: false, reason: 'Incorrect number of matches.' };
+  // De-duplicate by leftId (last write wins) so a submission can't inflate
+  // its correct count by repeating a known-correct pair while skipping one
+  // it doesn't know.
+  const submittedMap = new Map();
+  for (const m of submitted) {
+    if (!m || typeof m !== 'object' || typeof m.leftId !== 'string' || typeof m.rightId !== 'string') {
+      return { valid: false, reason: 'A submitted match is malformed.' };
+    }
+    submittedMap.set(m.leftId, m.rightId);
   }
 
-  // Build a lookup map from the solution for O(1) checks
   const solutionMap = new Map(correct.map(m => [m.leftId, m.rightId]));
 
   let correctCount = 0;
-  for (const match of submitted) {
-    if (solutionMap.get(match.leftId) === match.rightId) correctCount++;
+  for (const [leftId, rightId] of solutionMap) {
+    if (submittedMap.get(leftId) === rightId) correctCount++;
   }
 
-  const allCorrect = correctCount === correct.length;
+  const totalCount  = correct.length;
+  const allCorrect  = correctCount === totalCount;
 
   return {
     valid:        allCorrect,
-    reason:       allCorrect ? undefined : `${correctCount} of ${correct.length} matches are correct.`,
+    reason:       allCorrect ? undefined : `${correctCount} of ${totalCount} matches are correct.`,
     correctCount,
-    totalCount:   correct.length,
+    totalCount,
   };
 }
 
@@ -309,20 +411,21 @@ export function validate(input, solution) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, difficulty }) {
   if (!validationResult.valid) {
     return { completed: false, correct: false, baseScore: 0, bonusScore: 0, penaltyScore: 0, totalScore: 0 };
   }
 
-  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 25, 60, 240);
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
 
   return {
     completed:    true,
     correct:      true,
-    baseScore:    70,
+    baseScore:    settings.baseScore,
     bonusScore,
     penaltyScore: 0,
-    totalScore:   70 + bonusScore,
+    totalScore:   settings.baseScore + bonusScore,
   };
 }
 

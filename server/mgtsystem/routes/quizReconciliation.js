@@ -24,6 +24,7 @@ import {
 } from '../services/quizReconciliationService.js';
 import { authenticateToken } from '../../middleware/auth.js';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
+import { computeAdjustmentsNet } from '../../shared/adjustmentClassifier.js';
 
 const router = express.Router();
 
@@ -201,14 +202,25 @@ router.post('/room/:roomId/approve', authenticateToken, async (req, res) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    const classified = computeAdjustmentsNet(payload.adjustments || []);
+    if (classified.unclassified.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        code: 'UNCLASSIFIED_ADJUSTMENTS',
+        error: 'One or more reconciliation adjustments have an invalid type or reason code.',
+        adjustments: classified.unclassified,
+      });
+    }
+    const authoritativeAdjustmentsNet = classified.net;
+
     const result = await saveCompleteReconciliation({
       roomId:            payload.roomId,
       clubId:            payload.clubId,
       startingEntryFees: startingTotals.entryFees,
       startingExtras:    startingTotals.extras,
       startingTotal:     startingTotals.total,
-      adjustmentsNet:    payload.adjustmentsNet || 0,
-      finalTotal:        startingTotals.total + (payload.adjustmentsNet || 0),
+      adjustmentsNet:    authoritativeAdjustmentsNet,
+      finalTotal:        startingTotals.total + authoritativeAdjustmentsNet,
       approvedBy:        payload.approvedBy,
       approvedById:      req.user.id || req.user.member_id || null, // ← from JWT for ledger stamp
       approvedAt:        payload.approvedAt,
@@ -227,7 +239,7 @@ router.post('/room/:roomId/approve', authenticateToken, async (req, res) => {
         roomId:           payload.roomId,
         reconciliationId: result.reconciliationId,
         adjustmentCount:  result.adjustmentCount,
-        finalTotal:       payload.finalTotal,
+        finalTotal:       startingTotals.total + authoritativeAdjustmentsNet,
         approvedAt:       payload.approvedAt,
       },
     });

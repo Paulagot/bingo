@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   Users, User, Mail, Lock, Eye, EyeOff,
-  CheckCircle, AlertCircle, DollarSign,
+  CheckCircle, AlertCircle, 
 } from 'lucide-react';
 import { useAuth, useAuthUI } from '@/features/auth';
 import { useLocation } from 'react-router-dom';
@@ -314,7 +314,7 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
                     </div>
                   </div>
                   <p className="mt-1.5 text-xs" style={{ color: '#8a9bab' }}>
-                    Pre-selected based on your region — changeable any time in settings.
+                    Pre-selected based on your region - changeable any time in settings.
                   </p>
                 </div>
               </Section>

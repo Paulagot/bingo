@@ -20,8 +20,18 @@
  * }
  */
 
-import { createSeededRandom, shuffleArray, pickRandom } from '../utils/puzzleHelpers.js';
+import { createSeededRandom, shuffleArray, pickRandom, calcTimeBonus } from '../utils/puzzleHelpers.js';
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
+
+// Scoring settings scale with grid size / rule complexity — previously this
+// engine paid a flat baseScore (and a hand-rolled, non-difficulty-aware time
+// bonus) regardless of whether it was a 3x3 one-rule easy puzzle or a 4x4
+// multi-rule hard one.
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 60,  bonusIdeal: 15, bonusGood: 30, bonusMax: 90 },
+  [Difficulty.MEDIUM]: { baseScore: 80,  bonusIdeal: 20, bonusGood: 40, bonusMax: 150 },
+  [Difficulty.HARD]:   { baseScore: 110, bonusIdeal: 30, bonusGood: 60, bonusMax: 250 },
+};
 
 // ---------------------------------------------------------------------------
 // Visual vocabulary
@@ -633,7 +643,7 @@ export function validate(playerAnswer, solutionData) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, difficulty }) {
   if (!validationResult.valid) {
     return {
       completed: false,
@@ -645,21 +655,16 @@ export function score({ validationResult, submission }) {
     };
   }
 
-  const timeTakenSeconds = Number(submission.timeTakenSeconds ?? 0);
-
-  const bonusScore = timeTakenSeconds <= 20
-    ? 20
-    : timeTakenSeconds >= 120
-      ? 0
-      : Math.round(20 * (1 - (timeTakenSeconds - 20) / 100));
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
 
   return {
     completed: true,
     correct: true,
-    baseScore: 80,
+    baseScore: settings.baseScore,
     bonusScore,
     penaltyScore: 0,
-    totalScore: 80 + bonusScore,
+    totalScore: settings.baseScore + bonusScore,
   };
 }
 

@@ -31,7 +31,7 @@ const PuzzleActions: React.FC<PuzzleActionsProps> = ({
       <div className="flex justify-center px-6 py-4">
         <button
           onClick={onStart}
-          className="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 active:scale-95 transition-all"
+          className="px-8 py-3 bg-[var(--puzzle-primary)] text-[var(--puzzle-text-on-primary)] font-semibold rounded-xl hover:opacity-90 active:scale-95 transition-all"
         >
           Start Puzzle
         </button>
@@ -39,9 +39,9 @@ const PuzzleActions: React.FC<PuzzleActionsProps> = ({
     );
   }
 
-  if (pageState === 'submitted' || pageState === 'completed') {
-    return null;
-  }
+if (pageState === 'submitted' || pageState === 'completed' || pageState === 'failedValidation') {
+  return null;
+}
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50">
@@ -65,7 +65,7 @@ const PuzzleActions: React.FC<PuzzleActionsProps> = ({
         disabled={!canSubmit}
         className={`px-6 py-2.5 text-sm font-semibold rounded-xl transition-all ${
           canSubmit
-            ? 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
+            ? 'bg-[var(--puzzle-primary)] text-[var(--puzzle-text-on-primary)] hover:opacity-90 active:scale-95'
             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
         }`}
       >

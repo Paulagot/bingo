@@ -44,6 +44,42 @@ const PHRASES = {
   ],
 };
 
+// Number of starter letters revealed for free, scaled by difficulty — a
+// short easy phrase with only one free letter is still a genuinely hard
+// substitution-cipher puzzle for a casual/quick daily play; hard phrases
+// have enough length that one hint is plenty.
+const STARTER_HINT_COUNTS = {
+  [Difficulty.EASY]:   3,
+  [Difficulty.MEDIUM]: 2,
+  [Difficulty.HARD]:   1,
+};
+
+// ---------------------------------------------------------------------------
+// Phrase bank self-check — runs once at module load.
+// ---------------------------------------------------------------------------
+
+function assertValidPhrase(difficulty, phrase, index) {
+  const label = `${difficulty} phrase #${index}`;
+  if (typeof phrase !== 'string' || phrase.trim() === '') {
+    throw new Error(`${label}: must be a non-empty string.`);
+  }
+  if (!/^[A-Z ]+$/.test(phrase)) {
+    throw new Error(`${label}: must contain only A-Z and spaces ("${phrase}").`);
+  }
+  const uniqueLetters = new Set(phrase.replace(/[^A-Z]/g, '')).size;
+  if (uniqueLetters < STARTER_HINT_COUNTS[difficulty] + 1) {
+    throw new Error(`${label}: only has ${uniqueLetters} unique letters, not enough to leave a puzzle after ${STARTER_HINT_COUNTS[difficulty]} starter hints.`);
+  }
+}
+
+function validateAllPhrases() {
+  for (const difficulty of Object.keys(PHRASES)) {
+    PHRASES[difficulty].forEach((phrase, i) => assertValidPhrase(difficulty, phrase, i));
+  }
+}
+
+validateAllPhrases();
+
 // ---------------------------------------------------------------------------
 // Build a substitution cipher from a seed
 // ---------------------------------------------------------------------------
@@ -77,12 +113,40 @@ function buildCipher(rng) {
   return { encode, decode };
 }
 
+// Runtime self-check for the *generated* cipher (the phrase bank check above
+// is static; this one runs every call since the cipher is procedural).
+function assertValidCipher(encode) {
+  if (encode.size !== 26) {
+    throw new Error(`Generated cipher only maps ${encode.size} of 26 letters.`);
+  }
+  const seen = new Set();
+  for (const [plain, cipher] of encode) {
+    if (plain === cipher) {
+      throw new Error(`Generated cipher has a fixed point: ${plain} -> ${cipher}.`);
+    }
+    if (seen.has(cipher)) {
+      throw new Error(`Generated cipher is not a bijection: ${cipher} is used more than once.`);
+    }
+    seen.add(cipher);
+  }
+}
+
 /**
  * Apply a cipher map to a string — non-alpha characters pass through unchanged.
  */
-function applycipher(text, map) {
+function applyCipher(text, map) {
   return text.split('').map(ch => map.get(ch) ?? ch).join('');
 }
+
+// ---------------------------------------------------------------------------
+// Scoring settings scale with phrase length / difficulty
+// ---------------------------------------------------------------------------
+
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 55,  bonusIdeal: 20, bonusGood: 75,  bonusMax: 360 },
+  [Difficulty.MEDIUM]: { baseScore: 75,  bonusIdeal: 25, bonusGood: 120, bonusMax: 600 },
+  [Difficulty.HARD]:   { baseScore: 110, bonusIdeal: 45, bonusGood: 240, bonusMax: 1200 },
+};
 
 // ---------------------------------------------------------------------------
 // generate
@@ -97,18 +161,28 @@ export function generate(config) {
   const phrase = pickRandom(bank, rng);
 
   const { encode, decode } = buildCipher(rng);
-  const encoded = applycipher(phrase, encode);
+  assertValidCipher(encode);
+
+  const encoded = applyCipher(phrase, encode);
 
   // Build a frequency hint: show how many unique letters are in the phrase
   const uniqueLetters = new Set(phrase.replace(/[^A-Z]/g, '').split('')).size;
 
-  // Pre-reveal one letter as a starter hint (the most frequent letter)
+  // Pre-reveal the N most frequent letters as starter hints, N scaled by
+  // difficulty (see STARTER_HINT_COUNTS above).
   const letterFreq = {};
   for (const ch of phrase) {
     if (/[A-Z]/.test(ch)) letterFreq[ch] = (letterFreq[ch] ?? 0) + 1;
   }
-  const mostFrequent = Object.entries(letterFreq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'E';
-  const revealedCipherLetter = encode.get(mostFrequent);
+  const byFrequency = Object.entries(letterFreq)
+    .sort((a, b) => b[1] - a[1])
+    .map(([letter]) => letter);
+
+  const hintCount = Math.min(STARTER_HINT_COUNTS[difficulty] ?? 1, byFrequency.length);
+  const hints = byFrequency.slice(0, hintCount).map(plainLetter => ({
+    cipherLetter: encode.get(plainLetter),
+    plainLetter,
+  }));
 
   // Build the cipher map as a plain object for storage
   const cipherMapObj = {};
@@ -121,16 +195,13 @@ export function generate(config) {
     puzzleData: {
       encoded,                    // the encoded phrase shown to the player
       uniqueLetters,              // how many unique letters to solve
-      hint: {
-        cipherLetter:   revealedCipherLetter,  // the encoded letter
-        plainLetter:    mostFrequent,           // what it decodes to
-      },
+      hints,                      // [{cipherLetter, plainLetter}, ...] starter hints
     },
     solutionData: {
       plainText:  phrase,
       cipherMap:  cipherMapObj,   // encode map for server-side validation
     },
-    meta: { phraseLength: phrase.length, uniqueLetters },
+    meta: { phraseLength: phrase.length, uniqueLetters, hintCount },
   };
 }
 
@@ -139,7 +210,8 @@ export function generate(config) {
 // ---------------------------------------------------------------------------
 
 export function validate(playerAnswer, solutionData) {
-  const submitted = (playerAnswer?.decoded ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+  const rawDecoded = playerAnswer?.decoded;
+  const submitted = (typeof rawDecoded === 'string' ? rawDecoded : '').trim().toUpperCase().replace(/\s+/g, ' ');
   const correct   = solutionData.plainText.trim().toUpperCase().replace(/\s+/g, ' ');
 
   if (!submitted) return { valid: false, reason: 'No answer submitted.' };
@@ -154,11 +226,20 @@ export function validate(playerAnswer, solutionData) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, difficulty }) {
   if (!validationResult.valid) return { completed: false, correct: false, baseScore: 0, bonusScore: 0, penaltyScore: 0, totalScore: 0 };
-  // Full bonus within 2 min, decays to 0 at 10 min
-  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 25, 120, 600);
-  return { completed: true, correct: true, baseScore: 75, bonusScore, penaltyScore: 0, totalScore: 75 + bonusScore };
+
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
+
+  return {
+    completed: true,
+    correct: true,
+    baseScore: settings.baseScore,
+    bonusScore,
+    penaltyScore: 0,
+    totalScore: settings.baseScore + bonusScore,
+  };
 }
 
 export default { generate, validate, score };

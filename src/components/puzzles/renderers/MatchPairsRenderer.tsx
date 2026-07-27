@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import type { MatchPairsPuzzleData, MatchPairsMatch } from '../puzzleTypes';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 interface MatchPairsRendererProps {
   puzzleData: Record<string, unknown>;
@@ -8,10 +7,19 @@ interface MatchPairsRendererProps {
   isReadOnly: boolean;
 }
 
-type PairItem = {
+// Defined locally rather than imported from a shared puzzleTypes module —
+// this component only needs this exact shape, and a drifted/renamed field
+// on a shared type (the same class of bug that broke the engine's generate()
+// function) shouldn't be able to silently break this file too.
+interface PairItem {
   id: string;
   label: string;
-};
+}
+
+interface MatchPairsMatch {
+  leftId: string;
+  rightId: string;
+}
 
 const parseArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) return value;
@@ -65,37 +73,52 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
   onAnswerChange,
   isReadOnly,
 }) => {
-  const data = puzzleData as unknown as MatchPairsPuzzleData & Record<string, unknown>;
+  const data = puzzleData as Record<string, unknown>;
+
+  const prompt = useMemo(() => {
+    const p = data.prompt ?? data.theme ?? data.instructions;
+    return typeof p === 'string' && p.trim() !== '' ? p : null;
+  }, [data]);
 
   const leftItems = useMemo(
     () => normaliseItems(data.leftItems ?? data.left ?? data.items),
-    [data.leftItems, data.left, data.items]
+    [data]
   );
 
   const rightItems = useMemo(
     () => normaliseItems(data.rightItems ?? data.right ?? data.matches ?? data.answers),
-    [data.rightItems, data.right, data.matches, data.answers]
+    [data]
   );
 
-  const [matches, setMatches] = useState<MatchPairsMatch[]>(
-    (currentAnswer.matches as MatchPairsMatch[]) ?? []
-  );
+  // Lazy-initialized ONCE from currentAnswer on mount, same pattern as the
+  // other puzzle renderers in this set. The previous version re-synced from
+  // currentAnswer on every change, which meant a stale/lagging prop update
+  // from the parent could silently overwrite the player's newer in-progress
+  // matches mid-session. State now flows outward only, via onAnswerChange.
+  const getInitialMatches = useCallback((): MatchPairsMatch[] => {
+    const saved = currentAnswer?.matches;
+    if (!Array.isArray(saved)) return [];
+    return saved.filter(
+      (m): m is MatchPairsMatch =>
+        Boolean(m) && typeof m === 'object' && typeof (m as MatchPairsMatch).leftId === 'string' && typeof (m as MatchPairsMatch).rightId === 'string'
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [matches, setMatches] = useState<MatchPairsMatch[]>(getInitialMatches);
 
   const [selectedLeftId, setSelectedLeftId] = useState<string | null>(null);
 
   useEffect(() => {
-    setMatches((currentAnswer.matches as MatchPairsMatch[]) ?? []);
-  }, [currentAnswer.matches]);
-
-  useEffect(() => {
-    if (matches.length > 0) {
-      onAnswerChange({ matches });
-    }
-  }, [matches, onAnswerChange]);
+    // Always report the current state — including back down to zero matches
+    // — so the parent's saved answer can never drift from what's on screen.
+    onAnswerChange({ matches });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches]);
 
   const totalPairs = leftItems.length;
   const matchCount = matches.length;
   const progressPercent = totalPairs > 0 ? Math.round((matchCount / totalPairs) * 100) : 0;
+  const isComplete = totalPairs > 0 && matchCount === totalPairs;
 
   const getMatchedRight = (leftId: string): string | null => {
     return matches.find(match => match.leftId === leftId)?.rightId ?? null;
@@ -157,14 +180,6 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
     }
   };
 
-  const handleClearAll = () => {
-    if (isReadOnly) return;
-
-    setMatches([]);
-    setSelectedLeftId(null);
-    onAnswerChange({});
-  };
-
   if (!leftItems.length || !rightItems.length) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
@@ -177,9 +192,9 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Game intro / progress */}
-      <div className="relative overflow-hidden rounded-3xl border border-fuchsia-100 bg-gradient-to-br from-fuchsia-50 via-white to-indigo-50 px-5 py-4 shadow-sm">
+      <div className="relative overflow-hidden rounded-3xl border border-fuchsia-100 bg-gradient-to-br from-fuchsia-50 via-white to-indigo-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
         <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-fuchsia-100/70" />
 
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -188,11 +203,11 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
               Match the pairs
             </div>
             <div className="mt-1 text-sm font-medium text-slate-600">
-              Pick an item on the left, then choose its match on the right.
+              {prompt ?? 'Pick an item on the left, then choose its match on the right.'}
             </div>
           </div>
 
-          <div className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200">
+          <div className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm ring-1 ring-slate-200 shrink-0">
             {matchCount}/{totalPairs} matched
           </div>
         </div>
@@ -206,39 +221,40 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
       </div>
 
       {/* Current instruction */}
-      <div
-        className={[
-          'rounded-2xl border px-4 py-3 text-center text-sm font-bold transition',
-          selectedLeftId
-            ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-            : matchCount === totalPairs
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            : 'border-slate-200 bg-slate-50 text-slate-500',
-        ].join(' ')}
-      >
-        {selectedLeftId
-          ? `Now choose the match for “${getLeftLabel(selectedLeftId)}”`
-          : matchCount === totalPairs
-          ? 'All pairs selected. Ready to submit.'
-          : 'Start by choosing a card from the left.'}
-      </div>
+      {!isReadOnly && (
+        <div
+          className={[
+            'rounded-2xl border px-4 py-3 text-center text-sm font-bold transition',
+            selectedLeftId
+              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+              : isComplete
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-slate-200 bg-slate-50 text-slate-500',
+          ].join(' ')}
+        >
+          {selectedLeftId
+            ? `Now choose the match for "${getLeftLabel(selectedLeftId)}"`
+            : isComplete
+            ? 'All pairs selected. Ready to submit.'
+            : 'Start by choosing a card from the left.'}
+        </div>
+      )}
 
-      {/* Main matching board */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      {/* Main matching board — always side-by-side, even on mobile, so you
+          never have to scroll past one whole column to reach the other. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:gap-5">
         {/* Left items */}
-        <section className="rounded-[2rem] border border-slate-200 bg-white px-4 py-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
-                Items
-              </div>
-              <div className="mt-1 text-xs font-medium text-slate-500">
-                Choose one to match
-              </div>
+        <section className="rounded-2xl sm:rounded-[2rem] border border-slate-200 bg-white px-2 py-3 sm:px-4 sm:py-5 shadow-sm">
+          <div className="mb-2.5 sm:mb-4">
+            <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] sm:tracking-[0.22em] text-slate-400">
+              Items
+            </div>
+            <div className="hidden sm:block mt-1 text-xs font-medium text-slate-500">
+              Choose one to match
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {leftItems.map(item => {
               const isSelected = selectedLeftId === item.id;
               const matchedRightId = getMatchedRight(item.id);
@@ -251,7 +267,7 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
                   onClick={() => handleLeftClick(item.id)}
                   disabled={isReadOnly}
                   className={[
-                    'group flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow-sm transition',
+                    'group flex w-full items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border px-2.5 py-2.5 sm:px-4 sm:py-4 text-left shadow-sm transition',
                     isSelected
                       ? 'border-indigo-400 bg-indigo-50 ring-2 ring-indigo-100'
                       : isMatched
@@ -262,7 +278,7 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
                 >
                   <div
                     className={[
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-sm font-black',
+                      'flex h-6 w-6 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg sm:rounded-2xl text-xs sm:text-sm font-black',
                       isSelected
                         ? 'bg-indigo-500 text-white'
                         : isMatched
@@ -274,22 +290,16 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="text-base font-black text-slate-900">
+                    <div className="text-xs sm:text-base font-black text-slate-900 break-words">
                       {item.label}
                     </div>
 
                     {isMatched && matchedRightId && (
-                      <div className="mt-1 text-xs font-semibold text-emerald-700">
+                      <div className="hidden sm:block mt-1 text-xs font-semibold text-emerald-700">
                         Paired with {getRightLabel(matchedRightId)}
                       </div>
                     )}
                   </div>
-
-                  {isMatched && !isReadOnly && (
-                    <span className="text-xs font-bold text-slate-400">
-                      tap to edit
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -297,19 +307,17 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
         </section>
 
         {/* Right items */}
-        <section className="rounded-[2rem] border border-slate-200 bg-white px-4 py-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
-                Matches
-              </div>
-              <div className="mt-1 text-xs font-medium text-slate-500">
-                Choose the matching card
-              </div>
+        <section className="rounded-2xl sm:rounded-[2rem] border border-slate-200 bg-white px-2 py-3 sm:px-4 sm:py-5 shadow-sm">
+          <div className="mb-2.5 sm:mb-4">
+            <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] sm:tracking-[0.22em] text-slate-400">
+              Matches
+            </div>
+            <div className="hidden sm:block mt-1 text-xs font-medium text-slate-500">
+              Choose the matching card
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {rightItems.map(item => {
               const matchedLeftId = getMatchedLeft(item.id);
               const isMatched = Boolean(matchedLeftId);
@@ -322,7 +330,7 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
                   onClick={() => handleRightClick(item.id)}
                   disabled={isReadOnly || !isTargetable}
                   className={[
-                    'group flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow-sm transition',
+                    'group flex w-full items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border px-2.5 py-2.5 sm:px-4 sm:py-4 text-left shadow-sm transition',
                     isMatched
                       ? 'border-emerald-300 bg-emerald-50'
                       : isTargetable
@@ -333,7 +341,7 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
                 >
                   <div
                     className={[
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-sm font-black',
+                      'flex h-6 w-6 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg sm:rounded-2xl text-xs sm:text-sm font-black',
                       isMatched
                         ? 'bg-emerald-500 text-white'
                         : isTargetable
@@ -345,12 +353,12 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="text-base font-black text-slate-900">
+                    <div className="text-xs sm:text-base font-black text-slate-900 break-words">
                       {item.label}
                     </div>
 
                     {isMatched && matchedLeftId && (
-                      <div className="mt-1 text-xs font-semibold text-emerald-700">
+                      <div className="hidden sm:block mt-1 text-xs font-semibold text-emerald-700">
                         Paired with {getLeftLabel(matchedLeftId)}
                       </div>
                     )}
@@ -365,31 +373,19 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
       {/* Pair summary */}
       {matches.length > 0 && (
         <div className="rounded-[2rem] border border-slate-200 bg-slate-50 px-4 py-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
-                Your pairs
-              </div>
-              <div className="mt-1 text-xs font-medium text-slate-500">
-                Review your matches before submitting.
-              </div>
+          <div className="mb-3">
+            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
+              Your pairs
             </div>
-
-            {!isReadOnly && (
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 shadow-sm transition hover:bg-slate-100"
-              >
-                Clear all
-              </button>
-            )}
+            <div className="mt-1 text-xs font-medium text-slate-500">
+              Review your matches before submitting.
+            </div>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
             {matches.map(match => (
               <div
-                key={`${match.leftId}-${match.rightId}`}
+                key={match.leftId}
                 className="flex items-center justify-between gap-3 rounded-2xl border border-white bg-white px-3 py-3 text-sm shadow-sm"
               >
                 <span className="font-bold text-slate-800">
@@ -420,9 +416,16 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
         </div>
       )}
 
-      <p className="text-center text-xs text-slate-400">
-        Tip: matched cards can be tapped again if you want to change them.
-      </p>
+      {isComplete && !isReadOnly ? (
+        <div className="rounded-2xl px-5 py-3 text-center bg-gradient-to-r from-amber-100 to-amber-200 shadow-sm">
+          <p className="font-semibold text-amber-900">All pairs matched! 🏆</p>
+          <p className="text-sm mt-0.5 text-amber-700">Hit Submit to lock in your answer.</p>
+        </div>
+      ) : (
+        <p className="text-center text-xs text-slate-400">
+          Tip: matched cards can be tapped again if you want to change them.
+        </p>
+      )}
     </div>
   );
 };

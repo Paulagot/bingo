@@ -175,13 +175,23 @@ const CURATED_WORD_LADDER_BANK = {
       theme: 'Head to tail',
       startWord: 'HEAD',
       endWord: 'TAIL',
-      solutionPath: ['HEAD', 'HEAL', 'TEAL', 'TALL', 'TAIL'],
+      // FIX: original path jumped HEAD,HEAL,TEAL,TALL,TAIL — TEAL->TALL
+      // changes two letters at once (pos2 E->A AND pos3 A->L). Bridged
+      // with TELL so every step changes exactly one letter.
+      solutionPath: ['HEAD', 'HEAL', 'TEAL', 'TELL', 'TALL', 'TAIL'],
     },
     {
       theme: 'Cake to fish',
       startWord: 'CAKE',
       endWord: 'FISH',
-      solutionPath: ['CAKE', 'FAKE', 'FATE', 'FIST', 'FISH'],
+      // FIX: original path jumped FATE->FIST — changes THREE letters at
+      // once (pos2 A->I, pos3 T->S, pos4 E->T). This one was missed in an
+      // earlier manual review pass and only caught once the automated
+      // self-check above existed — exactly the case that check is for.
+      // Replaced with a different, fully-verified route (CASE/CASH/WASH/
+      // WISH bridge CAKE to FISH, which share no letters in common
+      // positions, so no shorter bridge was readily available).
+      solutionPath: ['CAKE', 'CASE', 'CASH', 'WASH', 'WISH', 'FISH'],
     },
     {
       theme: 'Same to safe',
@@ -196,19 +206,29 @@ const CURATED_WORD_LADDER_BANK = {
       theme: 'Work to play',
       startWord: 'WORK',
       endWord: 'PLAY',
-      solutionPath: ['WORK', 'PORK', 'PARK', 'PART', 'PLAT', 'PLAY'],
+      // FIX: original path jumped PART->PLAT — changes two letters at once
+      // (pos2 A->L AND pos3 R->A). Bridged with PERT, PEAT.
+      solutionPath: ['WORK', 'PORK', 'PARK', 'PART', 'PERT', 'PEAT', 'PLAT', 'PLAY'],
     },
     {
       theme: 'Fire to cold',
       startWord: 'FIRE',
       endWord: 'COLD',
-      solutionPath: ['FIRE', 'FIVE', 'HIVE', 'HIDE', 'HOLD', 'COLD'],
+      // FIX: original path jumped HIDE->HOLD — changes THREE letters at
+      // once (pos2 I->O, pos3 D->L, pos4 E->D), the worst break in this
+      // bank. No clean short bridge existed for that pair, so replaced
+      // with a different, shorter, fully-verified route instead.
+      solutionPath: ['FIRE', 'FORE', 'FORD', 'CORD', 'COLD'],
     },
     {
       theme: 'Slow to fast',
       startWord: 'SLOW',
       endWord: 'FAST',
-      solutionPath: ['SLOW', 'SLOT', 'SOOT', 'FOOT', 'FORT', 'FAST'],
+      // FIX: original path jumped FORT->FAST — changes two letters at once
+      // (pos2 O->A AND pos3 R->S). Bridged with PORT, PART, PAST
+      // (deliberately avoiding the shorter FORT->FART->FAST bridge, which
+      // works letter-wise but isn't family-puzzle-appropriate).
+      solutionPath: ['SLOW', 'SLOT', 'SOOT', 'FOOT', 'FORT', 'PORT', 'PART', 'PAST', 'FAST'],
     },
     {
       theme: 'Love to hate',
@@ -270,7 +290,9 @@ const LIVE_WORD_LADDER_BANK = {
       theme: 'Head to tail',
       startWord: 'HEAD',
       endWord: 'TAIL',
-      solutionPath: ['HEAD', 'HEAL', 'TEAL', 'TALL', 'TAIL'],
+      // FIX: see CURATED_WORD_LADDER_BANK above — TEAL->TALL was a
+      // two-letter jump. Bridged with TELL.
+      solutionPath: ['HEAD', 'HEAL', 'TEAL', 'TELL', 'TALL', 'TAIL'],
     },
     {
       theme: 'Same to safe',
@@ -285,19 +307,23 @@ const LIVE_WORD_LADDER_BANK = {
       theme: 'Work to play',
       startWord: 'WORK',
       endWord: 'PLAY',
-      solutionPath: ['WORK', 'PORK', 'PARK', 'PART', 'PLAT', 'PLAY'],
+      // FIX: PART->PLAT was a two-letter jump. Bridged with PERT, PEAT.
+      solutionPath: ['WORK', 'PORK', 'PARK', 'PART', 'PERT', 'PEAT', 'PLAT', 'PLAY'],
     },
     {
       theme: 'Fire to cold',
       startWord: 'FIRE',
       endWord: 'COLD',
-      solutionPath: ['FIRE', 'FIVE', 'HIVE', 'HIDE', 'HOLD', 'COLD'],
+      // FIX: HIDE->HOLD was a three-letter jump — the worst break in this
+      // bank. Replaced with a different, shorter, fully-verified route.
+      solutionPath: ['FIRE', 'FORE', 'FORD', 'CORD', 'COLD'],
     },
     {
       theme: 'Slow to fast',
       startWord: 'SLOW',
       endWord: 'FAST',
-      solutionPath: ['SLOW', 'SLOT', 'SOOT', 'FOOT', 'FORT', 'FAST'],
+      // FIX: FORT->FAST was a two-letter jump. Bridged with PORT, PART, PAST.
+      solutionPath: ['SLOW', 'SLOT', 'SOOT', 'FOOT', 'FORT', 'PORT', 'PART', 'PAST', 'FAST'],
     },
   ],
 
@@ -324,6 +350,61 @@ const LIVE_WORD_LADDER_BANK = {
     },
   ],
 };
+
+// ---------------------------------------------------------------------------
+// Bank self-check — runs once at module load, same fail-fast pattern used by
+// nonogramEngine and numberPathEngine. This is what would have caught the
+// broken ladders (steps that silently changed two or three letters at once)
+// immediately at server startup instead of shipping an unsolvable puzzle
+// that even a player who knew the answer couldn't submit. Only checks
+// non-disabled entries — anything marked `disabled: true` is deliberately
+// excluded from the runtime pool and doesn't need to be valid to sit here
+// as a reference/draft. Relies on function hoisting: normaliseWord and
+// differByOneLetter are declared further down this file but are available
+// here at call time since `function` declarations are hoisted.
+// ---------------------------------------------------------------------------
+
+function assertValidLadder(bankName, difficulty, entry, index) {
+  const label = `${bankName}.${difficulty}[${index}] ("${entry.theme}")`;
+
+  if (!Array.isArray(entry.solutionPath) || entry.solutionPath.length < 2) {
+    throw new Error(`${label}: solutionPath must have at least 2 words.`);
+  }
+
+  const path = entry.solutionPath.map(normaliseWord);
+  const wordLength = path[0].length;
+
+  for (let i = 0; i < path.length; i++) {
+    if (path[i].length !== wordLength) {
+      throw new Error(`${label}: "${path[i]}" is ${path[i].length} letters, expected ${wordLength} (every word in a ladder must be the same length).`);
+    }
+  }
+
+  if (path[0] !== normaliseWord(entry.startWord)) {
+    throw new Error(`${label}: solutionPath[0] ("${path[0]}") does not match startWord ("${entry.startWord}").`);
+  }
+  if (path[path.length - 1] !== normaliseWord(entry.endWord)) {
+    throw new Error(`${label}: solutionPath's last word ("${path[path.length - 1]}") does not match endWord ("${entry.endWord}").`);
+  }
+
+  for (let i = 1; i < path.length; i++) {
+    if (!differByOneLetter(path[i - 1], path[i])) {
+      throw new Error(`${label}: step ${i} ("${path[i - 1]}" -> "${path[i]}") does not change exactly one letter.`);
+    }
+  }
+}
+
+function validateLadderBank(bankName, bank) {
+  for (const difficulty of Object.keys(bank)) {
+    bank[difficulty].forEach((entry, i) => {
+      if (entry.disabled) return;
+      assertValidLadder(bankName, difficulty, entry, i);
+    });
+  }
+}
+
+validateLadderBank('CURATED_WORD_LADDER_BANK', CURATED_WORD_LADDER_BANK);
+validateLadderBank('LIVE_WORD_LADDER_BANK', LIVE_WORD_LADDER_BANK);
 
 // Flatten all valid solution words into an allowed dictionary.
 // This is conservative. It means the engine validates against known words
@@ -416,6 +497,15 @@ function validateStepShape(steps, wordLength) {
 
   return { valid: true };
 }
+
+// Scoring settings scale with word length / step count — previously flat
+// regardless of difficulty (4-letter/4-step easy scored the same as
+// 5-letter/6-step hard).
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 60,  bonusIdeal: 20, bonusGood: 35, bonusMax: 130, stepBonus: 15 },
+  [Difficulty.MEDIUM]: { baseScore: 85,  bonusIdeal: 25, bonusGood: 45, bonusMax: 240, stepBonus: 20 },
+  [Difficulty.HARD]:   { baseScore: 115, bonusIdeal: 35, bonusGood: 60, bonusMax: 340, stepBonus: 30 },
+};
 
 // ---------------------------------------------------------------------------
 // generate
@@ -527,7 +617,7 @@ export function validate(playerAnswer, solutionData) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, difficulty }) {
   if (!validationResult.valid) {
     return {
       completed: false,
@@ -539,18 +629,19 @@ export function score({ validationResult, submission }) {
     };
   }
 
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
   const timeTakenSeconds = Number(submission.timeTakenSeconds ?? 0);
 
-  const timeBonus = calcTimeBonus(timeTakenSeconds, 25, 45, 240);
-  const stepBonus = validationResult.isOptimal ? 15 : 0;
+  const timeBonus = calcTimeBonus(timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
+  const stepBonus = validationResult.isOptimal ? settings.stepBonus : 0;
 
   return {
     completed: true,
     correct: true,
-    baseScore: 85,
+    baseScore: settings.baseScore,
     bonusScore: timeBonus + stepBonus,
     penaltyScore: 0,
-    totalScore: 85 + timeBonus + stepBonus,
+    totalScore: settings.baseScore + timeBonus + stepBonus,
   };
 }
 

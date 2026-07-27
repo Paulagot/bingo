@@ -1,113 +1,202 @@
 // src/components/mgtsystem/services/SubscriptionReconciliationService.ts
 //
-// Period-aware reconciliation for puzzle subscriptions. Same base pattern
-// as TicketedEventReconciliationService (getState/addAdjustment/approve),
-// but "state" here is scoped to the CURRENT period, plus separate calls
-// for the full history and the lifetime rollup.
+// Period-aware reconciliation for puzzle subscriptions.
+// Same base pattern as TicketedEventReconciliationService, but scoped
+// to the current reconciliation period with separate history and summary calls.
 
 import BaseService from './BaseService';
 
-export type AdjustmentType = 'received' | 'refund' | 'fee' | 'cash_over_short' | 'prize_payout';
-export type PaymentMethod  = 'cash' | 'card' | 'card_tap' | 'instant_payment' | 'pay_admin' | 'stripe' | 'web3' | 'crypto' | 'other';
-export type ReasonCode     = 'late_payment' | 'complimentary' | 'data_entry_error' | 'method_mismatch' | 'other' | 'refund' | 'cash_over' | 'cash_short' | 'prize_award_delivered';
+export type AdjustmentType =
+  | 'received'
+  | 'refund'
+  | 'fee'
+  | 'cash_over_short'
+  | 'prize_payout'
+  | 'expense';
+
+export type PaymentMethod =
+  | 'cash'
+  | 'card'
+  | 'card_tap'
+  | 'instant_payment'
+  | 'pay_admin'
+  | 'stripe'
+  | 'web3'
+  | 'crypto'
+  | 'other';
+
+export type ReasonCode =
+  | 'late_payment'
+  | 'complimentary'
+  | 'data_entry_error'
+  | 'method_mismatch'
+  | 'other'
+  | 'refund'
+  | 'cash_over'
+  | 'cash_short'
+  | 'prize_award_delivered'
+  | 'venue_hire'
+  | 'equipment'
+  | 'catering'
+  | 'printing'
+  | 'marketing'
+  | 'insurance'
+  | 'professional_fees'
+  | 'travel'
+  | 'payment_processing'
+  | 'other_expense';
 
 export interface SubscriptionAdjustment {
-  id:             string;
-  roomId:         string;
-  ts:             string;
+  id: string;
+  roomId: string;
+  ts: string;
   adjustmentType: AdjustmentType;
-  amount:         number;
-  currency:       string;
-  paymentMethod:  PaymentMethod | null;
-  reasonCode:     ReasonCode | null;
-  note:           string | null;
-  createdBy:      string | null;
-  createdAt:      string;
+  amount: number;
+  currency: string;
+  paymentMethod: PaymentMethod | null;
+  reasonCode: ReasonCode | null;
+  note: string | null;
+  createdBy: string | null;
+  createdAt: string;
 }
 
 export interface SubscriptionReconciliationPeriod {
-  id:               string;
-  roomId:           string;
-  clubId:           string;
-  openingBalance:   number;
-  periodReceipts:   number;
-  startingTotal:    number;
-  adjustmentsNet:   number;
-  closingBalance:   number;
-  approvedBy:       string | null;
-  approvedAt:       string | null;
-  notes:            string | null;
-  periodStart:      string;
-  createdAt:        string;
-  updatedAt:        string | null;
+  id: string;
+  roomId: string;
+  clubId: string;
+  openingBalance: number;
+  periodReceipts: number;
+  startingTotal: number;
+  adjustmentsNet: number;
+  closingBalance: number;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  notes: string | null;
+  periodStart: string;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface LifetimeSummary {
-  periodCount:      number;
-  totalReceipts:    number;
+  periodCount: number;
+  totalReceipts: number;
   totalAdjustments: number;
-  currentBalance:   number;
-  lastApprovedAt:   string | null;
+  currentBalance: number;
+  lastApprovedAt: string | null;
 }
 
 export interface CurrentPeriodResponse {
   reconciliation: SubscriptionReconciliationPeriod;
-  adjustments:    SubscriptionAdjustment[];
-  liveReceipts:   { total: number; count: number };
+  adjustments: SubscriptionAdjustment[];
+  liveReceipts: {
+    total: number;
+    count: number;
+  };
 }
 
 class SubscriptionReconciliationService extends BaseService {
   private readonly base = '/subscription-reconciliation';
 
   getCurrent(roomId: string) {
-    return this.request<CurrentPeriodResponse>(`${this.base}/room/${roomId}/current`);
+    return this.request<CurrentPeriodResponse>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/current`,
+    );
   }
 
   getHistory(roomId: string) {
-    return this.request<{ history: SubscriptionReconciliationPeriod[] }>(`${this.base}/room/${roomId}/history`);
+    return this.request<{
+      history: SubscriptionReconciliationPeriod[];
+    }>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/history`,
+    );
   }
 
   getSummary(roomId: string) {
-    return this.request<{ summary: LifetimeSummary }>(`${this.base}/room/${roomId}/summary`);
-  }
-
-  addAdjustment(roomId: string, payload: {
-    adjustmentType: AdjustmentType;
-    amount: number;
-    paymentMethod?: PaymentMethod;
-    reasonCode?: ReasonCode;
-    note?: string | null;
-    createdBy?: string;
-    currency?: string;
-  }) {
-    return this.request<{ reconciliationId: string; adjustment: SubscriptionAdjustment }>(
-      `${this.base}/room/${roomId}/adjustments`,
-      { method: 'POST', body: JSON.stringify(payload) }
+    return this.request<{
+      summary: LifetimeSummary;
+    }>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/summary`,
     );
   }
 
-  updateAdjustment(roomId: string, adjustmentId: string, patch: Partial<{
-    adjustmentType: AdjustmentType; amount: number; paymentMethod: PaymentMethod; reasonCode: ReasonCode; note: string;
-  }>) {
+  addAdjustment(
+    roomId: string,
+    payload: {
+      adjustmentType: AdjustmentType;
+      amount: number;
+      paymentMethod?: PaymentMethod;
+      reasonCode?: ReasonCode;
+      note?: string | null;
+      createdBy?: string;
+      currency?: string;
+    },
+  ) {
+    return this.request<{
+      reconciliationId: string;
+      adjustment: SubscriptionAdjustment;
+    }>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  updateAdjustment(
+    roomId: string,
+    adjustmentId: string,
+    patch: Partial<{
+      adjustmentType: AdjustmentType;
+      amount: number;
+      paymentMethod: PaymentMethod;
+      reasonCode: ReasonCode;
+      note: string | null;
+    }>,
+  ) {
     return this.request<{ ok: boolean }>(
-      `${this.base}/room/${roomId}/adjustments/${adjustmentId}`,
-      { method: 'PATCH', body: JSON.stringify(patch) }
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      },
     );
   }
 
-  deleteAdjustment(roomId: string, adjustmentId: string) {
+  deleteAdjustment(
+    roomId: string,
+    adjustmentId: string,
+  ) {
     return this.request<{ ok: boolean }>(
-      `${this.base}/room/${roomId}/adjustments/${adjustmentId}`,
-      { method: 'DELETE' }
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
+      {
+        method: 'DELETE',
+      },
     );
   }
 
-  approve(roomId: string, payload: { approvedBy: string; notes?: string | null; finalLeaderboard?: unknown }) {
-    return this.request<{ ok: boolean; reconciliation: SubscriptionReconciliationPeriod }>(
-      `${this.base}/room/${roomId}/approve`,
-      { method: 'POST', body: JSON.stringify(payload) }
+  approve(
+    roomId: string,
+    payload: {
+      approvedBy: string;
+      notes?: string | null;
+      finalLeaderboard?: unknown;
+    },
+  ) {
+    return this.request<{
+      ok: boolean;
+      reconciliation: SubscriptionReconciliationPeriod;
+    }>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
     );
   }
 }
 
-export default new SubscriptionReconciliationService();
+const subscriptionReconciliationService =
+  new SubscriptionReconciliationService();
+
+export default subscriptionReconciliationService;

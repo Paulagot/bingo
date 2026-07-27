@@ -16,17 +16,54 @@ import ticketedEventReconciliationService, {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ADJUSTMENT_TYPES: AdjustmentType[] = [
-  'received', 'refund', 'fee', 'cash_over_short', 'prize_payout',
+  'received',
+  'refund',
+ 
+  'cash_over_short',
+  'prize_payout',
+  'expense',
 ];
 const PAYMENT_METHODS: PaymentMethod[] = [
   'cash', 'card', 'card_tap', 'instant_payment', 'pay_admin', 'stripe', 'web3', 'crypto', 'other',
 ];
 const REASON_CODES: Record<AdjustmentType, ReasonCode[]> = {
-  received:        ['late_payment', 'complimentary', 'data_entry_error', 'method_mismatch', 'other'],
-  refund:          ['refund', 'method_mismatch', 'data_entry_error', 'other'],
-  fee:             ['data_entry_error', 'method_mismatch', 'other'],
-  cash_over_short: ['cash_over', 'cash_short'],
-  prize_payout:    ['prize_award_delivered'],
+  received: [
+    'late_payment',
+    'complimentary',
+    'data_entry_error',
+    'method_mismatch',
+    'other',
+  ],
+  refund: [
+    'refund',
+    'method_mismatch',
+    'data_entry_error',
+    'other',
+  ],
+  fee: [
+    'data_entry_error',
+    'method_mismatch',
+    'other',
+  ],
+  cash_over_short: [
+    'cash_over',
+    'cash_short',
+  ],
+  prize_payout: [
+    'prize_award_delivered',
+  ],
+  expense: [
+    'venue_hire',
+    'equipment',
+    'catering',
+    'printing',
+    'marketing',
+    'insurance',
+    'professional_fees',
+    'travel',
+    'payment_processing',
+    'other_expense',
+  ],
 };
 
 function methodLabel(m: string) {
@@ -291,23 +328,41 @@ export const TicketedEventAdjustmentsLedger: React.FC<Props> = ({
   };
 
   // ── Totals ─────────────────────────────────────────────────────────────────
-  const totals = useMemo(() => {
-    let moneyIn = 0, moneyOut = 0;
-    for (const a of adjustments) {
-      const amt = Number(a.amount || 0);
-      switch (a.adjustmentType) {
-        case 'received':     moneyIn  += amt; break;
-        case 'refund':
-        case 'fee':
-        case 'prize_payout': moneyOut += amt; break;
-        case 'cash_over_short':
-          if (a.reasonCode === 'cash_over')  moneyIn  += amt;
-          else if (a.reasonCode === 'cash_short') moneyOut += amt;
-          break;
-      }
+const totals = useMemo(() => {
+  let moneyIn = 0;
+  let moneyOut = 0;
+
+  for (const a of adjustments) {
+    const amt = Number(a.amount || 0);
+
+    switch (a.adjustmentType) {
+      case 'received':
+        moneyIn += amt;
+        break;
+
+      case 'refund':
+      case 'fee':
+      case 'prize_payout':
+      case 'expense':
+        moneyOut += amt;
+        break;
+
+      case 'cash_over_short':
+        if (a.reasonCode === 'cash_over') {
+          moneyIn += amt;
+        } else if (a.reasonCode === 'cash_short') {
+          moneyOut += amt;
+        }
+        break;
     }
-    return { moneyIn, moneyOut, net: moneyIn - moneyOut };
-  }, [adjustments]);
+  }
+
+  return {
+    moneyIn,
+    moneyOut,
+    net: moneyIn - moneyOut,
+  };
+}, [adjustments]);
 
   const fmt = (n: number) => `${currency}${Number(n || 0).toFixed(2)}`;
 

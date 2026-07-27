@@ -60,11 +60,11 @@ function isPayAtDoorMethod(method: ClubPaymentMethodWithMeta) {
 function getPayAtDoorDefaults(providerName: PayAtDoorProvider) {
   if (providerName === 'card_tap') {
     return {
-      methodLabel: 'CardTap on the night',
-      playerInstructions: 'Pay by card tap to the host or club admin on the night.',
+      methodLabel: 'CardTap at the Door',
+      playerInstructions: 'Pay by card tap to the host or club admin at the door.',
       methodConfig: {
         verificationMode: 'manual',
-        collectionInstructions: 'CardTap payment collected by host/admin on the night.',
+        collectionInstructions: 'CardTap payment collected by host/admin at the door.',
       },
       displayOrder: 1,
     };
@@ -849,7 +849,7 @@ const handleStripeReconnect = async () => {
                       onChange={(e) => handleTogglePayAtDoorMethod('card_tap', e.target.checked)}
                       className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Enable CardTap on the night</p>
+                      <p className="text-sm font-semibold text-gray-900">Enable CardTap at the Door</p>
                       <p className="mt-1 text-xs text-gray-500">Lets players join as unpaid and pay by card tap with the host/admin.</p>
                     </div>
                   </label>

@@ -3,27 +3,35 @@
 // The single-flow replacement for "Create Event → find card → Add
 // Activity → Schedule modal". Three steps:
 //
-//   1. Type   — pick the activity (registry cards)
-//   2. Event  — event details, shaped by the chosen type
-//   3. Setup  — the activity's own config (extracted modal body)
+//   1. Type   - pick the activity (registry cards)
+//   2. Event  - event details, shaped by the chosen type
+//   3. Setup  - the activity's own config (extracted modal body)
 //
 // KEY BEHAVIOURS
-//   • Nothing is saved to the server until the final Create — steps 1–3
+//   • Nothing is saved to the server until the final Create - steps 1–3
 //     are pure client state, autosaved to localStorage on every change
 //     via useWizardStore. Refresh/crash/connection loss → resume banner.
 //   • The final Create runs submitChain (createEvent → createRoom →
 //     link) with persisted progress markers, so a mid-chain failure gets
 //     a Retry that re-runs only the missing calls. Backend untouched.
 //   • Closing mid-way shows a light "progress is saved on this device"
-//     confirm with Keep/Discard — never a scary data-loss warning,
+//     confirm with Keep/Discard - never a scary data-loss warning,
 //     because there is no data loss.
 //   • Legacy path: pass `existingEvent` (from an old activity-less event
-//     card's Add Activity menu) and the wizard skips step 2 entirely —
+//     card's Add Activity menu) and the wizard skips step 2 entirely -
 //     the event already exists, so the chain treats its id as phase-1
 //     complete and only creates + links the room.
+//   • CREDIT CHECK (new): the moment a type is picked in step 0, its
+//     entitlements are fetched (useEntitlements — same hook/cache the
+//     rest of the app already uses) and checked BEFORE the user is
+//     allowed to advance to steps 2–3. This surfaces "no credits" right
+//     away instead of after filling in the whole form. The server-side
+//     402 in runSubmitChain (via friendlyError) remains as a safety net
+//     for the rare case credits changed between step 0 and final submit
+//     (e.g. another admin at the same club used the last credit).
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, ChevronLeft, RotateCcw } from 'lucide-react';
+import { X, Calendar, ChevronLeft, RotateCcw, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../../features/auth';
 import { currencySymbol } from '../shared/CurrencySelect';
 import { utcToLocalInput } from '../../../utils/dateUtils';
@@ -33,6 +41,7 @@ import type { Event, EventValidationErrors } from '../types/event';
 import { getActivityDef, type ActivityTypeId } from './activityRegistry';
 import { useWizardStore, hasResumableDraft, draftLabel, emptyEventFields } from './useWizardStore';
 import { runSubmitChain, buildDraftEvent, SubmitChainError, PHASE_LABEL, type SubmitPhase } from './submitChain';
+import { useEntitlements, hasCreditsFor, creditStatusLabel } from '../../Quiz/hooks/useEntitlements';
 import TypeStep from './steps/TypeStep';
 import EventDetailsStep, { validateEventFields } from './steps/EventDetailsStep';
 
@@ -41,7 +50,7 @@ interface Campaign { id: string; name: string; }
 interface Props {
   clubId:    string;
   onClose:   () => void;
-  /** Fires after the full chain succeeds — caller reloads events. */
+  /** Fires after the full chain succeeds - caller reloads events. */
   onDone:    (eventId: string, roomId: string) => void;
   campaigns?: Campaign[];
   /** Legacy Add-Activity path: the event already exists. */
@@ -58,7 +67,7 @@ function friendlyError(e: unknown): string {
   if (code === 'prize_description_required')      return 'Prize description is required.';
   if (code === 'no_credits')                      return "You've used your available activity credits for this plan. Upgrade to run more.";
   if (code === 'weeks_cap_exceeded')              return 'Your plan has a shorter maximum challenge length. Reduce the number of weeks or upgrade.';
-  if (code === 'challenge_created_room_missing')  return 'The challenge was created, but its room failed to set up — it cannot be linked yet. Contact support to retry.';
+  if (code === 'challenge_created_room_missing')  return 'The challenge was created, but its room failed to set up - it cannot be linked yet. Contact support to retry.';
   if (code.includes('402') || code.includes('no_credits')) return 'You have no credits remaining.';
   if (code.includes('403'))                       return 'Your plan does not allow this configuration.';
   return code || 'Something went wrong. Please try again.';
@@ -84,7 +93,7 @@ export default function CreateFundraiserWizard({
   }), [user, club]);
   const sym = currencySymbol(ctx.currency);
 
-  // Evaluated BEFORE begin() touches the store — decides the resume banner.
+  // Evaluated BEFORE begin() touches the store - decides the resume banner.
   const [resumePrompt, setResumePrompt] = useState(() => !isInjected && hasResumableDraft(clubId));
   const [resumeLabel]                   = useState(() => draftLabel());
   const [confirmClose, setConfirmClose] = useState(false);
@@ -131,6 +140,22 @@ export default function CreateFundraiserWizard({
   const config    = def ? (activityConfigs[def.id] ?? def.defaultConfig()) : null;
   const draftEvent = buildDraftEvent(eventFields);
 
+  // ── Credit check for the selected activity ──────────────────────────────
+  // Fires as soon as a type is chosen. FREE plans are siloed per activity
+  // type (see entitlements.js's credit_key logic) so a club can easily
+  // have credits for one type and none for another — this needs to be
+  // checked per-type, every time the selection changes, not just once.
+  const {
+    ents: selectedEnts,
+    loading: entsLoading,
+  } = useEntitlements((activityType ?? 'quiz') as any);
+
+  const noCredits =
+    !isInjected &&
+    activityType !== null &&
+    !entsLoading &&
+    !hasCreditsFor(selectedEnts);
+
   // ── Navigation ──────────────────────────────────────────────────────────
   const stepsMeta = isInjected
     ? [{ id: 0 as const, label: 'Type' }, { id: 2 as const, label: 'Setup' }]
@@ -146,6 +171,7 @@ export default function CreateFundraiserWizard({
     setError(null);
     if (step === 0) {
       if (!def || !def.available) return;
+      if (noCredits) return; // blocked — inline banner explains why
       // Seed this type's config the first time it's chosen.
       if (!activityConfigs[def.id]) setActivityConfig(def.id, def.defaultConfig());
       setStep(isInjected ? 2 : 1);
@@ -174,7 +200,7 @@ export default function CreateFundraiserWizard({
         onProgress: setProgress,   // persisted markers → resumable retries
         onPhase:    setPhase,
       });
-      resetWizard(clubId);         // full success — clear the local draft
+      resetWizard(clubId);         // full success - clear the local draft
       onDone(eventId, roomId);
       onClose();
     } catch (e) {
@@ -226,7 +252,7 @@ export default function CreateFundraiserWizard({
                 {isInjected ? `Add activity to "${existingEvent!.title}"` : 'Create Fundraiser'}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>
-                Progress is autosaved on this device — nothing is saved online until the final step
+                Progress is autosaved on this device - nothing is saved online until the final step
               </p>
             </div>
           </div>
@@ -262,7 +288,7 @@ export default function CreateFundraiserWizard({
           </div>
         </div>
 
-        {/* ── Step-3 event context strip (read-only — entered once at step 2) ── */}
+        {/* ── Step-3 event context strip (read-only - entered once at step 2) ── */}
         {step === 2 && (
           <div className="px-6 py-2.5 flex-shrink-0"
             style={{ background: 'rgba(21,127,133,0.05)', borderBottom: '1px solid #dce1df' }}>
@@ -298,17 +324,46 @@ export default function CreateFundraiserWizard({
               <button type="button" onClick={handleCreate}
                 className="mt-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition hover:bg-white"
                 style={{ borderColor: '#fca5a5', color: '#dc2626' }}>
-                Retry — already-completed steps won't run again
+                Retry - already-completed steps won't run again
               </button>
             </ErrorBanner>
           )}
 
           {step === 0 && (
-            <TypeStep
-              selected={activityType}
-              onSelect={t => { setActivityType(t); setResumePrompt(false); }}
-              disabled={submitting}
-            />
+            <>
+              <TypeStep
+                selected={activityType}
+                onSelect={t => { setActivityType(t); setResumePrompt(false); }}
+                disabled={submitting}
+              />
+
+              {activityType && entsLoading && (
+                <p className="text-xs" style={{ color: '#8a9bab' }}>
+                  Checking your plan credits…
+                </p>
+              )}
+
+              {activityType && !entsLoading && noCredits && (
+                <div className="flex items-start gap-3 rounded-lg border px-4 py-3"
+                  style={{ background: '#fef2f2', borderColor: '#fca5a5' }}>
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-500" />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#dc2626' }}>
+                      {creditStatusLabel(selectedEnts, activityType as any)
+                        || "You've used your available credits for this activity type."}
+                    </p>
+                    <p className="mt-1 text-xs" style={{ color: '#991b1b' }}>
+                      Upgrade your plan to create another one, or choose a different activity type.
+                    </p>
+                    <a href="/settings/billing"
+                      className="mt-2 inline-block text-xs font-semibold underline"
+                      style={{ color: '#dc2626' }}>
+                      Go to billing
+                    </a>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {step === 1 && def && (
@@ -355,7 +410,7 @@ export default function CreateFundraiserWizard({
             </button>
             {step !== 2 ? (
               <button type="button" onClick={goContinue}
-                disabled={submitting || (step === 0 && (!def || !def.available))}
+                disabled={submitting || (step === 0 && (!def || !def.available || entsLoading || noCredits))}
                 className="rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
                 style={{ background: '#157f85' }}>
                 Continue
@@ -377,14 +432,14 @@ export default function CreateFundraiserWizard({
           </div>
         </div>
 
-        {/* ── Close confirm — friendly because nothing is lost ── */}
+        {/* ── Close confirm - friendly because nothing is lost ── */}
         {confirmClose && (
           <div className="absolute inset-0 z-10 flex items-center justify-center p-6"
             style={{ background: 'rgba(16,37,50,0.35)' }}>
             <div className="w-full max-w-sm rounded-xl p-5 shadow-xl" style={{ background: '#ffffff' }}>
               <h3 className="text-sm font-bold" style={{ color: '#102532' }}>Close for now?</h3>
               <p className="mt-1.5 text-xs" style={{ color: '#52636f' }}>
-                Your progress is saved on this device — you can pick up exactly where you left off next time.
+                Your progress is saved on this device - you can pick up exactly where you left off next time.
               </p>
               <div className="mt-4 flex items-center justify-end gap-2">
                 <button type="button"

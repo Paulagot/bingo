@@ -11,8 +11,16 @@ import { createSeededRandom, shuffleArray, calcTimeBonus } from '../utils/puzzle
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 
 // ---------------------------------------------------------------------------
-// Difficulty config — how many cells to REMOVE (81 total cells)
-// Easy:   ~46 removed → ~35 givens
+// Difficulty config — NOMINAL starting target for how many cells to REMOVE
+// (81 total cells). This is a starting point, not a guarantee: generation
+// now grades each candidate puzzle against its claimed difficulty (see
+// digPuzzleForDifficulty below) and, for easy specifically, will back off
+// to fewer removals (more givens) if needed to find a puzzle that's
+// actually solvable with basic technique. So an "easy" puzzle may end up
+// with somewhat more than 35 givens; medium/hard are not backed off since
+// removing more cells only ever makes a puzzle harder, never accidentally
+// easier.
+// Easy:   ~46 removed → ~35 givens (nominal)
 // Medium: ~54 removed → ~27 givens
 // Hard:   ~59 removed → ~22 givens
 // ---------------------------------------------------------------------------
@@ -21,6 +29,16 @@ const CELLS_TO_REMOVE = {
   [Difficulty.EASY]:   46,
   [Difficulty.MEDIUM]: 54,
   [Difficulty.HARD]:   59,
+};
+
+// Scoring settings scale with givens count / difficulty — previously flat
+// regardless of difficulty, despite hard (22 givens) reliably taking far
+// longer than easy (35 givens). This was the single biggest scoring
+// imbalance across the whole puzzle set.
+const DIFFICULTY_SETTINGS = {
+  [Difficulty.EASY]:   { baseScore: 70,  bonusIdeal: 20, bonusGood: 120, bonusMax: 600 },
+  [Difficulty.MEDIUM]: { baseScore: 100, bonusIdeal: 25, bonusGood: 180, bonusMax: 900 },
+  [Difficulty.HARD]:   { baseScore: 140, bonusIdeal: 35, bonusGood: 260, bonusMax: 1400 },
 };
 
 // ---------------------------------------------------------------------------
@@ -127,6 +145,149 @@ function countSolutions(board, limit = 2) {
 }
 
 // ---------------------------------------------------------------------------
+// Basic-technique solver — used to actually GRADE difficulty
+// ---------------------------------------------------------------------------
+//
+// countSolutions/removeCell above only guarantee a puzzle has exactly one
+// valid completion — that makes it a well-formed puzzle, not necessarily an
+// EASY one. Clue count (how many cells are removed) is a weak proxy for
+// difficulty: two puzzles with the same number of givens can require wildly
+// different levels of deduction depending on exactly which cells got
+// removed. The only way to actually know a puzzle is "easy" is to check
+// whether it's solvable using only the most basic techniques a beginner
+// would use — no guessing, no advanced patterns.
+//
+// This solver applies exactly two techniques, repeatedly, until neither
+// makes further progress:
+//   - naked single:  an empty cell with only one possible candidate value
+//   - hidden single: a value that can only go in one empty cell within a
+//                     given row, column, or box, even if that cell has
+//                     other candidates too
+// If that's enough to fully solve the grid, the puzzle is genuinely easy by
+// conventional Sudoku grading. If not, it needs at least one more advanced
+// deduction (or a guess) somewhere, and should not be labeled easy — no
+// matter how many cells are filled in.
+
+function getCandidates(grid, r, c) {
+  if (grid[r][c] !== 0) return [];
+
+  const used = new Set();
+  for (let i = 0; i < 9; i++) {
+    used.add(grid[r][i]);
+    used.add(grid[i][c]);
+  }
+
+  const boxRow = Math.floor(r / 3) * 3;
+  const boxCol = Math.floor(c / 3) * 3;
+  for (let rr = boxRow; rr < boxRow + 3; rr++) {
+    for (let cc = boxCol; cc < boxCol + 3; cc++) {
+      used.add(grid[rr][cc]);
+    }
+  }
+
+  const candidates = [];
+  for (let n = 1; n <= 9; n++) {
+    if (!used.has(n)) candidates.push(n);
+  }
+  return candidates;
+}
+
+/** All 27 units (9 rows, 9 columns, 9 boxes) as lists of [row, col] cells. */
+function buildUnits() {
+  const units = [];
+
+  for (let r = 0; r < 9; r++) {
+    units.push(Array.from({ length: 9 }, (_, c) => [r, c]));
+  }
+  for (let c = 0; c < 9; c++) {
+    units.push(Array.from({ length: 9 }, (_, r) => [r, c]));
+  }
+  for (let boxRow = 0; boxRow < 9; boxRow += 3) {
+    for (let boxCol = 0; boxCol < 9; boxCol += 3) {
+      const cells = [];
+      for (let r = boxRow; r < boxRow + 3; r++) {
+        for (let c = boxCol; c < boxCol + 3; c++) cells.push([r, c]);
+      }
+      units.push(cells);
+    }
+  }
+
+  return units;
+}
+
+const UNITS = buildUnits();
+
+/** Fills in every hidden single it can find in one pass. Returns whether any progress was made. */
+function applyHiddenSingles(grid) {
+  let progress = false;
+
+  for (const unit of UNITS) {
+    for (let n = 1; n <= 9; n++) {
+      let onlyCell = null;
+      let count = 0;
+
+      for (const [r, c] of unit) {
+        if (grid[r][c] !== 0) continue;
+        if (getCandidates(grid, r, c).includes(n)) {
+          count++;
+          onlyCell = [r, c];
+          if (count > 1) break;
+        }
+      }
+
+      if (count === 1 && onlyCell) {
+        const [r, c] = onlyCell;
+        if (grid[r][c] === 0) {
+          grid[r][c] = n;
+          progress = true;
+        }
+      }
+    }
+  }
+
+  return progress;
+}
+
+/**
+ * Attempts to fully solve a (cloned) grid using ONLY naked singles and
+ * hidden singles. Returns { solved, grid } — solved=false means the
+ * puzzle needs something beyond these two basic techniques to finish.
+ */
+function solveWithBasicTechniques(inputGrid) {
+  const grid = cloneBoard(inputGrid);
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    let progress = false;
+
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (grid[r][c] !== 0) continue;
+        const candidates = getCandidates(grid, r, c);
+        if (candidates.length === 0) {
+          // Contradiction — shouldn't happen for a genuinely valid unique
+          // puzzle, but guard against it rather than looping forever.
+          return { solved: false, grid };
+        }
+        if (candidates.length === 1) {
+          grid[r][c] = candidates[0];
+          progress = true;
+        }
+      }
+    }
+
+    if (progress) continue; // cheaper technique first — rescan before trying hidden singles
+
+    if (applyHiddenSingles(grid)) continue;
+
+    break; // no further progress possible with these two techniques
+  }
+
+  const solved = grid.every(row => row.every(cell => cell !== 0));
+  return { solved, grid };
+}
+
+// ---------------------------------------------------------------------------
 // Cell removal — dig holes while preserving unique solvability
 // ---------------------------------------------------------------------------
 
@@ -166,6 +327,77 @@ function removeCell(solvedBoard, target, rng) {
 }
 
 // ---------------------------------------------------------------------------
+// Difficulty-aware digging — retries removeCell until the result is
+// actually graded as matching its claimed difficulty
+// ---------------------------------------------------------------------------
+
+// Easy must be fully solvable with basic technique alone (see solver above).
+// Medium/hard must NOT be — otherwise a "medium" or "hard" instance could
+// just as easily turn out to be trivially easy by chance, which is the same
+// broken promise in the other direction.
+const DIFFICULTY_REQUIRES_BASIC_SOLVABLE = {
+  [Difficulty.EASY]:   true,
+  [Difficulty.MEDIUM]: false,
+  [Difficulty.HARD]:   false,
+};
+
+const MAX_DIG_ATTEMPTS_PER_TARGET = 15;
+// If we can't find a genuinely easy (basic-technique-solvable) puzzle at
+// the nominal clue count after MAX_DIG_ATTEMPTS_PER_TARGET tries, leave a
+// few more givens and try again — more givens makes basic technique more
+// likely to be sufficient. Never back off below this floor (51 givens),
+// which should in practice never actually get hit.
+const EASY_BACKOFF_STEP = 2;
+const EASY_MIN_REMOVE = 30;
+
+/**
+ * Generates a puzzle at the given difficulty and keeps retrying (digging a
+ * fresh random pattern each time) until the result is actually graded as
+ * matching that difficulty — not just "removed roughly the right number of
+ * cells." This is what generate() calls instead of a single removeCell().
+ *
+ * This runs once per puzzle instance (generatePuzzleForWeek generates and
+ * caches one instance per challenge+week, reused by every player), not on
+ * every page load, so the extra grading/retry cost here is paid once, not
+ * per player.
+ */
+function digPuzzleForDifficulty(solvedBoard, difficulty, rng) {
+  const requireBasicSolvable = DIFFICULTY_REQUIRES_BASIC_SOLVABLE[difficulty] ?? false;
+  let targetRemoved = CELLS_TO_REMOVE[difficulty] ?? CELLS_TO_REMOVE[Difficulty.MEDIUM];
+
+  let fallback = null;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    for (let attempt = 0; attempt < MAX_DIG_ATTEMPTS_PER_TARGET; attempt++) {
+      const candidate = removeCell(solvedBoard, targetRemoved, rng);
+      const { solved } = solveWithBasicTechniques(candidate);
+      const meetsRequirement = solved === requireBasicSolvable;
+
+      if (meetsRequirement) {
+        return { grid: candidate, verified: true };
+      }
+
+      if (!fallback) fallback = candidate;
+    }
+
+    if (requireBasicSolvable && targetRemoved > EASY_MIN_REMOVE) {
+      targetRemoved = Math.max(EASY_MIN_REMOVE, targetRemoved - EASY_BACKOFF_STEP);
+      continue;
+    }
+
+    // Exhausted every attempt (and, for easy, every backoff step). This
+    // should be exceptionally rare — fall back to the closest attempt found
+    // rather than failing puzzle generation outright; a puzzle slightly off
+    // its intended difficulty is far better than no puzzle at all.
+    console.warn(
+      `[sudokuEngine] Could not generate a puzzle verified as "${difficulty}" after exhausting all attempts — serving the closest one found instead.`
+    );
+    return { grid: fallback ?? removeCell(solvedBoard, targetRemoved, rng), verified: false };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fixed-cells map — which cells are pre-filled (locked) for the player
 // ---------------------------------------------------------------------------
 
@@ -191,10 +423,18 @@ export function generate(config) {
   const solvedBoard = emptyBoard();
   fillBoard(solvedBoard, rng);
 
-  // 2. Remove cells to create the puzzle
-  const toRemove   = CELLS_TO_REMOVE[difficulty] ?? CELLS_TO_REMOVE[Difficulty.MEDIUM];
-  const puzzleGrid = removeCell(solvedBoard, toRemove, rng);
+  // 2. Remove cells to create the puzzle — retries until the result is
+  //    actually graded as matching the requested difficulty, not just
+  //    "removed roughly the right number of cells" (see
+  //    digPuzzleForDifficulty for why that distinction matters).
+  const nominalToRemove = CELLS_TO_REMOVE[difficulty] ?? CELLS_TO_REMOVE[Difficulty.MEDIUM];
+  const { grid: puzzleGrid, verified } = digPuzzleForDifficulty(solvedBoard, difficulty, rng);
   const fixedCells = buildFixedCells(puzzleGrid);
+
+  const actualRemoved = puzzleGrid.reduce(
+    (sum, row) => sum + row.filter(cell => cell === 0).length,
+    0
+  );
 
   return {
     puzzleType: PuzzleType.SUDOKU,
@@ -208,8 +448,15 @@ export function generate(config) {
       solutionGrid: solvedBoard, // 9×9, fully solved
     },
     meta: {
-      givens:  81 - toRemove,
-      removed: toRemove,
+      givens:  81 - actualRemoved,
+      removed: actualRemoved,
+      nominalRemoved: nominalToRemove,
+      // False means every retry/backoff attempt was exhausted and the
+      // closest-available puzzle was served instead of a fully verified
+      // one — see the console.warn in digPuzzleForDifficulty. Should be
+      // true in the overwhelming majority of cases; useful to have visible
+      // in meta for spotting it if it isn't.
+      difficultyVerified: verified,
     },
   };
 }
@@ -252,7 +499,7 @@ export function validate(playerAnswer, solutionData) {
 // score
 // ---------------------------------------------------------------------------
 
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, difficulty }) {
   if (!validationResult.valid) {
     return {
       completed:    false,
@@ -264,16 +511,16 @@ export function score({ validationResult, submission }) {
     };
   }
 
-  // Full bonus within 3 min, decays to 0 at 15 min
-  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 25, 180, 900);
+  const settings = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS[Difficulty.MEDIUM];
+  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, settings.bonusIdeal, settings.bonusGood, settings.bonusMax);
 
   return {
     completed:    true,
     correct:      true,
-    baseScore:    100,
+    baseScore:    settings.baseScore,
     bonusScore,
     penaltyScore: 0,
-    totalScore:   100 + bonusScore,
+    totalScore:   settings.baseScore + bonusScore,
   };
 }
 

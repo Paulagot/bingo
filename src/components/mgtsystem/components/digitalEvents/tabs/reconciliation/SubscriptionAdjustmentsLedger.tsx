@@ -12,21 +12,50 @@ import { Plus, Trash2, Info, Loader2 } from 'lucide-react';
 import subscriptionReconciliationService, {
   type SubscriptionAdjustment,
   type AdjustmentType,
-  type PaymentMethod,
+
   type ReasonCode,
 } from '../../../../services/SubscriptionReconciliationService';
 
-const ADJUSTMENT_TYPES: AdjustmentType[] = ['received', 'refund', 'fee'];
+const ADJUSTMENT_TYPES: AdjustmentType[] = ['received', 'refund',  'expense'];
 // cash_over_short / prize_payout omitted from the picker — subscriptions
 // are Stripe-only (no cash) and have no prizes today. The enum on the
 // table still allows them; nothing stops a future prize-award feature
 // from surfacing them here later.
 const REASON_CODES: Record<AdjustmentType, ReasonCode[]> = {
-  received:        ['late_payment', 'complimentary', 'data_entry_error', 'other'],
-  refund:          ['refund', 'data_entry_error', 'other'],
-  fee:             ['data_entry_error', 'other'],
-  cash_over_short: ['cash_over', 'cash_short'],
-  prize_payout:    ['prize_award_delivered'],
+  received: [
+    'late_payment',
+    'complimentary',
+    'data_entry_error',
+    'other',
+  ],
+  refund: [
+    'refund',
+    'data_entry_error',
+    'other',
+  ],
+  fee: [
+    'data_entry_error',
+    'other',
+  ],
+  cash_over_short: [
+    'cash_over',
+    'cash_short',
+  ],
+  prize_payout: [
+    'prize_award_delivered',
+  ],
+  expense: [
+    'venue_hire',
+    'equipment',
+    'catering',
+    'printing',
+    'marketing',
+    'insurance',
+    'professional_fees',
+    'travel',
+    'payment_processing',
+    'other_expense',
+  ],
 };
 
 interface RowProps {

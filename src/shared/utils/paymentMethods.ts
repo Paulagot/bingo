@@ -100,7 +100,7 @@ export function normalizePaymentMethod(raw?: string | null): PaymentMethod {
 export function getPaymentMethodLabel(method: PaymentMethod): string {
   const labels: Record<PaymentMethod, string> = {
     cash: 'Cash',
-    card_tap: 'CardTap on the Night',
+    card_tap: 'CardTap at the Door',
     instant_payment: 'Manual Payment',
     pay_admin: 'Pay at the Door',
     card: 'Card',
