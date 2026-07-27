@@ -18,13 +18,14 @@ import puzzleDropReconciliationService, {
   type ReasonCode,
 } from '../../../../services/PuzzleDropReconciliationService';
 
-const ADJUSTMENT_TYPES: AdjustmentType[] = ['received', 'refund', 'fee', 'cash_over_short', 'prize_payout'];
+const ADJUSTMENT_TYPES: AdjustmentType[] = ['received', 'refund', 'cash_over_short', 'prize_payout', 'expense'];
 const REASON_CODES: Record<AdjustmentType, ReasonCode[]> = {
   received:        ['late_payment', 'complimentary', 'data_entry_error', 'other'],
   refund:          ['refund', 'data_entry_error', 'other'],
   fee:             ['data_entry_error', 'other'],
   cash_over_short: ['cash_over', 'cash_short'],
   prize_payout:    ['prize_award_delivered'],
+  expense:         ['venue_hire', 'equipment', 'catering', 'printing', 'marketing', 'insurance', 'professional_fees', 'travel', 'payment_processing', 'other_expense'],
 };
 
 interface RowProps {
@@ -221,7 +222,7 @@ export const DropAdjustmentsLedger: React.FC<Props> = ({
       else if (a.adjustmentType === 'cash_over_short') {
         if (a.reasonCode === 'cash_over') moneyIn += a.amount;
         else moneyOut += a.amount;
-      } else moneyOut += a.amount; // refund / fee / prize_payout
+      } else moneyOut += a.amount; // refund / fee / expense / prize_payout / expense
     }
     return { moneyIn, moneyOut, net: moneyIn - moneyOut };
   }, [adjustments]);
@@ -234,7 +235,7 @@ export const DropAdjustmentsLedger: React.FC<Props> = ({
         <div>
           <h3 className="text-base font-semibold text-gray-900">This Period's Adjustments</h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            {isLocked ? 'Locked after approval' : 'Refunds, fees, cash discrepancies, or prize payouts for the current period'}
+            {isLocked ? 'Locked after approval' : 'Refunds, fees, expenses, cash discrepancies, or prize payouts for the current period'}
           </p>
         </div>
         <button onClick={handleAdd} disabled={isLocked || addingNew}
@@ -248,7 +249,7 @@ export const DropAdjustmentsLedger: React.FC<Props> = ({
         <div className="p-8 text-center text-gray-400">
           <Info className="h-8 w-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm font-medium text-gray-600">No adjustments this period</p>
-          <p className="text-xs mt-1">Record a refund, fee, or correction if needed</p>
+          <p className="text-xs mt-1">Record an expense, refund, fee, or correction if needed</p>
         </div>
       ) : (
         <div className="p-4 space-y-4">

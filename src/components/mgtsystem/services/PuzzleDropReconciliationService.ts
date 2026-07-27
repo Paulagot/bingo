@@ -1,3 +1,5 @@
+
+
 // src/components/mgtsystem/services/PuzzleDropReconciliationService.ts
 //
 // Frontend service for Puzzle Drop's period-based reconciliation.
@@ -8,11 +10,40 @@
 
 import BaseService from './BaseService';
 
-export type AdjustmentType = 'received' | 'refund' | 'fee' | 'cash_over_short' | 'prize_payout';
-export type PaymentMethod = 'cash' | 'instant_payment' | 'stripe' | 'crypto' | 'other';
+export type AdjustmentType =
+  | 'received'
+  | 'refund'
+  | 'fee'
+  | 'cash_over_short'
+  | 'prize_payout'
+  | 'expense';
+
+export type PaymentMethod =
+  | 'cash'
+  | 'instant_payment'
+  | 'stripe'
+  | 'crypto'
+  | 'other';
+
 export type ReasonCode =
-  | 'late_payment' | 'complimentary' | 'data_entry_error' | 'other'
-  | 'refund' | 'cash_over' | 'cash_short' | 'prize_award_delivered';
+  | 'late_payment'
+  | 'complimentary'
+  | 'data_entry_error'
+  | 'other'
+  | 'refund'
+  | 'cash_over'
+  | 'cash_short'
+  | 'prize_award_delivered'
+  | 'venue_hire'
+  | 'equipment'
+  | 'catering'
+  | 'printing'
+  | 'marketing'
+  | 'insurance'
+  | 'professional_fees'
+  | 'travel'
+  | 'payment_processing'
+  | 'other_expense';
 
 export interface DropAdjustment {
   id: string;
@@ -56,7 +87,10 @@ export interface DropLifetimeSummary {
 export interface GetCurrentResult {
   reconciliation: DropReconciliationPeriod;
   adjustments: DropAdjustment[];
-  liveReceipts: { total: number; count: number };
+  liveReceipts: {
+    total: number;
+    count: number;
+  };
 }
 
 export interface GetHistoryResult {
@@ -91,45 +125,80 @@ class PuzzleDropReconciliationService extends BaseService {
   private readonly base = '/puzzle-drop-reconciliation';
 
   async getCurrent(roomId: string): Promise<GetCurrentResult> {
-    return this.request<GetCurrentResult>(`${this.base}/room/${encodeURIComponent(roomId)}/current`);
+    return this.request<GetCurrentResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/current`,
+    );
   }
 
   async getHistory(roomId: string): Promise<GetHistoryResult> {
-    return this.request<GetHistoryResult>(`${this.base}/room/${encodeURIComponent(roomId)}/history`);
+    return this.request<GetHistoryResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/history`,
+    );
   }
 
   async getSummary(roomId: string): Promise<GetSummaryResult> {
-    return this.request<GetSummaryResult>(`${this.base}/room/${encodeURIComponent(roomId)}/summary`);
-  }
-
-  async addAdjustment(roomId: string, payload: AddAdjustmentPayload): Promise<AddAdjustmentResult> {
-    return this.request<AddAdjustmentResult>(`${this.base}/room/${encodeURIComponent(roomId)}/adjustments`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  }
-
-  async updateAdjustment(roomId: string, adjustmentId: string, patch: Partial<AddAdjustmentPayload>): Promise<{ ok: boolean }> {
-    return this.request<{ ok: boolean }>(
-      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
-      { method: 'PATCH', body: JSON.stringify(patch) }
+    return this.request<GetSummaryResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/summary`,
     );
   }
 
-  async deleteAdjustment(roomId: string, adjustmentId: string): Promise<{ ok: boolean }> {
-    return this.request<{ ok: boolean }>(
-      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
-      { method: 'DELETE' }
+  async addAdjustment(
+    roomId: string,
+    payload: AddAdjustmentPayload,
+  ): Promise<AddAdjustmentResult> {
+    return this.request<AddAdjustmentResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
     );
   }
 
-  async approve(roomId: string, payload: { approvedBy: string; notes?: string | null }): Promise<ApproveResult> {
-    return this.request<ApproveResult>(`${this.base}/room/${encodeURIComponent(roomId)}/approve`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  async updateAdjustment(
+    roomId: string,
+    adjustmentId: string,
+    patch: Partial<AddAdjustmentPayload>,
+  ): Promise<{ ok: boolean }> {
+    return this.request<{ ok: boolean }>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      },
+    );
+  }
+
+  async deleteAdjustment(
+    roomId: string,
+    adjustmentId: string,
+  ): Promise<{ ok: boolean }> {
+    return this.request<{ ok: boolean }>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  }
+
+  async approve(
+    roomId: string,
+    payload: {
+      approvedBy: string;
+      notes?: string | null;
+    },
+  ): Promise<ApproveResult> {
+    return this.request<ApproveResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
   }
 }
 
-const puzzleDropReconciliationService = new PuzzleDropReconciliationService();
+const puzzleDropReconciliationService =
+  new PuzzleDropReconciliationService();
+
 export default puzzleDropReconciliationService;

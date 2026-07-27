@@ -18,13 +18,42 @@ import sponsoredActivityReconciliationService, {
   type ReasonCode,
 } from '../../../../services/SponsoredActivityReconciliationService';
 
-const ADJUSTMENT_TYPES: AdjustmentType[] = ['received', 'refund', 'fee', 'cash_over_short'];
+const ADJUSTMENT_TYPES: AdjustmentType[] = ['received', 'refund',  'cash_over_short', 'expense'];
 const REASON_CODES: Record<AdjustmentType, ReasonCode[]> = {
-  received:        ['late_payment', 'complimentary', 'data_entry_error', 'other'],
-  refund:          ['refund', 'data_entry_error', 'other'],
-  fee:             ['data_entry_error', 'other'],
-  cash_over_short: ['cash_over', 'cash_short'],
-  prize_payout:    ['prize_award_delivered'],
+  received: [
+    'late_payment',
+    'complimentary',
+    'data_entry_error',
+    'other',
+  ],
+  refund: [
+    'refund',
+    'data_entry_error',
+    'other',
+  ],
+  fee: [
+    'data_entry_error',
+    'other',
+  ],
+  cash_over_short: [
+    'cash_over',
+    'cash_short',
+  ],
+  prize_payout: [
+    'prize_award_delivered',
+  ],
+  expense: [
+    'venue_hire',
+    'equipment',
+    'catering',
+    'printing',
+    'marketing',
+    'insurance',
+    'professional_fees',
+    'travel',
+    'payment_processing',
+    'other_expense',
+  ],
 };
 
 interface RowProps {

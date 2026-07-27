@@ -1,18 +1,50 @@
 // src/components/mgtsystem/services/SponsoredActivityReconciliationService.ts
 //
-// Frontend service for Sponsored Activity's period-based reconciliation.
-// Same shape and calling convention as SubscriptionReconciliationService —
-// extends BaseService, this.request() handles auth — pointed at the
-// puzzle-drop-reconciliation router instead. Backend:
-// sponsoredActivityReconciliationService.js / puzzleDropReconciliationRoutes.js.
+// Frontend service for period-based Sponsored Activity reconciliation.
+// Mirrors the subscription/drop reconciliation service pattern while using
+// the sponsored-activity reconciliation API routes.
 
 import BaseService from './BaseService';
 
-export type AdjustmentType = 'received' | 'refund' | 'fee' | 'cash_over_short' | 'prize_payout';
-export type PaymentMethod = 'cash' | 'instant_payment' | 'stripe' | 'crypto' | 'other';
+export type AdjustmentType =
+  | 'received'
+  | 'refund'
+  | 'fee'
+  | 'cash_over_short'
+  | 'prize_payout'
+  | 'expense';
+
+export type PaymentMethod =
+  | 'cash'
+  | 'card'
+  | 'card_tap'
+  | 'instant_payment'
+  | 'pay_admin'
+  | 'stripe'
+  | 'web3'
+  | 'crypto'
+  | 'other';
+
 export type ReasonCode =
-  | 'late_payment' | 'complimentary' | 'data_entry_error' | 'other'
-  | 'refund' | 'cash_over' | 'cash_short' | 'prize_award_delivered';
+  | 'late_payment'
+  | 'complimentary'
+  | 'data_entry_error'
+  | 'method_mismatch'
+  | 'refund'
+  | 'cash_over'
+  | 'cash_short'
+  | 'prize_award_delivered'
+  | 'venue_hire'
+  | 'equipment'
+  | 'catering'
+  | 'printing'
+  | 'marketing'
+  | 'insurance'
+  | 'professional_fees'
+  | 'travel'
+  | 'payment_processing'
+  | 'other_expense'
+  | 'other';
 
 export interface SponsoredActivityAdjustment {
   id: string;
@@ -53,26 +85,24 @@ export interface SponsoredActivityLifetimeSummary {
   lastApprovedAt: string | null;
 }
 
-export interface GetCurrentResult {
+export interface SponsoredActivityCurrentResult {
   reconciliation: SponsoredActivityReconciliationPeriod;
   adjustments: SponsoredActivityAdjustment[];
-  liveReceipts: { total: number; count: number };
+  liveReceipts: {
+    total: number;
+    count: number;
+  };
 }
 
-export interface GetHistoryResult {
+export interface SponsoredActivityHistoryResult {
   history: SponsoredActivityReconciliationPeriod[];
 }
 
-export interface GetSummaryResult {
+export interface SponsoredActivitySummaryResult {
   summary: SponsoredActivityLifetimeSummary;
 }
 
-export interface ApproveResult {
-  ok: boolean;
-  reconciliation: SponsoredActivityReconciliationPeriod;
-}
-
-export interface AddAdjustmentPayload {
+export interface SponsoredActivityAddAdjustmentPayload {
   adjustmentType: AdjustmentType;
   amount: number;
   paymentMethod?: PaymentMethod | null;
@@ -82,54 +112,96 @@ export interface AddAdjustmentPayload {
   currency?: string;
 }
 
-export interface AddAdjustmentResult {
-  reconciliationId: string;
-  adjustment: SponsoredActivityAdjustment;
-}
-
 class SponsoredActivityReconciliationService extends BaseService {
   private readonly base = '/sponsored-activity-reconciliation';
 
-  async getCurrent(roomId: string): Promise<GetCurrentResult> {
-    return this.request<GetCurrentResult>(`${this.base}/room/${encodeURIComponent(roomId)}/current`);
-  }
-
-  async getHistory(roomId: string): Promise<GetHistoryResult> {
-    return this.request<GetHistoryResult>(`${this.base}/room/${encodeURIComponent(roomId)}/history`);
-  }
-
-  async getSummary(roomId: string): Promise<GetSummaryResult> {
-    return this.request<GetSummaryResult>(`${this.base}/room/${encodeURIComponent(roomId)}/summary`);
-  }
-
-  async addAdjustment(roomId: string, payload: AddAdjustmentPayload): Promise<AddAdjustmentResult> {
-    return this.request<AddAdjustmentResult>(`${this.base}/room/${encodeURIComponent(roomId)}/adjustments`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  }
-
-  async updateAdjustment(roomId: string, adjustmentId: string, patch: Partial<AddAdjustmentPayload>): Promise<{ ok: boolean }> {
-    return this.request<{ ok: boolean }>(
-      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
-      { method: 'PATCH', body: JSON.stringify(patch) }
+  async getCurrent(
+    roomId: string,
+  ): Promise<SponsoredActivityCurrentResult> {
+    return this.request<SponsoredActivityCurrentResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/current`,
     );
   }
 
-  async deleteAdjustment(roomId: string, adjustmentId: string): Promise<{ ok: boolean }> {
-    return this.request<{ ok: boolean }>(
-      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
-      { method: 'DELETE' }
+  async getHistory(
+    roomId: string,
+  ): Promise<SponsoredActivityHistoryResult> {
+    return this.request<SponsoredActivityHistoryResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/history`,
     );
   }
 
-  async approve(roomId: string, payload: { approvedBy: string; notes?: string | null }): Promise<ApproveResult> {
-    return this.request<ApproveResult>(`${this.base}/room/${encodeURIComponent(roomId)}/approve`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  async getSummary(
+    roomId: string,
+  ): Promise<SponsoredActivitySummaryResult> {
+    return this.request<SponsoredActivitySummaryResult>(
+      `${this.base}/room/${encodeURIComponent(roomId)}/summary`,
+    );
+  }
+
+  async addAdjustment(
+    roomId: string,
+    payload: SponsoredActivityAddAdjustmentPayload,
+  ): Promise<{
+    reconciliationId: string;
+    adjustment: SponsoredActivityAdjustment;
+  }> {
+    return this.request(
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  async updateAdjustment(
+    roomId: string,
+    adjustmentId: string,
+    patch: Partial<SponsoredActivityAddAdjustmentPayload>,
+  ): Promise<{ ok: boolean }> {
+    return this.request(
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      },
+    );
+  }
+
+  async deleteAdjustment(
+    roomId: string,
+    adjustmentId: string,
+  ): Promise<{ ok: boolean }> {
+    return this.request(
+      `${this.base}/room/${encodeURIComponent(roomId)}/adjustments/${encodeURIComponent(adjustmentId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  }
+
+  async approve(
+    roomId: string,
+    payload: {
+      approvedBy: string;
+      notes?: string | null;
+    },
+  ): Promise<{
+    ok: boolean;
+    reconciliation: SponsoredActivityReconciliationPeriod;
+  }> {
+    return this.request(
+      `${this.base}/room/${encodeURIComponent(roomId)}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
   }
 }
 
-const sponsoredActivityReconciliationService = new SponsoredActivityReconciliationService();
+const sponsoredActivityReconciliationService =
+  new SponsoredActivityReconciliationService();
+
 export default sponsoredActivityReconciliationService;
