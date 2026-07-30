@@ -469,7 +469,14 @@ async function assertRoom(roomId,clubId,allowHistorical=false) {
 
 // Must match the DB ENUMs exactly (see peer_packs.pack_type / peer_pack_items.item_type).
 const VALID_PACK_TYPES = new Set(['single_entry','bundle','ticket','sponsor','custom']);
-const VALID_ITEM_TYPES = new Set(['game_entry','quiz_team_ticket','quiz_individual_ticket','puzzle_entry','elimination_entry','event_ticket','custom']);
+const VALID_ITEM_TYPES = new Set([
+  'quiz_entry',
+  'game_entry',
+  'puzzle_entry',
+  'elimination_entry',
+  'event_ticket',
+  'custom',
+]);
 
 // Mirrors the same room-type mapping used in peerEntryExpansionService.js
 // (correctEntryType) and PeerPackEditor.tsx (validItemTypesForGameType) —
@@ -479,11 +486,23 @@ const VALID_ITEM_TYPES = new Set(['game_entry','quiz_team_ticket','quiz_individu
 // existing bad data), and the editor one is UI-only (prevention via the
 // dropdown). Three independent layers catching the same class of mistake.
 function validItemTypesForRoomGameType(gameType) {
-  if (gameType === 'elimination') return new Set(['elimination_entry']);
-  if (gameType === 'quiz') return new Set(['quiz_team_ticket','quiz_individual_ticket','game_entry']);
-  if (gameType === 'ticketed_event') return new Set(['event_ticket']);
-  if (gameType === 'puzzle_sub' || gameType === 'puzzle_drop') return new Set(['puzzle_entry']);
-  return null; // unknown/no room match — don't block, nothing to cross-check against
+  if (gameType === 'quiz') {
+    return new Set(['quiz_entry', 'game_entry']);
+  }
+
+  if (gameType === 'elimination') {
+    return new Set(['elimination_entry']);
+  }
+
+  if (gameType === 'ticketed_event') {
+    return new Set(['event_ticket']);
+  }
+
+  if (gameType === 'puzzle_drop') {
+    return new Set(['puzzle_entry']);
+  }
+
+  return null;
 }
 
 // Previously savePack only checked name and items.length — price, quantity
@@ -555,11 +574,46 @@ async function validatePackPayload(b, clubId) {
 
     const config=parseJson(room.config_json,{});
 
-    if(room.game_type==='quiz' || room.game_type==='elimination'){
-      const livePrice=Number(config.entryFee||0);
-      if(Math.abs(livePrice-referencePrice)>0.001) fail('activity_price_changed');
-    }
+if(room.game_type==='quiz'){
+  const liveEntryFee=Number(config.entryFee||0);
 
+  const liveExtrasTotal=Object.entries(
+    config.fundraisingOptions||{}
+  )
+    .filter(([,enabled])=>enabled===true)
+    .reduce(
+      (sum,[extraId]) =>
+        sum + Number(
+          config.fundraisingPrices?.[extraId]||0
+        ),
+      0
+    );
+
+  const liveConfiguredValue=
+    liveEntryFee+liveExtrasTotal;
+
+  if(
+    Math.abs(
+      liveConfiguredValue-referencePrice
+    )>0.001
+  ){
+    fail('activity_price_changed');
+  }
+}
+
+if(room.game_type==='elimination'){
+  const livePrice=Number(
+    config.entryFee||0
+  );
+
+  if(
+    Math.abs(
+      livePrice-referencePrice
+    )>0.001
+  ){
+    fail('activity_price_changed');
+  }
+}
     if(room.game_type==='ticketed_event'){
       const ticketTypeId=String(metadata.ticketTypeId||'').trim();
       if(!ticketTypeId) fail('ticket_type_required');
@@ -728,8 +782,7 @@ const TEMPLATES = {
     const quiz = findRoomByGameType(rooms, 'quiz');
     if (!quiz) return [];
     return [
-      { name: 'Family Quiz Team',  packType: 'ticket',       price: 30,
-        items: [{ targetRoomId: quiz.room_id, itemType: 'quiz_team_ticket', quantity: 1 }] },
+   
       { name: 'Individual Ticket', packType: 'single_entry', price: 10,
         items: [{ targetRoomId: quiz.room_id, itemType: 'quiz_individual_ticket', quantity: 1 }] },
       { name: 'Supporter Ticket',  packType: 'single_entry', price: 5,
