@@ -12,104 +12,346 @@ const paymentMethod = cat => ({stripe:'stripe',crypto:'crypto',instant_payment:'
 const paymentSource = cat => cat === 'stripe' ? 'webhook_auto' : cat === 'crypto' ? 'onchain_auto' : 'admin_assigned';
 
 export async function createTicketForPeerEntry(entryId, context) {
-  const { order, packItem, packItemMetadata = {}, apportionedFee, clubPaymentMethodId } = context;
-  const ticketId = nanoid(12), joinToken = nanoid(16), roomId = packItem.target_room_id;
-  const [rooms] = await connection.execute(`SELECT config_json, game_type FROM ${R} WHERE room_id=? AND club_id=? LIMIT 1`, [roomId,order.club_id]);
-  if (!rooms[0]) throw new Error(`room_not_found:${roomId}`);
-  const cfg = parseJson(rooms[0].config_json, {});
-  const fee = Number(apportionedFee || 0);
+  const {
+    order,
+    packItem,
+    packItemMetadata = {},
+    apportionedFee,
+    clubPaymentMethodId,
+  } = context;
 
-  const configuredEntryFee=Number(packItemMetadata.entryFee ?? cfg.entryFee ?? 0);
-  const configuredExtras=Array.isArray(packItemMetadata.includedExtras)
-    ? packItemMetadata.includedExtras
-    : Object.entries(cfg.fundraisingOptions||{})
-        .filter(([,enabled])=>enabled===true)
-        .map(([extraId])=>({
-          extraId,
-          price:Number(cfg.fundraisingPrices?.[extraId]||0),
-        }))
-        .filter(extra=>extra.price>0);
-
-  const configuredExtrasTotal=configuredExtras.reduce(
-    (sum,extra)=>sum+Number(extra.price||0),
-    0
+  const [entryRows] = await connection.execute(
+    `SELECT linked_ticket_id,join_url,metadata_json,status
+     FROM ${E}
+     WHERE id=?
+     LIMIT 1`,
+    [entryId],
   );
-  const configuredTotal=configuredEntryFee+configuredExtrasTotal;
-  const allocationRatio=configuredTotal>0 ? fee/configuredTotal : 1;
+  const existingEntry = entryRows[0];
 
-  const entryFee=Number((configuredEntryFee*allocationRatio).toFixed(2));
-  let allocatedExtrasUsed=0;
-  const extras=configuredExtras.map((extra,index)=>{
-    const price=index===configuredExtras.length-1
-      ? Number((fee-entryFee-allocatedExtrasUsed).toFixed(2))
-      : Number((Number(extra.price||0)*allocationRatio).toFixed(2));
-    allocatedExtrasUsed+=price;
+  if(existingEntry?.linked_ticket_id){
     return {
-      extraId:extra.extraId,
-      label:extra.label||extra.extraId,
-      price,
-      configuredPrice:Number(extra.price||0),
-      source:'peer_pack',
-      included:true,
+      ticketId:existingEntry.linked_ticket_id,
+      joinUrl:existingEntry.join_url,
+      duplicate:true,
     };
-  });
-  const extrasTotal=Number(extras.reduce((sum,extra)=>sum+extra.price,0).toFixed(2));
-  // Previously derived purely from packItem.item_type, which is only ever
-  // set once, manually, at pack-build time — nothing stopped it from being
-  // wrong. peerEntryExpansionService.js now corrects item_type against the
-  // room before this function is even called, but deriving it again here,
-  // independently, directly from the room's own game_type column is a
-  // second, cheap backstop against exactly this class of bug recurring.
-  const gt = rooms[0].game_type === 'elimination' ? 'elimination' : rooms[0].game_type === 'quiz' ? 'quiz' : gameTypeFromItemType(packItem.item_type);
+  }
+
+  const ticketId = nanoid(12);
+  const joinToken = nanoid(16);
+  const roomId = packItem.target_room_id;
+
+  const [rooms] = await connection.execute(
+    `SELECT config_json,game_type,status
+     FROM ${R}
+     WHERE room_id=? AND club_id=?
+     LIMIT 1`,
+    [roomId, order.club_id],
+  );
+
+  const room = rooms[0];
+  if (!room) throw new Error(`room_not_found:${roomId}`);
+  if (['completed', 'cancelled'].includes(room.status)) {
+    throw new Error('room_not_available');
+  }
+
+  const cfg = parseJson(room.config_json, {});
+  const fee = Number(apportionedFee || 0);
+  const gameType = room.game_type;
+
+  let entryFee = fee;
+  let extras = [];
+  let extrasTotal = 0;
+  let ticketTypeId = null;
+  let ticketTypeName = null;
+
+  if (gameType === 'ticketed_event') {
+    ticketTypeId = String(packItemMetadata.ticketTypeId || '').trim();
+    if (!ticketTypeId) throw new Error('ticket_type_required');
+
+    const allTypes =
+      Array.isArray(cfg.ticketTypes) && cfg.ticketTypes.length
+        ? cfg.ticketTypes
+        : cfg.entryFee
+          ? [{
+              id: 'general',
+              name: 'General Admission',
+              price: String(cfg.entryFee),
+              isEnabled: true,
+              quantity: null,
+              saleEndsAt: null,
+            }]
+          : [];
+
+    const selectedType = allTypes.find(
+      type => String(type.id) === ticketTypeId,
+    );
+
+    if (!selectedType || selectedType.isEnabled === false) {
+      throw new Error('ticket_type_unavailable');
+    }
+
+    if (selectedType.saleEndsAt) {
+      const saleEndsAt = new Date(selectedType.saleEndsAt).getTime();
+      if (Number.isFinite(saleEndsAt) && saleEndsAt < Date.now()) {
+        throw new Error('ticket_type_sale_ended');
+      }
+    }
+
+    const [[soldRow]] = await connection.execute(
+      `SELECT
+         COUNT(*) AS total_sold,
+         SUM(CASE WHEN ticket_type_id=? THEN 1 ELSE 0 END) AS type_sold
+       FROM ${T}
+       WHERE room_id=?
+         AND payment_status IN ('payment_claimed','payment_confirmed')`,
+      [ticketTypeId, roomId],
+    );
+
+    const typeSold = Number(soldRow?.type_sold || 0);
+    const totalSold = Number(soldRow?.total_sold || 0);
+    const typeLimit =
+      selectedType.quantity == null
+        ? null
+        : Number(selectedType.quantity);
+
+    if (
+      typeLimit != null &&
+      Number.isFinite(typeLimit) &&
+      typeSold >= typeLimit
+    ) {
+      throw new Error('ticket_type_sold_out');
+    }
+
+    const venueCapacity = Number(
+      cfg.maxCapacity ??
+      cfg.venueCapacity ??
+      cfg.maxPlayers ??
+      0,
+    );
+
+    if (
+      Number.isFinite(venueCapacity) &&
+      venueCapacity > 0 &&
+      totalSold >= venueCapacity
+    ) {
+      throw new Error('event_capacity_reached');
+    }
+
+    ticketTypeName = String(
+      selectedType.name ||
+      packItemMetadata.ticketTypeName ||
+      'Event Ticket',
+    );
+
+    // The ticket's financial value is its apportioned bundle share.
+    // The configured standalone type price remains snapshotted in metadata.
+    entryFee = fee;
+    extras = [];
+    extrasTotal = 0;
+  } else if (gameType === 'quiz') {
+    const configuredEntryFee = Number(
+      packItemMetadata.entryFee ?? cfg.entryFee ?? 0,
+    );
+
+    const configuredExtras = Array.isArray(
+      packItemMetadata.includedExtras,
+    )
+      ? packItemMetadata.includedExtras
+      : Object.entries(cfg.fundraisingOptions || {})
+          .filter(([, enabled]) => enabled === true)
+          .map(([extraId]) => ({
+            extraId,
+            price: Number(
+              cfg.fundraisingPrices?.[extraId] || 0,
+            ),
+          }))
+          .filter(extra => extra.price > 0);
+
+    const configuredExtrasTotal = configuredExtras.reduce(
+      (sum, extra) => sum + Number(extra.price || 0),
+      0,
+    );
+
+    const configuredTotal =
+      configuredEntryFee + configuredExtrasTotal;
+
+    const allocationRatio =
+      configuredTotal > 0 ? fee / configuredTotal : 1;
+
+    entryFee = Number(
+      (configuredEntryFee * allocationRatio).toFixed(2),
+    );
+
+    let allocatedExtrasUsed = 0;
+    extras = configuredExtras.map((extra, index) => {
+      const price =
+        index === configuredExtras.length - 1
+          ? Number(
+              (
+                fee -
+                entryFee -
+                allocatedExtrasUsed
+              ).toFixed(2),
+            )
+          : Number(
+              (
+                Number(extra.price || 0) *
+                allocationRatio
+              ).toFixed(2),
+            );
+
+      allocatedExtrasUsed += price;
+
+      return {
+        extraId: extra.extraId,
+        label: extra.label || extra.extraId,
+        price,
+        configuredPrice: Number(extra.price || 0),
+        source: 'peer_pack',
+        included: true,
+      };
+    });
+
+    extrasTotal = Number(
+      extras
+        .reduce((sum, extra) => sum + extra.price, 0)
+        .toFixed(2),
+    );
+  }
 
   await connection.execute(
     `INSERT INTO ${T}
-      (ticket_id,room_id,club_id,purchaser_name,purchaser_email,purchaser_phone,player_name,
-       entry_fee,extras,extras_total,total_amount,currency,payment_status,payment_method,
-       payment_reference,club_payment_method_id,redemption_status,join_token,
-       confirmed_at,confirmed_by,confirmed_by_name,confirmed_by_role,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'payment_confirmed','peer_pack',?,?, 'ready',?,UTC_TIMESTAMP(),
-             'system','Peer-to-Peer Pack','system',UTC_TIMESTAMP(),UTC_TIMESTAMP())`,
-    [ticketId,roomId,order.club_id,order.supporter_name,order.supporter_email,order.supporter_phone,
-     order.supporter_name,entryFee,JSON.stringify(extras),extrasTotal,fee,order.currency,`peer_entry_${entryId}`,
-     clubPaymentMethodId || null,joinToken]
+      (
+        ticket_id,room_id,club_id,
+        purchaser_name,purchaser_email,purchaser_phone,
+        player_name,
+        entry_fee,extras,extras_total,total_amount,currency,
+        payment_status,payment_method,payment_reference,
+        club_payment_method_id,
+        redemption_status,join_token,
+        ticket_type_id,ticket_type_name,
+        confirmed_at,confirmed_by,confirmed_by_name,
+        confirmed_by_role,created_at,updated_at
+      )
+     VALUES (
+       ?,?,?,?,?,?,?,
+       ?,?,?,?,?,
+       'payment_confirmed','peer_pack',?,
+       ?,
+       'ready',?,
+       ?,?,
+       UTC_TIMESTAMP(),'system','Peer-to-Peer Pack',
+       'system',UTC_TIMESTAMP(),UTC_TIMESTAMP()
+     )`,
+    [
+      ticketId,
+      roomId,
+      order.club_id,
+      order.supporter_name,
+      order.supporter_email,
+      order.supporter_phone,
+      order.supporter_name,
+      entryFee,
+      JSON.stringify(extras),
+      extrasTotal,
+      fee,
+      order.currency,
+      `peer_entry_${entryId}`,
+      clubPaymentMethodId || null,
+      joinToken,
+      ticketTypeId,
+      ticketTypeName,
+    ],
   );
 
-  // Previously pointed straight into /join/{gameType}/{roomId} — dropping
-  // a buyer directly into the live-join route immediately after purchase,
-  // even when the event itself might be weeks away. Point at the ticket
-  // status page instead; that page is responsible for showing the actual
-  // join link once the room is live.
   const joinUrl = `/tickets/status/${ticketId}`;
+
   await connection.execute(
-    `UPDATE ${E} SET status='confirmed',entry_code=?,ticket_code=?,join_url=?,linked_ticket_id=?,confirmed_at=UTC_TIMESTAMP() WHERE id=?`,
-    [`PE-${nanoid(8).toUpperCase()}`,ticketId,joinUrl,ticketId,entryId]
+    `UPDATE ${E}
+     SET status='confirmed',
+         entry_code=?,
+         ticket_code=?,
+         join_url=?,
+         linked_ticket_id=?,
+         confirmed_at=UTC_TIMESTAMP(),
+         metadata_json=JSON_SET(
+           COALESCE(metadata_json,'{}'),
+           '$.ticketTypeId', ?,
+           '$.ticketTypeName', ?,
+           '$.configuredTicketPrice', ?
+         )
+     WHERE id=?`,
+    [
+      `PE-${nanoid(8).toUpperCase()}`,
+      ticketId,
+      joinUrl,
+      ticketId,
+      ticketTypeId,
+      ticketTypeName,
+      Number(packItemMetadata.referencePrice || 0),
+      entryId,
+    ],
   );
 
-  // Capture the ledger ID and write it back onto the ticket — previously
-  // this call's return value was discarded entirely, so tickets.ledger_id
-  // was always left null for peer tickets. Any reporting that joins on
-  // tickets.ledger_id would silently show peer tickets as unlinked.
   const ledgerId = await createExpectedPayment({
-    roomId, clubId: order.club_id, playerId: `ticket_${ticketId}`,
-    playerName: order.supporter_name, ledgerType: 'entry_fee', amount: entryFee,
-    currency: order.currency, paymentMethod: paymentMethod(order.payment_method_category),
-    paymentSource: paymentSource(order.payment_method_category),
+    roomId,
+    clubId: order.club_id,
+    playerId: `ticket_${ticketId}`,
+    playerName: order.supporter_name,
+    ledgerType: 'entry_fee',
+    amount: entryFee,
+    currency: order.currency,
+    paymentMethod: paymentMethod(
+      order.payment_method_category,
+    ),
+    paymentSource: paymentSource(
+      order.payment_method_category,
+    ),
     clubPaymentMethodId: clubPaymentMethodId || null,
-    paymentReference: order.payment_reference || `peer_order_${order.id}`,
-    externalTransactionId: order.external_transaction_id || null,
-    status: 'confirmed', confirmedAt: new Date(), confirmedBy: paymentSource(order.payment_method_category),
-    confirmedByName: order.payment_method_category === 'stripe' ? 'Stripe' : order.payment_method_category === 'crypto' ? 'Solana' : 'Club Admin',
-    confirmedByRole: 'system', ticketId,
-    extraMetadata: { peerFundraiserId: order.peer_fundraiser_id, peerOrderId: order.id, peerEntryId: entryId },
+    paymentReference:
+      order.payment_reference ||
+      `peer_order_${order.id}`,
+    externalTransactionId:
+      order.external_transaction_id || null,
+    status: 'confirmed',
+    confirmedAt: new Date(),
+    confirmedBy: paymentSource(
+      order.payment_method_category,
+    ),
+    confirmedByName:
+      order.payment_method_category === 'stripe'
+        ? 'Stripe'
+        : order.payment_method_category === 'crypto'
+          ? 'Solana'
+          : 'Club Admin',
+    confirmedByRole: 'system',
+    ticketId,
+    extraMetadata: {
+      peerFundraiserId: order.peer_fundraiser_id,
+      peerOrderId: order.id,
+      peerEntryId: entryId,
+      ticketTypeId,
+      ticketTypeName,
+      configuredTicketPrice: Number(
+        packItemMetadata.referencePrice || 0,
+      ),
+      apportionedAmount: fee,
+    },
   });
 
   if (ledgerId) {
-    await connection.execute(`UPDATE ${T} SET ledger_id=? WHERE ticket_id=?`, [ledgerId, ticketId]);
+    await connection.execute(
+      `UPDATE ${T}
+       SET ledger_id=?
+       WHERE ticket_id=?`,
+      [ledgerId, ticketId],
+    );
   }
 
   for (const extra of extras) {
     if (extra.price <= 0) continue;
+
     await createExpectedPayment({
       roomId,
       clubId: order.club_id,
@@ -118,19 +360,30 @@ export async function createTicketForPeerEntry(entryId, context) {
       ledgerType: 'extra_purchase',
       amount: extra.price,
       currency: order.currency,
-      paymentMethod: paymentMethod(order.payment_method_category),
-      paymentSource: paymentSource(order.payment_method_category),
-      clubPaymentMethodId: clubPaymentMethodId || null,
-      paymentReference: order.payment_reference || `peer_order_${order.id}`,
-      externalTransactionId: order.external_transaction_id || null,
+      paymentMethod: paymentMethod(
+        order.payment_method_category,
+      ),
+      paymentSource: paymentSource(
+        order.payment_method_category,
+      ),
+      clubPaymentMethodId:
+        clubPaymentMethodId || null,
+      paymentReference:
+        order.payment_reference ||
+        `peer_order_${order.id}`,
+      externalTransactionId:
+        order.external_transaction_id || null,
       status: 'confirmed',
       confirmedAt: new Date(),
-      confirmedBy: paymentSource(order.payment_method_category),
-      confirmedByName: order.payment_method_category === 'stripe'
-        ? 'Stripe'
-        : order.payment_method_category === 'crypto'
-          ? 'Solana'
-          : 'Club Admin',
+      confirmedBy: paymentSource(
+        order.payment_method_category,
+      ),
+      confirmedByName:
+        order.payment_method_category === 'stripe'
+          ? 'Stripe'
+          : order.payment_method_category === 'crypto'
+            ? 'Solana'
+            : 'Club Admin',
       confirmedByRole: 'system',
       ticketId,
       extraId: extra.extraId,
@@ -143,50 +396,104 @@ export async function createTicketForPeerEntry(entryId, context) {
     });
   }
 
-  // Per-ticket confirmation email — peer had no equivalent to campaign's
-  // step 7 in campaignTicketBridgeService.js at all. Note: campaign's
-  // version references an undeclared `config` variable (should be
-  // `roomConfigForEmail`), which throws inside the try/catch and silently
-  // no-ops every time — campaign ticket emails are currently broken in
-  // production. Not copied here; `roomConfigForEmail` is used correctly.
-  try {
-    const { sendTicketConfirmationEmail, getTicketWithRoomConfig } =
-      await import('../../utils/ticketEmail.js');
+  const entryMetadata = parseJson(
+    existingEntry?.metadata_json,
+    {},
+  );
 
-    const ticketRow = await getTicketWithRoomConfig(ticketId);
+  if(!entryMetadata.ticketEmailSentAt){
+  try {
+    const {
+      getTicketWithRoomConfig,
+      sendTicketConfirmationEmail,
+    } = await import('../../utils/ticketEmail.js');
+
+    const ticketRow =
+      await getTicketWithRoomConfig(ticketId);
 
     if (ticketRow) {
-      const roomConfigForEmail = parseJson(ticketRow.config_json, {});
-      const extrasForEmail     = parseJson(ticketRow.extras, []);
+      const roomConfigForEmail = parseJson(
+        ticketRow.config_json,
+        {},
+      );
 
-      await sendTicketConfirmationEmail({
-        eventTitle:      roomConfigForEmail?.eventTitle    || null,
-        eventLocation:   roomConfigForEmail?.eventLocation || null,
+      const emailDetails = {
         ticketId,
-        purchaserEmail:  ticketRow.purchaser_email,
-        purchaserName:   ticketRow.purchaser_name,
-        playerName:      ticketRow.player_name,
-        entryFee:        ticketRow.entry_fee,
-        extrasTotal:     ticketRow.extras_total,
-        totalAmount:     ticketRow.total_amount,
-        currency:        ticketRow.currency,
-        currencySymbol:  roomConfigForEmail?.currencySymbol ?? '€',
-        extras:          extrasForEmail,
-        clubId:          ticketRow.club_id,
-        hostName:        roomConfigForEmail?.hostName ?? null,
-        eventDateTime:   roomConfigForEmail?.eventDateTime ?? null,
-        timeZone:        roomConfigForEmail?.timeZone ?? null,
-        gameType:        gt,
-        clubName:        ticketRow.club_name ?? null,
-      });
+        purchaserEmail: ticketRow.purchaser_email,
+        purchaserName: ticketRow.purchaser_name,
+        playerName: ticketRow.player_name,
+        entryFee: ticketRow.entry_fee,
+        extrasTotal: ticketRow.extras_total,
+        totalAmount: ticketRow.total_amount,
+        currency: ticketRow.currency,
+        currencySymbol:
+          roomConfigForEmail.currencySymbol || '€',
+        clubId: ticketRow.club_id,
+        clubName: ticketRow.club_name || null,
+        eventTitle:
+          roomConfigForEmail.eventTitle ||
+          roomConfigForEmail.eventName ||
+          null,
+        eventLocation:
+          roomConfigForEmail.eventLocation ||
+          roomConfigForEmail.venue ||
+          null,
+        eventDateTime:
+          roomConfigForEmail.eventDateTime ||
+          roomConfigForEmail.startsAt ||
+          null,
+        timeZone:
+          roomConfigForEmail.timeZone ||
+          ticketRow.time_zone ||
+          null,
+      };
 
-      console.log(`[PeerTicketBridge] 📧 Confirmation email sent to ${ticketRow.purchaser_email}`);
+      if (gameType === 'ticketed_event') {
+        const {
+          sendTicketedEventConfirmationEmail,
+        } = await import(
+          '../../utils/ticketedEventEmail.js'
+        );
+
+        await sendTicketedEventConfirmationEmail(
+          emailDetails,
+        );
+      } else {
+        await sendTicketConfirmationEmail({
+          ...emailDetails,
+          extras: parseJson(ticketRow.extras, []),
+          hostName:
+            roomConfigForEmail.hostName || null,
+          gameType,
+        });
+      }
     }
-  } catch (emailErr) {
-    console.error(`[PeerTicketBridge] ⚠️ Email failed (non-fatal): ${emailErr.message}`);
+    await connection.execute(
+      `UPDATE ${E}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.ticketEmailSentAt',
+         UTC_TIMESTAMP()
+       )
+       WHERE id=?`,
+      [entryId],
+    );
+  } catch (emailError) {
+    console.error(
+      '[PeerTicketBridge] Ticket email failed (non-fatal):',
+      emailError.message,
+    );
+  }
   }
 
-  return { ticketId, joinToken, joinUrl, ledgerId };
+  return {
+    ticketId,
+    joinToken,
+    joinUrl,
+    ledgerId,
+    ticketTypeId,
+    ticketTypeName,
+  };
 }
 
 // ─── Block / unblock ──────────────────────────────────────────────────────

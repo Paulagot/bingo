@@ -314,18 +314,27 @@ function itemTypeLabel(itemType?: string, gameType?: string): string {
   const game = String(gameType || '').toLowerCase();
 
   if (type === 'elimination_entry' || game === 'elimination') return 'Last Player Standing';
-  if (type === 'quiz_team_ticket') return 'Quiz Team Ticket';
-  if (type === 'quiz_individual_ticket') return 'Individual Quiz Ticket';
+  if (type === 'game_entry' || game === 'quiz') {
+    return 'Quiz Entry + All Extras';
+  }
   if (type === 'puzzle_entry' || game === 'puzzle_sub' || game === 'puzzle_drop') return 'Puzzle Challenge';
   if (type === 'event_ticket' || game === 'ticketed_event') return 'Event Ticket';
-  if (type === 'game_entry') return 'Game Entry';
+
   return 'Fundraiser Entry';
 }
 
 function includedLine(room: PackRoomDetails): string {
-  const quantity = room.quantity > 1 ? `${room.quantity} × ` : '';
-  const label = itemTypeLabel(room.itemType, room.gameType);
-  return `${quantity}${label}${room.roomName ? ` - ${room.roomName}` : ''}`;
+  const quantity =
+    room.quantity > 1 ? `${room.quantity} × ` : '';
+
+  const label = itemTypeLabel(
+    room.itemType,
+    room.gameType,
+  );
+
+  return `${quantity}${label}${
+    room.roomName ? ` — ${room.roomName}` : ''
+  }`;
 }
 
 function formatEventDate(value?: string | null): string | null {
@@ -834,12 +843,36 @@ export default function PeerSupportPage() {
 
       {step === 'confirm' && orderSummary && (
         <StepPanel title="" wide>
-          <PeerOrderThankYou
-            order={orderSummary}
-            entries={entries}
-            fundraiserName={data.fundraiser.name}
-            orderId={orderId}
-          />
+          {['failed', 'attention_required'].includes(
+            String((orderSummary as any).fulfilmentStatus || ''),
+          ) ? (
+            <div className="mx-auto max-w-2xl rounded-3xl bg-white p-6 text-center shadow-sm ring-1 ring-amber-200">
+              <div className="text-4xl">⚠️</div>
+              <h2 className="mt-3 text-2xl font-black text-slate-950">
+                Payment confirmed — access is still being prepared
+              </h2>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
+                Your payment was successful, but one or more activity links
+                could not be created automatically. The organiser can retry
+                fulfilment from the Orders tab. You do not need to pay again.
+              </p>
+              {(orderSummary as any).fulfilmentError && (
+                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-900">
+                  Reference: {(orderSummary as any).fulfilmentError}
+                </p>
+              )}
+              <p className="mt-4 text-xs text-slate-500">
+                Order ID: {orderId}
+              </p>
+            </div>
+          ) : (
+            <PeerOrderThankYou
+              order={orderSummary}
+              entries={entries}
+              fundraiserName={data.fundraiser.name}
+              orderId={orderId}
+            />
+          )}
         </StepPanel>
       )}
     </AppShell>
@@ -884,7 +917,7 @@ function PackChoiceCard({ pack, currency, quantity, onOpen, onAdd, onRemove }: {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="max-w-full break-words text-[clamp(1.05rem,4.8vw,1.25rem)] font-black leading-tight tracking-tight text-slate-950">{pack.name} - {fmt(pack.price, pack.currency ?? currency)}</h2>
+            <h2 className="max-w-full break-words text-[clamp(1.05rem,4.8vw,1.25rem)] font-black leading-tight tracking-tight text-slate-950">{pack.name} — {fmt(pack.price, pack.currency ?? currency)}</h2>
             <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300" />
           </div>
           <div className="mt-2 space-y-1">

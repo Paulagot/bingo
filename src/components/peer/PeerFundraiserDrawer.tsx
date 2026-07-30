@@ -3,14 +3,14 @@
 // All the content that used to live on /peer-dashboard/:id (PeerManagePage)
 // is now a right-side drawer that opens from the peer dashboard card.
 // The six tabs (Overview, Participants, Sales Options, Orders, Payments, Report)
-// are unchanged in logic - just relocated into the drawer chrome and
+// are unchanged in logic — just relocated into the drawer chrome and
 // re-skinned to match the events dashboard palette.
 //
 // PeerManagePage is kept as a redirect shim so any existing bookmarks
 // still work. No API calls or service imports have changed.
 
 import { useEffect, useState } from 'react';
-import { X, Globe, AlertCircle,  Loader2 } from 'lucide-react';
+import { X, Globe, Check, AlertCircle, QrCode, Loader2 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import svc from '../../services/PeerService';
 import type { PeerFundraiserFormat } from '../../services/PeerService';
@@ -22,16 +22,16 @@ import { brand } from '../dashboard/branding';
 type Tab = 'overview' | 'participants' | 'packs' | 'orders' | 'payments' | 'report';
 
 const FORMAT_OPTIONS: { value: PeerFundraiserFormat; label: string }[] = [
-  { value: 'door_to_door', label: 'Sell activities and tickets' },
-  { value: 'sponsored', label: 'Collect sponsorship' },
+  { value: 'door_to_door', label: 'Sell activities' },
+  { value: 'sponsored', label: 'Sponsored fundraising' },
 ];
 
 const ITEM_TYPE_LABELS: Record<string, string> = {
-  game_entry:             'Quiz Entry',
-    elimination_entry:      'Last Player Standing Entry',
-  puzzle_entry:           'Puzzle Entry',
-  event_ticket:           'Event Ticket',
-  custom:                 'Custom',
+  game_entry: 'Quiz Entry + All Extras',
+  elimination_entry: 'Elimination Entry',
+  puzzle_entry: 'Puzzle Drop',
+  event_ticket: 'Event Ticket',
+  custom: 'Custom',
 };
 
 // Shared input class so the drawer fields match the events dashboard style.
@@ -56,7 +56,7 @@ export default function PeerFundraiserDrawer({
   // ── Core data (mirrors PeerManagePage.load) ──
   const [f,            setF]            = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
-const [packs, setPacks] = useState<any[]>([]);
+  const [packs,        setPacks]        = useState<any[]>([]);
   const [orders,       setOrders]       = useState<any[]>([]);
   const [rooms,        setRooms]        = useState<any[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -69,12 +69,11 @@ const [packs, setPacks] = useState<any[]>([]);
   const [personPhoto,     setPersonPhoto]     = useState('');
   const [editingParticipant, setEditingParticipant] = useState<any>(null);
 
-  // ── Pack editor ──
+  // ── Sales option editor (pack naming remains internal) ──
   const [editorOpen,   setEditorOpen]   = useState(false);
   const [editingPack,  setEditingPack]  = useState<any>(null);
   const [packSaving,   setPackSaving]   = useState(false);
-  const [applyingTpl,  setApplyingTpl]  = useState(false);
-
+  
   // ── Fundraiser edit ──
   const [editingF,      setEditingF]      = useState(false);
   const [editName,      setEditName]      = useState('');
@@ -94,7 +93,7 @@ const [packs, setPacks] = useState<any[]>([]);
       ]);
       setF(fr.fundraiser);
       setParticipants(ps.participants);
-     setPacks(pks.packs); 
+      setPacks(pks.packs);
       setOrders(os.orders);
       setRooms(rs.rooms);
     } catch (e: any) {
@@ -172,14 +171,14 @@ const [packs, setPacks] = useState<any[]>([]);
     try {
       const pm = await svc.paymentMethods(id);
       if (!pm.linkedMethodIds?.length) {
-        if (!confirm("No payment methods are linked yet - supporters won't be able to pay online. Publish anyway?")) return;
+        if (!confirm("No payment methods are linked yet — supporters won't be able to pay online. Publish anyway?")) return;
       }
     } catch { /* non-fatal */ }
     const r = await svc.update(id, { status: 'published' });
     setF(r.fundraiser); onChanged?.();
   };
 
-  // ── Pack helpers ──
+  // ── Sales option helpers (pack naming remains internal) ──
   const savePack = async (payload: any) => {
     setPackSaving(true);
     try {
@@ -197,12 +196,6 @@ const [packs, setPacks] = useState<any[]>([]);
   const duplicatePack = async (pack: any) => {
     try { await svc.duplicatePack(id, pack.id); load(); onChanged?.(); }
     catch (e: any) { alert(`Failed: ${e.message}`); }
-  };
-  const applyTemplate = async (key: 'door_to_door' | 'quiz_only' | 'puzzle_campaign') => {
-    setApplyingTpl(true);
-    try { await svc.applyTemplate(id, key); load(); onChanged?.(); }
-    catch (e: any) { alert(`Template failed: ${e.message}`); }
-    finally { setApplyingTpl(false); }
   };
 
   const TABS: { key: Tab; label: string }[] = [
@@ -222,7 +215,7 @@ const [packs, setPacks] = useState<any[]>([]);
         onClick={onClose}
       />
 
-      {/* Drawer panel - right side, wider than ClubDrawer */}
+      {/* Drawer panel — right side, wider than ClubDrawer */}
       <aside
         role="dialog"
         aria-label="Peer fundraiser details"
@@ -455,7 +448,7 @@ const [packs, setPacks] = useState<any[]>([]);
                     })}
                     {participants.length === 0 && (
                       <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>
-                        No participants yet - add one above.
+                        No participants yet — add one above.
                       </p>
                     )}
                   </div>
@@ -467,40 +460,26 @@ const [packs, setPacks] = useState<any[]>([]);
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                     <div>
-                      <h2 className="text-base font-bold" style={{ color: brand.navy }}>Sales Options</h2>
+                      <h2 className="text-base font-bold" style={{ color: brand.navy }}>
+                        Sales Options
+                      </h2>
                       <p className="text-xs mt-0.5" style={{ color: brand.slate }}>
-                        Build bundles from your club's events, or start from a template.
+                        Choose the activities, entries or ticket types supporters can buy.
+                        Combine options when you want to sell a bundle.
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <select
-                        disabled={applyingTpl}
-                        onChange={e => {
-                          const key = e.target.value as any;
-                          e.target.value = '';
-                          if (key) applyTemplate(key);
-                        }}
-                        className={`${field} w-auto`}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>{applyingTpl ? 'Applying…' : 'Use a template'}</option>
-                        <option value="door_to_door">Door to door pack</option>
-                        <option value="quiz_only">Quiz only</option>
-                        <option value="puzzle_campaign">Puzzle campaign</option>
-                      </select>
-                      <button
-                        onClick={() => { setEditingPack(null); setEditorOpen(true); }}
-                        className="rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                        style={{ background: brand.teal }}
-                      >
-                        + Create pack
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => { setEditingPack(null); setEditorOpen(true); }}
+                      className="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                      style={{ background: brand.teal }}
+                    >
+                      + Create sales option
+                    </button>
                   </div>
 
                   {packs.filter((p: any) => p.is_active !== 0).length === 0 && (
                     <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>
-                      No packs yet - use a template or create one manually.
+                      No sales options yet — create the first option supporters can buy.
                     </p>
                   )}
 
@@ -571,16 +550,62 @@ const [packs, setPacks] = useState<any[]>([]);
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm truncate" style={{ color: brand.navy }}>{o.supporter_name}</p>
                         <p className="text-xs" style={{ color: brand.slate }}>{o.participant_name || 'General link'}</p>
+                        {o.payment_status === 'confirmed' && (
+                          <div className="mt-1 space-y-0.5 text-[11px]" style={{ color: brand.slate }}>
+                            <p>
+                              Entries: {Number(o.confirmed_entry_count || 0)}/{Number(o.entry_count || 0)} fulfilled
+                            </p>
+                            {o.allocation_check && (
+                              <p>
+                                Ledger {Number(o.allocation_check.ledgerTotal || 0).toFixed(2)}
+                                {' / '}
+                                order {Number(o.allocation_check.orderTotal || o.total_amount || 0).toFixed(2)}
+                              </p>
+                            )}
+                            {o.fulfilment_error && (
+                              <p className="font-semibold" style={{ color: '#b42318' }}>
+                                {o.fulfilment_error}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <p className="font-bold text-sm flex-shrink-0" style={{ color: brand.navy }}>
                         €{Number(o.total_amount).toFixed(2)}
                       </p>
-                      <span
-                        className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 flex-shrink-0"
-                        style={{ background: brand.bg, color: brand.slate }}
-                      >
-                        {o.payment_status}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span
+                          className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5"
+                          style={{ background: brand.bg, color: brand.slate }}
+                        >
+                          {o.payment_status}
+                        </span>
+                        {o.payment_status === 'confirmed' && (
+                          <span
+                            className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5"
+                            style={{
+                              background:
+                                o.fulfilment_status === 'complete' &&
+                                o.allocation_status === 'balanced'
+                                  ? '#dcfce7'
+                                  : o.fulfilment_status === 'failed' ||
+                                      o.allocation_status === 'out_of_balance'
+                                    ? '#fee2e2'
+                                    : '#fef3c7',
+                              color:
+                                o.fulfilment_status === 'complete' &&
+                                o.allocation_status === 'balanced'
+                                  ? '#166534'
+                                  : o.fulfilment_status === 'failed' ||
+                                      o.allocation_status === 'out_of_balance'
+                                    ? '#991b1b'
+                                    : '#92400e',
+                            }}
+                          >
+                            {o.fulfilment_status || 'pending'} · {o.allocation_status || 'pending'}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-2 flex-shrink-0">
                         {['pending', 'claimed'].includes(o.payment_status) && (
                           <button
@@ -591,12 +616,30 @@ const [packs, setPacks] = useState<any[]>([]);
                             Confirm
                           </button>
                         )}
+                        {o.payment_status === 'confirmed' && (
+                          o.fulfilment_status === 'failed' ||
+                          o.fulfilment_status === 'attention_required' ||
+                          o.allocation_status === 'out_of_balance' ||
+                          Number(o.pending_entry_count || 0) > 0
+                        ) && (
+                          <button
+                            onClick={async () => {
+                              await svc.retryFulfilment(id, o.id);
+                              load();
+                              onChanged?.();
+                            }}
+                            className="rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+                            style={{ background: '#d97706' }}
+                          >
+                            Retry fulfilment
+                          </button>
+                        )}
                         {['pending', 'claimed', 'confirmed'].includes(o.payment_status) && (
                           <button
                             onClick={async () => {
                               const verb = o.payment_status === 'confirmed' ? 'Undo confirmation of' : 'Reject';
                               const reason = window.prompt(`Reason for ${verb.toLowerCase()} this order (optional):`) || undefined;
-                              if (o.payment_status === 'confirmed' && !confirm('This order was already confirmed - real tickets exist for it. Cancelling will block those tickets. Continue?')) return;
+                              if (o.payment_status === 'confirmed' && !confirm('This order was already confirmed — real tickets exist for it. Cancelling will block those tickets. Continue?')) return;
                               await svc.rejectOrder(id, o.id, reason);
                               load(); onChanged?.();
                             }}

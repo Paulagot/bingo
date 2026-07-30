@@ -97,12 +97,63 @@ export async function expandPeerOrder(orderId) {
     if(!order){ await conn.rollback(); throw new Error('peer_order_not_found'); }
     if(order.payment_status!=='confirmed'){ await conn.rollback(); throw new Error('peer_order_not_confirmed'); }
 
-    const [count]=await conn.execute(`SELECT COUNT(*) cnt FROM ${E} WHERE order_id=? AND status NOT IN ('cancelled','refunded')`,[orderId]);
-    if(Number(count[0]?.cnt||0)>0){ await conn.commit(); return {duplicate:true}; }
+    const [existingEntries]=await conn.execute(
+      `SELECT
+         e.id,
+         e.entry_type,
+         e.status,
+         e.pack_item_id,
+         e.metadata_json,
+         pi.*
+       FROM ${E} e
+       JOIN ${PI} pi ON pi.id=e.pack_item_id
+       WHERE e.order_id=?
+         AND e.status NOT IN ('cancelled','refunded')
+       ORDER BY e.created_at`,
+      [orderId],
+    );
 
-    const [orderItems]=await conn.execute(`SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,[orderId]);
+    if(existingEntries.length){
+      for(const existing of existingEntries){
+        if(existing.status!=='pending_payment') continue;
 
-    for(const oi of orderItems){
+        const entryMetadata=parseJson(existing.metadata_json,{});
+        created.push({
+          entryId:existing.id,
+          packItem:existing,
+          fee:Number(entryMetadata.apportionedFee||0),
+          correctedType:existing.entry_type,
+          packItemMetadata:parseJson(existing.metadata_json_pack_item ?? existing.metadata_json,{}),
+        });
+      }
+
+      // The SELECT contains both e.metadata_json and pi.metadata_json with
+      // the same name in some MySQL drivers. Reload pack metadata explicitly
+      // so a retry always has the original option snapshot.
+      for(const item of created){
+        const [packRows]=await conn.execute(
+          `SELECT * FROM ${PI} WHERE id=? LIMIT 1`,
+          [item.packItem.id || item.packItem.pack_item_id],
+        );
+        const packItem=packRows[0];
+        if(packItem){
+          item.packItem=packItem;
+          item.packItemMetadata=parseJson(
+            packItem.metadata_json,
+            {},
+          );
+        }
+      }
+
+      await conn.commit();
+
+      if(!created.length){
+        return {duplicate:true,createdCount:0};
+      }
+    } else {
+      const [orderItems]=await conn.execute(`SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,[orderId]);
+
+      for(const oi of orderItems){
       const [packItems]=await conn.execute(`SELECT * FROM ${PI} WHERE pack_id=? ORDER BY created_at`,[oi.pack_id]);
       const { feeMap, gameTypeBy } = await apportionAndRoomTypes(packItems,Number(oi.unit_price));
       for(let orderQty=0;orderQty<Number(oi.quantity);orderQty++){
@@ -131,26 +182,99 @@ export async function expandPeerOrder(orderId) {
         }
       }
     }
-    await conn.commit();
+      await conn.commit();
+    }
   }catch(e){await conn.rollback();throw e;}finally{conn.release();}
 
+  const failures=[];
+
   for(const x of created){
-    const itemType = x.correctedType;
+    const itemType=x.correctedType;
+
     try {
-      if(['game_entry','elimination_entry','event_ticket'].includes(itemType)){
-        await createTicketForPeerEntry(x.entryId,{order,packItem:x.packItem,packItemMetadata:x.packItemMetadata,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
+      if(
+        itemType==='game_entry' ||
+        itemType==='elimination_entry' ||
+        itemType==='event_ticket'
+      ){
+        await createTicketForPeerEntry(
+          x.entryId,
+          {
+            order,
+            packItem:x.packItem,
+            packItemMetadata:x.packItemMetadata,
+            apportionedFee:x.fee,
+            clubPaymentMethodId:
+              order.club_payment_method_id,
+          },
+        );
       } else if(itemType==='puzzle_entry'){
-        await createPuzzleAccessForPeerEntry(x.entryId,{order,packItem:x.packItem,packItemMetadata:x.packItemMetadata,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
+        await createPuzzleAccessForPeerEntry(
+          x.entryId,
+          {
+            order,
+            packItem:x.packItem,
+            packItemMetadata:x.packItemMetadata,
+            apportionedFee:x.fee,
+            clubPaymentMethodId:
+              order.club_payment_method_id,
+          },
+        );
       } else {
-        await connection.execute(`UPDATE ${E} SET status='confirmed',entry_code=?,confirmed_at=UTC_TIMESTAMP() WHERE id=?`,[`PE-${nanoid(8).toUpperCase()}`,x.entryId]);
+        await connection.execute(
+          `UPDATE ${E}
+           SET status='confirmed',
+               entry_code=?,
+               confirmed_at=UTC_TIMESTAMP()
+           WHERE id=?`,
+          [
+            `PE-${nanoid(8).toUpperCase()}`,
+            x.entryId,
+          ],
+        );
       }
-    } catch (err) {
-      console.error(`[PeerEntryExpansion] ❌ Downstream entitlement failed for entry ${x.entryId} (${itemType}):`, err.message);
+
       await connection.execute(
-        `UPDATE ${E} SET metadata_json=JSON_SET(COALESCE(metadata_json,'{}'), '$.expansionError', ?) WHERE id=?`,
-        [err.message, x.entryId]
+        `UPDATE ${E}
+         SET metadata_json=JSON_REMOVE(
+           COALESCE(metadata_json,'{}'),
+           '$.expansionError',
+           '$.expansionFailedAt'
+         )
+         WHERE id=?`,
+        [x.entryId],
+      );
+    } catch (error) {
+      failures.push({
+        entryId:x.entryId,
+        itemType,
+        message:error.message,
+      });
+
+      await connection.execute(
+        `UPDATE ${E}
+         SET metadata_json=JSON_SET(
+           COALESCE(metadata_json,'{}'),
+           '$.expansionError', ?,
+           '$.expansionFailedAt', UTC_TIMESTAMP()
+         )
+         WHERE id=?`,
+        [error.message,x.entryId],
       );
     }
   }
+
+  if(failures.length){
+    const error=new Error(
+      `peer_fulfilment_failed:${failures
+        .map(failure=>
+          `${failure.itemType}:${failure.message}`
+        )
+        .join('|')}`
+    );
+    error.failures=failures;
+    throw error;
+  }
+
   return {createdCount:created.length};
 }
