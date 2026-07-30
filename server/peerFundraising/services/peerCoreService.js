@@ -489,19 +489,15 @@ function validItemTypesForRoomGameType(gameType) {
   if (gameType === 'quiz') {
     return new Set(['quiz_entry', 'game_entry']);
   }
-
   if (gameType === 'elimination') {
     return new Set(['elimination_entry']);
   }
-
   if (gameType === 'ticketed_event') {
     return new Set(['event_ticket']);
   }
-
   if (gameType === 'puzzle_drop') {
     return new Set(['puzzle_entry']);
   }
-
   return null;
 }
 
@@ -574,46 +570,32 @@ async function validatePackPayload(b, clubId) {
 
     const config=parseJson(room.config_json,{});
 
-if(room.game_type==='quiz'){
-  const liveEntryFee=Number(config.entryFee||0);
+    if(room.game_type==='quiz'){
+      const liveEntryFee=Number(config.entryFee||0);
 
-  const liveExtrasTotal=Object.entries(
-    config.fundraisingOptions||{}
-  )
-    .filter(([,enabled])=>enabled===true)
-    .reduce(
-      (sum,[extraId]) =>
-        sum + Number(
-          config.fundraisingPrices?.[extraId]||0
-        ),
-      0
-    );
+      const liveExtrasTotal=Object.entries(config.fundraisingOptions||{})
+        .filter(([,enabled])=>enabled===true)
+        .reduce(
+          (sum,[extraId]) =>
+            sum + Number(config.fundraisingPrices?.[extraId]||0),
+          0
+        );
 
-  const liveConfiguredValue=
-    liveEntryFee+liveExtrasTotal;
+      const liveConfiguredValue=liveEntryFee+liveExtrasTotal;
 
-  if(
-    Math.abs(
-      liveConfiguredValue-referencePrice
-    )>0.001
-  ){
-    fail('activity_price_changed');
-  }
-}
+      if(Math.abs(liveConfiguredValue-referencePrice)>0.001){
+        fail('activity_price_changed');
+      }
+    }
 
-if(room.game_type==='elimination'){
-  const livePrice=Number(
-    config.entryFee||0
-  );
+    if(room.game_type==='elimination'){
+      const livePrice=Number(config.entryFee||0);
 
-  if(
-    Math.abs(
-      livePrice-referencePrice
-    )>0.001
-  ){
-    fail('activity_price_changed');
-  }
-}
+      if(Math.abs(livePrice-referencePrice)>0.001){
+        fail('activity_price_changed');
+      }
+    }
+
     if(room.game_type==='ticketed_event'){
       const ticketTypeId=String(metadata.ticketTypeId||'').trim();
       if(!ticketTypeId) fail('ticket_type_required');
@@ -770,24 +752,54 @@ const TEMPLATES = {
       );
     }
     if (quiz) {
-      blueprints.push(
-        { name: 'Family Quiz Team', packType: 'ticket', price: 30,
-          items: [{ targetRoomId: quiz.room_id, itemType: 'quiz_team_ticket', quantity: 1 }] },
+      const quizOption = quiz.sellable_options?.find(
+        option => option.itemType === 'quiz_entry'
       );
+
+      if (quizOption) {
+        blueprints.push({
+          name: 'Quiz Entry + All Extras',
+          packType: 'single_entry',
+          price: Number(quizOption.configuredPrice),
+          items: [{
+            targetRoomId: quiz.room_id,
+            itemType: 'quiz_entry',
+            quantity: 1,
+            metadata: {
+              ...quizOption.metadata,
+              optionId: quizOption.optionId,
+              configuredPrice: quizOption.configuredPrice,
+            },
+          }],
+        });
+      }
     }
     return blueprints;
   },
 
   quiz_only: (rooms) => {
     const quiz = findRoomByGameType(rooms, 'quiz');
-    if (!quiz) return [];
-    return [
-   
-      { name: 'Individual Ticket', packType: 'single_entry', price: 10,
-        items: [{ targetRoomId: quiz.room_id, itemType: 'quiz_individual_ticket', quantity: 1 }] },
-      { name: 'Supporter Ticket',  packType: 'single_entry', price: 5,
-        items: [{ targetRoomId: quiz.room_id, itemType: 'quiz_individual_ticket', quantity: 1 }] },
-    ];
+    const quizOption = quiz?.sellable_options?.find(
+      option => option.itemType === 'quiz_entry'
+    );
+
+    if (!quiz || !quizOption) return [];
+
+    return [{
+      name: 'Quiz Entry + All Extras',
+      packType: 'single_entry',
+      price: Number(quizOption.configuredPrice),
+      items: [{
+        targetRoomId: quiz.room_id,
+        itemType: 'quiz_entry',
+        quantity: 1,
+        metadata: {
+          ...quizOption.metadata,
+          optionId: quizOption.optionId,
+          configuredPrice: quizOption.configuredPrice,
+        },
+      }],
+    }];
   },
 
   puzzle_campaign: (rooms) => {
