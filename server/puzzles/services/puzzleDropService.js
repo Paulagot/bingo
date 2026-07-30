@@ -1,19 +1,19 @@
 // server/puzzles/services/puzzleDropService.js
 //
-// Puzzle Drop — room/item/pricing-tier/entitlement service.
+// Puzzle Drop - room/item/pricing-tier/entitlement service.
 //
 // Mirrors quizTicketService.js's shape wherever the underlying concern is
 // the same (room config reads, club-payment-method validation), but never
-// imports from it directly — the spec (§11) is explicit that only the
+// imports from it directly - the spec (§11) is explicit that only the
 // PATTERNS should be extracted/adapted, not the ticket-writing logic
 // itself. Drop has no ticket table involvement at all (§10).
 //
 // Drop room lifecycle is deliberately simple (§3.1): no scheduled/live/
-// completed lifecycle like quiz/elimination — just 'scheduled' until
+// completed lifecycle like quiz/elimination - just 'scheduled' until
 // scheduled_at passes, then 'open' forever after (no "event night" to
 // close). There is no cron here; the flip is lazy, the same pattern
 // challengeService.js's maybeAutoCompleteChallenge already uses for
-// challenge completion — checked (and applied) the moment anything reads
+// challenge completion - checked (and applied) the moment anything reads
 // the room's config, so it's never more than one read stale.
 
 import database from '../../config/database.js';
@@ -414,7 +414,7 @@ export async function getEntitlementById(entitlementId) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Club-side edit — read + update
+// Club-side edit - read + update
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getDropDetailForClub({ roomId, clubId }) {
@@ -443,7 +443,7 @@ export async function updateDrop({
   if (!room) throw new Error('drop_not_found');
   if (room.clubId !== clubId) throw new Error('access_denied');
   if (room.status !== 'scheduled') {
-    throw new Error('drop_not_editable — only drops not yet on sale can be edited here');
+    throw new Error('drop_not_editable - only drops not yet on sale can be edited here');
   }
 
   const sets = [];
@@ -916,7 +916,7 @@ export async function getDropPurchasesForClub({ roomId, clubId }) {
         confirmedByName: row.confirmed_by_name,
         createdAt: row.ledger_created_at || row.entitlement_created_at,
         // needed so the Purchases tab knows which entitlementId to pass
-        // to the existing confirm route — confirming ANY one entitlement
+        // to the existing confirm route - confirming ANY one entitlement
         // on this ledger confirms all siblings (see confirmDropPurchase)
         primaryEntitlementId: row.entitlement_id,
         items: [],

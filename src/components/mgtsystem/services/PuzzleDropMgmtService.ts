@@ -1,7 +1,7 @@
 // src/components/mgtsystem/services/PuzzleDropMgmtService.ts
 //
 // Frontend service for Puzzle Drop's club-side management calls.
-// Extends BaseService — same auth header pattern as every other mgmt
+// Extends BaseService - same auth header pattern as every other mgmt
 // service (EliminationMgmtService, SupporterAuthService, etc.). Auth is
 // handled entirely by BaseService.request(); this class doesn't need to
 // know or guess how.
@@ -10,7 +10,7 @@
 // server/index.js at '/api/puzzle-drop' (see index_js_additions.txt).
 // Create/get/update sit at or just under the router root; purchases,
 // confirm, complete, and open are additional endpoints on that same
-// router — all reached through this one service, same `base`.
+// router - all reached through this one service, same `base`.
 
 import BaseService from './BaseService';
 
@@ -48,7 +48,7 @@ export interface CreateDropResult {
 // Mixed casing here matches what the two different backend functions
 // actually produce, not smoothed over: getDropRoomConfig explicitly
 // returns camelCased room fields (roomId, clubId, status, etc.), while
-// getDropItems/getDropPricingTiers pass raw DB rows straight through —
+// getDropItems/getDropPricingTiers pass raw DB rows straight through -
 // snake_case, same convention as EliminationRoomListItem elsewhere in
 // this codebase.
 export interface DropItemRow {
@@ -159,7 +159,7 @@ export interface DropLeaderboardEntry {
 }
 
 export interface DropSummaryItem {
-  weekNumber: number; // actually itemNumber — backend field name reused, see getPublicDropSummary
+  weekNumber: number; // actually itemNumber - backend field name reused, see getPublicDropSummary
   puzzleType: string;
   difficulty: string;
   isUnlocked: boolean;
@@ -194,14 +194,14 @@ export interface GetDropItemLeaderboardResult {
 class PuzzleDropMgmtService extends BaseService {
   private readonly base = '/puzzle-drop';
 
-  /** Compact per-item summary (top 3 each) — powers the Leaderboard tab's default view. */
+  /** Compact per-item summary (top 3 each) - powers the Leaderboard tab's default view. */
   async getPublicSummary(roomId: string): Promise<GetDropSummaryResult> {
     return this.request<GetDropSummaryResult>(
       `${this.base}/public/${encodeURIComponent(roomId)}/leaderboard-summary`
     );
   }
 
-  /** Full leaderboard for one puzzle item — fetched on expand. */
+  /** Full leaderboard for one puzzle item - fetched on expand. */
   async getItemLeaderboard(roomId: string, itemNumber: number): Promise<GetDropItemLeaderboardResult> {
     return this.request<GetDropItemLeaderboardResult>(
       `${this.base}/public/${encodeURIComponent(roomId)}/items/${itemNumber}/leaderboard`
@@ -215,14 +215,14 @@ class PuzzleDropMgmtService extends BaseService {
     });
   }
 
-  /** Combined room+items+tiers read — seeds EditFundraiserModal's edit UI. */
+  /** Combined room+items+tiers read - seeds EditFundraiserModal's edit UI. */
   async getDrop(roomId: string): Promise<DropDetail> {
     return this.request<DropDetail>(`${this.base}/${encodeURIComponent(roomId)}`);
   }
 
   /**
    * Edit a Drop. Only succeeds while the room is still 'scheduled' (not
-   * yet on sale) — see updateDrop's backend comment for why. A 409 with
+   * yet on sale) - see updateDrop's backend comment for why. A 409 with
    * error: 'drop_not_editable' means it's already gone on sale.
    */
   async updateDrop(roomId: string, payload: UpdateDropPayload): Promise<DropDetail> {
@@ -241,8 +241,8 @@ class PuzzleDropMgmtService extends BaseService {
 
   /**
    * Confirm a claimed purchase. Confirming ANY entitlement on a ledger
-   * confirms every sibling entitlement sharing that ledger row too — see
-   * confirmDropPurchase's backend implementation — so callers only ever
+   * confirms every sibling entitlement sharing that ledger row too - see
+   * confirmDropPurchase's backend implementation - so callers only ever
    * need to pass one entitlementId per purchase, not one per item.
    */
   async confirmPurchase(payload: ConfirmDropPurchasePayload): Promise<ConfirmDropPurchaseResult> {
@@ -260,7 +260,7 @@ class PuzzleDropMgmtService extends BaseService {
   }
 
   /**
-   * Mark a Drop as completed — stops new purchases, leaves existing
+   * Mark a Drop as completed - stops new purchases, leaves existing
    * confirmed entitlements untouched. Irreversible from this call alone.
    */
   async completeDrop(roomId: string): Promise<CompleteDropResult> {
@@ -272,7 +272,7 @@ class PuzzleDropMgmtService extends BaseService {
 
   /**
    * Opens a Drop for purchases immediately, ahead of its scheduled_at
-   * time. Only valid while status is still 'scheduled' — a 409 with
+   * time. Only valid while status is still 'scheduled' - a 409 with
    * error: 'drop_not_schedulable' means it's already open, completed,
    * or cancelled.
    */
@@ -284,6 +284,6 @@ class PuzzleDropMgmtService extends BaseService {
   }
 }
 
-// Singleton — same pattern as every other mgmt service
+// Singleton - same pattern as every other mgmt service
 const puzzleDropMgmtService = new PuzzleDropMgmtService();
 export default puzzleDropMgmtService;

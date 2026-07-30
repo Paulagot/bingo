@@ -16,7 +16,7 @@
  *   3. Call SyncNative to tell the token program about the new balance
  *
  * Unwrapping:
- *   1. Close the wSOL ATA — token program sends the lamports back to the owner
+ *   1. Close the wSOL ATA - token program sends the lamports back to the owner
  *
  * Both operations are done as instructions prepended/appended to the main
  * transaction so everything settles atomically.
@@ -57,7 +57,7 @@ export const WSOL_MINT = NATIVE_MINT; // So1111111111111111111111111111111111111
 
 /**
  * Get the player's wSOL Associated Token Account address.
- * This is deterministic — same address every time for a given wallet.
+ * This is deterministic - same address every time for a given wallet.
  */
 export async function getWsolAta(owner: PublicKey): Promise<PublicKey> {
   return getAssociatedTokenAddress(WSOL_MINT, owner);
@@ -112,7 +112,7 @@ export async function buildWrapSolInstructions(
   const ataAlreadyExists = await wsolAtaExists(connection, owner);
 
   if (!ataAlreadyExists) {
-    console.log('[wSOL] 📝 wSOL ATA does not exist — adding createATA instruction');
+    console.log('[wSOL] 📝 wSOL ATA does not exist - adding createATA instruction');
     instructions.push(
       createAssociatedTokenAccountInstruction(
         owner,      // payer
@@ -122,11 +122,11 @@ export async function buildWrapSolInstructions(
       )
     );
   } else {
-    console.log('[wSOL] ✅ wSOL ATA already exists — skipping createATA');
+    console.log('[wSOL] ✅ wSOL ATA already exists - skipping createATA');
   }
 
   // Step 2: Transfer native SOL into the wSOL ATA
-  // The ATA is just a regular account — we transfer SOL lamports into it
+  // The ATA is just a regular account - we transfer SOL lamports into it
   instructions.push(
     SystemProgram.transfer({
       fromPubkey: owner,
@@ -137,7 +137,7 @@ export async function buildWrapSolInstructions(
 
   console.log('[wSOL] 💸 Added SOL transfer instruction:', lamports.toString(), 'lamports');
 
-  // Step 3: SyncNative — tells the token program to read the new lamport
+  // Step 3: SyncNative - tells the token program to read the new lamport
   // balance and update the token account's amount field
   instructions.push(
     createSyncNativeInstruction(wsolAta, TOKEN_PROGRAM_ID)
@@ -202,7 +202,7 @@ export async function getWsolBalance(
 }
 
 /**
- * Type guard — check if a mint address is the wSOL mint.
+ * Type guard - check if a mint address is the wSOL mint.
  * Use this in hooks to decide whether to wrap/unwrap.
  *
  * @example
@@ -215,7 +215,7 @@ export function isWsolMint(mintAddress: string): boolean {
 }
 
 /**
- * isNativeSolRoom — convenience helper for hooks.
+ * isNativeSolRoom - convenience helper for hooks.
  * Returns true if the room's fee token is wSOL (i.e. a SOL room).
  *
  * @example

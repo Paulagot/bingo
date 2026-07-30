@@ -8,7 +8,7 @@ const METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
  *
  * Skips any row that has been disconnected (connect.disconnectedAt is set).
  * Disconnected rows are kept in the DB so historical ledger/report joins on
- * club_payment_method_id continue to resolve — they are just invisible to
+ * club_payment_method_id continue to resolve - they are just invisible to
  * all active payment flows.
  *
  * Returns the most recently created non-disconnected stripe row, or null.
@@ -33,12 +33,12 @@ export async function getStripeMethodForClub(clubId) {
 /**
  * Get the most recent Stripe row for a club regardless of disconnected state.
  *
- * Used only for UI display — lets the frontend show previously disconnected
+ * Used only for UI display - lets the frontend show previously disconnected
  * account details (accountId, disconnectedAt, disconnectedBy) so the admin
  * knows what was there before and can make an informed decision about whether
  * to reconnect the same account or start fresh.
  *
- * Never used in payment flows — use getStripeMethodForClub for those.
+ * Never used in payment flows - use getStripeMethodForClub for those.
  */
 export async function getMostRecentStripeRowForClub(clubId) {
   const sql = `
@@ -62,7 +62,7 @@ export async function getMostRecentStripeRowForClub(clubId) {
  * If any one is false the row is saved with is_enabled: false so the club UI
  * shows "Setup incomplete" and players cannot reach the Stripe checkout.
  *
- * Only touches non-disconnected rows — disconnected rows are never updated
+ * Only touches non-disconnected rows - disconnected rows are never updated
  * because getStripeMethodForClub already filters them out.
  */
 export async function upsertStripeMethodForClub({ clubId, accountId, connectStatus, addedBy }) {

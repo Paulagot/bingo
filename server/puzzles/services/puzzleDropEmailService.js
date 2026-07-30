@@ -1,6 +1,6 @@
 // server/puzzles/services/puzzleDropEmailService.js
 //
-// Sends a single "your puzzles are ready" email per Drop purchase — one
+// Sends a single "your puzzles are ready" email per Drop purchase - one
 // email per ledger/purchase, listing every item bought, not one per item.
 // Mirrors peerOrderEmailService.js's shape and non-fatal calling
 // convention (payment is already committed by the time this runs; a
@@ -53,7 +53,7 @@ function buildItemsHtml(items, appUrl) {
       <tr>
         <td style="padding:14px 16px;border-bottom:1px solid #f1f5f9;">
           <div style="font-weight:700;color:#1e293b;font-size:15px;">
-            Puzzle #${item.itemNumber}${item.puzzleType ? ` — ${item.puzzleType}` : ''}
+            Puzzle #${item.itemNumber}${item.puzzleType ? ` - ${item.puzzleType}` : ''}
           </div>
           <a href="${link}"
              style="display:inline-block;margin-top:8px;background:#7c3aed;color:#fff;
@@ -73,7 +73,7 @@ function buildItemsHtml(items, appUrl) {
  * @param {string|null} params.dropTitle
  * @param {string} params.buyerEmail
  * @param {string|null} params.buyerName
- * @param {string|null} params.ledgerId — used to pull total paid, optional
+ * @param {string|null} params.ledgerId - used to pull total paid, optional
  * @param {Array<{entitlementId:string, itemNumber:number, puzzleType?:string, accessToken:string}>} params.items
  */
 export async function sendPuzzleDropConfirmationEmail({
@@ -86,11 +86,11 @@ export async function sendPuzzleDropConfirmationEmail({
   items,
 }) {
   if (!buyerEmail) {
-    console.warn(`[PuzzleDropEmail] ⚠️ No buyerEmail for drop ${dropRoomId} — skipping email`);
+    console.warn(`[PuzzleDropEmail] ⚠️ No buyerEmail for drop ${dropRoomId} - skipping email`);
     return;
   }
   if (!Array.isArray(items) || items.length === 0) {
-    console.warn(`[PuzzleDropEmail] ⚠️ No items for drop ${dropRoomId} — skipping email`);
+    console.warn(`[PuzzleDropEmail] ⚠️ No items for drop ${dropRoomId} - skipping email`);
     return;
   }
 
@@ -119,7 +119,7 @@ export async function sendPuzzleDropConfirmationEmail({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your puzzles are ready — ${clubName}</title>
+  <title>Your puzzles are ready - ${clubName}</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
   <div style="max-width:560px;margin:36px auto 24px;background:#ffffff;border-radius:16px;overflow:hidden;
@@ -138,7 +138,7 @@ export async function sendPuzzleDropConfirmationEmail({
     <div style="padding:24px 28px 32px;">
       <p style="color:#1e293b;font-size:16px;margin:0 0 6px;">Hi <strong>${name}</strong>,</p>
       <p style="color:#475569;font-size:15px;line-height:1.65;margin:0 0 20px;">
-        Your payment is confirmed — tap the link below for each puzzle you bought to start playing.
+        Your payment is confirmed - tap the link below for each puzzle you bought to start playing.
       </p>
 
       <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;overflow:hidden;">
@@ -152,7 +152,7 @@ export async function sendPuzzleDropConfirmationEmail({
         <span style="font-size:22px;line-height:1;">💌</span>
         <p style="margin:0;color:#64748b;font-size:13px;line-height:1.6;">
           This confirmation was sent to <strong style="color:#1e293b;">${buyerEmail}</strong>.
-          Keep this email — each link is your access to that puzzle.
+          Keep this email - each link is your access to that puzzle.
         </p>
       </div>
     </div>
@@ -167,7 +167,7 @@ export async function sendPuzzleDropConfirmationEmail({
 </body>
 </html>`;
 
-  const subject = `🧩 ${clubName} Puzzle Drop — your puzzle${items.length > 1 ? 's are' : ' is'} ready!`;
+  const subject = `🧩 ${clubName} Puzzle Drop - your puzzle${items.length > 1 ? 's are' : ' is'} ready!`;
 
   await sendEmailSafe({ to: buyerEmail, subject, html });
 

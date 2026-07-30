@@ -2,8 +2,8 @@
 //
 // GET /api/donations/:clubId/crypto/quote
 //
-// Mirrors quizCryptoQuoteRouter.js's shape almost exactly — same TTL,
-// same token list, same response shape — but resolves currency from
+// Mirrors quizCryptoQuoteRouter.js's shape almost exactly - same TTL,
+// same token list, same response shape - but resolves currency from
 // the CLUB (via DonationCheckoutService's club lookup) instead of a
 // quiz room's config_json.
 //
@@ -20,12 +20,12 @@ const router = express.Router();
 
 const CLUBS_TABLE = `${TABLE_PREFIX}clubs`;
 
-// Same TTL as the quiz quote — long enough to connect a wallet and
+// Same TTL as the quiz quote - long enough to connect a wallet and
 // confirm, short enough that price drift stays small.
 const QUOTE_TTL_MS = 2 * 60 * 1000;
 
 // Same supported token list as quiz crypto donations. Kept as a
-// separate const here (not imported) deliberately — donation buttons
+// separate const here (not imported) deliberately - donation buttons
 // and quiz rooms could diverge on which tokens they support over time,
 // and importing a shared list would silently couple them.
 const SUPPORTED_TOKENS = new Set([

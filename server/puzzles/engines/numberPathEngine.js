@@ -30,11 +30,11 @@ const PAIR_COUNTS = {
 // Snake-layout builder
 //
 // Full-coverage, non-crossing layouts are easy to get subtly wrong by hand
-// (see git history / bug reports — a stray trailing cell in one hand-typed
+// (see git history / bug reports - a stray trailing cell in one hand-typed
 // pair silently broke two of the original curated layouts). This builder
 // constructs them so they are correct *by construction*:
 //
-//   1. Walk the whole grid once in a boustrophedon ("snake") order — every
+//   1. Walk the whole grid once in a boustrophedon ("snake") order - every
 //      step in this walk is orthogonally adjacent to the last, and it visits
 //      every cell exactly once.
 //   2. Cut that single walk into N contiguous chunks. Because each chunk is
@@ -118,7 +118,7 @@ const LAYOUTS = {
         { id: 2, cells: [[0,3],[0,4],[0,5],[1,5],[1,4],[1,3],[2,3],[2,4],[2,5],[3,5]] },
         { id: 3, cells: [[2,1],[2,2],[3,2],[3,1]] },
         { id: 4, cells: [[3,3],[3,4],[4,4],[4,3],[5,3],[5,4],[5,5],[4,5]] },
-        // FIX: this pair previously ended with an extra [3,0] — a cell
+        // FIX: this pair previously ended with an extra [3,0] - a cell
         // already claimed by pair 1 and not even adjacent to [5,0] before
         // it, which made this layout unsolvable. Path now ends at [5,0].
         { id: 5, cells: [[4,0],[4,1],[4,2],[5,2],[5,1],[5,0]] },
@@ -143,8 +143,8 @@ const LAYOUTS = {
         { id: 1, cells: [[0,0],[0,1],[0,2],[1,2],[1,1],[1,0],[2,0],[2,1],[2,2],[3,2],[3,1],[3,0]] },
         { id: 2, cells: [[0,3],[0,4],[0,5],[0,6],[0,7],[1,7],[1,6],[1,5],[1,4],[1,3],[2,3],[2,4]] },
         { id: 3, cells: [[2,5],[2,6],[2,7],[3,7],[3,6],[3,5],[4,5],[4,6],[4,7]] },
-        // FIX: this pair previously ended with an extra [4,5] — already
-        // claimed by pair 3 — which made this layout unsolvable. Path now
+        // FIX: this pair previously ended with an extra [4,5] - already
+        // claimed by pair 3 - which made this layout unsolvable. Path now
         // ends at [5,5].
         { id: 4, cells: [[3,3],[3,4],[4,4],[4,3],[5,3],[5,4],[5,5]] },
         { id: 5, cells: [[4,0],[4,1],[4,2],[5,2],[5,1],[5,0],[6,0],[6,1]] },
@@ -159,7 +159,7 @@ const LAYOUTS = {
 };
 
 // ---------------------------------------------------------------------------
-// Layout self-check — runs once at module load. If a layout is broken this
+// Layout self-check - runs once at module load. If a layout is broken this
 // throws immediately (loudly, in dev/CI) instead of silently shipping an
 // unsolvable puzzle to a player.
 // ---------------------------------------------------------------------------
@@ -202,7 +202,7 @@ function assertValidLayout(difficulty, layout, layoutIndex) {
   }
 
   if (seen.size !== size * size) {
-    throw new Error(`${label}: covers ${seen.size} of ${size * size} cells — grid is not fully covered.`);
+    throw new Error(`${label}: covers ${seen.size} of ${size * size} cells - grid is not fully covered.`);
   }
 }
 
@@ -237,14 +237,14 @@ export function generate(config) {
   const layout  = layouts[Math.floor(rng() * layouts.length)];
   const size    = layout.size;
 
-  // Build endpoint cells for puzzleData — only start/end of each path shown
+  // Build endpoint cells for puzzleData - only start/end of each path shown
   const endpoints = layout.pairs.map(p => ({
     id:    p.id,
     start: p.cells[0],
     end:   p.cells[p.cells.length - 1],
   }));
 
-  // Build solved grid for solutionData — each cell tagged with its path id
+  // Build solved grid for solutionData - each cell tagged with its path id
   const solvedGrid = Array.from({ length: size }, () => new Array(size).fill(0));
   for (const p of layout.pairs) {
     for (const [r, c] of p.cells) {

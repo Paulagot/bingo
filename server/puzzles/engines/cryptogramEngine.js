@@ -44,7 +44,7 @@ const PHRASES = {
   ],
 };
 
-// Number of starter letters revealed for free, scaled by difficulty — a
+// Number of starter letters revealed for free, scaled by difficulty - a
 // short easy phrase with only one free letter is still a genuinely hard
 // substitution-cipher puzzle for a casual/quick daily play; hard phrases
 // have enough length that one hint is plenty.
@@ -55,7 +55,7 @@ const STARTER_HINT_COUNTS = {
 };
 
 // ---------------------------------------------------------------------------
-// Phrase bank self-check — runs once at module load.
+// Phrase bank self-check - runs once at module load.
 // ---------------------------------------------------------------------------
 
 function assertValidPhrase(difficulty, phrase, index) {
@@ -132,7 +132,7 @@ function assertValidCipher(encode) {
 }
 
 /**
- * Apply a cipher map to a string — non-alpha characters pass through unchanged.
+ * Apply a cipher map to a string - non-alpha characters pass through unchanged.
  */
 function applyCipher(text, map) {
   return text.split('').map(ch => map.get(ch) ?? ch).join('');

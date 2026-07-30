@@ -2,7 +2,7 @@
 //
 // Check-in dashboard for ticketed events.
 // Accessible to logged-in club users AND door staff via operator token.
-// No socket — everything is HTTP with polling.
+// No socket - everything is HTTP with polling.
 //
 // URL: /ticketed-event/checkin/:roomId?hostId=xxx  (logged-in host)
 //      /ticketed-event/checkin/:roomId?token=xxx   (door staff operator token)
@@ -16,7 +16,7 @@
 //     identical and actionable, which is how a declined card got marked paid.
 //   - confirmPayment reads the response. It used to swallow every error, so a
 //     rejection looked like success until the next refresh.
-//   - Collect at door — when an online payment fails, re-collect as cash or
+//   - Collect at door - when an online payment fails, re-collect as cash or
 //     card tap instead of pretending the original payment landed.
 //
 // UPDATED (polling):
@@ -24,7 +24,7 @@
 //     the dashboard only updated on manual refresh. It's now derived from
 //     roomInfo.status.
 //   - Polling pauses while the tab is hidden and refreshes immediately when
-//     it comes back — a phone in a pocket shouldn't hit the API all night.
+//     it comes back - a phone in a pocket shouldn't hit the API all night.
 //   - loadData takes { silent } so a failed poll no longer replaces the whole
 //     screen with the error state. Only initial load and manual refresh do.
 
@@ -63,7 +63,7 @@ interface TicketRow {
   redeemedAt:       string | null;
   joinToken:        string;
 
-  // Settlement policy — computed server-side, never derived in the client.
+  // Settlement policy - computed server-side, never derived in the client.
   // Optional so the dashboard still works if the frontend ships first.
   methodLabel?:        string | null;
   settlementMode?:     SettlementMode;
@@ -114,13 +114,13 @@ function norm(s: string) {
 }
 
 function formatTime(value: string | null | undefined): string {
-  if (!value) return '—';
+  if (!value) return '-';
   try {
     return new Date(value).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
-  } catch { return '—'; }
+  } catch { return '-'; }
 }
 
-// Get auth headers — prefer token param, fall back to localStorage JWT
+// Get auth headers - prefer token param, fall back to localStorage JWT
 function getAuthHeaders(token?: string | null): Record<string, string> {
   const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
   const bearer = token || stored;
@@ -137,7 +137,7 @@ function getTokenFromUrl(): string | null {
 }
 
 // The API sends these flags. If an older API build is deployed, fall back to
-// "manual" so the dashboard keeps behaving exactly as it did before — the
+// "manual" so the dashboard keeps behaving exactly as it did before - the
 // server-side guard still blocks anything it shouldn't allow.
 function isAutoSettled(ticket: TicketRow): boolean {
   return ticket.settlementMode === 'auto';
@@ -205,7 +205,7 @@ const AwaitingBadge: React.FC<{ label?: string | null }> = ({ label }) => (
 
 // ─── Collect at door ──────────────────────────────────────────────────────────
 // When an online payment doesn't land, take the money in person and move the
-// ticket onto a real door method. Keeps the books honest — the ticket ends up
+// ticket onto a real door method. Keeps the books honest - the ticket ends up
 // recorded as cash/card tap, not as a card payment that never cleared.
 
 const CollectAtDoorDialog: React.FC<{
@@ -387,7 +387,7 @@ const AdminsTab: React.FC<{
           setAdmins(data.admins);
         }
       } catch {
-        // Non-fatal — staff list just starts empty
+        // Non-fatal - staff list just starts empty
       } finally {
         if (!cancelled) setLoadingList(false);
       }
@@ -428,7 +428,7 @@ const AdminsTab: React.FC<{
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // ── Add admin — persists to backend, only updates state on success ────────
+  // ── Add admin - persists to backend, only updates state on success ────────
   const handleAdd = async () => {
     const trimmed = newName.trim();
     if (!trimmed || adding) return;
@@ -453,7 +453,7 @@ const AdminsTab: React.FC<{
     }
   };
 
-  // ── Remove admin — optimistic, rolls back on failure ───────────────────────
+  // ── Remove admin - optimistic, rolls back on failure ───────────────────────
   const handleRemove = async (id: string) => {
     const previous = admins;
     setAdmins(prev => prev.filter(a => a.id !== id));
@@ -632,7 +632,7 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId }) =>
 
   // ── Load data ────────────────────────────────────────────────────────────
   // silent: true is used by the poll. A failed background refresh must not
-  // replace a working screen with the full-page error state — door staff
+  // replace a working screen with the full-page error state - door staff
   // would lose the attendee list over one flaky request on venue wifi.
   const loadData = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
@@ -672,7 +672,7 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId }) =>
   // ── Polling ──────────────────────────────────────────────────────────────
   // Derived from the room status. This used to be a useState flag nothing ever
   // set, so the interval never started and the dashboard only updated on a
-  // manual refresh — stale rows are exactly what leads to someone confirming a
+  // manual refresh - stale rows are exactly what leads to someone confirming a
   // payment by hand that the gateway had already settled or declined.
   const isOpen = roomInfo?.status === 'open';
 
@@ -696,7 +696,7 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId }) =>
 
     const interval = setInterval(pollOnce, 60_000);
 
-    // Refresh the moment staff bring the app back to the foreground — that's
+    // Refresh the moment staff bring the app back to the foreground - that's
     // when they most need current data, and ticks were skipped while the
     // screen was off.
     const onVisibilityChange = () => {
@@ -751,14 +751,14 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId }) =>
     pending:   tickets.filter(t => t.paymentStatus === 'payment_claimed').length,
   }), [tickets]);
 
-  // Payments needing a human — cash, card tap, transfers. These are the ones
+  // Payments needing a human - cash, card tap, transfers. These are the ones
   // where a person checking IS the verification.
   const pendingPayments = useMemo(
     () => tickets.filter(t => canConfirm(t)),
     [tickets]
   );
 
-  // Payments settling elsewhere — Stripe, crypto. Read-only.
+  // Payments settling elsewhere - Stripe, crypto. Read-only.
   const awaitingGateway = useMemo(
     () => tickets.filter(t => t.paymentStatus === 'payment_claimed' && isAutoSettled(t)),
     [tickets]
@@ -854,7 +854,7 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId }) =>
           confirmed={stats.confirmed}
         />
 
-        {/* Confirm error — e.g. a blocked manual confirm on a card payment */}
+        {/* Confirm error - e.g. a blocked manual confirm on a card payment */}
         {confirmError && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4">
             <div className="flex items-start justify-between gap-3">
@@ -1092,7 +1092,7 @@ export const CheckinDashboard: React.FC<CheckinDashboardProps> = ({ roomId }) =>
                   )}
                 </div>
 
-                {/* Settling elsewhere — read-only, no Confirm button anywhere */}
+                {/* Settling elsewhere - read-only, no Confirm button anywhere */}
                 {awaitingGateway.length > 0 && (
                   <div className="space-y-3">
                     <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">

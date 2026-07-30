@@ -45,7 +45,7 @@ export function getSupportedPuzzleTypes() {
 
 /**
  * Generate a puzzle for a challenge week.
- * Runs once — if already generated returns the existing instance.
+ * Runs once - if already generated returns the existing instance.
  * All players in the same challenge+week get the same instance.
  */
 
@@ -86,7 +86,7 @@ export async function generatePuzzleForWeek({ challengeId, weekNumber, puzzleTyp
     ]
   );
 
-  // Fetch back using the UUID we generated — no insertId needed
+  // Fetch back using the UUID we generated - no insertId needed
   const [rows] = await database.connection.execute(
     `SELECT id, puzzle_type, difficulty, seed, puzzle_data, solution_data, meta
      FROM fundraisely_puzzle_instances WHERE id = ? LIMIT 1`,
@@ -99,18 +99,18 @@ export async function generatePuzzleForWeek({ challengeId, weekNumber, puzzleTyp
 /**
  * Generate a puzzle for a Puzzle Drop item.
  *
- * Sibling of generatePuzzleForWeek — same "generate once, reuse forever"
+ * Sibling of generatePuzzleForWeek - same "generate once, reuse forever"
  * shape, same table, same engines. Keyed on (drop_room_id, item_number)
  * instead of (challenge_id, week_number); see the puzzle_drop_migration.sql
  * comments for why both column pairs can coexist safely on one table
  * (challenge_id/week_number are nullable now, this call never touches
  * them, so subscription rows and Drop rows never collide).
  *
- * Every buyer of the same Drop item gets the SAME instance — matches the
+ * Every buyer of the same Drop item gets the SAME instance - matches the
  * spec's design (§6): "generate the instance with a Drop-specific seed
  * ... store the resulting instance_id on the entitlement row." Called
  * once, at entitlement-confirmation time, from the purchase/confirm flow
- * — not on every puzzle GET the way the subscription's lazy week-unlock
+ * - not on every puzzle GET the way the subscription's lazy week-unlock
  * pattern works, since a Drop item has no unlock gate to wait on.
  */
 export async function generatePuzzleForDropItem({ dropRoomId, itemNumber, puzzleType, difficulty = 'medium', clubId }) {
@@ -160,7 +160,7 @@ export async function generatePuzzleForDropItem({ dropRoomId, itemNumber, puzzle
 
 /**
  * Strip solution_data before sending to client.
- * Call this on every GET response — never expose solutionData.
+ * Call this on every GET response - never expose solutionData.
  */
 export function getClientPuzzleData(instance) {
   return {

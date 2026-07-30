@@ -4,15 +4,15 @@
 // Tickets tab. Unlike the donation button's embed section (a modal
 // with a "Generate embed code" button that calls the BACKEND, because
 // a Tier A manual-link button needs its saved payment link fetched
-// first), this is a plain client-side expand/collapse — both snippets
+// first), this is a plain client-side expand/collapse - both snippets
 // only ever need roomId + window.location.origin, both already known
 // without a network call. Clicking "Get embed code" just reveals them;
 // there's nothing to "generate" server-side.
 //
 // clubId is used ONLY to point the club at where they register their
 // site's domain (the same allowed-domains list the donation button
-// uses — see DonationButtonService.js's fundraisely_club_allowed_domains
-// table). It does NOT appear in the embed snippets themselves — those
+// uses - see DonationButtonService.js's fundraisely_club_allowed_domains
+// table). It does NOT appear in the embed snippets themselves - those
 // only need roomId, since the backend resolves clubId from the room.
 
 import { useState } from 'react';
@@ -98,7 +98,7 @@ function CodeBlock({ code }: { code: string }) {
       </button>
       {state === 'failed' && (
         <p className="mt-2 text-xs text-red-600">
-          Couldn't copy automatically — select the code above and copy it manually (Ctrl/Cmd+C).
+          Couldn't copy automatically - select the code above and copy it manually (Ctrl/Cmd+C).
         </p>
       )}
     </div>
@@ -155,7 +155,7 @@ export default function TicketEmbedCodePanel({ roomId, clubId }: Props) {
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" />
             <p className="text-xs text-amber-900">
-              Before the button version works on your site, your website's domain needs to be registered — the same setting used for your donation button (Payments → Donation Button → Authorized websites). Club ID: <code className="rounded bg-white px-1 py-0.5">{clubId}</code>
+              Before the button version works on your site, your website's domain needs to be registered - the same setting used for your donation button (Payments → Donation Button → Authorized websites). Club ID: <code className="rounded bg-white px-1 py-0.5">{clubId}</code>
             </p>
           </div>
 
@@ -179,7 +179,7 @@ export default function TicketEmbedCodePanel({ roomId, clubId }: Props) {
             </div>
             <p className="mb-2 text-xs text-gray-500">
               The ticket purchase form sits directly on your page, no click required.{' '}
-              <strong>Note:</strong> this form does not currently check which site it's embedded on — anyone with this code could embed it. Fine for your own site, just don't share this exact snippet publicly.
+              <strong>Note:</strong> this form does not currently check which site it's embedded on - anyone with this code could embed it. Fine for your own site, just don't share this exact snippet publicly.
             </p>
             <CodeBlock code={inlineSnippet} />
           </div>

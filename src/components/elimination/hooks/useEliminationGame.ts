@@ -60,7 +60,7 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
       if (state.room) {
         return { ...state, room: { ...state.room, players: action.players } };
       }
-      // Room not yet hydrated — store players so waiting room can show them
+      // Room not yet hydrated - store players so waiting room can show them
       return state; // room not yet hydrated, waitingPlayers in GamePage handles this
 
     case 'SET_LOCAL_PLAYER':
@@ -70,7 +70,7 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
       return { ...state, view: 'round_intro' };
 
     case 'ROUND_INTRO': {
-      // Eliminated players stay on eliminated view — never go back to round screens
+      // Eliminated players stay on eliminated view - never go back to round screens
       const isEliminated = state.localPlayer?.eliminated ?? false;
       return {
         ...state,
@@ -109,7 +109,7 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
         : state;
 
     case 'ROUND_REVEAL': {
-      // Reveal phase — show correct answer, don't show scores yet
+      // Reveal phase - show correct answer, don't show scores yet
       // Eliminated players skip reveal entirely and stay on eliminated view
       const isAlreadyEliminated = state.localPlayer?.eliminated ?? false;
       return {
@@ -120,7 +120,7 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
     }
 
     case 'ROUND_RESULTS': {
-      // Scores phase — comes after reveal, now we know who was eliminated
+      // Scores phase - comes after reveal, now we know who was eliminated
       const isLocalEliminated = state.localPlayer
         ? action.eliminatedIds.includes(state.localPlayer.playerId)
         : false;
@@ -137,7 +137,7 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
     }
 
     case 'ADVANCE_FROM_REVEAL': {
-      // Only surviving players reach this — eliminated players stay on 'eliminated' view
+      // Only surviving players reach this - eliminated players stay on 'eliminated' view
       // and never see reveal, so they never call advanceFromReveal
       return {
         ...state,
@@ -149,7 +149,7 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
       return {
         ...state,
         winner: action.payload,
-        // Eliminated players transition to 'game_over' — they see a simplified end screen
+        // Eliminated players transition to 'game_over' - they see a simplified end screen
         // Surviving players and host see the full winner view
         view: state.localPlayer?.eliminated ? 'game_over' : 'winner',
         activeRound: null,

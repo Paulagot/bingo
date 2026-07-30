@@ -26,7 +26,7 @@ router.post('/magic-link', async (req, res) => {
     if (!email)   return res.status(400).json({ error: 'email is required' });
     if (!clubId)  return res.status(400).json({ error: 'clubId is required' });
 
-    // If no name provided this is a returning player login — look them up
+    // If no name provided this is a returning player login - look them up
     let resolvedName = name;
     if (!resolvedName) {
       const [[existing]] = await database.connection.execute(
@@ -34,7 +34,7 @@ router.post('/magic-link', async (req, res) => {
         [email, clubId]
       );
       if (!existing) {
-        // Unknown email on login attempt — don't reveal whether account exists
+        // Unknown email on login attempt - don't reveal whether account exists
         // Just return success to prevent email enumeration
         return res.json({ ok: true });
       }
@@ -69,7 +69,7 @@ router.post('/magic-link', async (req, res) => {
 /**
  * GET /api/supporter-auth/verify?token=...&challengeId=...
  * Public. Called when player clicks magic link.
- * challengeId is optional — when present, and the challenge is free,
+ * challengeId is optional - when present, and the challenge is free,
  * the player is auto-enrolled as part of verification (see
  * verifyMagicLink / joinFree). Absent for generic logins with no
  * specific challenge context.

@@ -144,7 +144,7 @@ const UsecaseCharitiesPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'Yes, CSV/PDF exports summarise participation, income by method/purpose, and prize/sponsor logs—useful for committee reporting and grant applications.'
+            'Yes, CSV/PDF exports summarise participation, income by method/purpose, and prize/sponsor logs-useful for committee reporting and grant applications.'
         }
       },
       {
@@ -326,7 +326,7 @@ const UsecaseCharitiesPage: React.FC = () => {
             <FeatureCard
               icon={<Clock className="h-5 w-5" />}
               title="Simple Setup for Volunteers"
-              desc="Run a professional quiz without extra workload—perfect for small teams."
+              desc="Run a professional quiz without extra workload-perfect for small teams."
             />
             <FeatureCard
               icon={<Shield className="h-5 w-5" />}

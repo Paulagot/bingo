@@ -1,14 +1,14 @@
 // src/components/puzzles/pages/PuzzleDropWallOfFamePage.tsx
 //
-// Public "wall of fame" for a whole Drop — one card per item showing the
+// Public "wall of fame" for a whole Drop - one card per item showing the
 // top 3, linking through to each item's full board. Modeled on
 // PublicWallOfFamePage.tsx's layout, but Drop-specific (see
 // PuzzleDropItemLeaderboardPage.tsx's header comment for why these
 // aren't literally the same component).
 //
-// Drop has no "final" concept (§3.1 — no completed lifecycle) and every
+// Drop has no "final" concept (§3.1 - no completed lifecycle) and every
 // item is available the instant the Drop is open (no per-item unlock
-// schedule) — isFinal/isUnlocked are always false/true respectively, per
+// schedule) - isFinal/isUnlocked are always false/true respectively, per
 // the backend's own comments on getPublicDropSummary.
 
 import { useEffect, useState } from 'react';
@@ -121,7 +121,7 @@ function ItemPodiumCard({ item, dropRoomId }: { item: DropSummaryItem; dropRoomI
 
       {item.top.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[#D8D1C4] bg-[#FBF8F3] p-4 text-center text-sm text-[#6E6A63]">
-          No one has cracked this one yet — the podium is wide open.
+          No one has cracked this one yet - the podium is wide open.
         </p>
       ) : (
         <ol className="space-y-2">

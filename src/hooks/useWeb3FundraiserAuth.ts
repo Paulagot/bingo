@@ -93,7 +93,7 @@ export function useWeb3FundraiserAuth(callbacks?: {
       console.log('[FundraiserAuth] ✅ restoring verified state from session');
       setStage('verified');
     } else {
-      console.log('[FundraiserAuth] no session — staying idle, waiting for user action');
+      console.log('[FundraiserAuth] no session - staying idle, waiting for user action');
     }
 
     return () => console.log('[FundraiserAuth] 🔴 UNMOUNT');
@@ -120,27 +120,27 @@ export function useWeb3FundraiserAuth(callbacks?: {
     });
 
     if (!userInitiatedRef.current) {
-      console.log('[FundraiserAuth] ⛔ userInitiated is false — skipping (page load protection)');
+      console.log('[FundraiserAuth] ⛔ userInitiated is false - skipping (page load protection)');
       return;
     }
     if (!isConnected || !address) {
-      console.log('[FundraiserAuth] ⛔ not connected or no address yet — waiting');
+      console.log('[FundraiserAuth] ⛔ not connected or no address yet - waiting');
       return;
     }
     if (signingAttempted.current) {
-      console.log('[FundraiserAuth] ⛔ signing already attempted — skipping');
+      console.log('[FundraiserAuth] ⛔ signing already attempted - skipping');
       return;
     }
 
     const session = sessionStorage.getItem(SESSION_KEY);
     if (session) {
-      console.log('[FundraiserAuth] ✅ session exists — setting verified');
+      console.log('[FundraiserAuth] ✅ session exists - setting verified');
       setStage('verified');
       return;
     }
 
     if (!chainFamily) {
-      console.log('[FundraiserAuth] ⛔ chainFamily null — waiting', {
+      console.log('[FundraiserAuth] ⛔ chainFamily null - waiting', {
         caipNetworkId: caipNetwork?.caipNetworkId ?? 'none',
         addressStartsWith0x: address?.startsWith('0x'),
         addressLength: address?.length,
@@ -157,7 +157,7 @@ export function useWeb3FundraiserAuth(callbacks?: {
   useEffect(() => {
     console.log('[FundraiserAuth] 🔗 isConnected changed:', isConnected, '| stage:', stage);
     if (!isConnected && stage === 'verified') {
-      console.log('[FundraiserAuth] 🔌 external disconnect detected — clearing session');
+      console.log('[FundraiserAuth] 🔌 external disconnect detected - clearing session');
       handleSessionClear();
     }
   }, [isConnected]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -169,7 +169,7 @@ export function useWeb3FundraiserAuth(callbacks?: {
 
     console.log('[FundraiserAuth] ⏱ starting 30s timeout for stuck connecting state');
     const timer = setTimeout(() => {
-      console.log('[FundraiserAuth] ⏱ 30s timeout fired — resetting to idle');
+      console.log('[FundraiserAuth] ⏱ 30s timeout fired - resetting to idle');
       setStage((current) => {
         if (current === 'connecting') {
           userInitiatedRef.current = false;
@@ -227,12 +227,12 @@ export function useWeb3FundraiserAuth(callbacks?: {
       console.log('[FundraiserAuth] 📡 verifying with server...');
       setStage('verifying');
       const { token } = await verifySignature(walletAddress, family, nonce, signature);
-      console.log('[FundraiserAuth] ✅ verified — token received');
+      console.log('[FundraiserAuth] ✅ verified - token received');
 
       sessionStorage.setItem(SESSION_KEY, token);
       setStage('verified');
       userInitiatedRef.current = false;
-      console.log('[FundraiserAuth] 🎉 auth complete — calling onVerified');
+      console.log('[FundraiserAuth] 🎉 auth complete - calling onVerified');
       callbacksRef.current?.onVerified?.(walletAddress);
 
     } catch (err: any) {

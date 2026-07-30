@@ -9,7 +9,7 @@ const eliminationCreateLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, 
 const eliminationRoomLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, message: { error: 'Too many requests.' } });
 const paymentMethodsService = new QuizPaymentMethodsService();
 
-// Platform charity reserve wallet — used when TGB minimum not met
+// Platform charity reserve wallet - used when TGB minimum not met
 const PLATFORM_CHARITY_RESERVE = '4dBPGPU6tmsWSsGhHgNMK9QBADWLs9AxKL1Jh7hZeS6o';
 
 import {
@@ -349,7 +349,7 @@ router.post('/rooms/:roomId/finalize-confirm', async (req, res) => {
 
 // ─── GET /api/elimination/rooms/:roomId/reconciliation ────────────────────────
 // Fetch reconciliation record + adjustments for a room.
-// No auth required — roomId is already a secret (UUID-style).
+// No auth required - roomId is already a secret (UUID-style).
 // Used by the host reconciliation panel on mount.
 router.get('/rooms/:roomId/reconciliation', eliminationRoomLimiter, async (req, res) => {
   try {
@@ -508,7 +508,7 @@ router.post('/rooms/:roomId/cancel-confirm', async (req, res) => {
         console.log(`[Elimination] Refund ledger rows written for ${playersWithWallets.length} players, room ${roomId}`);
       }
     } else if (!refundTxHash) {
-      console.log(`[Elimination] No refundTxHash received — skipping refund ledger write for room ${roomId}`);
+      console.log(`[Elimination] No refundTxHash received - skipping refund ledger write for room ${roomId}`);
     }
 
     setTimeout(() => deleteRoom(roomId), 10000);
@@ -555,10 +555,10 @@ router.get('/rooms/:roomId/player/:playerId', (req, res) => {
 });
 
 // ─── GET /api/elimination/rooms/:roomId/available-payment-methods ─────────────
-// Public — no auth needed. Players call this during the join flow to get the
+// Public - no auth needed. Players call this during the join flow to get the
 // payment methods linked to this elimination room.
 // Delegates to QuizPaymentMethodsService which queries fundraisely_web2_quiz_rooms
-// by room_id — game_type agnostic, works for elimination rows as-is.
+// by room_id - game_type agnostic, works for elimination rows as-is.
 router.get('/rooms/:roomId/available-payment-methods', eliminationRoomLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -568,7 +568,7 @@ router.get('/rooms/:roomId/available-payment-methods', eliminationRoomLimiter, a
     return res.json(data);
   } catch (err) {
     if (err?.message === 'Quiz room not found') {
-      // Room exists in memory (web3 or unscheduled) but has no DB row —
+      // Room exists in memory (web3 or unscheduled) but has no DB row -
       // return empty methods rather than 404 so the join flow degrades gracefully.
       return res.json({ ok: true, paymentMethods: [] });
     }

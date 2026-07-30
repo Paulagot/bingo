@@ -1,7 +1,7 @@
 // server/elimination/api/eliminationMgmtService.js
 //
 // DB operations for the elimination management system.
-// All operations are scoped to club_id — never expose rows across clubs.
+// All operations are scoped to club_id - never expose rows across clubs.
 // Status transitions:
 //   scheduled → open  : hydrateEliminationRoom (host clicks Launch)
 //   open      → live  : markEliminationRoomAsLive (called from socket handler on START_GAME)
@@ -41,7 +41,7 @@ function toPositiveNumber(value) {
  * can write both config_json.prizes AND the flat DB columns in one go.
  */
 function normalisePrizes({ prizes, prizeDescription, prizeValue }) {
-  // New shape — prizes array sent from frontend (sponsor passes through as-is)
+  // New shape - prizes array sent from frontend (sponsor passes through as-is)
   if (Array.isArray(prizes) && prizes.length > 0) {
     const winner = prizes[0]; // elimination always has exactly one prize (place 1)
     return {
@@ -51,7 +51,7 @@ function normalisePrizes({ prizes, prizeDescription, prizeValue }) {
     };
   }
 
-  // Legacy fallback — flat fields (e.g. old rooms being re-saved)
+  // Legacy fallback - flat fields (e.g. old rooms being re-saved)
   if (prizeDescription) {
     return {
       prizes: [{
@@ -90,7 +90,7 @@ export async function scheduleEliminationRoom({
   prizeValue:       prizeValueRaw,
   roomCaps,
   // Payment methods chosen at the activity level (this is now the source of
-  // truth — see EventIntegrationsService.addIntegration, which reads this
+  // truth - see EventIntegrationsService.addIntegration, which reads this
   // value back OFF the room and pushes it UP to the linked event, not the
   // other way around).
   ticketMethodIds  = [],
@@ -103,11 +103,11 @@ export async function scheduleEliminationRoom({
   const fee = toPositiveNumber(entryFee);
   if (fee === null) throw Object.assign(new Error('ENTRY_FEE_REQUIRED'), { statusCode: 400 });
 
-  // maxPlayers is set by the route from entitlements — just sanity-check it.
+  // maxPlayers is set by the route from entitlements - just sanity-check it.
   const max = typeof maxPlayers === 'number' && maxPlayers > 0 ? maxPlayers : null;
   if (max === null) throw Object.assign(new Error('MAX_PLAYERS_INVALID'), { statusCode: 400 });
 
-  // Normalise prizes — handles both new array shape and legacy flat fields
+  // Normalise prizes - handles both new array shape and legacy flat fields
   const normalised = normalisePrizes({
     prizes,
     prizeDescription: prizeDescriptionRaw,
@@ -128,7 +128,7 @@ export async function scheduleEliminationRoom({
     paymentMode: 'web2',
     gameType:    'elimination',
     roomCaps:    roomCaps ?? { maxPlayers: max },
-    // prizes array — same shape as quiz config_json.prizes (includes sponsor)
+    // prizes array - same shape as quiz config_json.prizes (includes sponsor)
     prizes:      normalised.prizes,
   });
 
@@ -148,12 +148,12 @@ export async function scheduleEliminationRoom({
     ]
   );
 
-  console.log(`[eliminationMgmtService] 📅 Scheduled elimination room ${roomId} — club: ${clubId} maxPlayers: ${max} plan: ${roomCaps?.planCode ?? 'unknown'}`);
+  console.log(`[eliminationMgmtService] 📅 Scheduled elimination room ${roomId} - club: ${clubId} maxPlayers: ${max} plan: ${roomCaps?.planCode ?? 'unknown'}`);
 
   // ── Write payment methods directly onto the room at schedule time ─────────
   // This closes the gap where a freshly-scheduled room had NO payment methods
   // until it was later linked to an event. The activity is now the source of
-  // truth for its own payment methods — nothing pushes this value down from
+  // truth for its own payment methods - nothing pushes this value down from
   // the event anymore.
   if (ticketMethodIds.length > 0 || onnightMethodIds.length > 0) {
     try {
@@ -165,7 +165,7 @@ export async function scheduleEliminationRoom({
         userId: hostId,
       });
     } catch (err) {
-      // Non-fatal — the room is created either way. Surface a clear log so
+      // Non-fatal - the room is created either way. Surface a clear log so
       // a bad method ID doesn't silently disappear.
       console.warn(`[eliminationMgmtService] ⚠️ Failed to set payment methods for ${roomId}:`, err.message);
     }
@@ -207,7 +207,7 @@ export async function listEliminationRooms({ clubId, status = 'all', time = 'all
   const orderBy = time === 'past' ? 'scheduled_at DESC' : 'scheduled_at ASC';
 
   // NOTE: entry_fee, currency, max_players are NOT flat columns in this table.
-  // Those values live inside config_json — read them from there on the frontend.
+  // Those values live inside config_json - read them from there on the frontend.
   const [rows] = await connection.execute(
     `SELECT
        room_id, host_id, club_id, status, game_type,
@@ -280,7 +280,7 @@ export async function updateEliminationRoom({
   prizeDescription: prizeDescriptionRaw,
   prizeValue:       prizeValueRaw,
   configJson,
-  // Payment methods are optional on update — only sent when the modal's
+  // Payment methods are optional on update - only sent when the modal's
   // selector value actually changed. undefined (not []) means "don't touch
   // this", since [] is a valid "clear all methods" state.
   ticketMethodIds,
@@ -376,7 +376,7 @@ export async function updateEliminationRoom({
   }
 
   // Payment methods are written to a separate column via a separate
-  // service call (see below), so they don't count toward `sets` — but a
+  // service call (see below), so they don't count toward `sets` - but a
   // payment-methods-only edit is still a valid update and must not be
   // rejected as "nothing to update".
   const hasPaymentMethodsUpdate =
@@ -407,13 +407,13 @@ export async function updateEliminationRoom({
       );
       if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
       throw Object.assign(
-        new Error('room_not_editable — only scheduled rooms can be edited'),
+        new Error('room_not_editable - only scheduled rooms can be edited'),
         { statusCode: 409, currentStatus: rows[0].status }
       );
     }
   }
 
-  // ── Payment methods — separate column, separate write ──────────────────────
+  // ── Payment methods - separate column, separate write ──────────────────────
   // Reuses the same validated update path scheduleEliminationRoom uses, so
   // method-ID ownership checks stay in one place.
   if (hasPaymentMethodsUpdate) {
@@ -429,7 +429,7 @@ export async function updateEliminationRoom({
     }
 
     // Editing payment methods on an already-linked room must also refresh
-    // the event's denormalized copy — otherwise the event silently goes
+    // the event's denormalized copy - otherwise the event silently goes
     // stale the moment someone changes methods after the initial link.
     await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId });
   }
@@ -460,7 +460,7 @@ export async function cancelEliminationRoom({ clubId, roomId }) {
     );
     if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
     throw Object.assign(
-      new Error('room_not_cancellable — only scheduled or open rooms can be cancelled'),
+      new Error('room_not_cancellable - only scheduled or open rooms can be cancelled'),
       { statusCode: 409, currentStatus: rows[0].status }
     );
   }
@@ -476,7 +476,7 @@ export async function cancelEliminationRoom({ clubId, roomId }) {
  *
  * ✅ STATUS TRANSITION: scheduled → open
  *    Written to DB here so the management list reflects the correct state
- *    immediately. The guard (AND status = 'scheduled') makes this idempotent —
+ *    immediately. The guard (AND status = 'scheduled') makes this idempotent -
  *    re-launching an already-open room is a no-op on the DB row.
  *
  * Returns { roomId, hostId, status, config, hydrated, alreadyExisted }
@@ -500,7 +500,7 @@ export async function hydrateEliminationRoom({ clubId, roomId, createRoomFromCon
 
   // ── STATUS TRANSITION: scheduled → open ──────────────────────────────────
   // Only transitions from 'scheduled'. Already-open rooms are untouched.
-  // Non-fatal — a DB write failure must never prevent the host from launching.
+  // Non-fatal - a DB write failure must never prevent the host from launching.
   let newStatus = row.status;
   if (row.status === 'scheduled') {
     try {

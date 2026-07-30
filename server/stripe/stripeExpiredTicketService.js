@@ -14,7 +14,7 @@ const DEBUG = false;
 
 /**
  * Hard-delete a single ticket and all its ledger rows.
- * Only deletes if payment is still unconfirmed — never touches confirmed records.
+ * Only deletes if payment is still unconfirmed - never touches confirmed records.
  *
  * @param {string} ticketId
  * @param {string} reason  - short label for logging ('webhook_expired' | 'cron_sweep')
@@ -83,7 +83,7 @@ export async function sweepExpiredTickets() {
   );
 
   if (staleRows.length === 0) {
-    if (DEBUG) console.log('[ExpiredTicket] ✅ Sweep complete — no stale tickets found');
+    if (DEBUG) console.log('[ExpiredTicket] ✅ Sweep complete - no stale tickets found');
     return { swept: 0, skipped: 0 };
   }
 
@@ -103,6 +103,6 @@ export async function sweepExpiredTickets() {
     }
   }
 
-  console.log(`[ExpiredTicket] 🧹 Sweep done — deleted: ${swept}, skipped: ${skipped}`);
+  console.log(`[ExpiredTicket] 🧹 Sweep done - deleted: ${swept}, skipped: ${skipped}`);
   return { swept, skipped };
 }

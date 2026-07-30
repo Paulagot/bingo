@@ -61,7 +61,7 @@ export function FundraiselyEventRow({
 
   // FIX: use UTC-aware helpers with the event's stored timezone.
   // Old code used formatDate/formatTime which called new Date(value).toLocaleDateString()
-  // — fine with a Z suffix but breaks with bare strings like "2025-06-07T18:00:00" (no Z).
+  // - fine with a Z suffix but breaks with bare strings like "2025-06-07T18:00:00" (no Z).
   // utcToLocalDate/Time normalise to UTC first, then convert to the event's local timezone.
   const tz          = event.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const displayDate = event.start_datetime
@@ -160,18 +160,18 @@ export function FundraiselyEventRow({
         {hasActivity ? (
           <span className="text-sm font-bold flex items-center gap-1"
             style={{ color: ticketsSold > 0 ? '#4f46e5' : '#d1d5db' }}>
-            {ticketsSold > 0 ? <><Ticket className="h-3 w-3" />{ticketsSold}</> : '—'}
+            {ticketsSold > 0 ? <><Ticket className="h-3 w-3" />{ticketsSold}</> : '-'}
           </span>
-        ) : <span style={{ color: '#d1d5db' }}>—</span>}
+        ) : <span style={{ color: '#d1d5db' }}>-</span>}
       </div>
 
       {/* Income */}
       <div>
         {hasActivity ? (
           <span className="text-sm font-bold" style={{ color: totalIncome > 0 ? '#16a34a' : '#d1d5db' }}>
-            {totalIncome > 0 ? formatMoney(totalIncome) : '—'}
+            {totalIncome > 0 ? formatMoney(totalIncome) : '-'}
           </span>
-        ) : <span style={{ color: '#d1d5db' }}>—</span>}
+        ) : <span style={{ color: '#d1d5db' }}>-</span>}
       </div>
 
       {/* Actions */}

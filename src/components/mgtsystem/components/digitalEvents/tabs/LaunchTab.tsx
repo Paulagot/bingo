@@ -219,7 +219,7 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
               <Lock className="h-4 w-4 text-[#8a9bab] ml-auto flex-shrink-0" />
             </div>
           ) : isOpen ? (
-            // Already open — rejoin check-in dashboard
+            // Already open - rejoin check-in dashboard
             <button
               type="button"
               onClick={handleRejoinCheckin}
@@ -232,7 +232,7 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
               Open Check-in Dashboard
             </button>
           ) : (
-            // Scheduled — open check-in
+            // Scheduled - open check-in
             <button
               type="button"
               onClick={handleOpenCheckin}
@@ -251,7 +251,7 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
           )}
         </div>
 
-        {/* ── Close event card — only shown when check-in is open ── */}
+        {/* ── Close event card - only shown when check-in is open ── */}
         {isOpen && (
           <div className="rounded-xl border border-[rgba(233,87,79,0.2)] bg-[rgba(233,87,79,0.04)] p-5">
             <div className="flex items-start gap-3 mb-4">

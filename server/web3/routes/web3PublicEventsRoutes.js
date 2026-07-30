@@ -2,13 +2,13 @@
 //
 // Routes for the fundraisely_web3_public_events table.
 //
-// Auth model — mirrors web3FundraiserRoutes.js:
+// Auth model - mirrors web3FundraiserRoutes.js:
 //   Protected routes (create, update, publish, unpublish, delete, status):
 //     - Require x-wallet-session header
 //     - validateSessionToken() confirms the session is valid
 //     - wallet_address is taken from the session, never from the request body
 //   Public routes (list, single):
-//     - No auth required — discovery page is public
+//     - No auth required - discovery page is public
 //
 // Mounted in server/index.js as:
 //   app.use('/api/web3/public-events', web3PublicEventsRoutes)
@@ -52,7 +52,7 @@ async function requireWalletSession(req, res, next) {
 // ─── Public routes ────────────────────────────────────────────────────────────
 
 // GET /api/web3/public-events
-// Discovery page — upcoming published events only.
+// Discovery page - upcoming published events only.
 // Query params: ?type=quiz|elimination&chain=solana|base&limit=20&offset=0
 router.get('/', web3DashboardLimiter, async (req, res) => {
   try {
@@ -70,8 +70,8 @@ router.get('/', web3DashboardLimiter, async (req, res) => {
   }
 });
 
-// ─── Protected routes — wallet session required ───────────────────────────────
-// ⚠️  /host/mine MUST come before /:id — static before dynamic
+// ─── Protected routes - wallet session required ───────────────────────────────
+// ⚠️  /host/mine MUST come before /:id - static before dynamic
 
 // GET /api/web3/public-events/host/mine
 // Returns all events for the authenticated wallet (all statuses).
@@ -87,8 +87,8 @@ router.get('/host/mine', web3DashboardLimiter, requireWalletSession, async (req,
 });
 
 // GET /api/web3/public-events/:id
-// Single event — public. Used for detail view if needed.
-// ⚠️  Registered AFTER /host/mine — dynamic segment would swallow it otherwise.
+// Single event - public. Used for detail view if needed.
+// ⚠️  Registered AFTER /host/mine - dynamic segment would swallow it otherwise.
 router.get('/:id', web3DashboardLimiter, async (req, res) => {
   try {
     const event = await getEventById(req.params.id);
@@ -143,7 +143,7 @@ router.patch('/:id', web3AuthLimiter, requireWalletSession, async (req, res) => 
 });
 
 // PATCH /api/web3/public-events/:id/publish
-// Publish a draft — sets status = 'published', records published_at.
+// Publish a draft - sets status = 'published', records published_at.
 router.patch('/:id/publish', web3AuthLimiter, requireWalletSession, async (req, res) => {
   try {
     const event = await publishEvent({ id: req.params.id, wallet_address: req.walletAddress });
@@ -161,7 +161,7 @@ router.patch('/:id/publish', web3AuthLimiter, requireWalletSession, async (req, 
 });
 
 // PATCH /api/web3/public-events/:id/unpublish
-// Pull a listing back to draft — clears published_at.
+// Pull a listing back to draft - clears published_at.
 router.patch('/:id/unpublish', web3AuthLimiter, requireWalletSession, async (req, res) => {
   try {
     const event = await unpublishEvent({ id: req.params.id, wallet_address: req.walletAddress });
@@ -200,7 +200,7 @@ router.patch('/:id/status', web3AuthLimiter, requireWalletSession, async (req, r
 });
 
 // DELETE /api/web3/public-events/:id
-// Hard delete — only allowed on draft events.
+// Hard delete - only allowed on draft events.
 router.delete('/:id', web3AuthLimiter, requireWalletSession, async (req, res) => {
   try {
     const deleted = await deleteEvent({ id: req.params.id, wallet_address: req.walletAddress });

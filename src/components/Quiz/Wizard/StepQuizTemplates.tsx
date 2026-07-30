@@ -225,10 +225,10 @@ function collectFilterOptions(
       if (a) audiences.add(a);
 
       const tp = parseTagValue(tag, 'Topic: ');
-      // Exclude 'Format: Online' appearing in topics — it's not a topic
+      // Exclude 'Format: Online' appearing in topics - it's not a topic
       if (tp) topics.add(tp);
 
-      // Intentionally ignore 'Duration: ...' tags — we use computed buckets instead
+      // Intentionally ignore 'Duration: ...' tags - we use computed buckets instead
     });
 
     const mins = computedDurations.get(t.id);
@@ -280,7 +280,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
   const selectedTemplate = setupConfig.selectedTemplate ?? null;
 
-  // Base list — hide demo for non-devs
+  // Base list - hide demo for non-devs
   const baseTemplates = useMemo(() => {
     let list = [...quizTemplates];
     if (!isDevPlan) list = list.filter((t) => t.id !== 'demo-quiz');
@@ -478,7 +478,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
             onChange={(v) => setFilters((f) => ({ ...f, difficulty: v }))}
             leftIcon="🎯"
           />
-          {/* Duration: uses computed buckets — not raw Duration: tags */}
+          {/* Duration: uses computed buckets - not raw Duration: tags */}
           <SelectField
             label="Duration"
             value={filters.duration}
@@ -496,7 +496,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
           <span className="font-semibold text-fg">{totalAvailable}</span> templates
           {anyFilterActive && (
             <span className="ml-2 text-fg/60">
-              {shownCount === 0 ? '(No matches — try clearing filters)' : '(Filtered)'}
+              {shownCount === 0 ? '(No matches - try clearing filters)' : '(Filtered)'}
             </span>
           )}
         </div>
@@ -515,7 +515,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
       {/* Template Grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         {filteredTemplates.map((template) => {
-          // Use the pre-computed value — no recalculation per render
+          // Use the pre-computed value - no recalculation per render
           const totalMinutes = computedDurations.get(template.id) ?? 0;
        const breakPositions = getBreakPositionsByStrategy(template.rounds);
 
@@ -562,7 +562,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
                 </span>
               </div>
 
-              {/* Tags — filter out Duration: tags since we show computed time above */}
+              {/* Tags - filter out Duration: tags since we show computed time above */}
               <div className="mb-3 flex flex-wrap gap-1">
                 {template.tags
                   .filter((tag) => !tag.startsWith('Duration: '))
@@ -614,7 +614,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
         <h4 className="mb-2 text-sm font-medium text-blue-900 sm:text-base">💡 Quick Guide</h4>
         <ul className="space-y-1 text-xs text-blue-800 sm:text-sm">
-          <li>• You are browsing the full library — use filters to narrow it down.</li>
+          <li>• You are browsing the full library - use filters to narrow it down.</li>
           <li>• Times include question time, reviews, leaderboards, and breaks.</li>
           <li>• Duration filter uses actual calculated times, not estimates.</li>
         </ul>

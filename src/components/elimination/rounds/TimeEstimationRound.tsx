@@ -25,7 +25,7 @@ export const TimeEstimationRound: React.FC<Props> = ({
   const [tapped, setTapped] = useState(false);
   const [counting, setCounting] = useState(false);
 
-  // Refs for synchronous guards — React state is async so rapid
+  // Refs for synchronous guards - React state is async so rapid
   // START → TAP would otherwise lose the tap through a stale closure.
   const startedRef = useRef(false);
   const countingRef = useRef(false);
@@ -166,7 +166,7 @@ const handleStart = useCallback(() => {
           fontSize: 'clamp(13px, 2vmin, 15px)',
           fontWeight: 600,
         }}>
-          ✓ Tapped — answer locked
+          ✓ Tapped - answer locked
         </div>
       )}
 

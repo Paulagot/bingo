@@ -15,7 +15,7 @@ export const FONT_BODY = "'Inter', system-ui, sans-serif";
 // ─── Per-round colour palette ─────────────────────────────────────────────────
 // Each round gets a full colour identity. The entire UI tints to match.
 export interface RoundColour {
-  primary: string;      // main accent — shapes, highlights
+  primary: string;      // main accent - shapes, highlights
   glow: string;         // used in box shadows and filter glows
   tint: string;         // very subtle background tint (5–8% opacity)
   fill: string;         // shape fill (10–15% opacity)

@@ -245,14 +245,14 @@ export default function PrivacyPreservingDonationsBlog() {
               For decades, <strong className="text-indigo-900">cash</strong> made this simple. You could 
               drop a tenner in a collection box and go on with your day. But as everyday payments go digital, 
               the quiet layer that cash once provided is thinning. That creates a <em>privacy gap</em> for 
-              donors — and a practical problem for small charities and clubs that want to welcome gifts 
+              donors - and a practical problem for small charities and clubs that want to welcome gifts 
               without inviting unintended scrutiny.
             </p>
 
             <p className="text-indigo-900/80 leading-relaxed">
               FundRaisely's hackathon prototype explores a path forward: <strong className="text-indigo-900">
               Privacy-Preserving Donations</strong> that keep donors out of the spotlight while preserving 
-              what matters to charities — authenticity, and responsible stewardship.
+              what matters to charities - authenticity, and responsible stewardship.
             </p>
           </section>
 
@@ -280,7 +280,7 @@ export default function PrivacyPreservingDonationsBlog() {
               <FeatureHighlight
                 icon={<Shield className="h-6 w-6" />}
                 title="Privacy can be safer"
-                description="Some gifts touch sensitive topics — health, identity, local politics, even school fees in small communities. Discretion reassures donors that support won't snowball into exposure."
+                description="Some gifts touch sensitive topics - health, identity, local politics, even school fees in small communities. Discretion reassures donors that support won't snowball into exposure."
               />
 
               <FeatureHighlight
@@ -314,7 +314,7 @@ export default function PrivacyPreservingDonationsBlog() {
 
             <p className="text-indigo-900/80 leading-relaxed mb-6">
               Central Bank data show ongoing declines in cash withdrawals year-over-year, reflecting steady 
-              behavioural change toward cards and digital rails. That's progress for convenience — and pressure 
+              behavioural change toward cards and digital rails. That's progress for convenience - and pressure 
               for privacy. As cash recedes, so does an easy, widely understood way to give without fanfare.
             </p>
 
@@ -359,7 +359,7 @@ export default function PrivacyPreservingDonationsBlog() {
             <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/30 to-cyan-50/30 p-6">
               <p className="text-indigo-900/80 leading-relaxed text-sm">
                 <strong>In Ireland, a practical trade-off:</strong> tax relief on donations (via CHY3/CHY4 
-                authorisations) is available when a donor explicitly authorises the charity to claim it — 
+                authorisations) is available when a donor explicitly authorises the charity to claim it - 
                 but there's no obligation to do so. Donors can prioritise privacy over tax uplift if that's 
                 their choice, and charities can explain the implications clearly.
               </p>
@@ -402,7 +402,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 <div>
                   <div className="font-bold text-indigo-900 text-xl mb-2">Goal</div>
                   <p className="text-indigo-900/80 leading-relaxed">
-                   Enable a streamlined donation flow that issues a privacy-preserving receipt proving your tier (Bronze/Silver/Gold/Platinum) — enough to unlock benefits, without revealing your exact amount or tying the receipt to your identity in public UIs. Organisers get aggregate insights in the Impact Dashboard; donors redeem benefits via a simple Claims Portal.
+                   Enable a streamlined donation flow that issues a privacy-preserving receipt proving your tier (Bronze/Silver/Gold/Platinum) - enough to unlock benefits, without revealing your exact amount or tying the receipt to your identity in public UIs. Organisers get aggregate insights in the Impact Dashboard; donors redeem benefits via a simple Claims Portal.
                   </p>
                 </div>
               </div>
@@ -412,7 +412,7 @@ export default function PrivacyPreservingDonationsBlog() {
             
             <p className="text-indigo-900/80 leading-relaxed mb-6">
               We use a privacy computation network (Multi-Party Computation, or MPC) to verify donation 
-              facts — for example, "a valid payment of at least Tier Gold occurred to this campaign" — 
+              facts - for example, "a valid payment of at least Tier Gold occurred to this campaign" - 
               without revealing the donor's address on a public ledger. The system then issues a 
               privacy-preserving receipt that the charity can store, audit internally, and match with totals. 
               Think of it as <strong>"proof without exposure."</strong>
@@ -497,7 +497,7 @@ export default function PrivacyPreservingDonationsBlog() {
               {[
                 {
                   title: 'Language that lowers pressure',
-                  desc: 'We avoid pushing fixed preset buttons that "anchor" donation amounts. Instead, we invite the donor to enter the amount they\'re comfortable with — and we format it clearly (e.g., 4 decimal places where relevant) to prevent mistakes.'
+                  desc: 'We avoid pushing fixed preset buttons that "anchor" donation amounts. Instead, we invite the donor to enter the amount they\'re comfortable with - and we format it clearly (e.g., 4 decimal places where relevant) to prevent mistakes.'
                 },
                 {
                   title: 'Receipt that proves what matters',
@@ -684,7 +684,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 },
                 {
                   step: 'Get your receipt',
-                  detail: 'You\'ll see a privacy-preserving receipt (a short code or hash). Save it—it\'s your claim ticket for perks and (in production) for refunds if ever required.'
+                  detail: 'You\'ll see a privacy-preserving receipt (a short code or hash). Save it-it\'s your claim ticket for perks and (in production) for refunds if ever required.'
                 },
                 {
                   step: 'Cast your vote (optional, recommended)',
@@ -771,7 +771,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 },
                 {
                   title: 'Compliance guardrails',
-                  desc: 'Risk-based thresholds and flags (amount, frequency, provenance). Escalation workflows for unusual activity. Jurisdictional settings (e.g., Ireland CHY forms for tax relief vs privacy; UK "know your donor" guidance templates). Audit views—visible only to authorised staff.',
+                  desc: 'Risk-based thresholds and flags (amount, frequency, provenance). Escalation workflows for unusual activity. Jurisdictional settings (e.g., Ireland CHY forms for tax relief vs privacy; UK "know your donor" guidance templates). Audit views-visible only to authorised staff.',
                   color: 'from-blue-500 to-cyan-500'
                 },
                 {
@@ -825,7 +825,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 {
                   icon: <Heart className="h-5 w-5" />,
                   title: 'Human first, cryptography second',
-                  desc: 'The donor experience is simple and kind. The math is there — it shouldn\'t be loud.'
+                  desc: 'The donor experience is simple and kind. The math is there - it shouldn\'t be loud.'
                 },
                 {
                   icon: <Eye className="h-5 w-5" />,
@@ -882,7 +882,7 @@ export default function PrivacyPreservingDonationsBlog() {
 
             <p className="text-indigo-900/80 leading-relaxed mb-6">
               FundRaisely's hackathon prototype shows a path to Privacy-Preserving Donations for real clubs, 
-              charities, schools, and community groups — a future where donors stay human and outcomes stay 
+              charities, schools, and community groups - a future where donors stay human and outcomes stay 
               transparent.
             </p>
 

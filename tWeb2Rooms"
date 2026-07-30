@@ -20,7 +20,7 @@
 [35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m262[m[36m:[m      ? JSON.parse(row.[1;31mlinked_payment_methods_json[m)
 [35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m263[m[36m:[m      : (row.[1;31mlinked_payment_methods_json[m ?? null);
 [35mserver/elimination/api/eliminationMgmtService.js[m[36m:[m[32m270[m[36m:[m    [1;31mlinked_payment_methods_json[m: linkedPaymentMethods,
-[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m165[m[36m:[m   *   • Pull the room's [1;31mlinked_payment_methods_json[m → event (FLIPPED — the
+[35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m165[m[36m:[m   *   • Pull the room's [1;31mlinked_payment_methods_json[m → event (FLIPPED - the
 [35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m264[m[36m:[m          `SELECT [1;31mlinked_payment_methods_json[m
 [35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m271[m[36m:[m        if (room?.[1;31mlinked_payment_methods_json[m) {
 [35mserver/mgtsystem/services/EventIntegrationsService.js[m[36m:[m[32m272[m[36m:[m          const linked = typeof room.[1;31mlinked_payment_methods_json[m === 'string'
@@ -68,7 +68,7 @@
 [35msrc/components/mgtsystem/modals/EditFundraiserModal.tsx[m[36m:[m[32m215[m[36m:[m      ? parseLinkedPaymentMethods(room?.[1;31mlinked_payment_methods_json[m)
 [35msrc/components/mgtsystem/modals/ScheduleEliminationModal.tsx[m[36m:[m[32m65[m[36m:[m  const rawLinked = existingRoom?.[1;31mlinked_payment_methods_json[m;
 [35msrc/components/mgtsystem/modals/ScheduleQuizModal.tsx[m[36m:[m[32m21[m[36m:[m// column ([1;31mlinked_payment_methods_json[m), validated and written via
-[35msrc/components/mgtsystem/modals/ScheduleQuizModal.tsx[m[36m:[m[32m59[m[36m:[m  // Hydrated from the room's own [1;31mlinked_payment_methods_json[m on edit — NOT
+[35msrc/components/mgtsystem/modals/ScheduleQuizModal.tsx[m[36m:[m[32m59[m[36m:[m  // Hydrated from the room's own [1;31mlinked_payment_methods_json[m on edit - NOT
 [35msrc/components/mgtsystem/modals/ScheduleQuizModal.tsx[m[36m:[m[32m63[m[36m:[m    const rawLinked = existingRoom?.[1;31mlinked_payment_methods_json[m;
 [35msrc/components/mgtsystem/modals/ScheduleTicketedEventModal.tsx[m[36m:[m[32m190[m[36m:[m  const rawLinkedPaymentMethods = existingRoom?.[1;31mlinked_payment_methods_json[m;
 [35msrc/components/mgtsystem/services/EliminationMgmtService.ts[m[36m:[m[32m60[m[36m:[m  [1;31mlinked_payment_methods_json[m: LinkedPaymentMethods | string | null;

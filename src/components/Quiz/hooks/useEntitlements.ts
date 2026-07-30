@@ -18,7 +18,7 @@ import type { GameScope } from '@/shared/api/quiz.api';
 export type { Entitlements };
 
 /**
- * Cache key per scope — avoids quiz entitlements overwriting elimination ones.
+ * Cache key per scope - avoids quiz entitlements overwriting elimination ones.
  */
 function cacheKey(scope: GameScope): string {
   return `fundraisely_ents_${scope}`;
@@ -52,7 +52,7 @@ export function useEntitlements(scope: GameScope = 'quiz') {
             const parsed = JSON.parse(cached) as Entitlements;
             if (!cancelled.current) setEnts(parsed);
           } catch {
-            // Corrupt cache — ignore and wait for fresh fetch
+            // Corrupt cache - ignore and wait for fresh fetch
             sessionStorage.removeItem(cacheKey(scope));
           }
         }
@@ -90,7 +90,7 @@ export function useEntitlements(scope: GameScope = 'quiz') {
   }, [scope]);
 
   /**
-   * Force a fresh fetch — call after purchasing credits or changing plan.
+   * Force a fresh fetch - call after purchasing credits or changing plan.
    * Also clears the cache for this scope so stale data isn't shown.
    */
   function refetch() {
@@ -108,7 +108,7 @@ export function useEntitlements(scope: GameScope = 'quiz') {
 
 /**
  * Returns true if the club has credits remaining for the given scope.
- * Handles both FREE (per-game-type) and GROWTH/PRO (pooled) plans transparently —
+ * Handles both FREE (per-game-type) and GROWTH/PRO (pooled) plans transparently -
  * the server already resolves the right bucket before returning game_credits_remaining.
  */
 export function hasCreditsFor(ents: Entitlements | null): boolean {

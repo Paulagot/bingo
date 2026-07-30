@@ -6,7 +6,7 @@
 //   - Stats cards broken down by ticket type (sold + revenue per type)
 //   - Purchase link labelled for events not quizzes
 //   - No extras column (ticketed events don't have extras)
-//   - Skips the ticket-safe payment method check — ticketed events
+//   - Skips the ticket-safe payment method check - ticketed events
 //     handle payment gating differently
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -77,9 +77,9 @@ function resolveRoomConfig(room: Room, providedConfig?: any): any {
 }
 
 function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
+  if (!value) return '-';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
+  if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString('en-IE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
@@ -89,12 +89,12 @@ function humaniseMethod(value: string | null | undefined): string {
 }
 
 function truncate(value: string | null | undefined, max: number): string {
-  if (!value) return '—';
+  if (!value) return '-';
   return value.length > max ? `${value.slice(0, max)}…` : value;
 }
 
 function truncateRef(value: string | null | undefined): string {
-  if (!value) return '—';
+  if (!value) return '-';
   if (value.length <= 14) return value;
   return `${value.slice(0, 8)}…${value.slice(-4)}`;
 }
@@ -443,7 +443,7 @@ export default function TicketsTabTicketedEvent({
           </div>
         </section>
 
-        {/* ── Per-ticket-type breakdown (collapsible — can get long) ── */}
+        {/* ── Per-ticket-type breakdown (collapsible - can get long) ── */}
         {showTypeBreakdown && (
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <button
@@ -525,7 +525,7 @@ export default function TicketsTabTicketedEvent({
           </section>
         ) : (
           <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-gray-500">Ticket sales are closed — this event is {room.status}.</p>
+            <p className="text-sm text-gray-500">Ticket sales are closed - this event is {room.status}.</p>
           </section>
         )}
 

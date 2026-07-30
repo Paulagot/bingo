@@ -3,7 +3,7 @@
  * server/puzzles/engines/sequenceOrderingEngine.js
  *
  * Objective: Player drags/reorders a set of items into the correct sequence.
- * Non-quiz — uses observable/measurable progressions (size, duration, etc.)
+ * Non-quiz - uses observable/measurable progressions (size, duration, etc.)
  */
 
 import { createSeededRandom, shuffleArray, calcTimeBonus } from '../utils/puzzleHelpers.js';
@@ -128,7 +128,7 @@ const SEQUENCE_BANK = {
   ],
 };
 
-// Scoring settings scale with item count / difficulty — previously flat
+// Scoring settings scale with item count / difficulty - previously flat
 // regardless of difficulty.
 const DIFFICULTY_SETTINGS = {
   [Difficulty.EASY]:   { baseScore: 55, bonusIdeal: 20, bonusGood: 35, bonusMax: 120 },
@@ -188,7 +188,7 @@ export function validate(input, solution) {
   return {
     valid:  isCorrect,
     reason: isCorrect ? undefined : 'Order is incorrect.',
-    // How many positions are correct — useful for partial UI feedback
+    // How many positions are correct - useful for partial UI feedback
     correctPositions: submitted.filter((id, idx) => id === correct[idx]).length,
     totalPositions:   correct.length,
   };

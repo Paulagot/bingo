@@ -7,20 +7,20 @@
 // This route replaces the previous version which naively trusted whatever ticketId
 // came back from /api/quiz/tickets/crypto-fixed-fee/confirm. That old flow had
 // three problems:
-//   1. It validated the payment method against a room's linked methods — campaign
+//   1. It validated the payment method against a room's linked methods - campaign
 //      methods are campaign-level, not room-level, so it threw for most orders.
-//   2. It only created a quiz ticket for firstRoomId — bundles got one ticket.
+//   2. It only created a quiz ticket for firstRoomId - bundles got one ticket.
 //   3. It hardcoded game_type='quiz' in the web3 ledger regardless of game type.
 //
 // This route:
 //   - Verifies the on-chain Solana transaction using the campaign's payment method
 //     directly (not room-linked validation).
-//   - Does NOT create any quiz ticket — expandOrderIntoEntries does all ticket
+//   - Does NOT create any quiz ticket - expandOrderIntoEntries does all ticket
 //     creation via campaignTicketBridgeService, which correctly apportions the
 //     price and grants extras for every room in the bundle.
 //   - Records the web3 transaction with the correct game_type.
 //   - Returns { ledgerAmount, ledgerCurrency, web3TransactionId } so the
-//     CryptoFixedFeeStep UI can show "Payment verified — recorded as €36.00".
+//     CryptoFixedFeeStep UI can show "Payment verified - recorded as €36.00".
 //
 // Mount in the public block (before auth middleware) in server/index.js:
 //   import campaignCryptoRoutes from './campaigns/api/campaignCryptoRoutes.js';
@@ -56,7 +56,7 @@ const T_ENTRIES = `${TABLE_PREFIX}campaign_entries`;
  *   cryptoDisplayAmount,
  *   network?,
  *   clubPaymentMethodId,
- *   // legacy fields from old quiz ticket route — ignored:
+ *   // legacy fields from old quiz ticket route - ignored:
  *   web3TransactionId?, ticketId?, joinToken?
  * }
  */
@@ -117,7 +117,7 @@ router.post('/campaign-support/orders/:orderId/confirm-crypto', limiter, async (
 
     // ── Verify on-chain payment ─────────────────────────────────────────────
     // Uses campaign-level payment method validation (not room-linked).
-    // Works for any game type — quiz, elimination, or bundles of both.
+    // Works for any game type - quiz, elimination, or bundles of both.
     const verification = await verifyCampaignCryptoPayment({
       orderId,
       clubId:            order.club_id,
@@ -145,8 +145,8 @@ router.post('/campaign-support/orders/:orderId/confirm-crypto', limiter, async (
       [txHash, orderId]
     );
 
-    // ── Expand entries — creates all tickets via bridge (no quiz route) ─────
-    // existingTicketId is NOT passed — the bridge creates fresh tickets for
+    // ── Expand entries - creates all tickets via bridge (no quiz route) ─────
+    // existingTicketId is NOT passed - the bridge creates fresh tickets for
     // every product item in the bundle, apportions the price by room fee
     // ratio, and grants room extras. This correctly handles:
     //   - quiz-only products
@@ -154,7 +154,7 @@ router.post('/campaign-support/orders/:orderId/confirm-crypto', limiter, async (
     //   - bundles of quiz + elimination
     const { expandOrderIntoEntries } = await import('../services/campaignEntryExpansionService.js');
     await expandOrderIntoEntries(orderId, {
-      // No existingTicketId — the old quiz ticket route is no longer called.
+      // No existingTicketId - the old quiz ticket route is no longer called.
       // All tickets are created fresh by the bridge.
     });
 
@@ -177,7 +177,7 @@ router.post('/campaign-support/orders/:orderId/confirm-crypto', limiter, async (
       ledgerAmount:      verification.totalFiat,
       ledgerCurrency:    verification.fiatCurrency,
       web3TransactionId: verification.web3Result?.id ?? null,
-      // ticketId / joinToken are null — entries have join_url instead
+      // ticketId / joinToken are null - entries have join_url instead
       // CampaignSupportPage reads entries from getOrderSummary after this
       ticketId:          null,
       joinToken:         null,

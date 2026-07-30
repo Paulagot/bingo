@@ -127,9 +127,9 @@ function resolveRoomConfig(room: Room, providedConfig?: any): any {
 }
 
 function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
+  if (!value) return '-';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
+  if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString('en-IE', {
     day: '2-digit',
     month: 'short',
@@ -147,7 +147,7 @@ function humanisePaymentMethod(value: string | null | undefined): string {
 
 /** Truncate a string to maxChars, appending ellipsis if needed */
 function truncate(value: string | null | undefined, maxChars: number): string {
-  if (!value) return '—';
+  if (!value) return '-';
   return value.length > maxChars ? `${value.slice(0, maxChars)}…` : value;
 }
 
@@ -157,7 +157,7 @@ function truncate(value: string | null | undefined, maxChars: number): string {
  * Long Stripe/crypto refs are truncated to show prefix + last 4 chars.
  */
 function truncateRef(value: string | null | undefined): string {
-  if (!value) return '—';
+  if (!value) return '-';
   if (value.length <= 14) return value;
   return `${value.slice(0, 8)}…${value.slice(-4)}`;
 }
@@ -525,7 +525,7 @@ export default function TicketsTab({
               <p className="mt-2 text-xs text-gray-500">{stats.pending} pending confirmation</p>
             </div>
 
-            {/* Confirmed — green to match semantic meaning */}
+            {/* Confirmed - green to match semantic meaning */}
             <div className="rounded-xl border border-green-100 bg-green-50/60 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -539,7 +539,7 @@ export default function TicketsTab({
               <p className="mt-2 text-xs text-green-700">Payments verified</p>
             </div>
 
-            {/* Redeemed — teal brand */}
+            {/* Redeemed - teal brand */}
             <div className="rounded-xl border border-[rgba(21,127,133,0.2)] bg-[rgba(21,127,133,0.06)] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -553,7 +553,7 @@ export default function TicketsTab({
               <p className="mt-2 text-xs text-[#157f85]">Checked in / used</p>
             </div>
 
-            {/* Revenue — ink/dark */}
+            {/* Revenue - ink/dark */}
             <div className="rounded-xl border border-[#102532]/10 bg-[#102532]/[0.04] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>

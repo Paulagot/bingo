@@ -44,8 +44,8 @@ export const GAME_RULES = {
  
   // MAX_PLAYERS is the hard ceiling for web3 rooms only.
   // Web2 rooms (scheduled via the management system) get their maxPlayers
-  // from plan entitlements — this value is never used for web2 games.
-  // Do NOT lower this to match a plan tier — it would break web3 rooms.
+  // from plan entitlements - this value is never used for web2 games.
+  // Do NOT lower this to match a plan tier - it would break web3 rooms.
   MAX_PLAYERS: 200,
  
   TOTAL_ROUNDS: 8,              // ← change to 10 for a 10-round game

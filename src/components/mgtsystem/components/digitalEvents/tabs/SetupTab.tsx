@@ -5,7 +5,7 @@
 // Quiz rooms:        shows personalised round editor (scheduled only)
 // ALL activity types: a single Edit button that opens the unified
 // EditFundraiserModal (event + activity settings, saved together) via
-// the onEditFundraiser callback — the per-type Schedule modals are no
+// the onEditFundraiser callback - the per-type Schedule modals are no
 // longer rendered from here.
 
 import { useEffect, useRef, useState } from 'react';
@@ -50,7 +50,7 @@ export default function SetupTab({
   const isScheduled   = room.status === 'scheduled';
   const isElimination = (room as any).game_type === 'elimination';
 
-  // ── Personalised round state (quiz only — hidden for elimination & ticketed) ──
+  // ── Personalised round state (quiz only - hidden for elimination & ticketed) ──
   const [roundLoading,  setRoundLoading]  = useState(false);
   const [roundSaving,   setRoundSaving]   = useState(false);
   const [roundDeleting, setRoundDeleting] = useState(false);
@@ -81,7 +81,7 @@ export default function SetupTab({
     setOriginalSnap(JSON.stringify({ roundTitle: '', position: 'last', isEnabled: true, questions: init }));
   };
 
-  // ── Load personalised round — quiz only, not ticketed events ──────────────
+  // ── Load personalised round - quiz only, not ticketed events ──────────────
   useEffect(() => {
     // Skip for elimination, ticketed events, and non-scheduled rooms
     if (!isScheduled || isElimination || isTicketedEvent) return;
@@ -185,7 +185,7 @@ export default function SetupTab({
     }
   };
 
-  // ── Ticketed event — simple info card ─────────────────────────────────────
+  // ── Ticketed event - simple info card ─────────────────────────────────────
    if (isTicketedEvent) {
     return (
       <div className="p-5 space-y-4">
@@ -215,7 +215,7 @@ export default function SetupTab({
     );
   }
 
-  // ── Elimination — edit button only ─────────────────────────────────────────
+  // ── Elimination - edit button only ─────────────────────────────────────────
   if (isElimination) {
     return (
       <div className="p-5 space-y-4">
@@ -243,7 +243,7 @@ export default function SetupTab({
     );
   }
 
-  // ── Quiz — personalised round editor ──────────────────────────────────────
+  // ── Quiz - personalised round editor ──────────────────────────────────────
   return (
     <div className="p-5 space-y-4">
 
@@ -268,7 +268,7 @@ export default function SetupTab({
         </div>
       )}
 
-      {/* Personalised round — quiz + scheduled only */}
+      {/* Personalised round - quiz + scheduled only */}
       {isScheduled && !isElimination && !isTicketedEvent && (
         <div className="rounded-xl border border-[#dce1df] bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
@@ -281,7 +281,7 @@ export default function SetupTab({
             )}
           </div>
           <p className="text-xs text-[#52636f] mb-4">
-            Add a custom round with questions specific to your group — team trivia, local knowledge, etc.
+            Add a custom round with questions specific to your group - team trivia, local knowledge, etc.
           </p>
 
           {roundLoading ? (

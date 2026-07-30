@@ -1,6 +1,6 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/reconciliation/SponsoredActivityReconciliationTab.tsx
 //
-// Direct structural port of SubscriptionReconciliationTab — same three
+// Direct structural port of SubscriptionReconciliationTab - same three
 // sections (lifetime summary, current period, history), same period
 // model. Sponsored Activity doesn't have a recurring billing cycle the way
 // subscriptions do, but it CAN be on sale indefinitely, so the same

@@ -48,7 +48,7 @@ const waitForFinalizeWorkflowComplete = async (roomId) => {
   }
 
   console.warn(
-    `[Elimination] Room ${roomId} finalize workflow not completed after 15 minutes — forcing cleanup`
+    `[Elimination] Room ${roomId} finalize workflow not completed after 15 minutes - forcing cleanup`
   );
   return false;
 };
@@ -67,14 +67,14 @@ const waitForReconciliationOrTimeout = async (roomId) => {
     if (!room) return;
 
     if (room.reconciliationApproved) {
-      console.log(`[Elimination] Reconciliation approved for room ${roomId} — cleaning up`);
+      console.log(`[Elimination] Reconciliation approved for room ${roomId} - cleaning up`);
       deleteRoom(roomId);
       return;
     }
   }
 
   console.warn(
-    `[Elimination] Room ${roomId} reconciliation not approved after 3 hours — forcing cleanup`
+    `[Elimination] Room ${roomId} reconciliation not approved after 3 hours - forcing cleanup`
   );
   deleteRoom(roomId);
 };
@@ -264,7 +264,7 @@ export const startGame = async (roomId, emit) => {
         await delay(5000);
         await waitForFinalizeWorkflowComplete(roomId);
       }
-      // Web2: do NOT delay here — the client drives timing via the winner view.
+      // Web2: do NOT delay here - the client drives timing via the winner view.
       // PLAYERS_DISMISSED is sent after a long grace period as a safety net only.
 
       // ── Save stats to DB (fire-and-forget, non-fatal) ────────────────────
@@ -286,11 +286,11 @@ export const startGame = async (roomId, emit) => {
       }
 
       // ── PLAYERS_DISMISSED: safety-net only ───────────────────────────────
-      // The client drives navigation — players leave via the winner/game_over
+      // The client drives navigation - players leave via the winner/game_over
       // auto-close, and the host clicks "Start Reconciliation" manually.
       // This event fires after 10 minutes as a fallback for clients that are
       // still connected but somehow haven't navigated away on their own.
-      // It does NOT fire immediately — do not reduce this delay.
+      // It does NOT fire immediately - do not reduce this delay.
       delay(10 * 60 * 1000).then(() => {
         const stillAlive = getRoom(roomId);
         if (stillAlive) {
@@ -303,7 +303,7 @@ export const startGame = async (roomId, emit) => {
         }
       });
 
-      // ── Wait for reconciliation (non-blocking — runs in background) ───────
+      // ── Wait for reconciliation (non-blocking - runs in background) ───────
       waitForReconciliationOrTimeout(roomId).catch((err) =>
         console.error('[Elimination] waitForReconciliationOrTimeout error:', err.message)
       );

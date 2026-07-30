@@ -118,14 +118,14 @@ const maxCapacity = isTicketedEvent && venueCapacity
     const isFull      = totalUsed >= maxCapacity;
     const ticketsFull = reservedByTickets >= maxCapacity;
 
-    // ── Event noun for copy — "event" for ticketed events, "quiz" otherwise ──
+    // ── Event noun for copy - "event" for ticketed events, "quiz" otherwise ──
     const eventNoun = isTicketedEvent ? 'event' : 'quiz';
 
     // 4. Check ticket sales window
     //
     // For ticketed events:
     //   - Sales stay open as long as the room is open (check-in running).
-    //     The 2-hour time lock does NOT apply — guests pay at the door via
+    //     The 2-hour time lock does NOT apply - guests pay at the door via
     //     the same /tickets/buy/:roomId link.
     //   - Sales close only when status is completed or cancelled.
     //
@@ -140,7 +140,7 @@ const maxCapacity = isTicketedEvent && venueCapacity
       ticketSalesCloseReason = `${eventNoun.charAt(0).toUpperCase() + eventNoun.slice(1)} is ${roomRow.status}`;
     } else if (isTicketedEvent) {
       // Ticketed events: only close on completed/cancelled (handled above).
-      // No time-based lock — the room being 'open' means check-in is running
+      // No time-based lock - the room being 'open' means check-in is running
       // and guests should be able to buy/pay at the door.
       if (roomRow.status === 'scheduled' || roomRow.status === 'open') {
         ticketSalesOpen = true;

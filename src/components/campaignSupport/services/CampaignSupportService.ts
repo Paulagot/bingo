@@ -192,7 +192,7 @@ export const campaignSupportService = {
    * Called client-side just before navigating to the thank-you screen.
    * The backend route is non-fatal and always returns { sent: true }.
    *
-   * Note: apiPost throws if the response is not ok — but the backend route
+   * Note: apiPost throws if the response is not ok - but the backend route
    * always returns 200 { sent: true } even on email failure, so this will
    * never throw in practice. The fireOrderConfirmationEmail wrapper in
    * CampaignSupportPage also swallows any error as a safety net.

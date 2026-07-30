@@ -2,7 +2,7 @@
 //
 // Route: /tickets/walkin/:roomId
 // Query params:
-//   ?token=xxx  — operator token for door staff
+//   ?token=xxx  - operator token for door staff
 
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import WalkinFlow from '../../../components/ticketedEvent/WalkinFlow';

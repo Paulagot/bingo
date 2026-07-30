@@ -1,8 +1,8 @@
 /**
- * solanaTokenConfig.js  (backend — Node.js ESM)
+ * solanaTokenConfig.js  (backend - Node.js ESM)
  *
  * Plain JS mirror of the frontend solanaTokenConfig.ts.
- * Kept in sync manually — if you add a token to the TS file, add it here too.
+ * Kept in sync manually - if you add a token to the TS file, add it here too.
  *
  * Used by: tokenPriceService.js
  */

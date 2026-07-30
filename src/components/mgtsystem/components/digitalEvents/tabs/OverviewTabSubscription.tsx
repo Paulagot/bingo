@@ -2,11 +2,11 @@
 //
 // Rebuilt to match OverviewTab / OverviewTabTicketedEvent's actual shared
 // visual language (Pill, StatCard, SectionHeader, DetailRow, the Tone
-// system, hero banner, two-column details, Internal reference footer) —
+// system, hero banner, two-column details, Internal reference footer) -
 // the previous version used ad-hoc inline styles instead of this toolkit,
 // which is why it read thinner/less consistent than the other activity
 // types. Data comes from `challenge` (fetched via getChallengeByRoomId),
-// not `config` — subscriptions don't store their real state in the
+// not `config` - subscriptions don't store their real state in the
 // room's config_json the way quiz/elimination/ticketed events do.
 
 import { useEffect, useState, type ReactNode } from 'react';
@@ -40,7 +40,7 @@ function money(sym: string, value: number | string | null | undefined, decimals 
 }
 
 function titleCase(value: string | null | undefined) {
-  if (!value) return '—';
+  if (!value) return '-';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -161,7 +161,7 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
         const latest = sorted[sorted.length - 1];
         if (latest) setLastSubscribedAt(latest.enrolled_at);
       })
-      .catch(() => { /* non-critical — leave as '—' */ });
+      .catch(() => { /* non-critical - leave as '-' */ });
     return () => { cancelled = true; };
   }, [challenge?.id]);
 
@@ -177,7 +177,7 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
     return (
       <div className="p-5">
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          {challengeError || 'No linked challenge found for this room. It may have failed to link — see ScheduleSubscriptionModal.'}
+          {challengeError || 'No linked challenge found for this room. It may have failed to link - see ScheduleSubscriptionModal.'}
         </div>
       </div>
     );
@@ -189,11 +189,11 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
   const sponsors      = Array.isArray(challenge.sponsors) ? challenge.sponsors : [];
 
   const startDate = new Date(challenge.starts_at);
-  // Last week's unlock date — starts_at + (total_weeks - 1) weeks, matching
+  // Last week's unlock date - starts_at + (total_weeks - 1) weeks, matching
   // exactly how each week's own unlocksAt is computed in challengeService.js
   // (unlocksAt = startsAtMs + (entry.week - 1) * weekMs). Using total_weeks
   // instead of total_weeks - 1 here would land one week past the actual
-  // last puzzle — the moment a non-existent "week total_weeks + 1" would
+  // last puzzle - the moment a non-existent "week total_weeks + 1" would
   // have unlocked.
   const endDate = new Date(startDate.getTime() + (challenge.total_weeks - 1) * 7 * 24 * 60 * 60 * 1000);
   const now       = Date.now();
@@ -225,7 +225,7 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
             </div>
             <div className="rounded-xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Room ID</p>
-              <p className="mt-1 font-mono text-xs font-semibold text-[#1e3040]">{challenge.room_id ?? '—'}</p>
+              <p className="mt-1 font-mono text-xs font-semibold text-[#1e3040]">{challenge.room_id ?? '-'}</p>
             </div>
           </div>
         </div>
@@ -250,7 +250,7 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
         <StatCard
           icon={<Repeat className="h-5 w-5" />}
           label="Price"
-          value={isFree ? 'Free' : challenge.weekly_price ? money(sym, challenge.weekly_price / 100) : '—'}
+          value={isFree ? 'Free' : challenge.weekly_price ? money(sym, challenge.weekly_price / 100) : '-'}
           helper={isFree ? 'No payment required' : 'Billed weekly via Stripe'}
           tone="green"
         />
@@ -259,7 +259,7 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
           label="Last subscription"
           value={lastSubscribedAt
             ? new Date(lastSubscribedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-            : '—'}
+            : '-'}
           helper="Most recent sign-up"
           tone="purple"
         />
@@ -299,14 +299,14 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
           />
           <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
             <DetailRow icon={<CircleDollarSign className="h-4 w-4" />} label={isFree ? 'Access' : 'Weekly price'}>
-              {isFree ? 'Free — no payment required' : challenge.weekly_price ? `${money(sym, challenge.weekly_price / 100)} / week` : '—'}
+              {isFree ? 'Free - no payment required' : challenge.weekly_price ? `${money(sym, challenge.weekly_price / 100)} / week` : '-'}
             </DetailRow>
             <DetailRow icon={<Sparkles className="h-4 w-4" />} label="Currency">
               {sym} ({challenge.currency?.toUpperCase() ?? 'club currency'})
             </DetailRow>
             {!isFree && (
               <DetailRow icon={<Wallet className="h-4 w-4" />} label="Payment method" muted>
-                Stripe only — no cash / on-the-night option
+                Stripe only - no cash / on-the-night option
               </DetailRow>
             )}
           </div>
@@ -347,7 +347,7 @@ export default function OverviewTabSubscription({ challenge, challengeLoading, c
         />
         <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
           <DetailRow icon={<Hash className="h-4 w-4" />} label="Room ID">
-            <span className="break-all font-mono text-xs text-gray-600">{challenge.room_id ?? '—'}</span>
+            <span className="break-all font-mono text-xs text-gray-600">{challenge.room_id ?? '-'}</span>
           </DetailRow>
           <DetailRow icon={<Hash className="h-4 w-4" />} label="Challenge ID">
             <span className="break-all font-mono text-xs text-gray-600">{challenge.id}</span>

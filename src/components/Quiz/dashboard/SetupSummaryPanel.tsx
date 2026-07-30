@@ -180,7 +180,7 @@ const SetupSummaryPanel: React.FC = () => {
               <AlertTriangle className="h-5 w-5 text-amber-800" />
             </div>
             <div className="flex-1 text-amber-900">
-              <div className="font-bold">Players can’t join yet — prize assets not deposited</div>
+              <div className="font-bold">Players can’t join yet - prize assets not deposited</div>
               <div className="mt-1 text-sm">
                 This is an <strong>Asset Room</strong>. Before sharing the join QR/link, you must deposit all prize
                 assets to the room’s smart contract.
@@ -219,7 +219,7 @@ const SetupSummaryPanel: React.FC = () => {
             <Users className="h-4 w-4 text-indigo-600" />
             <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Host</span>
           </div>
-          <div className="font-semibold text-gray-900">{hostName || '—'}</div>
+          <div className="font-semibold text-gray-900">{hostName || '-'}</div>
         </div>
 
         <div className="rounded-lg border-2 border-gray-200 bg-white p-4">

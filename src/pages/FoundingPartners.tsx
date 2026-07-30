@@ -117,7 +117,7 @@ export default function FoundingPartnersPage() {
     const webPageJsonLd = {
       '@context': 'https://schema.org',
       '@type': 'WebPage',
-      name: 'FundRaisely Founding Partners — Lifetime Pricing for Clubs & Charities',
+      name: 'FundRaisely Founding Partners - Lifetime Pricing for Clubs & Charities',
       url: abs('/founding-partners'),
       description:
         'Join as a FundRaisely Founding Partner and lock in lifetime pricing. Start with the Quiz App and get early access to our full-stack fundraising platform: campaigns, CRM, games, AI sponsor/prize finder, impact and compliance.',
@@ -226,7 +226,7 @@ export default function FoundingPartnersPage() {
                   href={abs('/signup?plan=founding_partner')}
                   className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-6 py-3 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
-                  Join Waiting List and Lock in Founding Partner Rates — {market.symbol}
+                  Join Waiting List and Lock in Founding Partner Rates - {market.symbol}
                   {market.monthly}/month for life
                   <ChevronRight className="ml-2 h-5 w-5" />
                 </a>
@@ -252,14 +252,14 @@ export default function FoundingPartnersPage() {
         <div className="container mx-auto max-w-5xl">
           <h2 className="text-3xl font-bold text-indigo-900">Why Founding Partners?</h2>
           <p className="mt-4 text-indigo-900/70 text-lg leading-relaxed">
-            FundRaisely is building the future of community fundraising — transparent, engaging and digital-first. We're
+            FundRaisely is building the future of community fundraising - transparent, engaging and digital-first. We're
             starting with <strong>interactive quiz fundraisers</strong>, and expanding fast. As a Founding Partner you
             get permanent access to new features as they ship, at the same locked-in rate.
           </p>
           <ul className="mt-6 grid sm:grid-cols-2 gap-3">
             {[
               'Run unlimited quiz fundraisers',
-              'Lifetime locked pricing — never increases',
+              'Lifetime locked pricing - never increases',
               'Early access to new event types',
               'Private feedback group & roadmap updates',
               'Founding Partner badge on your profile',
@@ -394,7 +394,7 @@ export default function FoundingPartnersPage() {
 
           <div className="mt-6 rounded-xl border border-indigo-100 bg-white p-5 shadow-sm">
             <p className="text-sm text-indigo-900/70">
-              <strong className="text-indigo-900">Note:</strong> Regulated games require appropriate local licences. Founding Partners get early access as modules roll out — no upsells.
+              <strong className="text-indigo-900">Note:</strong> Regulated games require appropriate local licences. Founding Partners get early access as modules roll out - no upsells.
             </p>
           </div>
         </div>
@@ -441,37 +441,37 @@ export default function FoundingPartnersPage() {
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Salesforce Nonprofit</td>
                   <td className="p-4 text-indigo-900/70">~£48–80/user/mo</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Via partners</td>
                   <td className="p-4 text-indigo-900/70"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Partial</td>
                   <td className="p-4 text-indigo-900/70"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Enthuse</td>
                   <td className="p-4 text-indigo-900/70">£24.99–39.99/mo</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Events</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Data ownership</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Dashboards</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Clubforce</td>
                   <td className="p-4 text-indigo-900/70">€25–35/mo</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Membership</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Member CRM</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Reports</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                 </tr>
@@ -479,164 +479,164 @@ export default function FoundingPartnersPage() {
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">JustGiving</td>
                   <td className="p-4 text-indigo-900/70">£15–39/mo</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Pages & events</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Basic</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Reports</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">KwizzBit</td>
                   <td className="p-4 text-indigo-900/70">£9.99–79.99/mo</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Raffall</td>
                   <td className="p-4 text-indigo-900/70">~9–10% commission</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">RallyUp</td>
                   <td className="p-4 text-indigo-900/70">2.9–6.9% + processing</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Events</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Profiles</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Reports</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Donorbox</td>
                   <td className="p-4 text-indigo-900/70">1.75–3.95% + processing</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Light CRM</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Reports</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Givebutter</td>
                   <td className="p-4 text-indigo-900/70">£0 (donor tips)</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Dashboards</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Zeffy</td>
                   <td className="p-4 text-indigo-900/70">0% (donor tips)</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Donor mgmt</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Reports</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Klubfunder</td>
                   <td className="p-4 text-indigo-900/70">£0 PAYG + fees</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Events & shop</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Basic CRM</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Reports</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Raisely</td>
                   <td className="p-4 text-indigo-900/70">Free or paid</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Campaign pages</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Light</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Dashboards</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">SpeedQuizzing</td>
                   <td className="p-4 text-indigo-900/70">Pay-per-use</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Blackbaud Raiser's Edge</td>
                   <td className="p-4 text-indigo-900/70">On request</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Via partners</td>
                   <td className="p-4 text-indigo-900/70">Via partners</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Partial</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
 
                 <tr className="hover:bg-indigo-50/30 transition-colors">
                   <td className="p-4 font-semibold text-indigo-900">Funraisin</td>
                   <td className="p-4 text-indigo-900/70">On request</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
                   <td className="p-4 text-indigo-900/70">Via partners</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4 text-indigo-900/70">Supporter mgmt</td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                   <td className="p-4"><Check className="h-4 w-4 text-green-600"/></td>
-                  <td className="p-4 text-indigo-900/70">—</td>
+                  <td className="p-4 text-indigo-900/70">-</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           <p className="mt-4 text-sm text-indigo-900/60 leading-relaxed">
-            Category notes: "Campaign/Event Manager" = schedule + ticketing/registration + activity tracking. "AI Sponsor/Prize Finder" refers to automated prospecting for prizes/sponsors — uncommon today, part of our roadmap. Many platforms rely on app/partner integrations for specific functions.
+            Category notes: "Campaign/Event Manager" = schedule + ticketing/registration + activity tracking. "AI Sponsor/Prize Finder" refers to automated prospecting for prizes/sponsors - uncommon today, part of our roadmap. Many platforms rely on app/partner integrations for specific functions.
           </p>
         </div>
       </section>
@@ -749,7 +749,7 @@ export default function FoundingPartnersPage() {
             href={abs('/signup?plan=founding_partner')}
             className="mt-8 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-lg"
           >
-            Join Waiting List and Lock in Founding Partner Rates — {market.symbol}
+            Join Waiting List and Lock in Founding Partner Rates - {market.symbol}
             {market.monthly}/month
             <ChevronRight className="ml-2 h-5 w-5" />
           </a>

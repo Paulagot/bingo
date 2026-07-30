@@ -1,7 +1,7 @@
 // src/components/mgtsystem/wizard/submitChain.ts
 //
 // The final-submit orchestrator. Runs the EXACT backend sequence the old
-// two-step flow ran — nothing about the API surface changes:
+// two-step flow ran - nothing about the API surface changes:
 //
 //   1. eventsService.createEvent(...)                (was CreateEventForm)
 //   2. def.createRoom(...)                           (was Schedule*Modal)
@@ -69,7 +69,7 @@ export function buildDraftEvent(fields: WizardEventFields): DraftEvent {
     title:          fields.title.trim(),
     summary:        fields.summary?.trim() || null,
     start_datetime: fields.start_datetime ? localInputToUTC(fields.start_datetime) : null,
-    // Local date, not UTC date — a 23:30 Dublin event on Jun 7 is still
+    // Local date, not UTC date - a 23:30 Dublin event on Jun 7 is still
     // Jun 7 in Dublin even though it's Jun 8 UTC. slice(0, 10) rather
     // than split('T')[0] so the type is `string` (not `string |
     // undefined`) under noUncheckedIndexedAccess.
@@ -89,8 +89,8 @@ function buildCreateEventPayload(
 
   const base: CreateEventForm = {
     title:               draft.title,
-    type:                def.eventType,           // auto — user never enters this
-    primary_action_type: def.primaryActionType,   // auto — derived from activity
+    type:                def.eventType,           // auto - user never enters this
+    primary_action_type: def.primaryActionType,   // auto - derived from activity
     summary:             draft.summary || undefined,
     description:         fields.description?.trim() || undefined,
     campaign_id:         fields.campaign_id || undefined,
@@ -99,7 +99,7 @@ function buildCreateEventPayload(
     event_date:          draft.event_date || undefined,
     time_zone:           draft.time_zone,
     location_type:       'online',
-    // NOTE: payment method fields are deliberately NEVER sent — they are
+    // NOTE: payment method fields are deliberately NEVER sent - they are
     // an activity-level concern now (room → event flow). See
     // PaymentMethodSelector.tsx.
   };
@@ -109,7 +109,7 @@ function buildCreateEventPayload(
     base.location_label = fields.location_label?.trim() || undefined;
     base.online_url     = fields.online_url?.trim() || undefined;
   }
-  // else: platform-hosted online activity (puzzle_sub / puzzle_drop) —
+  // else: platform-hosted online activity (puzzle_sub / puzzle_drop) -
   // location_type 'online' with no label/url, per agreed design.
 
   if (def.dateMode === 'startPlusWeeks' && fields.start_datetime) {
@@ -146,7 +146,7 @@ async function adoptRecentDraft(
     );
     return match?.id ?? null;
   } catch {
-    // Adoption is best-effort — if the lookup itself fails we fall back
+    // Adoption is best-effort - if the lookup itself fails we fall back
     // to normal creation and accept the (rare, deletable) duplicate draft.
     return null;
   }
@@ -219,7 +219,7 @@ export async function runSubmitChain(args: SubmitChainArgs): Promise<{ eventId: 
       external_ref:     roomId,
     });
   } catch (e: any) {
-    // "Already linked" means a previous attempt's link actually landed —
+    // "Already linked" means a previous attempt's link actually landed -
     // that is success, not failure (same semantics as the old
     // alreadyLinked guard in handleActivitySaved).
     const msg = String(e?.message || '');

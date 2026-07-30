@@ -31,11 +31,11 @@ export interface AuthActions {
 }
 
 export interface RegisterRequest {
-  clubName:              string;   // was: name — now club-specific
-  personName:            string;   // new — the person registering
+  clubName:              string;   // was: name - now club-specific
+  personName:            string;   // new - the person registering
   email:                 string;
   password:              string;
-  reportingCurrency:     string;   // new — ISO 4217 code e.g. 'EUR'
+  reportingCurrency:     string;   // new - ISO 4217 code e.g. 'EUR'
   gdprConsent:           boolean;
   privacyPolicyAccepted: boolean;
   marketingConsent?:     boolean;

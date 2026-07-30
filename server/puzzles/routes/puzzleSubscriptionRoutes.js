@@ -22,7 +22,7 @@ const router = express.Router();
  *
  * Creates/reuses a Stripe Customer + supporter record and returns a
  * Stripe Checkout Session URL (subscription mode) for a paid challenge.
- * No supporter JWT required up front — the supporter record is created
+ * No supporter JWT required up front - the supporter record is created
  * here, mirroring how Stripe walk-in checkout works for quiz/elimination
  * (createWalkinStripeSession) rather than the magic-link-first flow.
  */
@@ -91,7 +91,7 @@ router.post('/exchange-session', async (req, res) => {
       return res.status(422).json({ error: msg });
     }
     // Anything else here is treated as a client error (bad/mismatched
-    // session, not yet completed, etc.) rather than a 500 — none of
+    // session, not yet completed, etc.) rather than a 500 - none of
     // these represent a server malfunction, just "this session doesn't
     // grant access," which is an expected, well-formed outcome.
     res.status(400).json({ error: msg });
@@ -164,7 +164,7 @@ router.get('/my-challenges', authenticateSupporter, async (req, res) => {
 // here. It referenced a join_code column that was never added to
 // fundraisely_puzzle_challenges, nothing in the codebase ever generated such
 // a code, and grepping the repo for join_code/joinCode confirmed no frontend
-// page links to it — it was unreachable, broken dead code. Removed rather
+// page links to it - it was unreachable, broken dead code. Removed rather
 // than fixed, since the real, working join flow is by challengeId
 // (GET /challenge/:challengeId below), which is what PuzzleJoinPage.tsx
 // actually uses. If short join codes become a real feature later, this needs
@@ -204,7 +204,7 @@ router.get('/challenge/:challengeId', async (req, res) => {
 /**
  * GET /api/puzzle-subscriptions/schedule/:challengeId
  * Public. Returns the week schedule for a challenge.
- * Used by PlayerChallengePage — no club auth needed.
+ * Used by PlayerChallengePage - no club auth needed.
  */
 router.get('/schedule/:challengeId', optionalAuthenticateSupporter, async (req, res) => {
   try {

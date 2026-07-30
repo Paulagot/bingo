@@ -61,7 +61,7 @@ export class AuthService {
           [clubId, clubName, email, reportingCurrency]
         );
 
-        // 2. Insert owner user — personName goes here, not clubName
+        // 2. Insert owner user - personName goes here, not clubName
         await conn.execute(
           `INSERT INTO ${PREFIX}users (
             id, club_id, name, email, password_hash, password_updated_at, role,
@@ -93,7 +93,7 @@ export class AuthService {
           [clubId, freePlanId, 3, null]
         );
 
-        // ✅ ADD THIS — seed the per-activity credit rows for FREE plan
+        // ✅ ADD THIS - seed the per-activity credit rows for FREE plan
 const FREE_CREDIT_KEYS = ['quiz', 'elimination', 'ticketed_event', 'puzzle_sub', 'puzzle_drop', 'sponsored_activity'];
 for (const key of FREE_CREDIT_KEYS) {
   await conn.execute(

@@ -41,7 +41,7 @@ function money(sym: string, value: number | string | null | undefined, decimals 
 }
 
 function titleCase(value: string | null | undefined) {
-  if (!value) return '—';
+  if (!value) return '-';
   return String(value)
     .replace(/_/g, ' ')
     .replace(/\s+/g, ' ')
@@ -167,7 +167,7 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
   const entryFee   = Number(config?.entryFee ?? 0);
   const scheduled  = formatDateTime(room.scheduled_at || config?.eventDateTime);
   const statusTone = getStatusTone(room.status);
-  const statIncome = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '—';
+  const statIncome = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '-';
   const isDonation = config?.fundraisingMode === 'donation';
 
   // ── Quiz-specific ──────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
           <StatCard
             icon={<Trophy className="h-5 w-5" />}
             label="Prize"
-            value={elimPrizeValue > 0 ? money(sym, elimPrizeValue, 0) : '—'}
+            value={elimPrizeValue > 0 ? money(sym, elimPrizeValue, 0) : '-'}
             helper={elimPrizeDescription || 'No prize description'}
             tone="amber"
           />
@@ -388,7 +388,7 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
         )
       )}
 
-      {/* ── Round structure — quiz only ── */}
+      {/* ── Round structure - quiz only ── */}
       {!isElimination && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <SectionHeader

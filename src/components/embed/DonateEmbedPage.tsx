@@ -2,15 +2,15 @@
 //
 // Rendered at /embed/donate/:clubId. Success is detected via
 // ?session_id=... query param on this SAME route (Stripe's
-// success_url points back here, NOT at a separate /success path —
+// success_url points back here, NOT at a separate /success path -
 // see DonationCheckoutService.js's _startStripeCheckout fix).
 //
 // This is the page that goes INSIDE the <iframe> a club pastes on their
-// own site — no app header/nav, no auth, nothing that assumes a logged-in
+// own site - no app header/nav, no auth, nothing that assumes a logged-in
 // user. Mount this as its own lazy-loaded route in your router so it
 // doesn't pull in dashboard code just to show a donate button.
 //
-// PHASE 3b — MULTI-METHOD:
+// PHASE 3b - MULTI-METHOD:
 // Flow is now: fetch config -> IF more than one method, show a
 // provider-choice step -> amount picker -> POST checkout -> dispatch on
 // provider. If config.methods.length === 1, the provider-choice step is
@@ -20,13 +20,13 @@
 // 'stripe'/'sumup_api' open a new tab via window.open() to the
 // provider's hosted checkout; 'crypto' opens a new tab to
 // CryptoDonationCheckoutPage (this app's own page) rather than
-// connecting a wallet inline inside this iframe — see that page's
+// connecting a wallet inline inside this iframe - see that page's
 // header comment for why. Once a method is chosen, the amount picker
 // shows a "change payment method" link that returns to the choice
-// step — see the 'picking_amount' render branch below.
+// step - see the 'picking_amount' render branch below.
 //
 // CONFIRMATION ARCHITECTURE (revised):
-// The PRIMARY confirmation mechanism is polling — see
+// The PRIMARY confirmation mechanism is polling - see
 // useDonationStatusPoll below. While in 'checkout_opened', this page
 // polls GET /api/donations/:clubId/:donationId/status, which only ever
 // reflects what a verified Stripe webhook or verified on-chain confirm
@@ -61,7 +61,7 @@ const Web3Provider = lazy(() =>
 );
 const DonationCryptoPaymentStep = lazy(() => import('../donationModal/services/DonationCryptoPaymentStep'));
 
-// Matches the symbol map in useCurrency.ts — duplicated here (rather than
+// Matches the symbol map in useCurrency.ts - duplicated here (rather than
 // importing the hook) because useCurrency reads from useAuthStore, which
 // assumes a logged-in club admin session. This page has no such session;
 // the currency comes from the public config response instead.
@@ -78,7 +78,7 @@ function symbolFor(iso: string): string {
 }
 
 // Used before config has loaded (loading/error states) or as a safe
-// fallback if a malformed branding value somehow arrives — matches the
+// fallback if a malformed branding value somehow arrives - matches the
 // migration's column defaults exactly, so the unbranded look is
 // unchanged from before this feature existed.
 const FALLBACK_PRIMARY_COLOR = '#157f85';
@@ -113,10 +113,10 @@ type ViewState =
   | { kind: 'picking_amount' }
   | { kind: 'starting_checkout' }
   | { kind: 'checkout_opened'; provider: 'stripe' | 'sumup_api' | 'crypto'; donationId: string }
-  // NEW: desktop-only crypto path — the wallet-connect/pay UI renders
+  // NEW: desktop-only crypto path - the wallet-connect/pay UI renders
   // directly inside THIS iframe, no third tab. Desktop wallet
   // connection (extension, or a QR scanned by a separate device) never
-  // needs the app-switch-and-return that makes iframe nesting risky —
+  // needs the app-switch-and-return that makes iframe nesting risky -
   // see the header comment above handleDonate's crypto branch. Mobile
   // (and anything ambiguous) keeps the existing 'checkout_opened' path
   // unchanged: window.open() always creates a real top-level tab, even
@@ -134,14 +134,14 @@ type ViewState =
 
 /**
  * Polls GET /api/donations/:clubId/:donationId/status while a checkout
- * tab is open. This is the PRIMARY confirmation mechanism — not the
+ * tab is open. This is the PRIMARY confirmation mechanism - not the
  * postMessage relay. Polling only ever believes what the backend's
  * donations table says, which is itself only ever written by a
  * verified Stripe webhook or a verified on-chain confirm. There is no
  * client-asserted "trust me, it succeeded" step anywhere in this path.
  *
  * Stops polling on: success, unmount, a terminal failed/expired status,
- * or a 5-minute timeout (webhooks can occasionally lag — after 5
+ * or a 5-minute timeout (webhooks can occasionally lag - after 5
  * minutes we stop hammering the endpoint; the checkout_opened view's
  * own "Start again" affordance still lets the supporter retry or check
  * their email).
@@ -195,7 +195,7 @@ function useDonationStatusPoll({
           return;
         }
       } catch (err) {
-        // Network hiccup — don't stop polling for a single failed
+        // Network hiccup - don't stop polling for a single failed
         // request, the next interval retries naturally.
         console.warn('[DonationStatusPoll] poll request failed, will retry:', err);
       }
@@ -232,7 +232,7 @@ export default function DonateEmbedPage() {
       return;
     }
     if (searchParams.get('session_id')) {
-      // Stripe's webhook is the actual source of truth for confirmation —
+      // Stripe's webhook is the actual source of truth for confirmation -
       // this page doesn't need to verify anything itself, it just shows a
       // thank-you state. The donation row may briefly still read 'pending'
       // here if the webhook hasn't landed yet; that's fine, since nothing
@@ -280,8 +280,8 @@ export default function DonateEmbedPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId, searchParams]);
 
-  // PRIMARY confirmation path. Polls the backend's own ledger — which is
-  // only ever written by a verified webhook/on-chain confirm — regardless
+  // PRIMARY confirmation path. Polls the backend's own ledger - which is
+  // only ever written by a verified webhook/on-chain confirm - regardless
   // of whether the popup tab's postMessage relay makes it back. This is
   // what actually decides "the donation succeeded."
   const checkoutDonationId = view.kind === 'checkout_opened' ? view.donationId : null;
@@ -298,10 +298,10 @@ export default function DonateEmbedPage() {
   // Post-success side effects: close the modal overlay (if running
   // inside the donate.js iframe) or close the standalone tab (if Stripe
   // redirected here directly in its own tab). This is now a UI-courtesy
-  // notification, not a confirmation signal — polling above already
+  // notification, not a confirmation signal - polling above already
   // independently decided 'success'. This MUST sit here, above every
   // early `return` below (loading/error/cancelled), and run on every
-  // single render regardless of view.kind — React requires the same
+  // single render regardless of view.kind - React requires the same
   // hooks in the same order on every render.
   useEffect(() => {
     if (view.kind !== 'success') return;
@@ -330,7 +330,7 @@ export default function DonateEmbedPage() {
       return;
     }
 
-    // Standalone tab, no opener relationship — just close after a pause.
+    // Standalone tab, no opener relationship - just close after a pause.
     const t = setTimeout(() => { try { window.close(); } catch (e) { /* ignore */ } }, 2000);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -340,7 +340,7 @@ export default function DonateEmbedPage() {
   // spawned (via window.open) posts a success message to us, forward it
   // up to OUR parent (the club's top-level page) so donate.js's listener
   // there can close the modal a little sooner. NOTE: this is NOT the
-  // confirmation source of truth — useDonationStatusPoll above
+  // confirmation source of truth - useDonationStatusPoll above
   // independently reaches 'success' by polling the backend ledger
   // regardless of whether this message ever arrives. This listener just
   // lets the UI update sooner when the relay happens to work.
@@ -392,7 +392,7 @@ export default function DonateEmbedPage() {
 
       if (result.provider === 'stripe' || result.provider === 'sumup_api') {
         // Open Stripe/SumUp in a new tab rather than navigating the
-        // iframe. Deliberately NOT passing 'noopener' — the success page
+        // iframe. Deliberately NOT passing 'noopener' - the success page
         // (landed on after Stripe redirects) keeps window.opener pointing
         // back to THIS iframe so the UI-courtesy postMessage notify can
         // still fire, even though confirmation itself now comes from
@@ -410,7 +410,7 @@ export default function DonateEmbedPage() {
       }
 
       if (result.provider === 'crypto') {
-        // [FR-DEBUG] Temporary diagnostic logging — remove once we've
+        // [FR-DEBUG] Temporary diagnostic logging - remove once we've
         // confirmed the desktop-inline crypto path is actually live on
         // staging and taking effect. If this log never appears at all,
         // staging is still serving an older build. If it appears but
@@ -420,21 +420,21 @@ export default function DonateEmbedPage() {
         console.log('[FR-DEBUG DonateEmbedPage] crypto branch reached. isMobileOrTablet() =', isMobileDevice, '| navigator.userAgent =', navigator.userAgent);
 
         // Desktop: render the wallet-connect/pay flow directly in THIS
-        // iframe — no third tab at all. Safe because desktop wallet
+        // iframe - no third tab at all. Safe because desktop wallet
         // connection (extension, or QR scanned by a separate device)
         // never triggers the app-switch-and-return that makes iframe
-        // nesting risky in the first place — already proven safe via
+        // nesting risky in the first place - already proven safe via
         // the ticket embed's own testing.
         //
-        // Mobile (and anything ambiguous — isMobileOrTablet() fails
+        // Mobile (and anything ambiguous - isMobileOrTablet() fails
         // closed toward "treat as mobile") keeps the EXACT existing
         // code below, unchanged: window.open() always creates a real,
         // un-nested top-level tab even when called from inside an
-        // iframe — exactly the context mobile's wallet app-switch
+        // iframe - exactly the context mobile's wallet app-switch
         // needs, and exactly why this path has always worked correctly
         // on mobile already, for every device, until now.
         if (!isMobileDevice) {
-          console.log('[FR-DEBUG DonateEmbedPage] taking DESKTOP branch — rendering paying_crypto_inline.');
+          console.log('[FR-DEBUG DonateEmbedPage] taking DESKTOP branch - rendering paying_crypto_inline.');
           setView({
             kind: 'paying_crypto_inline',
             donationId: result.donationId,
@@ -445,7 +445,7 @@ export default function DonateEmbedPage() {
           return;
         }
 
-        console.log('[FR-DEBUG DonateEmbedPage] taking MOBILE branch — opening new tab.');
+        console.log('[FR-DEBUG DonateEmbedPage] taking MOBILE branch - opening new tab.');
         const params = new URLSearchParams({
           wallet: result.walletAddress,
           amount: String(amount),
@@ -570,7 +570,7 @@ export default function DonateEmbedPage() {
               fiatAmount={view.fiatAmount}
               fiatCurrency={view.fiatCurrency}
               onSuccess={(_confirmed: DonationCryptoConfirmResponse) => {
-                // No polling needed here — confirmOnBackend inside
+                // No polling needed here - confirmOnBackend inside
                 // DonationCryptoPaymentStep already got a definitive,
                 // verified response synchronously. Setting 'success'
                 // triggers the existing post-success effect above
@@ -784,7 +784,7 @@ export default function DonateEmbedPage() {
 }
 
 /**
- * Minimal shell — intentionally plain. This renders inside an arbitrary
+ * Minimal shell - intentionally plain. This renders inside an arbitrary
  * club's own page design, so it should look like a self-contained widget,
  * not bring its own competing branding/header.
  */

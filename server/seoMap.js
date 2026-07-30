@@ -346,7 +346,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'fundraising guides, charity fundraising guide, fundraising event planning, payment tracking guide',
     },
 
-    // Legal pages — public, but not SEO landing pages.
+    // Legal pages - public, but not SEO landing pages.
     '/legal/privacy': {
       title: 'Privacy Policy | FundRaisely',
       description: 'Read the FundRaisely privacy policy.',

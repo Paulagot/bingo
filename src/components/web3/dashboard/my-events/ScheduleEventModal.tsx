@@ -222,7 +222,7 @@ export function ScheduleEventModal({
     const url = form.join_url.trim()
 
     if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
-      setError('Please enter a valid URL for "Where to join" — it must start with https://')
+      setError('Please enter a valid URL for "Where to join" - it must start with https://')
       return false
     }
 

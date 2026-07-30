@@ -267,7 +267,7 @@
         {
           "name": "room",
           "docs": [
-            "Room PDA — closed at end of instruction, rent sent to platform_wallet"
+            "Room PDA - closed at end of instruction, rent sent to platform_wallet"
           ],
           "writable": true,
           "pda": {
@@ -296,7 +296,7 @@
         {
           "name": "room_vault",
           "docs": [
-            "Room vault — closed via CPI in handler after all transfers, rent to platform_wallet"
+            "Room vault - closed via CPI in handler after all transfers, rent to platform_wallet"
           ],
           "writable": true,
           "pda": {
@@ -329,7 +329,7 @@
         {
           "name": "platform_token_account",
           "docs": [
-            "Platform token account — receives platform fee tokens"
+            "Platform token account - receives platform fee tokens"
           ],
           "writable": true
         },

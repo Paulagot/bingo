@@ -46,8 +46,8 @@ function getSubtitle(method: PaymentMethod): string {
   if (method.providerName) parts.push(formatProvider(method.providerName));
 
   const cat = method.methodCategory;
-  if (cat === 'stripe')         parts.push('Card / Apple Pay / Google Pay — auto-confirmed');
-  if (cat === 'crypto')         parts.push('Crypto — auto-confirmed on-chain');
+  if (cat === 'stripe')         parts.push('Card / Apple Pay / Google Pay - auto-confirmed');
+  if (cat === 'crypto')         parts.push('Crypto - auto-confirmed on-chain');
   if (cat === 'instant_payment') parts.push('Manual confirmation required');
 
   return parts.join(' · ');
@@ -221,7 +221,7 @@ export default function CampaignPaymentsTab({ campaignId }: Props) {
           <div className="fl-payments-footer">
             <p className="fl-payments-count">
               {selectedIds.length === 0
-                ? 'No methods selected — supporters will see "contact organiser"'
+                ? 'No methods selected - supporters will see "contact organiser"'
                 : `${selectedIds.length} method${selectedIds.length === 1 ? '' : 's'} selected`}
             </p>
             <button
@@ -238,7 +238,7 @@ export default function CampaignPaymentsTab({ campaignId }: Props) {
         </div>
       )}
 
-      {/* ── Preview — what supporters will see ── */}
+      {/* ── Preview - what supporters will see ── */}
       {selectedMethods.length > 0 && (
         <div className="fl-payments-preview">
           <div className="fl-payments-preview-header">
@@ -253,7 +253,7 @@ export default function CampaignPaymentsTab({ campaignId }: Props) {
                 {m.methodCategory === 'instant_payment' && '📱'}
                 {!['stripe','crypto','instant_payment'].includes(m.methodCategory) && '💰'}
                 {' '}{m.methodLabel}
-                {isAutoConfirmed(m) ? ' — instant' : ' — needs confirmation'}
+                {isAutoConfirmed(m) ? ' - instant' : ' - needs confirmation'}
               </li>
             ))}
           </ul>

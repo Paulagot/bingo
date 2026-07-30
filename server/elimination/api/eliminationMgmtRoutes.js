@@ -3,11 +3,11 @@
 // Auth-gated management routes for the elimination game.
 // Mounted at /api/elimination/mgmt
 //
-// All routes require authenticateToken — club_id is always read from
+// All routes require authenticateToken - club_id is always read from
 // req.club_id (set by the middleware), never from the request body.
 //
 // Public game routes (create Web3 room, get snapshot, finalize, etc.)
-// remain in eliminationRoutes.js — this file does not touch them.
+// remain in eliminationRoutes.js - this file does not touch them.
 
 import express from 'express';
 import jwt from 'jsonwebtoken';
@@ -87,7 +87,7 @@ router.post('/schedule', async (req, res) => {
       entryFee, currency, maxPlayers,
       prizeDescription: _legacyDesc, prizeValue: _legacyVal,
       prizes,
-      // Payment methods chosen at the activity level — see
+      // Payment methods chosen at the activity level - see
       // PaymentMethodSelector.tsx on the frontend. Default to [] so a club
       // that hasn't picked anything yet doesn't crash scheduleEliminationRoom.
       ticketMethodIds  = [],
@@ -98,16 +98,16 @@ router.post('/schedule', async (req, res) => {
     const prizeDescription = prizes?.[0]?.description ?? _legacyDesc;
     const prizeValue       = prizes?.[0]?.value        ?? _legacyVal;
 
-    if (DEBUG) console.log(`[eliminationMgmtRoutes] 📅 Schedule elimination — club: ${clubId} room: ${roomId}`);
+    if (DEBUG) console.log(`[eliminationMgmtRoutes] 📅 Schedule elimination - club: ${clubId} room: ${roomId}`);
 
     // ── 1. Resolve entitlements ──────────────────────────────────────────────
     const ents = await resolveEntitlements({ userId: clubId, scope: 'elimination' });
 
-    if (DEBUG) console.log(`[eliminationMgmtRoutes] 🔑 Entitlements resolved — plan: ${ents.plan_code} maxPlayers: ${ents.max_players_per_game} credits: ${ents.game_credits_remaining}`);
+    if (DEBUG) console.log(`[eliminationMgmtRoutes] 🔑 Entitlements resolved - plan: ${ents.plan_code} maxPlayers: ${ents.max_players_per_game} credits: ${ents.game_credits_remaining}`);
 
     // ── 2. Check credits ─────────────────────────────────────────────────────
     if (ents.game_credits_remaining <= 0) {
-      if (DEBUG) console.log(`[eliminationMgmtRoutes] 🚫 No credits — club: ${clubId} plan: ${ents.plan_code}`);
+      if (DEBUG) console.log(`[eliminationMgmtRoutes] 🚫 No credits - club: ${clubId} plan: ${ents.plan_code}`);
       return res.status(402).json({
         error: 'no_credits',
         message: ents.plan_code === 'FREE'
@@ -123,7 +123,7 @@ router.post('/schedule', async (req, res) => {
     });
 
     if (!capsCheck.ok) {
-      if (DEBUG) console.log(`[eliminationMgmtRoutes] 🚫 Cap exceeded — club: ${clubId} reason: ${capsCheck.reason}`);
+      if (DEBUG) console.log(`[eliminationMgmtRoutes] 🚫 Cap exceeded - club: ${clubId} reason: ${capsCheck.reason}`);
       return res.status(403).json({
         error: 'plan_limit_exceeded',
         reason: capsCheck.reason,
@@ -136,7 +136,7 @@ router.post('/schedule', async (req, res) => {
       ? Math.min(maxPlayers, ents.max_players_per_game)
       : ents.max_players_per_game;
 
-    // ── 5. Build roomCaps — stamped into config_json ─────────────────────────
+    // ── 5. Build roomCaps - stamped into config_json ─────────────────────────
     const roomCaps = {
       maxPlayers:       cappedMaxPlayers,
       concurrentRooms:  ents.concurrent_rooms,
@@ -162,16 +162,16 @@ const result = await scheduleEliminationRoom({
   onnightMethodIds,
 });
 
-    // ── 7. Consume credit — only after successful DB insert ──────────────────
+    // ── 7. Consume credit - only after successful DB insert ──────────────────
     const creditResult = await consumeCredit(clubId, 'elimination', ents.plan_code);
 
     if (!creditResult.ok) {
       console.error(
-        `[eliminationMgmtRoutes] ⚠️ Credit consume failed after room creation — club: ${clubId} room: ${result.roomId} reason: ${creditResult.reason}`,
-        '(room is valid — this is a race condition or DB issue)'
+        `[eliminationMgmtRoutes] ⚠️ Credit consume failed after room creation - club: ${clubId} room: ${result.roomId} reason: ${creditResult.reason}`,
+        '(room is valid - this is a race condition or DB issue)'
       );
     } else {
-      if (DEBUG) console.log(`[eliminationMgmtRoutes] ✅ Credit consumed — club: ${clubId} key: ${ents.credit_key}`);
+      if (DEBUG) console.log(`[eliminationMgmtRoutes] ✅ Credit consumed - club: ${clubId} key: ${ents.credit_key}`);
     }
 
     if (DEBUG) console.log(`[eliminationMgmtRoutes] ✅ Scheduled room ${result.roomId} status=${result.status} maxPlayers=${cappedMaxPlayers}`);
@@ -228,13 +228,13 @@ router.patch('/rooms/:roomId', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    // Note: roomId comes from req.params above — do NOT destructure it from req.body
+    // Note: roomId comes from req.params above - do NOT destructure it from req.body
     const {
       scheduledAt, timeZone,
       entryFee, currency, maxPlayers,
       prizeDescription: _legacyDesc, prizeValue: _legacyVal,
       prizes,
-      // Payment methods — left as undefined if not sent, NOT defaulted to
+      // Payment methods - left as undefined if not sent, NOT defaulted to
       // [] here. updateEliminationRoom treats undefined as "don't touch
       // payment methods" and [] as "clear all selections", so defaulting
       // would wrongly clear methods on every edit that doesn't touch them.
@@ -246,7 +246,7 @@ router.patch('/rooms/:roomId', async (req, res) => {
     const prizeDescription = prizes?.[0]?.description ?? _legacyDesc;
     const prizeValue       = prizes?.[0]?.value        ?? _legacyVal;
 
-    if (DEBUG) (`[eliminationMgmtRoutes] ✏️  Update elimination room ${roomId} — club: ${clubId}`);
+    if (DEBUG) (`[eliminationMgmtRoutes] ✏️  Update elimination room ${roomId} - club: ${clubId}`);
 
     const updated = await updateEliminationRoom({
       clubId, roomId, scheduledAt, timeZone, entryFee, currency,
@@ -269,7 +269,7 @@ router.post('/rooms/:roomId/cancel', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    if (DEBUG) console.log(`[eliminationMgmtRoutes] 🚫 Cancel elimination room ${roomId} — club: ${clubId}`);
+    if (DEBUG) console.log(`[eliminationMgmtRoutes] 🚫 Cancel elimination room ${roomId} - club: ${clubId}`);
 
     await cancelEliminationRoom({ clubId, roomId });
     return res.status(200).json({ ok: true });
@@ -287,11 +287,11 @@ router.post('/rooms/:roomId/hydrate', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    if (DEBUG) console.log(`[eliminationMgmtRoutes] 💧 Hydrate elimination room ${roomId} — club: ${clubId}`);
+    if (DEBUG) console.log(`[eliminationMgmtRoutes] 💧 Hydrate elimination room ${roomId} - club: ${clubId}`);
 
     const result = await hydrateEliminationRoom({ clubId, roomId, createRoomFromConfig });
 
-    if (DEBUG) console.log(`[eliminationMgmtRoutes] ✅ Room ${roomId} hydrated — alreadyExisted: ${result.alreadyExisted}`);
+    if (DEBUG) console.log(`[eliminationMgmtRoutes] ✅ Room ${roomId} hydrated - alreadyExisted: ${result.alreadyExisted}`);
 
     return res.status(200).json(result);
   } catch (err) {
@@ -321,7 +321,7 @@ router.post('/rooms/:roomId/operator-token', async (req, res) => {
     const origin      = `${protocol}://${req.headers.host}`;
     const operatorUrl = `${origin}/elimination/operate/${roomId}?token=${token}`;
 
-    if (DEBUG) console.log(`[eliminationMgmtRoutes] 🎤 Operator token generated — room: ${roomId} club: ${clubId}`);
+    if (DEBUG) console.log(`[eliminationMgmtRoutes] 🎤 Operator token generated - room: ${roomId} club: ${clubId}`);
 
     return res.status(200).json({ token, operatorUrl });
   } catch (err) {
@@ -369,7 +369,7 @@ router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
     const canonicalRoomId = row.room_id ?? roomId;
 
     if (DEBUG) console.log(
-      `[eliminationMgmtRoutes] 🔍 approve — URL roomId: "${roomId}" | DB room_id: "${canonicalRoomId}"`
+      `[eliminationMgmtRoutes] 🔍 approve - URL roomId: "${roomId}" | DB room_id: "${canonicalRoomId}"`
     );
 
     const RECONCILIATION_TABLE = `${TABLE_PREFIX}quiz_reconciliation`;
@@ -391,12 +391,12 @@ router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
       );
       return res.status(404).json({
         ok: false,
-        error: 'No reconciliation record found — the game stats may not have saved yet. Try again in a moment.',
+        error: 'No reconciliation record found - the game stats may not have saved yet. Try again in a moment.',
       });
     }
 
     if (diagRows[0].approved_at) {
-      if (DEBUG) console.log(`[eliminationMgmtRoutes] ℹ️  Already approved — room: ${canonicalRoomId}`);
+      if (DEBUG) console.log(`[eliminationMgmtRoutes] ℹ️  Already approved - room: ${canonicalRoomId}`);
       markReconciliationApproved(canonicalRoomId);
       return res.json({ ok: true, alreadyApproved: true });
     }
@@ -414,7 +414,7 @@ router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
     if (dbRoomId !== roomId) markReconciliationApproved(roomId);
 
     if (DEBUG) console.log(
-      `[eliminationMgmtRoutes] ✅ Reconciliation approved via HTTP — room: ${dbRoomId} club: ${clubId}`
+      `[eliminationMgmtRoutes] ✅ Reconciliation approved via HTTP - room: ${dbRoomId} club: ${clubId}`
     );
 
     return res.json({

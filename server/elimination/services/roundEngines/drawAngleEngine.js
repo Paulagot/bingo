@@ -23,7 +23,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const targetAngle = Math.round(randomBetween(5, 175));
 
   // ── Initial offset: further from target at high difficulty ────────────────
-  // Easy: at least 20° away. Hard: at least 60° away — more rotation needed,
+  // Easy: at least 20° away. Hard: at least 60° away - more rotation needed,
   // more chance of overshooting
   const minOffset = Math.round(lerp(20, 60, t));
   let initialAngle = Math.round(randomBetween(5, 175));

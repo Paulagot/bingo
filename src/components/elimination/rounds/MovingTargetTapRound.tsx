@@ -71,7 +71,7 @@ export const MovingTargetTapRound: React.FC<Props> = ({
   const submittedRef = useRef(false);
 
   // Tracks the last rendered target position so we can send it with the
-  // submission — the server uses this to score against what the player
+  // submission - the server uses this to score against what the player
   // actually saw, eliminating clock drift error.
   const currentTargetPosRef = useRef<{ x: number; y: number }>(config.startPosition);
 
@@ -115,7 +115,7 @@ export const MovingTargetTapRound: React.FC<Props> = ({
     const { normX, normY } = getTapPosition(e, containerRef.current);
     submittedRef.current = true;
 
-    // Capture target position at tap time — ref is synchronous so this is
+    // Capture target position at tap time - ref is synchronous so this is
     // the position from the last animation frame, accurate to ~16ms.
     const clientTargetPosition = { ...currentTargetPosRef.current };
 
@@ -171,7 +171,7 @@ export const MovingTargetTapRound: React.FC<Props> = ({
           fill={colour}
         />
 
-        {/* Tap marker — X shown after player taps */}
+        {/* Tap marker - X shown after player taps */}
         {tapMarker && (
           <>
             <line

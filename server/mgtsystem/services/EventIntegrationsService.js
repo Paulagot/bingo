@@ -37,7 +37,7 @@ class EventIntegrationsService {
 
   /**
    * Load the event's scheduling data so we can push it to the room at link
-   * time. Payment methods are NOT loaded here anymore — they flow the other
+   * time. Payment methods are NOT loaded here anymore - they flow the other
    * direction now (room → event), handled inline in addIntegration().
    */
   async _loadEventSyncData({ eventId }) {
@@ -160,13 +160,13 @@ async lookupByEventIds({ clubId, eventIds }) {
    * On link we do a two-way sync, but each direction now carries different
    * data than before:
    *   • Cache the room's current status/scheduling in event_integrations (existing behaviour)
-   *   • Push the event's start_datetime / time_zone → room (UNCHANGED — dates
+   *   • Push the event's start_datetime / time_zone → room (UNCHANGED - dates
    *     genuinely belong to the event, so this direction stays as-is)
-   *   • Pull the room's linked_payment_methods_json → event (FLIPPED — the
+   *   • Pull the room's linked_payment_methods_json → event (FLIPPED - the
    *     activity is now the source of truth for its own payment methods,
    *     set once at schedule time. The event just keeps a denormalized
    *     copy for display/reporting. Editing the event later never writes
-   *     payment methods back down to the room — see EventService.js.)
+   *     payment methods back down to the room - see EventService.js.)
    */
   async addIntegration({ eventId, clubId, integration_type, external_ref }) {
     if (!VALID_TYPES.includes(integration_type)) {
@@ -220,7 +220,7 @@ async lookupByEventIds({ clubId, eventIds }) {
         const scheduledAt = eventData.start_datetime || eventData.event_date || null;
         const timeZone    = eventData.time_zone || null;
 
-        // 1. Sync scheduling + timezone to the quiz room — UNCHANGED.
+        // 1. Sync scheduling + timezone to the quiz room - UNCHANGED.
         //    Dates genuinely belong to the event, so this direction is correct.
         if (scheduledAt || timeZone) {
           const setClauses = [];
@@ -261,7 +261,7 @@ async lookupByEventIds({ clubId, eventIds }) {
 
         // 2. Pull the ROOM's payment methods and push them UP onto the event.
         //    FLIPPED from the old event → room direction. The activity is
-        //    the source of truth for its own payment methods — set once at
+        //    the source of truth for its own payment methods - set once at
         //    schedule time (see eliminationMgmtService.scheduleEliminationRoom
         //    and the quiz equivalent). The event just keeps a denormalized
         //    copy for display/reporting; nothing reads
@@ -297,7 +297,7 @@ async lookupByEventIds({ clubId, eventIds }) {
         console.log(`[EventIntegrationsService] Synced event ${eventId} ← room ${external_ref} at link time (scheduling event→room, payments room→event)`);
       }
     } catch (err) {
-      // Non-fatal — the integration row was created, sync failure shouldn't block the link
+      // Non-fatal - the integration row was created, sync failure shouldn't block the link
       console.warn(`[EventIntegrationsService] Sync for room ${external_ref} failed at link time:`, err.message);
     }
 
@@ -328,11 +328,11 @@ async lookupByEventIds({ clubId, eventIds }) {
    * addIntegration() only runs this push once, at the moment of linking.
    * If a club edits payment methods on an already-linked room afterward
    * (e.g. via updateEliminationRoom), nothing re-syncs that change to the
-   * event on its own — the event's denormalized copy would go stale.
+   * event on its own - the event's denormalized copy would go stale.
    *
    * Call this from any activity's update path right after it writes its
    * own linked_payment_methods_json, passing the room/activity id. Safe to
-   * call even if the room isn't linked to anything yet — it's just a no-op.
+   * call even if the room isn't linked to anything yet - it's just a no-op.
    *
    * Non-fatal by design: a sync failure here should never roll back the
    * activity's own update. Callers should wrap this in try/catch (or rely
@@ -348,7 +348,7 @@ async lookupByEventIds({ clubId, eventIds }) {
         [roomId, clubId]
       );
 
-      if (!integrations?.length) return; // not linked to any event — nothing to do
+      if (!integrations?.length) return; // not linked to any event - nothing to do
 
       const [[room]] = await database.connection.execute(
         `SELECT linked_payment_methods_json
@@ -369,7 +369,7 @@ async lookupByEventIds({ clubId, eventIds }) {
         onnight_method_ids: linked.onnight_method_ids ?? [],
       });
 
-      // A room could in principle be linked to more than one event row —
+      // A room could in principle be linked to more than one event row -
       // update every one of them, not just the first.
       for (const { event_id } of integrations) {
         await database.connection.execute(

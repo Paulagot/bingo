@@ -150,7 +150,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </p>
       )}
 
-      {/* ── Sponsor banner — shown to everyone ── */}
+      {/* ── Sponsor banner - shown to everyone ── */}
       {prizeSponsor && (
         <SponsorBanner sponsor={prizeSponsor} description={prizeDescription} />
       )}
@@ -160,7 +160,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
         <PrizeInfoCard roomData={roomData} totalPlayers={players.length} isWinner={isWinner} finalized={finalized} />
       )}
 
-      {/* ── Web3 finalize section — host only ── */}
+      {/* ── Web3 finalize section - host only ── */}
       {isHost && isWeb3Room && roomData && roomId && hostId && (
         <Web3Provider force={true}>
           <EliminationFinalizeSection
@@ -171,7 +171,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </Web3Provider>
       )}
 
-      {/* ── Feedback modal — non-host players only ── */}
+      {/* ── Feedback modal - non-host players only ── */}
       {showFeedback && (
         <FeedbackModal
           roomId={roomId!}
@@ -227,7 +227,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Host web3 — manual close after finalize */}
+      {/* Host web3 - manual close after finalize */}
       {isHost && isWeb3Room && finalized && (
         <div style={s.closeFoot}>
           <button onClick={onClose} style={{ ...s.closeBtn, fontFamily: FONT_BODY }}>

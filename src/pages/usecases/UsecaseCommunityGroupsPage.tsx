@@ -105,7 +105,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'No — it’s for all community & interest groups: religious communities, Men’s Sheds, hobby clubs, social clubs, meetup groups, cultural associations, residents’ associations, youth groups, and more.',
+            'No - it’s for all community & interest groups: religious communities, Men’s Sheds, hobby clubs, social clubs, meetup groups, cultural associations, residents’ associations, youth groups, and more.',
         },
       },
       {
@@ -123,7 +123,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'Use our templates or create custom rounds — add local history, scripture or study themes, club trivia, cultural festivals, or anything that fits your community.',
+            'Use our templates or create custom rounds - add local history, scripture or study themes, club trivia, cultural festivals, or anything that fits your community.',
         },
       },
       {
@@ -132,7 +132,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'Yes — add sponsors to prizes, track prize winners, and export audit-ready summaries to thank supporters and report to your committee.',
+            'Yes - add sponsors to prizes, track prize winners, and export audit-ready summaries to thank supporters and report to your committee.',
         },
       },
     ],
@@ -159,11 +159,11 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
       <Sparkles className="h-4 w-4" /> For Community & Interest Groups
     </span>
     <h1 className="mt-4 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold">
-      Bring People Together — and Fund What Matters
+      Bring People Together - and Fund What Matters
     </h1>
     <p className="mt-4 mx-auto max-w-3xl text-indigo-900/70 text-lg md:text-xl">
       Whether you’re a <strong>religious community, Men’s Shed, hobby club, social or meetup group, cultural
-      association, youth group</strong> or residents’ association — FundRaisely makes it easy to run magical quiz
+      association, youth group</strong> or residents’ association - FundRaisely makes it easy to run magical quiz
       nights with transparent finances and audit-ready reports.
     </p>
 
@@ -236,7 +236,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
               committee and supporters.
             </FeatureCard>
 
-            <FeatureCard icon={<QrCode className="h-5 w-5" />} title="QR Joins — No App" gradient="from-sky-500 to-indigo-500">
+            <FeatureCard icon={<QrCode className="h-5 w-5" />} title="QR Joins - No App" gradient="from-sky-500 to-indigo-500">
               Players join with a link or QR on their phones. Live scoring and leaderboards keep the room buzzing.
             </FeatureCard>
 
@@ -256,7 +256,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-center text-3xl font-bold text-indigo-900">Designed for Every Kind of Group</h2>
           <p className="text-center mt-2 max-w-2xl mx-auto text-lg text-indigo-900/70">
-            Customise themes and rounds to fit your identity — from parish nights to language clubs, Men’s Sheds to maker
+            Customise themes and rounds to fit your identity - from parish nights to language clubs, Men’s Sheds to maker
             meetups.
           </p>
 
@@ -292,7 +292,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
       <OutcomePreview
         eyebrow="Illustrative outcomes"
         title="What success could look like for community groups"
-        intro="Small to mid-sized quiz nights can create big moments — especially with on-the-night extras and sponsor-backed prizes."
+        intro="Small to mid-sized quiz nights can create big moments - especially with on-the-night extras and sponsor-backed prizes."
         bullets={[
           <>Funds raised in the range of <strong>{formatMoney(600)}–{formatMoney(1200)}</strong> for smaller gatherings</>,
           <>Attendance of <strong>25–60</strong> with <strong>1–2</strong> local sponsors</>,
@@ -360,7 +360,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
             <div className="rounded-lg border border-indigo-100 bg-white p-4">
               <h3 className="font-semibold text-indigo-900">Can we customise questions and themes?</h3>
               <p className="mt-1 text-indigo-900/80">
-                Absolutely. Start with templates and build your own round — from scripture or club lore to local history and
+                Absolutely. Start with templates and build your own round - from scripture or club lore to local history and
                 cultural festivals.
               </p>
             </div>
@@ -381,7 +381,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
           <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white shadow-lg">
             <h3 className="text-3xl font-bold mb-3">Ready to bring your community together?</h3>
             <p className="text-white/90 mb-6 text-lg max-w-3xl mx-auto">
-              Run a real fundraising quiz night with live scoring, engaging extras, and audit-ready reporting — built for community
+              Run a real fundraising quiz night with live scoring, engaging extras, and audit-ready reporting - built for community
               & interest groups of every kind.
             </p>
             <div className="flex flex-wrap justify-center gap-4">

@@ -4,7 +4,7 @@
 //
 // Club-facing ticket income summary, grouped by ticket_type_name.
 // Confirmed-only (payment_status = 'payment_confirmed'), scoped to the
-// authenticated club. Deliberately aggregate-only — no row-level ticket
+// authenticated club. Deliberately aggregate-only - no row-level ticket
 // data here (the dashboard drawer already covers per-room detail; this
 // is for the income report's summary card).
 

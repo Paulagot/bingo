@@ -77,7 +77,7 @@ export default function CampaignProductEditorModal({
         if (data?.rooms) setLinkedRooms(data.rooms);
       })
       .catch(() => {
-        // Non-fatal — rooms input falls back to free-text
+        // Non-fatal - rooms input falls back to free-text
       });
   }, [campaignId]);
 
@@ -298,7 +298,7 @@ function ProductItemRow({ item, rooms, onChange, onRemove }: ItemRowProps) {
             value={item.targetRoomId}
             onChange={e => onChange({ targetRoomId: e.target.value })}
           >
-            <option value="">— Select event / room —</option>
+            <option value="">- Select event / room -</option>
             {rooms.map(r => (
               <option key={r.room_id} value={r.room_id}>
                 {r.label ?? r.room_id} ({r.game_type})

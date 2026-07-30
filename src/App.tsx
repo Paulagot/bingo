@@ -5,9 +5,6 @@ import { Header } from './components/GeneralSite2/Header';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import { Game } from './pages/Game';
 
-
-
-
 import { Landing } from './pages/Landing';
 import WhatsNew from './pages/WhatsNew';
 import FreeTrial from './pages/FreeTrial';
@@ -42,10 +39,11 @@ import { useAuthStore } from './features/auth';
 
 import { sdk } from '@farcaster/miniapp-sdk';
 
+// ── NEW: shared dashboard shell (top nav + notifications + club drawer) ──
+import DashboardShell from './components/dashboard/DashboardShell';
+
 /**
  * NEW PUBLIC SITE IMPORTS
- * These assume you copied the new frontend into:
- * src/pages/site
  */
 import { SiteLayout } from './pages/site/components/layout/SiteLayout';
 
@@ -97,8 +95,8 @@ import PublicWallOfFamePage from './components/puzzles/pages/PublicWallOfFamePag
 const StandaloneDonatePage = lazy(() => import('./pages/donations/StandaloneDonatePage'));
 const TicketEmbedPage = lazy(() => import('./components/embed/TicketEmbedPage'));
 
- const WalletIframeTestPage = lazy(() => import('./pages/WalletIframeTestPage'));
- const CryptoDonationCheckoutPage = lazy(() => import('./pages/donations/CryptoDonationCheckoutPage'));
+const WalletIframeTestPage = lazy(() => import('./pages/WalletIframeTestPage'));
+const CryptoDonationCheckoutPage = lazy(() => import('./pages/donations/CryptoDonationCheckoutPage'));
 
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -169,7 +167,6 @@ const EliminationJoinSuccessPage = lazy(() =>
   }))
 );
 
-// Add this lazy import at the top with the other lazy imports:
 const WalkinPage = lazy(() =>
   import('./pages/site/pages/WalkinPage').then((m) => ({
     default: m.default,
@@ -245,8 +242,6 @@ const needsWeb3Wrapper = (pathname: string) =>
   /^\/quiz\/(game|play|admin-join)\b/.test(pathname);
 
 export default function App() {
-
-
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -273,25 +268,24 @@ export default function App() {
           }
         />
 
-   <Route
-  path="/donate/:clubId/crypto/:donationId"
-  element={
-    <Suspense fallback={null}>
-      <CryptoDonationCheckoutPage />
-    </Suspense>
-  }
-/>
+        <Route
+          path="/donate/:clubId/crypto/:donationId"
+          element={
+            <Suspense fallback={null}>
+              <CryptoDonationCheckoutPage />
+            </Suspense>
+          }
+        />
 
-<Route path="/leaderboards/:challengeId" element={<PublicWallOfFamePage />} />
-<Route path="/leaderboards/:challengeId/weeks/:week" element={<PublicWeekLeaderboardPage />} />
-        {/* 
-          NEW PUBLIC MARKETING SITE
-          These replace the old public marketing pages at live URLs.
-          SiteLayout should provide the new site header/footer.
-        */}
+        <Route path="/leaderboards/:challengeId" element={<PublicWallOfFamePage />} />
+        <Route path="/leaderboards/:challengeId/weeks/:week" element={<PublicWeekLeaderboardPage />} />
+
+        {/* ────────────────────────────────────────────────────────────────
+            NEW PUBLIC MARKETING SITE
+        ──────────────────────────────────────────────────────────────── */}
         <Route element={<SiteLayout />}>
           <Route path="/" element={<SiteHomePage />} />
-          
+
           <Route path="/pricing" element={<SitePricingPage />} />
           <Route path="/how-it-works" element={<SiteHowItWorksPage />} />
           <Route path="/about" element={<SiteAboutPage />} />
@@ -333,10 +327,9 @@ export default function App() {
           <Route path="/site-404-preview" element={<SiteNotFoundPage />} />
         </Route>
 
-        {/* 
-          OLD MARKETING PAGES
-          Kept accessible while migrating/reviewing old copy.
-        */}
+        {/* ────────────────────────────────────────────────────────────────
+            OLD MARKETING PAGES (kept while migrating)
+        ──────────────────────────────────────────────────────────────── */}
         <Route
           path="/old"
           element={
@@ -486,17 +479,6 @@ export default function App() {
           }
         />
 
-        {/*
-          Previously missing entirely - PeerStripeSuccess.tsx existed as a
-          file but was never imported or routed here, so the URL
-          peerStripeCheckoutService.js has been generating since it was
-          written (…/fundraise/:clubSlug/:fundraiserSlug/order-success)
-          had nowhere to land. React Router v6 ranks routes by specificity
-          (a literal segment like "order-success" always outranks the
-          dynamic :participantSlug below), so this works correctly
-          regardless of where it's declared relative to that route -
-          unlike the Express backend routes, ordering isn't load-bearing here.
-        */}
         <Route
           path="/fundraise/:clubSlug/:fundraiserSlug/order-success"
           element={
@@ -554,16 +536,35 @@ export default function App() {
           }
         />
 
-        {/* Peer-to-Peer management routes */}
-        <Route
-          path="/peer-dashboard"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Loading Peer-to-Peer Dashboard..." />}>
-              <PeerDashboard />
-            </Suspense>
-          }
-        />
+        {/* ────────────────────────────────────────────────────────────────
+            AUTHENTICATED DASHBOARDS
+            Wrapped in DashboardShell which provides:
+            • Top nav (Events | Peer | future dashboards)
+            • NotificationsTicker (app-level, from Fundraisely to user)
+            • Club drawer trigger (payment methods, donation button,
+              income report, logout)
+        ──────────────────────────────────────────────────────────────── */}
+        <Route element={<DashboardShell />}>
+          <Route
+            path="/eventdashboard"
+            element={
+              <Suspense fallback={<LoadingSpinner message="Loading Dashboard" />}>
+                <QuizEventDashboard />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/peer-dashboard"
+            element={
+              <Suspense fallback={<LoadingSpinner message="Loading Peer Dashboard..." />}>
+                <PeerDashboard />
+              </Suspense>
+            }
+          />
+        </Route>
 
+        {/* Peer management sub-routes stay standalone for now - they'll
+            become a drawer inside the peer dashboard in the next phase. */}
         <Route
           path="/peer-dashboard/new"
           element={
@@ -582,6 +583,13 @@ export default function App() {
           }
         />
 
+        <Route path="/quiz" element={<Navigate to="/eventdashboard" replace />} />
+
+        <Route
+          path="/quiz/create-fundraising-quiz"
+          element={<Navigate to="/eventdashboard" replace />}
+        />
+
         {/* Event page */}
         <Route
           path="/events/bonk-bfp-pub-quiz"
@@ -593,9 +601,9 @@ export default function App() {
         />
 
         <Route
-  path="/events/safe-streets-ireland-padel"
-  element={<SafeStreetsIrelandPadelPage />}
-/>
+          path="/events/safe-streets-ireland-padel"
+          element={<SafeStreetsIrelandPadelPage />}
+        />
 
         {/* Ticket routes */}
         <Route
@@ -647,22 +655,6 @@ export default function App() {
         />
 
         <Route
-          path="/quiz/eventdashboard"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Loading Dashboard" />}>
-              <QuizEventDashboard />
-            </Suspense>
-          }
-        />
-
-        <Route path="/quiz" element={<Navigate to="/quiz/eventdashboard" replace />} />
-
-        <Route
-          path="/quiz/create-fundraising-quiz"
-          element={<Navigate to="/quiz/eventdashboard" replace />}
-        />
-
-        <Route
           path="/quiz/*"
           element={
             <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
@@ -708,13 +700,13 @@ export default function App() {
           }
         />
         <Route
-  path="/elimination/join-success/:roomId"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Confirming payment..." />}>
-      <EliminationJoinSuccessPage />
-    </Suspense>
-  }
-/>
+          path="/elimination/join-success/:roomId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Confirming payment..." />}>
+              <EliminationJoinSuccessPage />
+            </Suspense>
+          }
+        />
 
         <Route
           path="/elimination"
@@ -726,54 +718,54 @@ export default function App() {
         />
 
         <Route
-  path="/embed/donate/:clubId"
-  element={
-    <Suspense fallback={null}>
-      <DonateEmbedPage />
-    </Suspense>
-  }
-/>
-<Route
-  path="/embed/donate/:clubId/success"
-  element={
-    <Suspense fallback={null}>
-      <DonateEmbedPage />
-    </Suspense>
-  }
-/>
-<Route
-  path="/donate-now/:clubId"
-  element={
-    <Suspense fallback={null}>
-      <StandaloneDonatePage />
-    </Suspense>
-  }
-/>
-<Route
-  path="/donate-now/:clubId/success"
-  element={
-    <Suspense fallback={null}>
-      <StandaloneDonatePage />
-    </Suspense>
-  }
-/>
+          path="/embed/donate/:clubId"
+          element={
+            <Suspense fallback={null}>
+              <DonateEmbedPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/embed/donate/:clubId/success"
+          element={
+            <Suspense fallback={null}>
+              <DonateEmbedPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/donate-now/:clubId"
+          element={
+            <Suspense fallback={null}>
+              <StandaloneDonatePage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/donate-now/:clubId/success"
+          element={
+            <Suspense fallback={null}>
+              <StandaloneDonatePage />
+            </Suspense>
+          }
+        />
 
         <Route
-  path="/ticketed-event/checkin/:roomId"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading check-in..." />}>
-      <CheckinPage />
-    </Suspense>
-  }
-/>
-<Route
-  path="/tickets/walkin/:roomId"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading Walk-in" />}>
-      <WalkinPage />
-    </Suspense>
-  }
-/>
+          path="/ticketed-event/checkin/:roomId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading check-in..." />}>
+              <CheckinPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/tickets/walkin/:roomId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading Walk-in" />}>
+              <WalkinPage />
+            </Suspense>
+          }
+        />
 
         {/* Web3 Hub & Impact Campaign */}
         <Route
@@ -855,13 +847,13 @@ export default function App() {
         />
 
         <Route
-  path="/challenges/:challengeId/standings"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-      <PlayerOverallLeaderboardPage />
-    </Suspense>
-  }
-/>
+          path="/challenges/:challengeId/standings"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+              <PlayerOverallLeaderboardPage />
+            </Suspense>
+          }
+        />
 
         <Route
           path="/challenges/:challengeId/puzzle/:week"
@@ -900,69 +892,67 @@ export default function App() {
         />
 
         <Route
-  path="/puzzle-notify"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-      <PuzzleNotifyPage />
-    </Suspense>
-  }
-/>
+          path="/puzzle-notify"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+              <PuzzleNotifyPage />
+            </Suspense>
+          }
+        />
 
-<Route
-  path="/sponsor/:roomId"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading sponsorship page..." />}>
-      <SponsorPage />
-    </Suspense>
-  }
-/>
+        <Route
+          path="/sponsor/:roomId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading sponsorship page..." />}>
+              <SponsorPage />
+            </Suspense>
+          }
+        />
 
-<Route
-  path="/puzzle-drop/:dropRoomId"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-      <PuzzleDropLandingPage />
-    </Suspense>
-  }
-/>
+        <Route
+          path="/puzzle-drop/:dropRoomId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+              <PuzzleDropLandingPage />
+            </Suspense>
+          }
+        />
 
-<Route
-  path="/puzzle-drop/:dropRoomId/success"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-      <PuzzleDropStripeSuccessPage />
-    </Suspense>
-  }
-/>
+        <Route
+          path="/puzzle-drop/:dropRoomId/success"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+              <PuzzleDropStripeSuccessPage />
+            </Suspense>
+          }
+        />
 
-<Route
-  path="/puzzle-drop/:dropRoomId/leaderboard"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-      <PuzzleDropWallOfFamePage />
-    </Suspense>
-  }
-/>
+        <Route
+          path="/puzzle-drop/:dropRoomId/leaderboard"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+              <PuzzleDropWallOfFamePage />
+            </Suspense>
+          }
+        />
 
-<Route
-  path="/puzzle-drop/:dropRoomId/items/:itemNumber/leaderboard"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-      <PuzzleDropItemLeaderboardPage />
-    </Suspense>
-  }
-/>
+        <Route
+          path="/puzzle-drop/:dropRoomId/items/:itemNumber/leaderboard"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+              <PuzzleDropItemLeaderboardPage />
+            </Suspense>
+          }
+        />
 
-<Route
-  path="/puzzle-drop/play/:entitlementId"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading Puzzle..." />}>
-      <PuzzleDropPlayPage />
-    </Suspense>
-  }
-/>
-
-    
+        <Route
+          path="/puzzle-drop/play/:entitlementId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading Puzzle..." />}>
+              <PuzzleDropPlayPage />
+            </Suspense>
+          }
+        />
 
         <Route
           path="/puzzle-check-email"
@@ -982,16 +972,14 @@ export default function App() {
           }
         />
 
-<Route
-  path="/embed/tickets/:roomId"
-  element={
-    <Suspense fallback={<LoadingSpinner message="Loading tickets..." />}>
-      <TicketEmbedPage />
-    </Suspense>
-  }
-/>
-
-        
+        <Route
+          path="/embed/tickets/:roomId"
+          element={
+            <Suspense fallback={<LoadingSpinner message="Loading tickets..." />}>
+              <TicketEmbedPage />
+            </Suspense>
+          }
+        />
 
         {/* Final app 404 */}
         <Route
@@ -1009,7 +997,7 @@ export default function App() {
                     Return Home
                   </button>
                   <button
-                    onClick={() => navigate('/quiz/eventdashboard')}
+                    onClick={() => navigate('/eventdashboard')}
                     className="block w-full rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700"
                   >
                     Go to Quiz Dashboard

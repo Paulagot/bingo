@@ -110,7 +110,7 @@ async function prepareWinnersArray(params: {
       }
     }
   } else {
-    // Pool room — try definedPrizePlaces() first, fall back to prizeSplitsBps
+    // Pool room - try definedPrizePlaces() first, fall back to prizeSplitsBps
     try {
       expectedPlaces = (await readContract(wagmiConfig, {
         address: roomAddress as `0x${string}`,

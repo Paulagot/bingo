@@ -18,7 +18,7 @@ const router = express.Router();
  *
  * Returns the puzzle instance for this week plus any saved progress.
  * Also returns a previousSubmission object if the player has already
- * submitted this puzzle — the frontend uses this to lock the shell
+ * submitted this puzzle - the frontend uses this to lock the shell
  * immediately on load rather than showing a playable puzzle.
  */
 router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
@@ -56,7 +56,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       // Timestamp the FIRST time this player is ever served a playable
       // instance of this puzzle. This is what server-side scoring uses as
       // the fallback start-of-session marker (see puzzleValidationService).
-      // Safe to call on every load — recordFirstView is INSERT IGNORE, so
+      // Safe to call on every load - recordFirstView is INSERT IGNORE, so
       // reloads never move the clock.
       if (playerId) {
         await recordFirstView({ instanceId: instance.id, playerId, clubId: fallbackClubId });
@@ -67,7 +67,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       return res.json({
         puzzle: clientData,
         progress: progress?.progressData ?? null,
-        // Cosmetic only — scoring already uses the server-tracked value
+        // Cosmetic only - scoring already uses the server-tracked value
         // regardless of what this shows. This just lets the resumed
         // puzzle's visible timer pick up from real elapsed time instead of
         // restarting at 0, so it doesn't look like the break never happened.
@@ -103,7 +103,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       });
     }
 
-    // Payment gate for paid challenges. Free challenges skip this entirely —
+    // Payment gate for paid challenges. Free challenges skip this entirely -
     // matches existing behaviour exactly (only unlocks_at gates access).
     if (!challenge.is_free) {
       if (!playerId) {
@@ -127,11 +127,11 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       // Pay-per-unlock gate: access to week N requires this player to
       // have personally paid for N cycles, not just "be a subscriber in
       // good standing." This is what makes a player who joins late only
-      // ever see as many weeks as they've actually paid for — their own
+      // ever see as many weeks as they've actually paid for - their own
       // cycle count is anchored to when THEY started paying
       // (first_period_started_at), independent of how many weeks the
       // challenge's own calendar has unlocked for everyone else.
-      // unlocks_at above still has to pass too — paying ahead doesn't
+      // unlocks_at above still has to pass too - paying ahead doesn't
       // let a player binge weeks the club hasn't released content for.
       if (subscription.paid_cycles < weekNum) {
         return res.status(402).json({
@@ -175,7 +175,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
     }
 
     // Same first-view timestamp as the fallback branch above. Only recorded
-    // when there's no previousSubmission — once a player has submitted,
+    // when there's no previousSubmission - once a player has submitted,
     // there's no session left to time.
     if (playerId && !previousSubmission) {
       await recordFirstView({ instanceId: instance.id, playerId, clubId });
@@ -205,7 +205,7 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
  * Body: { progressData }
  *
  * Called on autosave (interval + visibilitychange) from the client. Each
- * call also advances the player's server-tracked active-time heartbeat —
+ * call also advances the player's server-tracked active-time heartbeat -
  * see puzzleProgressService.saveProgress for how that's capped so idle/
  * backgrounded time never counts as "active."
  */
@@ -233,7 +233,7 @@ router.post('/:instanceId/save', authenticateAny, async (req, res) => {
  * Body: { puzzleType, answer, timeTakenSeconds }
  *
  * timeTakenSeconds here is the client's own claim and is now only used as
- * a last-resort fallback (and for anomaly comparison) — see
+ * a last-resort fallback (and for anomaly comparison) - see
  * puzzleValidationService.validateAndScore for the server-verified value
  * that's actually used for scoring.
  */

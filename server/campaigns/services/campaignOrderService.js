@@ -28,7 +28,7 @@ function normalisePaymentCategory(category, providerName) {
   const cat      = String(category  || '').toLowerCase().trim();
   const provider = String(providerName || '').toLowerCase().trim();
 
-  // Direct ENUM matches — pass through unchanged
+  // Direct ENUM matches - pass through unchanged
   const valid = new Set([
     'card', 'stripe', 'instant_payment', 'cash_to_player',
     'cash', 'card_tap', 'pay_admin', 'crypto', 'bank_transfer', 'other',
@@ -326,7 +326,7 @@ export async function confirmOrder(orderId, campaignId, clubId) {
 }
 
 /**
- * Confirm an order from Stripe webhook (no club_id check needed — webhook is internal).
+ * Confirm an order from Stripe webhook (no club_id check needed - webhook is internal).
  * Used for card payment confirmations.
  */
 export async function confirmOrderByStripeIntent(stripePaymentIntentId) {
@@ -335,7 +335,7 @@ export async function confirmOrderByStripeIntent(stripePaymentIntentId) {
     [stripePaymentIntentId]
   );
   const order = rows[0];
-  if (!order) return null; // Not a campaign order — caller should handle other order types
+  if (!order) return null; // Not a campaign order - caller should handle other order types
 
   if (order.payment_status === 'confirmed') return formatOrder(order); // Idempotent
 

@@ -65,7 +65,7 @@ export interface ValidationResult {
 // ─── Service Response Shapes ──────────────────────────────────────────────────
 
 export interface PuzzleProgressMeta {
-  /** Server-tracked active time so far, in seconds. Cosmetic only — scoring
+  /** Server-tracked active time so far, in seconds. Cosmetic only - scoring
    *  already uses the server's own value at submit time regardless of what
    *  this displays. Used to seed the resumed puzzle's visible timer instead
    *  of restarting it at 0. */
@@ -78,7 +78,7 @@ export interface PuzzleProgressMeta {
 export interface PuzzleLoadResponse {
   puzzle:             PuzzleInstance;
   progress:           Record<string, unknown> | null;
-  /** Present alongside `progress` whenever there's saved progress to resume —
+  /** Present alongside `progress` whenever there's saved progress to resume -
    *  null otherwise (fresh puzzle, or already submitted). */
   progressMeta:       PuzzleProgressMeta | null;
   /** Present when the player has already submitted this puzzle in a prior session. */
@@ -288,26 +288,26 @@ export interface PuzzleShellProps {
   difficulty:         PuzzleDifficulty;
   puzzleData:         Record<string, unknown>;
   onSubmit:           (answer: Record<string, unknown>, timeTaken: number) => void;
-  /** Explicit "Save & Exit" action — the caller is expected to navigate the
+  /** Explicit "Save & Exit" action - the caller is expected to navigate the
    *  player away after this resolves (PuzzlePage does). Do NOT wire this up
-   *  as a periodic/background autosave source — use onAutosave for that,
+   *  as a periodic/background autosave source - use onAutosave for that,
    *  which has no such side effect. */
   onSaveProgress:     (state: Record<string, unknown>) => void;
   /** Silent background save used by debounced/periodic autosave. Must NOT
-   *  navigate or have any other visible side effect — this fires every few
+   *  navigate or have any other visible side effect - this fires every few
    *  seconds while the player is mid-puzzle. Optional: if omitted, autosave
    *  simply doesn't run and only the explicit Save & Exit button saves. */
   onAutosave?:        (state: Record<string, unknown>) => void | Promise<unknown>;
   /** Best-effort save specifically for the tab-hide/unload moment (e.g.
    *  puzzleService.saveProgressOnUnload, which uses `keepalive` so the
    *  request isn't cancelled mid-flight). Falls back to onAutosave if
-   *  omitted — still attempted, just without the keepalive guarantee. */
+   *  omitted - still attempted, just without the keepalive guarantee. */
   onSaveProgressOnUnload?: (state: Record<string, unknown>) => void;
   savedState?:        Record<string, unknown> | null;
-  /** When the saved progress being offered was last written — shown in the
+  /** When the saved progress being offered was last written - shown in the
    *  resume banner. From PuzzleLoadResponse.progressMeta.savedAt. */
   savedAt?:           string | null;
-  /** Server-tracked active time so far, in seconds — seeds the resumed
+  /** Server-tracked active time so far, in seconds - seeds the resumed
    *  puzzle's visible timer. Cosmetic only; does not affect scoring.
    *  From PuzzleLoadResponse.progressMeta.activeSeconds. */
   initialActiveSeconds?: number | null;

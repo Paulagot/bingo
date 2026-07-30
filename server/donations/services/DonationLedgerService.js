@@ -1,7 +1,7 @@
 // server/donations/services/DonationLedgerService.js
 //
 // Writes/reads fundraisely_donations. Deliberately separate from
-// quizPaymentLedgerService.js — see donationCheckout.ts comment above
+// quizPaymentLedgerService.js - see donationCheckout.ts comment above
 // FundraiselyDonation for the reasoning (no room/player identity here,
 // different status vocabulary). Follows the same DB access conventions
 // as the rest of this codebase (connection.execute, TABLE_PREFIX) so it
@@ -17,7 +17,7 @@ const DONATIONS_TABLE = `${TABLE_PREFIX}donations`;
  * Stripe/SumUp or before returning the wallet address for crypto.
  *
  * Snapshots (categorySnapshot/providerSnapshot/labelSnapshot) are taken
- * at creation time, same pattern as PaymentLedgerEntry — protects
+ * at creation time, same pattern as PaymentLedgerEntry - protects
  * reporting if the club later renames/disables/deletes the method.
  */
 export async function createPendingDonation({
@@ -60,12 +60,12 @@ export async function createPendingDonation({
 }
 
 /**
- * Attach the provider's checkout/session id once it's created — for
+ * Attach the provider's checkout/session id once it's created - for
  * Stripe this is the Checkout Session id, for SumUp (future) the
  * checkout resource id. Kept as a separate step from createPendingDonation
  * because the row needs to exist before we know the provider's id back
  * (we create the donation row, then call the provider, then store the id
- * the provider hands back) — see DonationCheckoutService.
+ * the provider hands back) - see DonationCheckoutService.
  */
 export async function attachExternalCheckoutId({ donationId, externalCheckoutId }) {
   const sql = `
@@ -78,7 +78,7 @@ export async function attachExternalCheckoutId({ donationId, externalCheckoutId 
 }
 
 /**
- * Mark a donation confirmed. Called only from a verified source —
+ * Mark a donation confirmed. Called only from a verified source -
  * Stripe webhook (raw-body verified, see stripeWebhookHandler pattern)
  * or on-chain verification for crypto. Never optimistic / client-driven,
  * per spec acceptance criteria section 10.
@@ -87,16 +87,16 @@ export async function attachExternalCheckoutId({ donationId, externalCheckoutId 
  * directly (crypto path, which already knows its own donationId from
  * the in-page flow and doesn't have a separate checkout id concept).
  *
- * The crypto* params are all optional and additive — the Stripe webhook
+ * The crypto* params are all optional and additive - the Stripe webhook
  * call site passes none of them and behaves exactly as before (they
  * stay NULL via COALESCE). THIS WAS THE BUG: an earlier version of this
- * function never actually accepted these six params at all — they were
+ * function never actually accepted these six params at all - they were
  * silently dropped by JS destructuring, the three-field UPDATE below
  * ran anyway, and confirmDonation still returned true, so nothing
  * upstream noticed anything had gone wrong. A donation could show
  * status='confirmed' with a real external_transaction_id while every
  * crypto_* column stayed empty. Confirm this version is what's actually
- * deployed — diff against the previous file rather than assuming.
+ * deployed - diff against the previous file rather than assuming.
  */
 export async function confirmDonation({
   donationId = null,
@@ -186,7 +186,7 @@ export async function markDonationStatus({ donationId = null, externalCheckoutId
  *
  * Pass `all: true` to skip pagination entirely and return every matching
  * row in one query (used by reporting views that need full totals, e.g.
- * the dashboard income report — not for paginated UI lists).
+ * the dashboard income report - not for paginated UI lists).
  */
 export async function listDonationsForClub({ clubId, status = null, page = 1, pageSize = 25, all = false }) {
   const whereParts = ['club_id = ?'];
@@ -231,7 +231,7 @@ export async function listDonationsForClub({ clubId, status = null, page = 1, pa
 }
 
 /**
- * Single donation lookup — used by the crypto confirm path (which
+ * Single donation lookup - used by the crypto confirm path (which
  * already has a donationId from the in-page flow) and by anything that
  * needs to re-check status before acting.
  */

@@ -6,7 +6,7 @@
  * supporter token is present, req.supporter_id / req.club_id are set
  * exactly as authenticateSupporter would. If the token is missing,
  * malformed, expired, or belongs to a club (not supporter) user, the
- * request just proceeds with req.supporter_id left undefined — used for
+ * request just proceeds with req.supporter_id left undefined - used for
  * routes that are public but want to personalize the response when the
  * caller happens to be logged in (e.g. the schedule route, which needs
  * to work for anonymous preview visits AND show completion state for
@@ -30,9 +30,9 @@ export const optionalAuthenticateSupporter = (req, res, next) => {
       req.supporter_id = decoded.supporterId;
       req.club_id      = decoded.clubId;
     }
-    // Wrong token type (club token) — just ignore it, proceed anonymous.
+    // Wrong token type (club token) - just ignore it, proceed anonymous.
   } catch {
-    // Invalid/expired token — proceed anonymous rather than blocking.
+    // Invalid/expired token - proceed anonymous rather than blocking.
   }
 
   next();

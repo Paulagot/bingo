@@ -88,7 +88,7 @@ const SiteFooter: React.FC = () => (
     </footer>
     
     <div className="border-t border-indigo-100/70 bg-white py-6 text-center text-sm text-indigo-900/60">
-      © {new Date().getFullYear()} FundRaisely — All rights reserved.
+      © {new Date().getFullYear()} FundRaisely - All rights reserved.
     </div>
   </>
 );

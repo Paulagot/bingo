@@ -4,7 +4,7 @@
 // Used by CampaignProductEditorModal to populate the room dropdown.
 //
 // Rooms are linked to a campaign via the campaign_id column on
-// FL_web2_quiz_rooms — the same table used by quiz and elimination.
+// FL_web2_quiz_rooms - the same table used by quiz and elimination.
 //
 // Mount in server/index.js (auth-gated, same as elimination mgmt):
 //   import campaignLinkedRoomsRoutes from './campaigns/api/campaignLinkedRoomsRoutes.js';
@@ -88,7 +88,7 @@ router.get('/campaigns/:campaignId/linked-rooms', authenticateToken, async (req,
 
       const label = eventName
         ? `${eventName} (${gameTypeLabel})`
-        : `${gameTypeLabel} — ${row.room_id}`;
+        : `${gameTypeLabel} - ${row.room_id}`;
 
       return {
         room_id:      row.room_id,

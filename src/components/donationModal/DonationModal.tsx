@@ -1,32 +1,32 @@
 // src/components/donationModal/DonationModal.tsx
 //
-// Opens as a real on-page modal (overlay + centered panel) — NOT an
+// Opens as a real on-page modal (overlay + centered panel) - NOT an
 // iframe, NOT donate.js, NOT a separate tab for the picker itself. The
 // amount/method picker renders directly inside this component's own
 // React tree, on the host page. This is what makes the close-on-success
 // problem solvable without any postMessage relay: there is no second
 // window/iframe boundary between the picker and the thing that needs to
-// close — they're the same component.
+// close - they're the same component.
 //
 // Flow:
 //   1. Click "Donate now" -> isOpen=true -> fetch config -> picker UI
-//      (method choice if >1 method, then amount + donor info) — this
+//      (method choice if >1 method, then amount + donor info) - this
 //      part is the SAME logic/JSX shape as DonateEmbedPage.tsx and
 //      StandaloneDonatePage.tsx, just rendered inside a modal panel
 //      instead of an iframe shell or full page.
 //   2. Stripe: MUST leave the tab (Stripe Checkout is a redirect by
-//      nature — no way to avoid this with any approach). Opens in a NEW
+//      nature - no way to avoid this with any approach). Opens in a NEW
 //      TAB; the modal stays open showing "complete checkout in the new
 //      tab, we'll detect it automatically" and starts polling this
 //      donation's status.
 //   3. Crypto: same new-tab pattern, same polling.
 //   4. Polling: GET /api/donations/:clubId/:donationId/status (new,
-//      isolated route — see donationStatusRouter.js) every 2.5s while
+//      isolated route - see donationStatusRouter.js) every 2.5s while
 //      the checkout tab is open. The moment status flips to
 //      'confirmed', show "thank you" and auto-close shortly after.
 //      'failed'/'expired' show a clear failure state instead of
 //      polling forever. This REPLACES the postMessage/relay chain
-//      entirely — the modal asks "is this done yet?" directly, with no
+//      entirely - the modal asks "is this done yet?" directly, with no
 //      dependency on a message successfully crossing window/iframe/tab
 //      boundaries at all, which is exactly the part that's broken in
 //      the existing embed flow.
@@ -100,7 +100,7 @@ type ViewState =
   | { kind: 'picking_amount' }
   | { kind: 'starting_checkout' }
   | { kind: 'awaiting_confirmation'; provider: 'stripe' | 'sumup_api' | 'crypto' }
-  // NEW: desktop-only crypto path — rendered directly in this modal,
+  // NEW: desktop-only crypto path - rendered directly in this modal,
   // no new tab. See the header comment above the crypto branch in
   // handleDonate for why this is desktop-only.
   | {
@@ -192,7 +192,7 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, clubId]);
 
-  // Cleanup on unmount, regardless of isOpen — belt-and-suspenders so a
+  // Cleanup on unmount, regardless of isOpen - belt-and-suspenders so a
   // poll interval never outlives the component itself.
   useEffect(() => {
     return () => {
@@ -210,7 +210,7 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
     pollIntervalRef.current = window.setInterval(async () => {
       const startedAt = pollStartedAtRef.current;
       if (startedAt !== null && Date.now() - startedAt > POLL_TIMEOUT_MS) {
-        // Gave up — leave the supporter on the "awaiting confirmation"
+        // Gave up - leave the supporter on the "awaiting confirmation"
         // view rather than silently failing; they may still complete
         // payment, the donation just won't auto-close this modal
         // anymore. Nothing about the actual payment is affected.
@@ -233,7 +233,7 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
         }
         // 'pending' -> keep polling, no state change needed.
       } catch {
-        // Transient network hiccup — don't fail the whole flow over
+        // Transient network hiccup - don't fail the whole flow over
         // one missed poll, just try again next tick.
       }
     }, POLL_INTERVAL_MS);
@@ -262,7 +262,7 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
         amount,
         donorName: donorName.trim() || undefined,
         donorEmail: donorEmail.trim() || undefined,
-        // No returnPath override needed here — this modal never relies
+        // No returnPath override needed here - this modal never relies
         // on Stripe's success_url to do anything (it polls instead), so
         // wherever Stripe redirects back to after payment is irrelevant
         // to closing THIS modal. Left unset deliberately; the backend
@@ -285,16 +285,16 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
 
       if (result.provider === 'crypto') {
         // Desktop: render the wallet-connect/pay flow directly in this
-        // modal — no new tab. Desktop wallet connection is either a
+        // modal - no new tab. Desktop wallet connection is either a
         // browser extension (no navigation involved) or a QR code
         // scanned by a SEPARATE device (this tab never leaves), so
         // nesting inside a modal doesn't carry the same risk mobile
-        // does. Mobile (and anything ambiguous — isMobileOrTablet()
+        // does. Mobile (and anything ambiguous - isMobileOrTablet()
         // fails closed toward "treat as mobile") keeps the EXACT
         // existing new-tab + polling behavior below, unchanged: on
         // mobile, tapping a wallet typically triggers an app-switch
         // (browser -> wallet app -> back), and that return has to land
-        // on the same page that started it — unverified and risky if
+        // on the same page that started it - unverified and risky if
         // that page were nested in an iframe/modal. See
         // deviceDetection.ts and DonationCryptoPaymentStep.tsx's header
         // comments for the full reasoning.
@@ -349,7 +349,7 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
       role="dialog"
       aria-modal="true"
       onClick={(e) => {
-        // Click outside the panel closes the modal — but not while a
+        // Click outside the panel closes the modal - but not while a
         // checkout tab might still be open and polling, to avoid the
         // supporter accidentally losing the "we're watching for your
         // payment" state mid-flow.
@@ -434,7 +434,7 @@ export default function DonationModal({ clubId, isOpen, onClose }: DonationModal
                 fiatAmount={view.fiatAmount}
                 fiatCurrency={view.fiatCurrency}
                 onSuccess={(_confirmed: DonationCryptoConfirmResponse) => {
-                  // Same success handling as the polling path below —
+                  // Same success handling as the polling path below -
                   // show the thank-you, then auto-close shortly after.
                   // No opener/postMessage anywhere in this path at all;
                   // there's no second window to notify.

@@ -3,10 +3,10 @@
 // Shown when a puzzle loads with saved progress (GET /puzzles/:id/:week
 // returned a non-null `progress`), so resuming is an explicit, visible
 // choice rather than something that just silently happens. Discarding
-// starts the player over from a blank puzzle — it does NOT delete the
+// starts the player over from a blank puzzle - it does NOT delete the
 // saved row server-side, it only tells the parent to ignore it for this
 // session, so a mis-tap doesn't destroy real progress. If you want a hard
-// delete-and-restart, wire "Start over" to also call a delete endpoint —
+// delete-and-restart, wire "Start over" to also call a delete endpoint -
 // none exists in the files I've seen, so this only clears client state.
 
 import React from 'react';
@@ -15,7 +15,7 @@ interface PuzzleResumeBannerProps {
   /** When the saved progress was last written, e.g. from loadProgress's updatedAt. */
   savedAt?: string | Date | null;
   /** Server-tracked active time so far (progressMeta.activeSeconds from the
-   *  GET response) — shown so "continue" feels informed rather than a leap
+   *  GET response) - shown so "continue" feels informed rather than a leap
    *  of faith. Purely informational; doesn't affect scoring either way. */
   activeSecondsSoFar?: number | null;
   onResume: () => void;

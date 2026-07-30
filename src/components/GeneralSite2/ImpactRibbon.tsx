@@ -83,14 +83,14 @@ const ImpactRibbon: React.FC = () => (
         </span>
 
         <h2 className="text-3xl md:text-4xl font-bold mb-4">
-          Pick a campaign that fits your community —{' '}
+          Pick a campaign that fits your community -{' '}
           <span className="bg-gradient-to-r from-pink-300 to-yellow-300 bg-clip-text text-transparent">
             local leagues or global Web3 impact
           </span>
         </h2>
 
         <p className="mx-auto max-w-2xl text-white/85 text-lg mb-10">
-          FundRaisely campaigns are designed to make fundraising feel exciting again — with clear goals,
+          FundRaisely campaigns are designed to make fundraising feel exciting again - with clear goals,
           simple setup, and memorable events your community actually wants to show up for.
         </p>
 
@@ -121,7 +121,7 @@ const ImpactRibbon: React.FC = () => (
           <CampaignCard
             badge="Clubs •  2026"
             title="Junior Clubs Fundraising Quiz League"
-            subtitle="For sports clubs running a family-friendly quiz night — raise funds locally and compete for prizes."
+            subtitle="For sports clubs running a family-friendly quiz night - raise funds locally and compete for prizes."
             bullets={[
               {
                 icon: <Calendar className="h-5 w-5 text-yellow-200" />,

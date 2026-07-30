@@ -9,7 +9,7 @@ import { erc20Abi as ERC20_ABI } from 'viem';
 import { decimalToBigint } from '../utils/evmFormatting';
 import { useEvmShared } from './useEvmShared';
 // REMOVED: import { setDeploymentInProgress } from '../../../hooks/useWalletActions';
-// The module-level auto-switch flag is gone — no more cross-hook fighting.
+// The module-level auto-switch flag is gone - no more cross-hook fighting.
 // The local transaction lock (total > 0n guard below) is kept as-is.
 import PoolRoomABI from '../../../abis/quiz/BaseQuizPoolRoom2.json';
 import AssetRoomABI from '../../../abis/quiz/BaseQuizAssetRoom.json';
@@ -381,7 +381,7 @@ await waitForTransactionReceipt(wagmiConfig, {
           return { success: true, txHash: joinHash as `0x${string}` };
 
         } finally {
-          // Local finally block — no module-level flag to clear
+          // Local finally block - no module-level flag to clear
         }
 
       } catch (e: any) {

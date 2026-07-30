@@ -28,7 +28,7 @@ function assertIntegerOrString(name, val) {
 
 function assertPositiveNumber(name, val) {
   const n = parseFloat(val);
-  if (isNaN(n) || n < 0) throw new Error(`Missing or invalid "${name}" — must be a non-negative number`);
+  if (isNaN(n) || n < 0) throw new Error(`Missing or invalid "${name}" - must be a non-negative number`);
 }
 
 function tryParse(s) {
@@ -98,13 +98,13 @@ export default async function createDepositAddress(req, res) {
       // We keep 'currency' as fallback for backward compatibility
       tokenCode,
       currency,
-      network,          // still accepted for EVM routes — ignored for Solana
+      network,          // still accepted for EVM routes - ignored for Solana
       pledgeAmount,
       amount,
       metadata
     } = req.body || {};
 
-    // Resolve token code — prefer new tokenCode field, fall back to currency
+    // Resolve token code - prefer new tokenCode field, fall back to currency
     const resolvedTokenCode = (tokenCode ?? currency ?? '').toUpperCase().trim();
 
     const effectiveAmount = pledgeAmount ?? amount;
@@ -120,7 +120,7 @@ export default async function createDepositAddress(req, res) {
     assertIntegerOrString('organizationId', organizationId);
     assertPositiveNumber('amount', effectiveAmount);
 
-    // ✅ NEW: validate token is supported — throws 400 with structured error if not
+    // ✅ NEW: validate token is supported - throws 400 with structured error if not
     // For EVM tokens (not in our Solana list) this will throw, which is correct
     // because EVM rooms use a different flow and shouldn't hit this endpoint with
     // Solana token codes. If you need EVM support here too, add an isSolanaToken
@@ -136,7 +136,7 @@ export default async function createDepositAddress(req, res) {
       isSolanaToken = true;
       console.log('✅ [TGB] Solana token resolved:', resolvedTokenCode, '→ TGB code:', pledgeCurrency);
     } catch {
-      // Not a Solana token — treat as EVM/other, use currency code directly
+      // Not a Solana token - treat as EVM/other, use currency code directly
       pledgeCurrency = resolvedTokenCode || currency;
       isSolanaToken = false;
       console.log('ℹ️  [TGB] Non-Solana token, using currency directly:', pledgeCurrency);
@@ -163,7 +163,7 @@ export default async function createDepositAddress(req, res) {
 
     console.log('✅ [TGB] Basic assertions passed');
 
-    // Network normalisation — still used for EVM routes and mock selection
+    // Network normalisation - still used for EVM routes and mock selection
     const netNorm = normalizeNetwork(network ?? (isSolanaToken ? 'solana' : ''));
     console.log('🔵 [TGB] Normalized network:', network, '->', netNorm);
 
@@ -270,7 +270,7 @@ export default async function createDepositAddress(req, res) {
     // ✅ UPDATED: TGB payload
     // - isAnonymous is false so TGB labels this donation as "FundRaisely" in
     //   their dashboard and sends receipts to our platform email.
-    // - 'network' field is REMOVED — TGB determines network from pledgeCurrency
+    // - 'network' field is REMOVED - TGB determines network from pledgeCurrency
     //   itself. Sending 'network' causes a validation error: '"network" is not allowed'
    // AFTER
 const payload = {

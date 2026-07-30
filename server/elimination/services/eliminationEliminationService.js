@@ -39,16 +39,16 @@ export const applyEliminations = (roomId, roundNumber, rankedResults) => {
   let eliminationCount = 0;
 
   if (roundNumber < GAME_RULES.FIRST_ELIMINATING_ROUND) {
-    // Safe rounds — no elimination
+    // Safe rounds - no elimination
     return [];
   }
 
   if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
-    // Final round — everyone except the winner is eliminated
+    // Final round - everyone except the winner is eliminated
     eliminationCount = activeCount - 1;
 
   } else if (roundNumber === finalistRound) {
-    // Finalist round — reduce to ROUND_7_TARGET_FINALISTS survivors
+    // Finalist round - reduce to ROUND_7_TARGET_FINALISTS survivors
     eliminationCount = calcEliminationToTarget(activeCount, ROUND_7_TARGET_FINALISTS);
 
   } else {

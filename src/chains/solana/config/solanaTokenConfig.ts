@@ -28,7 +28,7 @@ export type SolanaTokenCode =
   | 'PYTH';
 
 export interface SolanaTokenConfig {
-  /** Short ticker — also used as the map key */
+  /** Short ticker - also used as the map key */
   code: SolanaTokenCode;
 
   /** Human-readable name shown in UI */
@@ -37,7 +37,7 @@ export interface SolanaTokenConfig {
   /** SPL mint address (mainnet). null for native SOL. */
   mint: string | null;
 
-  /** On-chain decimal places. CRITICAL — used for all raw amount calculations. */
+  /** On-chain decimal places. CRITICAL - used for all raw amount calculations. */
   decimals: number;
 
   /**
@@ -48,7 +48,7 @@ export interface SolanaTokenConfig {
 
   /**
    * The Giving Block currency code for the /v1/deposit-address API call.
-   * This is the pledgeCurrency value — NOT the network.
+   * This is the pledgeCurrency value - NOT the network.
    */
   tgbCode: string;
 
@@ -61,7 +61,7 @@ export interface SolanaTokenConfig {
 
   /**
    * Minimum entry fee a host can set (in display units).
-   * You control this — set sensible floors per token.
+   * You control this - set sensible floors per token.
    */
   minEntryFee: number;
 
@@ -76,7 +76,7 @@ export interface SolanaTokenConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Token map — the canonical list
+// Token map - the canonical list
 // ---------------------------------------------------------------------------
 
 export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {

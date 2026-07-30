@@ -25,7 +25,7 @@ export const EliminationLobbyPage: React.FC<Props> = ({ onJoined }) => {
     setError('');
     try {
       const { roomId, hostId } = await createRoom(name.trim());
-      // Host joins the socket room but NOT as a player — uses hostId for auth
+      // Host joins the socket room but NOT as a player - uses hostId for auth
       onJoined(roomId, hostId, name.trim(), true);
     } catch (e: any) {
       setError(e.message ?? 'Failed to create room');
@@ -49,7 +49,7 @@ export const EliminationLobbyPage: React.FC<Props> = ({ onJoined }) => {
   const mode   = params.get('mode');
 
   if (roomId && hostId && mode === 'host') {
-    // Room already hydrated into socket server — just join it
+    // Room already hydrated into socket server - just join it
     emitHostJoin(roomId, hostId);
     onJoined(roomId, hostId, 'Host', true);
   }

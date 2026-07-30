@@ -154,7 +154,7 @@ export function useSolanaJoinRoom() {
       const alreadyJoined = await checkExistingEntry(roomPDA, publicKey);
 
       if (alreadyJoined) {
-        console.log('[Solana][JoinRoom] ✅ Player already joined this room — returning success');
+        console.log('[Solana][JoinRoom] ✅ Player already joined this room - returning success');
         return {
           success:     true,
           txHash:      'already-joined',
@@ -310,7 +310,7 @@ export function useSolanaJoinRoom() {
     let allInstructions = [joinInstruction];
 
     if (isSolRoom) {
-      console.log('[Solana][JoinRoom] 🔄 SOL room — prepending wSOL wrap instructions');
+      console.log('[Solana][JoinRoom] 🔄 SOL room - prepending wSOL wrap instructions');
       const wrapIxs = await buildWrapSolInstructions(
         connection,
         publicKey,
@@ -368,7 +368,7 @@ export function useSolanaJoinRoom() {
     } catch (error: any) {
       console.error('[Solana][JoinRoom] ❌ Transaction failed:', error);
 
-      // Check if player entry exists anyway — tx may have landed despite confirm error
+      // Check if player entry exists anyway - tx may have landed despite confirm error
       try {
         const existing = await (program.account as any).playerEntry.fetch(playerEntry);
 

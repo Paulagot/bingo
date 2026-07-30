@@ -1,7 +1,7 @@
 // src/components/puzzles/components/PuzzleInstructionsOverlay.tsx
 //
 // Lets a player re-check "how to play" mid-puzzle. Before this, instructions
-// only rendered during the 'notStarted' page state — once Start was
+// only rendered during the 'notStarted' page state - once Start was
 // clicked, there was no way back to them short of abandoning the puzzle.
 // Purely informational: doesn't touch currentAnswer, the timer, or
 // autosave, so opening/closing it has zero effect on scoring.
@@ -17,7 +17,7 @@ const PuzzleInstructionsOverlay: React.FC<PuzzleInstructionsOverlayProps> = ({
   instructions,
   onClose,
 }) => {
-  // Escape to close, and lock background scroll while open — standard
+  // Escape to close, and lock background scroll while open - standard
   // modal behavior, and it means the puzzle grid behind it can't be
   // scrolled/interacted with accidentally while this is up.
   useEffect(() => {

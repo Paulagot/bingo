@@ -35,7 +35,7 @@ export async function syncImpactEventToFundraiselyClubMgmt({
   const expensesTable = `${TABLE_PREFIX}expenses`;
 
   // ------------------------------------------------------------------
-  // External refs (idempotency keys — unchanged)
+  // External refs (idempotency keys - unchanged)
   // ------------------------------------------------------------------
   const eventExternalSource  = 'quiz_web3_impact';
   const eventExternalRef     = roomId;
@@ -93,7 +93,7 @@ export async function syncImpactEventToFundraiselyClubMgmt({
     `Players: ${players}`,
     tokenPriceEur
       ? `Token price at save: €${tokenPriceEur} / ${token}`
-      : `⚠️ Token price unavailable at save time — EUR amounts need backfill`,
+      : `⚠️ Token price unavailable at save time - EUR amounts need backfill`,
   ].join('\n');
 
   // goal_amount stored in EUR (what the dashboard shows)
@@ -149,7 +149,7 @@ export async function syncImpactEventToFundraiselyClubMgmt({
         null,   // max_participants
 
         goalAmountEur,  // ← EUR
-        0,              // actual_amount — recalculated from income below
+        0,              // actual_amount - recalculated from income below
         0,              // total_expenses
         0,              // net_profit
 
@@ -176,7 +176,7 @@ export async function syncImpactEventToFundraiselyClubMgmt({
 
   // ------------------------------------------------------------------
   // 2) Find or create income line (platform fee, idempotent)
-  //    amount column is EUR — raw token info lives in description
+  //    amount column is EUR - raw token info lives in description
   // ------------------------------------------------------------------
   const [existingIncomeRows] = await connection.execute(
     `SELECT id FROM ${incomeTable}
@@ -191,7 +191,7 @@ export async function syncImpactEventToFundraiselyClubMgmt({
     // Build a human-readable description that preserves the raw token amount
     const priceNote = tokenPriceEur
       ? `@ €${tokenPriceEur}/${token}`
-      : `(EUR price unavailable — needs backfill)`;
+      : `(EUR price unavailable - needs backfill)`;
 
     const incomeDescription = [
       `Platform fee (20%) from Web3 quiz room ${roomId}`,

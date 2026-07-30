@@ -1,6 +1,6 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/SetupTabSubscription.tsx
 //
-// Read-only for now — editing a challenge's schedule/price after Stripe's
+// Read-only for now - editing a challenge's schedule/price after Stripe's
 // Product/Price have been created (ensureStripeProductAndPrice, fired on
 // first Activate) has real billing implications, so ScheduleSubscriptionModal
 // intentionally doesn't support edit mode yet either. This tab is the
@@ -53,7 +53,7 @@ export default function SetupTabSubscription({ challenge, challengeLoading, onEd
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span>
-            The weekly schedule and price were locked in when this challenge was activated and can't be edited here —
+            The weekly schedule and price were locked in when this challenge was activated and can't be edited here -
             changing them after subscribers have joined has billing implications. Contact support if this needs to change.
           </span>
         </div>

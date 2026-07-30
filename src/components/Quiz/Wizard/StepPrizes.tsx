@@ -274,7 +274,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => 
                             </strong>{' '}
                             {prize.description}
                             {prize.value && prize.value > 0 && ` (${currency}${prize.value})`}
-                            {prize.sponsor && ` — ${prize.sponsor}`}
+                            {prize.sponsor && ` - ${prize.sponsor}`}
                           </span>
                         </div>
                       </div>

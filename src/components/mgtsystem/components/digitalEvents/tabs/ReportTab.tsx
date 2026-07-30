@@ -1,6 +1,6 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/ReportTab.tsx
 //
-// Quiz / Elimination: unchanged from original — uses ReconciliationService.getFinancialReport.
+// Quiz / Elimination: unchanged from original - uses ReconciliationService.getFinancialReport.
 // Ticketed Events:    early-return path, fetches from ticketedEventReconciliationService.
 //                     Players column removed from breakdown table for ALL room types.
 
@@ -199,7 +199,7 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
     })();
   }, [room.room_id, room.status, isTicketedEvent]);
 
-  // ── Breakdown rows for quiz/elimination — Players column removed ───────────
+  // ── Breakdown rows for quiz/elimination - Players column removed ───────────
   const breakdownRows = useMemo(() => {
     if (isTicketedEvent) return [];
     const rows: ByMethodRow[] = Array.isArray(auditView?.byMethod) ? auditView.byMethod : [];
@@ -368,7 +368,7 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
                 <p className="text-2xl font-black">{fmtTE(teReconData.finalTotal)}</p>
               </div>
 
-              {/* By payment method — no Players column */}
+              {/* By payment method - no Players column */}
               {teByMethod.length > 0 && (
                 <div className="mt-4">
                   <SectionHeader icon={<CheckCircle className="h-5 w-5 text-[#52636f]" />} title="Breakdown by Payment Method" />
@@ -399,7 +399,7 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
             </div>
           )}
 
-          {/* Approved payments — collected by */}
+          {/* Approved payments - collected by */}
           <div className="pc rounded-2xl border border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)] p-4">
             <SectionHeader icon={<UserCheck className="h-5 w-5 text-[#157f85]" />} title="Approved Payments"
               subtitle="Confirmed ticket payments grouped by who collected them." />
@@ -514,7 +514,7 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // QUIZ / ELIMINATION REPORT — original layout, original colours
+  // QUIZ / ELIMINATION REPORT - original layout, original colours
   // Only change: Players column removed from breakdown table
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -600,7 +600,7 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
               <p className="text-2xl font-black">{fmt(finalPos.collected)}</p>
             </div>
 
-            {/* Breakdown by Payment Method — Players column removed */}
+            {/* Breakdown by Payment Method - Players column removed */}
             {(auditViewLoading && breakdownRows.length === 0) ? (
               <div className="mt-3 rounded-xl border border-dashed border-[#dce1df] bg-[#fbf8f2] p-4 text-center text-sm text-[#52636f]">
                 Loading payment method breakdown…
@@ -609,7 +609,7 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
               <div className="mt-4">
                 <SectionHeader icon={<CheckCircle className="h-5 w-5 text-[#52636f]" />}
                   title="Breakdown by Payment Method"
-                  subtitle="All payment sources — approved on night, late, and outstanding." />
+                  subtitle="All payment sources - approved on night, late, and outstanding." />
                 <div className="rounded-xl border border-[#dce1df]">
                   <table className="w-full text-sm">
                     <thead>
@@ -625,9 +625,9 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
                       {breakdownRows.map(row => (
                         <tr key={row.method} className="hover:bg-[#fbf8f2]">
                           <td className="px-3 py-2.5 font-medium text-[#102532]">{formatMethod(row.method)}</td>
-                          <td className="px-3 py-2.5 text-right font-medium text-[#157f85]">{row.confirmedOnNight > 0 ? fmt(row.confirmedOnNight) : "—"}</td>
-                          <td className="px-3 py-2.5 text-right text-[#8a6d2f]">{row.confirmedLate > 0 ? fmt(row.confirmedLate) : "—"}</td>
-                          <td className="px-3 py-2.5 text-right text-[#c8423b]">{row.outstanding > 0 ? fmt(row.outstanding) : "—"}</td>
+                          <td className="px-3 py-2.5 text-right font-medium text-[#157f85]">{row.confirmedOnNight > 0 ? fmt(row.confirmedOnNight) : "-"}</td>
+                          <td className="px-3 py-2.5 text-right text-[#8a6d2f]">{row.confirmedLate > 0 ? fmt(row.confirmedLate) : "-"}</td>
+                          <td className="px-3 py-2.5 text-right text-[#c8423b]">{row.outstanding > 0 ? fmt(row.outstanding) : "-"}</td>
                           <td className="px-3 py-2.5 text-right font-semibold text-[#102532]">{fmt(row.total)}</td>
                         </tr>
                       ))}
@@ -658,7 +658,7 @@ export default function ReportTab({ room, config, auditView, auditViewLoading = 
               <MetricCard label="Approved final" value={fmt(reconciliation.finalTotal)}     tone="indigo" />
             </div>
             <div className="mt-3 rounded-xl border border-[rgba(21,127,133,0.2)] bg-white p-3 text-sm">
-              <p className="font-semibold text-[#102532]">Approved by {reconciliation.approvedBy || "—"}</p>
+              <p className="font-semibold text-[#102532]">Approved by {reconciliation.approvedBy || "-"}</p>
               <p className="text-xs text-[#52636f]">{reconciliation.approvedAt ? new Date(reconciliation.approvedAt).toLocaleString() : "No date"}</p>
             </div>
           </div>

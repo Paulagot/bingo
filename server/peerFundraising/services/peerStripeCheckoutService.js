@@ -20,7 +20,7 @@ export async function createPeerStripeSession({ orderId, origin }) {
   // club's connected Stripe account and creates the Checkout Session ON
   // that account via { stripeAccount }. This lookup was missing here
   // entirely, so peer payments were created on the platform account
-  // instead of the club's — money went to us, not the club.
+  // instead of the club's - money went to us, not the club.
   const stripeConn = await getReadyStripeForClub(o.club_id);
   if (!stripeConn) throw Object.assign(new Error('stripe_not_ready_or_disabled'), { status: 422 });
 
@@ -39,7 +39,7 @@ export async function createPeerStripeSession({ orderId, origin }) {
         price_data: {
           currency: o.currency.toLowerCase(),
           product_data: {
-            name: `${o.club_name} — ${o.public_slug}`,
+            name: `${o.club_name} - ${o.public_slug}`,
             description: `Peer-to-peer order ${orderId.slice(0, 8)}`,
           },
           unit_amount: cents,

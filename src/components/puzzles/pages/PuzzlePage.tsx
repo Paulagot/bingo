@@ -37,11 +37,11 @@ export default function PuzzlePage() {
   // instead of getting stuck with stale ones (see the key comment below).
   // That guarantee only holds if puzzleInstance and savedProgress/
   // progressMeta can never be "half updated" relative to each other across
-  // renders — which three separate setState calls in the same .then() do
+  // renders - which three separate setState calls in the same .then() do
   // NOT guarantee unless React happens to batch them. One object, one
   // setState call, removes that dependency on batching behavior entirely.
   const [loadedData, setLoadedData] = useState<LoadedPuzzleData | null>(null);
-  // Only for a fresh submission made in THIS session — seeded from
+  // Only for a fresh submission made in THIS session - seeded from
   // loadedData.previousSubmission via the scoreResult derivation below, not
   // its own separate load-time setState call, for the same reason.
   const [submittedScoreResult, setSubmittedScoreResult] = useState<PuzzleScoreResult | null>(null);
@@ -57,12 +57,12 @@ export default function PuzzlePage() {
   const alreadySubmitted = Boolean(submittedScoreResult) || Boolean(loadedData?.previousSubmission);
   const scoreResult = submittedScoreResult ?? loadedData?.previousSubmission ?? null;
 
-  // Club branding — fetched independently of the puzzle itself.
+  // Club branding - fetched independently of the puzzle itself.
   // puzzleService.loadPuzzle returns puzzle data only, never club
   // branding, so this page needs its own small getPublicChallenge call
   // (same one PlayerChallengePage and PuzzleJoinPage use) purely to
   // resolve the theme. Deliberately NOT wired into the puzzle-loading
-  // error/locked states below — a branding fetch failure should never
+  // error/locked states below - a branding fetch failure should never
   // block or error out the actual puzzle-playing experience, it should
   // just silently fall back to the default FundRaisely look.
   const [challenge, setChallenge] = useState<PublicChallenge | null>(null);
@@ -93,7 +93,7 @@ export default function PuzzlePage() {
       .then(data => {
         setLoadedData({
           instance: data.puzzle,
-          // No resume UI makes sense once already submitted — same
+          // No resume UI makes sense once already submitted - same
           // behavior as before, just derived in one place now.
           savedProgress: data.previousSubmission ? null : (data.progress ?? null),
           progressMeta: data.previousSubmission ? null : (data.progressMeta ?? null),
@@ -118,7 +118,7 @@ export default function PuzzlePage() {
       .getPublicChallenge(challengeId)
       .then(setChallenge)
       .catch(() => {
-        // Branding is a nice-to-have here, not a requirement — leave
+        // Branding is a nice-to-have here, not a requirement - leave
         // challenge as null and let resolvePuzzleTheme fall back to
         // the default FundRaisely look.
       });
@@ -145,9 +145,9 @@ export default function PuzzlePage() {
     [puzzleInstance]
   );
 
-  // Explicit "Save & Exit" — the player chose to leave, so navigating away
+  // Explicit "Save & Exit" - the player chose to leave, so navigating away
   // afterward is correct here. This is NOT what autosave uses (see
-  // handleAutosave below) — wiring this into a periodic autosave would
+  // handleAutosave below) - wiring this into a periodic autosave would
   // silently boot the player back to the challenge list every time it fired.
   const handleSaveProgress = useCallback(
     async (progressData: Record<string, unknown>) => {
@@ -167,7 +167,7 @@ export default function PuzzlePage() {
   );
 
   // Silent background save for PuzzleShell's autosave (debounced on every
-  // answer change, plus a periodic forced flush) — same endpoint as
+  // answer change, plus a periodic forced flush) - same endpoint as
   // handleSaveProgress, but deliberately no navigation and no surfaced error.
   // A failed background save shouldn't interrupt the player the way a failed
   // explicit Save & Exit should; the next autosave cycle (or an eventual
@@ -186,7 +186,7 @@ export default function PuzzlePage() {
   );
 
   // Best-effort save fired only when the tab is hiding or the page is
-  // unloading — uses the keepalive-flagged request variant since a normal
+  // unloading - uses the keepalive-flagged request variant since a normal
   // fetch is frequently cancelled mid-flight at exactly that moment.
   const handleAutosaveOnUnload = useCallback(
     (progressData: Record<string, unknown>) => {
@@ -330,7 +330,7 @@ export default function PuzzlePage() {
             ← Back to challenge
           </Link>
 
-          {/* Puzzle type and difficulty dropped here — PuzzleShell's own
+          {/* Puzzle type and difficulty dropped here - PuzzleShell's own
               header (title + difficulty badge) shows the exact same thing
               a few pixels below, and on mobile this whole intro area was
               adding three separate mentions of the puzzle name and
@@ -358,7 +358,7 @@ export default function PuzzlePage() {
                 // mounts once immediately (while isLoading is still true and
                 // savedState is still null), and those pieces of state stay
                 // stuck at their "nothing saved yet" values forever, even
-                // after the real saved progress arrives a moment later — the
+                // after the real saved progress arrives a moment later - the
                 // puzzle would silently fail to resume every time. Keying on
                 // the instance id forces a fresh mount (fresh state
                 // initializers) exactly when real data becomes available.

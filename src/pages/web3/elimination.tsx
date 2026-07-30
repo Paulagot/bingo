@@ -68,7 +68,7 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const Web3EliminationPage: React.FC = () => {
   const navigate = useNavigate();
 
-  /* ── Form state — only used when arriving via ?action=host from event card ── */
+  /* ── Form state - only used when arriving via ?action=host from event card ── */
   const [showForm, setShowForm] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
 
@@ -80,7 +80,7 @@ const Web3EliminationPage: React.FC = () => {
     }
   }, []);
 
-  /* ── Auth — used by marketing page buttons only ── */
+  /* ── Auth - used by marketing page buttons only ── */
   const { stage, error: authError, startConnect } = useWeb3FundraiserAuth({
     onVerified: () => {
       navigate('/web3/fundraisersdashboard?tab=events');
@@ -910,7 +910,7 @@ const Web3EliminationPage: React.FC = () => {
                   {[
                     '~20 minutes per game',
                     '8 rounds selected from a pool of 17',
-                    '35% to charity — highest split',
+                    '35% to charity - highest split',
                     'High tension and visible knockouts',
                     'No quiz content needed',
                     'Best for fast, competitive live sessions',

@@ -5,15 +5,15 @@
 // the same Props contract as before, and still supports BOTH modes during
 // the wizard rollout:
 //
-//   • edit mode  (existingRoom set)  — its long-term job: pre-fills from
+//   • edit mode  (existingRoom set)  - its long-term job: pre-fills from
 //     the room's config, submit calls updateRoom. Opened from the drawer.
-//   • create mode (no existingRoom) — legacy path kept working until the
+//   • create mode (no existingRoom) - legacy path kept working until the
 //     dashboard's Add Activity is rewired to the wizard; submit calls
 //     scheduleRoom + onSaved(roomId) so handleActivitySaved can link,
 //     identical to the previous behaviour.
 //
 // All field UI, validation rules, and the config shape live in
-// EliminationActivityStep — change them there and both create and edit
+// EliminationActivityStep - change them there and both create and edit
 // stay in lockstep.
 
 import { useMemo, useState } from 'react';
@@ -60,7 +60,7 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
     || event?.time_zone
     || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  // Payment methods hydrated from the room's own column on edit — NOT
+  // Payment methods hydrated from the room's own column on edit - NOT
   // from the event. See PaymentMethodSelector.tsx for the reasoning.
   const rawLinked = existingRoom?.linked_payment_methods_json;
   const parsedLinked =
@@ -84,7 +84,7 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState<string | null>(null);
 
-  // The step reads event context off a DraftEvent — synthesise one from
+  // The step reads event context off a DraftEvent - synthesise one from
   // the real event / room, same fields the old modal read directly.
   const draftEvent: DraftEvent = {
     title:          event?.title ?? '',
@@ -188,7 +188,7 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
           </p>
         </div>
 
-        {/* Body — the shared step */}
+        {/* Body - the shared step */}
         <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4" style={{ background: '#f6f1e8' }}>
           {error && <ErrorBanner message={error} />}
           <EliminationActivityStep

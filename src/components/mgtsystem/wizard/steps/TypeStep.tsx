@@ -1,11 +1,11 @@
 // src/components/mgtsystem/wizard/steps/TypeStep.tsx
 //
-// Step 1: "What are you running?" — one card per registry entry.
+// Step 1: "What are you running?" - one card per registry entry.
 // Selecting a card is the ONLY thing this step does; everything the card
 // implies (event.type, primary_action_type, which step-2 fields show,
 // which step-3 renders) is declared in activityRegistry.tsx.
 //
-// Cards with available:false render disabled with a "coming soon" pill —
+// Cards with available:false render disabled with a "coming soon" pill -
 // during rollout those types keep using the existing Create Event + Add
 // Activity flow (see INTEGRATION.md).
 

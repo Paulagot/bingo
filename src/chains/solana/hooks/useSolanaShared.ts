@@ -151,7 +151,7 @@ export function useSolanaShared(
 
   /**
    * Wallet state from AppKit.
-   * Used for signing only — NOT for RPC/network selection.
+   * Used for signing only - NOT for RPC/network selection.
    */
   const { address, isConnected: appKitConnected } = useAppKitAccount();
   const { walletProvider } = useAppKitProvider('solana');

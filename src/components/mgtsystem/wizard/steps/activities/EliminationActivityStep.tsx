@@ -2,9 +2,9 @@
 //
 // The BODY of the old ScheduleEliminationModal, extracted so it can be
 // rendered in two places without drifting apart:
-//   • step 3 of CreateFundraiserWizard (create — submit handled by
+//   • step 3 of CreateFundraiserWizard (create - submit handled by
 //     submitChain.ts via the registry's createRoom)
-//   • ScheduleEliminationModal (edit — the modal is now a thin wrapper
+//   • ScheduleEliminationModal (edit - the modal is now a thin wrapper
 //     that owns the update API call and renders this for the fields)
 //
 // This component owns NO API calls and NO submit button. It receives its
@@ -64,7 +64,7 @@ export default function EliminationActivityStep({
         <SectionHeader
           icon={<DollarSign className="h-4 w-4" />}
           title="Entry Fee"
-          subtitle={`Set the entry fee per player — currency: ${sym} (${currency})`}
+          subtitle={`Set the entry fee per player - currency: ${sym} (${currency})`}
           accent={ACCENT}
         />
         <Field label="Amount" required error={errors.entryFee}>
@@ -132,7 +132,7 @@ export default function EliminationActivityStep({
 
       {/* ── Payment Methods ── */}
       {/* Activity-level, written directly onto the room by scheduleRoom /
-          updateRoom — never onto the event. See PaymentMethodSelector.tsx. */}
+          updateRoom - never onto the event. See PaymentMethodSelector.tsx. */}
       <PaymentMethodSelector
         mode="split"
         value={value.paymentMethods}

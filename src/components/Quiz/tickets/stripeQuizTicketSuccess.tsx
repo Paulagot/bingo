@@ -1,7 +1,7 @@
 // src/components/Quiz/tickets/stripeQuizTicketSuccess.tsx
 //
 // UPDATED: safe auto-close for the embedded ticket-widget flow, plus a
-// fast-path BroadcastChannel nudge — see ticketCheckoutChannel.ts for
+// fast-path BroadcastChannel nudge - see ticketCheckoutChannel.ts for
 // the full trust model (short version: this is a courtesy speed-up,
 // NOT a confirmation mechanism; the original iframe's own
 // useTicketStatusPoll, polling the backend's ledger, is what actually
@@ -9,7 +9,7 @@
 // broadcast ever arrives).
 //
 // window.close() only works on a tab a script itself opened via
-// window.open() — browsers refuse it on a normally-navigated tab. That
+// window.open() - browsers refuse it on a normally-navigated tab. That
 // SHOULD already make this safe unconditionally, but this deals with
 // money and the user's whole browsing session, so we don't rely on
 // that alone: the backend explicitly marks the success_url with
@@ -73,7 +73,7 @@ export const StripeQuizTicketSuccess: React.FC = () => {
     poll();
   }, [ticketId]);
 
-  // Fast-path nudge only — see file header. The original iframe's own
+  // Fast-path nudge only - see file header. The original iframe's own
   // polling is what actually confirms the ticket; this just lets it
   // react a little sooner than its next 3-second poll tick, when the
   // browser supports BroadcastChannel.
@@ -89,7 +89,7 @@ export const StripeQuizTicketSuccess: React.FC = () => {
 
   // Auto-close, only for the embedded new-tab flow, only after the
   // buyer has had a moment to see the confirmation message. Safe on
-  // both 'confirmed' and 'timeout' — the original iframe tab has its
+  // both 'confirmed' and 'timeout' - the original iframe tab has its
   // own independent polling running regardless of what this tab does.
   useEffect(() => {
     if (!isEmbeddedNewTab) return;
@@ -125,7 +125,7 @@ export const StripeQuizTicketSuccess: React.FC = () => {
           {isEmbeddedNewTab ? (
             <>
               <p className="text-sm text-gray-500 mb-4">
-                This tab will close automatically — you can go back to the page you were on.
+                This tab will close automatically - you can go back to the page you were on.
               </p>
               <button
                 onClick={() => { try { window.close(); } catch {} }}
@@ -147,7 +147,7 @@ export const StripeQuizTicketSuccess: React.FC = () => {
     );
   }
 
-  // timeout — payment probably went through but webhook was slow
+  // timeout - payment probably went through but webhook was slow
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
       <div className="bg-white rounded-xl shadow-xl p-8 max-w-md text-center">
@@ -155,7 +155,7 @@ export const StripeQuizTicketSuccess: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment received!</h2>
         <p className="text-gray-600 mb-2">Your payment was successful.</p>
         <p className="text-sm text-gray-500 mb-6">
-          Your ticket is being confirmed — check your email shortly.
+          Your ticket is being confirmed - check your email shortly.
         </p>
 
         {isEmbeddedNewTab ? (

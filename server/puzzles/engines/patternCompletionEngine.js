@@ -23,7 +23,7 @@
 import { createSeededRandom, shuffleArray, pickRandom, calcTimeBonus } from '../utils/puzzleHelpers.js';
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 
-// Scoring settings scale with grid size / rule complexity — previously this
+// Scoring settings scale with grid size / rule complexity - previously this
 // engine paid a flat baseScore (and a hand-rolled, non-difficulty-aware time
 // bonus) regardless of whether it was a 3x3 one-rule easy puzzle or a 4x4
 // multi-rule hard one.

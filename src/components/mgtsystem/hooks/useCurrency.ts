@@ -36,7 +36,7 @@ interface CurrencyUtils {
 }
 
 /**
- * @param config  Parsed config_json from the room row — used as fallback for
+ * @param config  Parsed config_json from the room row - used as fallback for
  *                legacy rooms created before reporting_currency was on the club.
  */
 export function useCurrency(config?: any): CurrencyUtils {

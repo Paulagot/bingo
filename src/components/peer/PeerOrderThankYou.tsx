@@ -4,7 +4,7 @@
 // Used by PeerSupportPage.tsx (manual/instant/cash claim) and
 // PeerStripeSuccess.tsx (after Stripe redirects back and the webhook
 // confirms). Mirrors CampaignOrderThankYou.tsx, which peer had no
-// equivalent of at all — the old version was a single emoji + one line,
+// equivalent of at all - the old version was a single emoji + one line,
 // with no order detail and no join links ever shown to the supporter.
 
 import { ArrowRight, CheckCircle2, Mail, PartyPopper, Sparkles } from 'lucide-react';
@@ -74,7 +74,7 @@ export default function PeerOrderThankYou({
       <p className="mx-auto mt-2 max-w-md text-sm font-semibold text-slate-500">
         {isPending
           ? 'The club will confirm your payment and activate your entries. You\u2019ll get an email as soon as they\u2019re ready.'
-          : 'Your entries are confirmed — join links are below.'}
+          : 'Your entries are confirmed - join links are below.'}
       </p>
 
       <div className="mt-6 rounded-3xl bg-slate-50 p-4 text-left ring-1 ring-slate-100">

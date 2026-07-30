@@ -4,9 +4,9 @@
 // Returns a one-time fiat → token quote for a fixed-fee crypto payment.
 //
 // Query params:
-//   roomId   — required
-//   token    — SolanaTokenCode e.g. 'SOL'
-//   amount   — fiat total in room currency e.g. '5.00'
+//   roomId   - required
+//   token    - SolanaTokenCode e.g. 'SOL'
+//   amount   - fiat total in room currency e.g. '5.00'
 //
 // Response:
 //   {
@@ -31,10 +31,10 @@ import { SOLANA_TOKEN_DECIMALS } from '../../utils/solanaTokenDecimals.js';
 
 const router = express.Router();
 
-// Quote is valid for 2 minutes — enough time for the player to confirm in wallet
+// Quote is valid for 2 minutes - enough time for the player to confirm in wallet
 const QUOTE_TTL_MS = 2 * 60 * 1000;
 
-// Accepted token codes — must match solanaTokenConfig on frontend
+// Accepted token codes - must match solanaTokenConfig on frontend
 const SUPPORTED_TOKENS = new Set([
   'SOL', 'USDG', 'JUP', 'BONK', 'WIF', 'JTO', 'KMNO', 'TRUMP', 'MEW', 'PYTH',
 ]);

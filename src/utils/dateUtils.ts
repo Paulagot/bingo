@@ -34,11 +34,11 @@ export function utcToLocalDate(
   value: string | null | undefined,
   timeZone: string = detectTimezone(),
 ): string {
-  if (!value) return '—';
+  if (!value) return '-';
   // Ensure the string is treated as UTC even if it lacks a Z suffix
   const normalized = value.endsWith('Z') || value.includes('+') ? value : `${value}Z`;
   const d = new Date(normalized);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric', timeZone,
   });
@@ -129,13 +129,13 @@ export function utcToLocalInput(utcString: string, timeZone: string): string {
  */
 export function localInputToUTC(localDateTimeStr: string): string {
   if (!localDateTimeStr) return '';
-  // new Date("YYYY-MM-DDTHH:MM") — no Z/offset — browser parses as LOCAL time
+  // new Date("YYYY-MM-DDTHH:MM") - no Z/offset - browser parses as LOCAL time
   // .toISOString() then outputs the correct UTC equivalent
   return new Date(localDateTimeStr).toISOString();
 }
 
 /**
- * Display an event date/time info bar string — used in schedule modals.
+ * Display an event date/time info bar string - used in schedule modals.
  * Shows the local date for the given UTC string.
  *
  * @param utcString  - UTC string from DB

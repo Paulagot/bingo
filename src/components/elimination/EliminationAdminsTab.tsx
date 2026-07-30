@@ -67,7 +67,7 @@ export const EliminationAdminsTab: React.FC<EliminationAdminsTabProps> = ({
     };
 
     socket.emit('add_elimination_admin', { roomId, admin });
-    // Optimistic update — server will broadcast back and confirm
+    // Optimistic update - server will broadcast back and confirm
     setAdmins(prev => [...prev, admin]);
     setNewName('');
   };

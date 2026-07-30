@@ -1,7 +1,7 @@
 // src/components/mgtsystem/services/EliminationMgmtService.ts
 //
 // Frontend service for the elimination management system.
-// Extends BaseService — same auth header pattern as all other mgmt services.
+// Extends BaseService - same auth header pattern as all other mgmt services.
 // All requests go to /api/elimination/mgmt (auth-gated).
 
 import BaseService from './BaseService';
@@ -18,7 +18,7 @@ export type EliminationRoomStatus =
 export type EliminationStatusFilter = EliminationRoomStatus | 'all';
 export type EliminationTimeFilter = 'upcoming' | 'past' | 'all';
 
-// ── Prize shape — matches quiz config_json.prizes exactly ──────────────────
+// ── Prize shape - matches quiz config_json.prizes exactly ──────────────────
 export interface EliminationPrize {
   place:       number;      // Always 1 for elimination (last player standing)
   value:       number | null;
@@ -30,7 +30,7 @@ export interface EliminationPrize {
 // Mirrors the JSON shape already written by QuizPaymentMethodsService on the
 // backend: { ticket_method_ids, onnight_method_ids, updated_at, updated_by }.
 // Payment methods are now set at the ACTIVITY level (this service), not
-// copied down from the event — see PaymentMethodSelector.tsx on the
+// copied down from the event - see PaymentMethodSelector.tsx on the
 // frontend and eliminationMgmtService.js on the backend for the full
 // reasoning.
 export interface LinkedPaymentMethods {
@@ -51,12 +51,12 @@ export interface EliminationRoomListItem {
   time_zone:         string | null;
   config_json:       EliminationConfig | string | null;
   room_caps_json:    null;
-  // Legacy flat fields — kept for backward compat with old rooms
+  // Legacy flat fields - kept for backward compat with old rooms
   prize_description: string | null;
   prize_value:       number | null;
   // Set at schedule time, read back here so the edit modal can hydrate
   // current selections. May be string (raw JSON) or already-parsed object
-  // depending on the MySQL driver — same quirk config_json already has.
+  // depending on the MySQL driver - same quirk config_json already has.
   linked_payment_methods_json: LinkedPaymentMethods | string | null;
   created_at:        string;
   updated_at:        string;
@@ -71,13 +71,13 @@ export interface EliminationConfig {
   hostId:       string;
   hostName:     string | null;
 
-  // ── Prize — array to match quiz config shape ──────────────────────────────
+  // ── Prize - array to match quiz config shape ──────────────────────────────
   // Elimination always has exactly one entry (place: 1 = last player standing).
   // Old rooms may still have the flat prizeDescription/prizeValue fields below;
   // use parseConfig() which normalises both shapes to the prizes array.
   prizes: EliminationPrize[];
 
-  // @deprecated — flat fields kept for reading old rooms only, not written on
+  // @deprecated - flat fields kept for reading old rooms only, not written on
   // new or updated rooms. Will be removed once all rooms are migrated.
   prizeDescription?: string;
   prizeValue?:       number | null;
@@ -95,7 +95,7 @@ export interface ScheduleEliminationPayload {
   currency:     string;
   // prizes replaces the old prizeDescription/prizeValue flat fields
   prizes: EliminationPrize[];
-  // Payment methods, set at the activity level — written directly onto
+  // Payment methods, set at the activity level - written directly onto
   // the room at schedule time. Optional: an empty array is a valid choice
   // (no methods enabled yet), so default to [] at the call site rather
   // than omitting the field.
@@ -109,7 +109,7 @@ export interface UpdateEliminationPayload {
   entryFee?:     number;
   currency?:     string;
   prizes?:       EliminationPrize[];
-  // Optional — undefined means "don't touch payment methods", [] means
+  // Optional - undefined means "don't touch payment methods", [] means
   // "clear all selections". See updateEliminationRoom on the backend,
   // which treats these the same way.
   ticketMethodIds?:  number[];
@@ -146,7 +146,7 @@ class EliminationMgmtService extends BaseService {
 
   /**
    * Schedule a new elimination room.
-   * Saves to DB only — does NOT create the socket room yet.
+   * Saves to DB only - does NOT create the socket room yet.
    * The socket room is created on hydrate (when host clicks Launch).
    */
   async scheduleRoom(
@@ -247,7 +247,7 @@ class EliminationMgmtService extends BaseService {
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
   /**
-   * Parse config_json from a list item — handles:
+   * Parse config_json from a list item - handles:
    *   1. New shape  → config_json.prizes array
    *   2. Old shape  → flat prizeDescription / prizeValue fields
    *   3. String     → JSON-encoded config (MySQL driver quirk)
@@ -298,7 +298,7 @@ class EliminationMgmtService extends BaseService {
    * Format entry fee for display e.g. "€5.00"
    */
   formatEntryFee(config: EliminationConfig | null): string {
-    if (!config?.entryFee) return '—';
+    if (!config?.entryFee) return '-';
     const symbols: Record<string, string> = {
       EUR: '€', GBP: '£', USD: '$', CAD: 'CA$', NGN: '₦',
     };
@@ -314,6 +314,6 @@ class EliminationMgmtService extends BaseService {
   }
 }
 
-// Singleton — same pattern as other mgmt services
+// Singleton - same pattern as other mgmt services
 const eliminationMgmtService = new EliminationMgmtService();
 export default eliminationMgmtService;

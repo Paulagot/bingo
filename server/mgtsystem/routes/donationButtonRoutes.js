@@ -7,7 +7,7 @@
 // response shape, per GetDonationButtonManageResponse /
 // SaveDonationButtonResponse in donationButton.ts.
 //
-// All routes here are authenticated — club admin only. The PUBLIC
+// All routes here are authenticated - club admin only. The PUBLIC
 // embed-facing routes (config fetch, checkout, domain-check) live in
 // donationCheckoutRoutes.js instead.
 
@@ -62,7 +62,7 @@ function mapErrorToStatus(message) {
 
 /**
  * Decides which tier a save request is for, based on
- * clubPaymentMethodIds[0]'s eligibility — and rejects a request that
+ * clubPaymentMethodIds[0]'s eligibility - and rejects a request that
  * mixes a Tier A-only id with Tier B ones, since a button can only
  * ever be one tier at a time (see DonationCheckoutService.js's header
  * comment).
@@ -98,7 +98,7 @@ async function resolveTierAndAssertNotMixed({ clubId, clubPaymentMethodIds }) {
 
 /**
  * GET /donation-buttons/:clubId/manage
- * Authenticated — club admin only. Merges Tier A management data
+ * Authenticated - club admin only. Merges Tier A management data
  * (button row, eligible manual methods, allowed domains) with Tier B
  * data (eligible trackable methods, amount config, which trackable
  * ids are currently linked).
@@ -112,23 +112,23 @@ router.get('/donation-buttons/:clubId/manage', authenticateToken, async (req, re
 
     const tierAData = await buttonSvc.getForManagement({ clubId });
 
-    // Tier B's eligible methods list (admin picker options) — always
+    // Tier B's eligible methods list (admin picker options) - always
     // correct regardless of what's linked, since listEligibleTierBMethods
     // queries every payment method row for the club directly.
     const eligibleTrackableMethods = await checkoutSvc.listEligibleTierBMethods({ clubId });
 
-    // linkedTrackableMethodIds — which of the above are CURRENTLY
+    // linkedTrackableMethodIds - which of the above are CURRENTLY
     // attached to this button. getPublicConfig is the correct source
     // of truth here: it reads ALL linked rows via _getButtonMethods
     // (no row limit), unlike tierAData.donationButton.paymentMethods,
     // which comes from Tier A's _getLinkedMethodRow and is scoped to
-    // a SINGLE row (LIMIT 1) — correct for Tier A (always exactly one
+    // a SINGLE row (LIMIT 1) - correct for Tier A (always exactly one
     // linked method) but WRONG for Tier B, where a button can have
     // several linked methods. Using the single-row Tier A shape here
     // silently dropped every Tier B method past the first one.
     //
     // getPublicConfig throws if the button is disabled, has no linked
-    // methods, or every linked method is currently ineligible — none
+    // methods, or every linked method is currently ineligible - none
     // of those definitively mean "this is a Tier A button," so on
     // failure fall back to cross-checking the eligible list against
     // nothing rather than guessing; a button in that state legitimately
@@ -139,11 +139,11 @@ router.get('/donation-buttons/:clubId/manage', authenticateToken, async (req, re
       linkedTrackableMethodIds = publicConfig.methods.map((m) => m.clubPaymentMethodId);
     }
 
-    // amountConfig — same publicConfig call above already has this,
+    // amountConfig - same publicConfig call above already has this,
     // parsed and defaulted consistently with the public embed path.
     // Falls back to allowing custom amounts with no presets if
     // publicConfig couldn't be built (disabled button, no methods,
-    // etc.) — matches Tier A's own "no amount tiers" default, since a
+    // etc.) - matches Tier A's own "no amount tiers" default, since a
     // button in that state has nothing meaningful to show here either way.
     const amountConfig = publicConfig?.amountConfig ?? { allowCustomAmount: true, presetAmounts: [] };
 
@@ -166,10 +166,10 @@ router.get('/donation-buttons/:clubId/manage', authenticateToken, async (req, re
 
 /**
  * PUT /donation-buttons/:clubId
- * Authenticated — club admin only. Body matches
+ * Authenticated - club admin only. Body matches
  * UpsertClubDonationButtonRequest. Resolves which tier the submitted
  * clubPaymentMethodIds belong to and delegates to the matching
- * service's upsert — both services' upsert already calls
+ * service's upsert - both services' upsert already calls
  * getForManagement/getPublicConfig internally and returns full
  * management data, so this handler's job is purely routing +
  * response-shape normalization, not business logic itself.
@@ -223,7 +223,7 @@ router.put('/donation-buttons/:clubId', authenticateToken, async (req, res) => {
     // widget shell + branding it gates is identical regardless of
     // tier), so call buttonSvc.replaceAllowedDomains directly here too
     // rather than threading allowedDomains through
-    // upsertTierBButton — that method's job is the Tier B
+    // upsertTierBButton - that method's job is the Tier B
     // payment-method/amount-config save only.
     const tierBResult = await checkoutSvc.upsertTierBButton({
       clubId,
@@ -267,7 +267,7 @@ router.put('/donation-buttons/:clubId', authenticateToken, async (req, res) => {
 
 /**
  * GET /donation-buttons/:clubId/embed
- * Authenticated — club admin only. Tier A only (manual-link buttons
+ * Authenticated - club admin only. Tier A only (manual-link buttons
  * generate a static <a> embed here); Tier B's embed is built entirely
  * client-side in ManageDonationButtonModal.tsx's
  * buildTrackableModalEmbed, since it needs no server data beyond what

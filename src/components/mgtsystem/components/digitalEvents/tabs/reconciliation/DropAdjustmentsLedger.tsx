@@ -1,7 +1,7 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/reconciliation/DropAdjustmentsLedger.tsx
 //
 // Same shape as SubscriptionAdjustmentsLedger (add/edit/delete, saves on
-// blur) — fresh copy rather than shared/generalized, matching the house
+// blur) - fresh copy rather than shared/generalized, matching the house
 // preference. Points at puzzleDropReconciliationService instead.
 //
 // UNLIKE Subscription's version: cash_over_short and prize_payout are

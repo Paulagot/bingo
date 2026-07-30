@@ -1,12 +1,12 @@
 // src/components/puzzles/pages/PuzzleNotifyPage.tsx
-// Handles the "week N is ready" notification email link —
+// Handles the "week N is ready" notification email link -
 // /puzzle-notify?token=...&challengeId=...
 //
 // Deliberately simpler than PuzzleAuthPage: the token here is already a
 // full, valid 90-day JWT (issued directly by
 // supporterAuthService.sendWeekReadyNotification on the backend), not a
 // short-lived opaque magic-link token that needs exchanging. There is no
-// verify/exchange API call to make — just store it and go, the same way
+// verify/exchange API call to make - just store it and go, the same way
 // exchangeSession's caller stores its result, but with one less network
 // round trip since the token is already final.
 

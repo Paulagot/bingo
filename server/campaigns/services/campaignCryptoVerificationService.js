@@ -18,7 +18,7 @@ import {
   normalizeWallet,
   parseJsonMaybe,
 } from '../../quiz/services/cryptoSolanaPaymentVerificationService.js';
-// insertJoinPayment not used for campaign products — it requires a room_id
+// insertJoinPayment not used for campaign products - it requires a room_id
 // which doesn't exist at the campaign level. The quiz_payment_ledger is
 // written per-ticket by campaignTicketBridgeService after expansion instead.
 import { getRoomCurrencyCode, getRoomCurrencySymbol } from '../../utils/currencyUtils.js';
@@ -34,7 +34,7 @@ const T_ROOMS        = `${TABLE_PREFIX}web2_quiz_rooms`;
 /**
  * Resolve the wallet address and method details from a club payment method.
  * Unlike the room-based version, this does NOT check linked_payment_methods_json
- * on the room — campaign methods are campaign-level.
+ * on the room - campaign methods are campaign-level.
  */
 async function getCampaignCryptoPaymentMethod(clubId, clubPaymentMethodId) {
   const [rows] = await db.execute(
@@ -107,7 +107,7 @@ async function resolveOrderCurrency(orderId, fallbackCurrency = 'EUR') {
  * Verify a Solana payment for a campaign product order and record it
  * in the web3 transaction ledger.
  *
- * @returns {object} result — same shape as verifyAndRecordSolanaFixedFeePayment
+ * @returns {object} result - same shape as verifyAndRecordSolanaFixedFeePayment
  *   so campaignCryptoRoutes.js can use it identically
  */
 export async function verifyCampaignCryptoPayment({
@@ -175,7 +175,7 @@ export async function verifyCampaignCryptoPayment({
   // 3. Resolve currency
   const currency = fiatCurrency || await resolveOrderCurrency(orderId, 'EUR');
 
-  // 4. Web3 transaction ledger — campaign products span multiple rooms so we
+  // 4. Web3 transaction ledger - campaign products span multiple rooms so we
   // cannot use insertJoinPayment (requires room_id NOT NULL). The per-ticket
   // quiz_payment_ledger entries are written by campaignTicketBridgeService
   // after expandOrderIntoEntries runs. We return a stub web3Result so the
@@ -202,7 +202,7 @@ export async function verifyCampaignCryptoPayment({
     resolvedNetwork,
     fiatCurrency:      currency,
     totalFiat:         Number(totalFiatAmount || 0),
-    entryFeeFiat:      Number(totalFiatAmount || 0), // full amount — bridge apportions per ticket
+    entryFeeFiat:      Number(totalFiatAmount || 0), // full amount - bridge apportions per ticket
     extrasFiat:        0,
     web3Result,
     verifiedTx:        verified.tx,

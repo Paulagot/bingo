@@ -705,7 +705,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
     console.log('[hiddenObjectEngine] ❌ No reviewQuestions found');
 
     broadcastToRoomAndStaff(namespace, roomId, 'review_complete', {
-      message: 'Hidden Object round complete — ready for results.',
+      message: 'Hidden Object round complete - ready for results.',
       roundNumber: room?.currentRound || 1,
       totalQuestions: 0,
     });
@@ -727,7 +727,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
     console.log('🔵 [HO_ENGINE] Reviews complete, emitting review_complete');
 
     broadcastToRoomAndStaff(namespace, roomId, 'review_complete', {
-      message: 'Hidden Object round complete — ready for results.',
+      message: 'Hidden Object round complete - ready for results.',
       roundNumber: room.currentRound,
       totalQuestions: room.reviewQuestions.length,
     });

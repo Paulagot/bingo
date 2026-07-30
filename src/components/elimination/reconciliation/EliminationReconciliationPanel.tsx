@@ -286,7 +286,7 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
       },
       (res: any) => {
         setConfirmingId(null);
-        fetchData(); // re-fetch regardless — UI must reflect real DB state
+        fetchData(); // re-fetch regardless - UI must reflect real DB state
       }
     );
     // Fallback if socket doesn't ack
@@ -356,7 +356,7 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
         const data = await res.json();
         if (!data.ok) throw new Error(data.error ?? 'Approval failed');
         setApproved(true);
-        // Re-fetch so reconciliation.approvedAt is populated — this is what
+        // Re-fetch so reconciliation.approvedAt is populated - this is what
         // locks the adjustments ledger. Without this the ledger stays editable
         // because approvedAt is still null in local state.
         await fetchData();
@@ -410,7 +410,7 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
             {gameStats && (
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-700">
-                  <Trophy className="h-3.5 w-3.5" /> Winner: {gameStats.winner?.name ?? '—'}
+                  <Trophy className="h-3.5 w-3.5" /> Winner: {gameStats.winner?.name ?? '-'}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700">
                   <Users className="h-3.5 w-3.5" /> {gameStats.totalPlayers} players · {gameStats.totalAdmins} admins
@@ -464,9 +464,9 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
                   <div className="text-xs font-medium text-blue-700">Players</div>
                 </div>
                 <div className="text-2xl font-bold text-blue-900">
-                  {gameStats?.totalPlayers ?? (room as any)?.players?.length ?? '—'}
+                  {gameStats?.totalPlayers ?? (room as any)?.players?.length ?? '-'}
                 </div>
-                <div className="text-xs text-blue-600 mt-1">{ledgerSummary?.paidPlayers ?? '—'} confirmed paid</div>
+                <div className="text-xs text-blue-600 mt-1">{ledgerSummary?.paidPlayers ?? '-'} confirmed paid</div>
               </div>
 
               <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
@@ -474,7 +474,7 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
                   <Users className="h-4 w-4 text-purple-600" />
                   <div className="text-xs font-medium text-purple-700">Admins</div>
                 </div>
-                <div className="text-2xl font-bold text-purple-900">{gameStats?.totalAdmins ?? '—'}</div>
+                <div className="text-2xl font-bold text-purple-900">{gameStats?.totalAdmins ?? '-'}</div>
               </div>
 
               <div className="rounded-lg bg-green-50 border border-green-200 p-4">
@@ -526,16 +526,16 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
                         <tr key={m.method} className="hover:bg-gray-50">
                           <td className="px-4 py-2 text-sm font-medium text-gray-900">{getMethodLabel(m.method)}</td>
                           <td className="px-4 py-2 text-sm text-right text-green-700 font-medium">{fmt(m.confirmed, currencySymbol)}</td>
-                          <td className="px-4 py-2 text-sm text-right text-amber-600">{m.claimed > 0 ? fmt(m.claimed, currencySymbol) : '—'}</td>
-                          <td className="px-4 py-2 text-sm text-right text-red-600">{m.disputed > 0 ? fmt(m.disputed, currencySymbol) : '—'}</td>
-                          <td className="px-4 py-2 text-sm text-right text-gray-400">{m.expected > 0 ? fmt(m.expected, currencySymbol) : '—'}</td>
+                          <td className="px-4 py-2 text-sm text-right text-amber-600">{m.claimed > 0 ? fmt(m.claimed, currencySymbol) : '-'}</td>
+                          <td className="px-4 py-2 text-sm text-right text-red-600">{m.disputed > 0 ? fmt(m.disputed, currencySymbol) : '-'}</td>
+                          <td className="px-4 py-2 text-sm text-right text-gray-400">{m.expected > 0 ? fmt(m.expected, currencySymbol) : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                {/* ── Claimed payments — inline confirm/dispute ── */}
+                {/* ── Claimed payments - inline confirm/dispute ── */}
                 {recView.onTheNight.claimed.length > 0 && (
                   <div className="border-t border-amber-200 bg-amber-50 p-4">
                     <div className="flex items-center gap-2 mb-3">

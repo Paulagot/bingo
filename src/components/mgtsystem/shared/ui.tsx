@@ -26,7 +26,7 @@ export const ACCENTS = {
 export type AccentColor = string;
 
 function tint(hex: string, alpha: number): string {
-  // #rrggbb → rgba(r,g,b,alpha) — used for the icon chip backgrounds,
+  // #rrggbb → rgba(r,g,b,alpha) - used for the icon chip backgrounds,
   // matching the hand-written rgba(21,127,133,0.12)-style values that
   // were previously hardcoded per file.
   const r = parseInt(hex.slice(1, 3), 16);

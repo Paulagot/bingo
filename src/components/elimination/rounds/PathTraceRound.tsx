@@ -50,7 +50,7 @@ export const PathTraceRound: React.FC<Props> = ({
 
   const [showPreview, setShowPreview] = useState(true);
   const [points, setPoints] = useState<PathTracePoint[]>([]);
-  // localSubmitted drives UI changes immediately on submit — don't wait for
+  // localSubmitted drives UI changes immediately on submit - don't wait for
   // the hasSubmitted prop to update from the parent (which has a round-trip delay).
   const [localSubmitted, setLocalSubmitted] = useState(false);
 
@@ -167,7 +167,7 @@ export const PathTraceRound: React.FC<Props> = ({
         <svg viewBox="0 0 100 100" style={{ width: '100%', display: 'block' }}>
           <rect width="100" height="100" rx="6" fill="rgba(255,255,255,0.02)" />
 
-          {/* Start anchor — coloured dot */}
+          {/* Start anchor - coloured dot */}
           <circle
             cx={config.startAnchor.x * 100}
             cy={config.startAnchor.y * 100}
@@ -175,7 +175,7 @@ export const PathTraceRound: React.FC<Props> = ({
             fill={colour}
             style={{ filter: `drop-shadow(0 0 3px ${colour}88)` }}
           />
-          {/* Finish anchor — white dot */}
+          {/* Finish anchor - white dot */}
           <circle
             cx={config.finishAnchor.x * 100}
             cy={config.finishAnchor.y * 100}
@@ -197,10 +197,10 @@ export const PathTraceRound: React.FC<Props> = ({
             />
           )}
 
-          {/* Trace phase: ghost path hidden — player traces from memory.
+          {/* Trace phase: ghost path hidden - player traces from memory.
               Only start/finish anchors remain as positional guides. */}
 
-          {/* Player trace — fades to accent colour once submitted */}
+          {/* Player trace - fades to accent colour once submitted */}
           {points.length >= 2 && (
             <path
               d={playerPath}

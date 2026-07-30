@@ -117,12 +117,12 @@ const BlogAndResources: React.FC = () => {
       title: 'In-Depth Guides',
       icon: BookOpen,
       blurb:
-        'Step-by-step playbooks for planning, running, and optimizing your fundraising events—from first quiz to advanced strategies.',
+        'Step-by-step playbooks for planning, running, and optimizing your fundraising events-from first quiz to advanced strategies.',
       items: [
         { title: 'The Ultimate Checklist for a Flawless Quiz Night', href: '#', comingSoon: true, category: 'guides' },
         { title: 'How to Promote Your Fundraiser and Maximize Turnout', href: '#', comingSoon: true, category: 'guides' },
         { title: 'Understanding "Games of Skill" and UK Fundraising Compliance', href: '#', comingSoon: true, category: 'guides' },
-        { title: 'Reconciling Cash, Card, and Crypto Payments — A Practical Guide', href: '#', comingSoon: true, category: 'guides' },
+        { title: 'Reconciling Cash, Card, and Crypto Payments - A Practical Guide', href: '#', comingSoon: true, category: 'guides' },
       ],
     },
     {
@@ -130,7 +130,7 @@ const BlogAndResources: React.FC = () => {
       title: 'Insightful Articles & Case Studies',
       icon: FileText,
       blurb:
-        'Trends, best practices, and real stories from schools, clubs, and charities—plus lessons from our own journey.',
+        'Trends, best practices, and real stories from schools, clubs, and charities-plus lessons from our own journey.',
       items: [
         { title: 'From Hackathon Win to Community Impact: The FundRaisely Story', href: '#', comingSoon: true, category: 'articles' },
         { title: '5 Ways to Boost Engagement at Your Next Fundraising Event', href: '#', comingSoon: true, category: 'articles' },
@@ -143,7 +143,7 @@ const BlogAndResources: React.FC = () => {
       title: 'Platform News & Updates',
       icon: Megaphone,
       blurb:
-        'New features, improvements, and announcements—so you never miss what\'s shipping across games, reporting, and compliance.',
+        'New features, improvements, and announcements-so you never miss what\'s shipping across games, reporting, and compliance.',
       items: [
         { title: 'Announcing the First Annual Web3 Impact Campaign', href: '/whats-new#update-15', comingSoon: false, category: 'updates' },
         { title: 'Web3 Impact Chains for 2025: Base, Solana & Avalanche', href: '/whats-new#update-14', comingSoon: false, category: 'updates' },
@@ -165,7 +165,7 @@ const BlogAndResources: React.FC = () => {
     {
       '@context': 'https://schema.org',
       '@type': 'ItemList',
-      name: 'FundRaisely Blog & Resources — Sections',
+      name: 'FundRaisely Blog & Resources - Sections',
       itemListElement: sections.map((section, idx) => ({
         '@type': 'ListItem',
         position: idx + 1,

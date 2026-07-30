@@ -1,5 +1,5 @@
 // routes/feedbackRoutes.js
-// Public routes — no auth middleware. Players are not logged in.
+// Public routes - no auth middleware. Players are not logged in.
 //
 // POST /api/feedback          → submit player feedback
 // GET  /api/feedback/:roomId  → aggregate summary for a room

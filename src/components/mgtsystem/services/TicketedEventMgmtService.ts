@@ -54,9 +54,9 @@ export interface TicketedEventConfig {
 
 // ── Payment methods ──────────────────────────────────────────────────────────
 // Mirrors the JSON shape QuizPaymentMethodsService writes. Ticketed events
-// DO have an advance/on-the-night split — tickets can be bought ahead of
+// DO have an advance/on-the-night split - tickets can be bought ahead of
 // time online (ticket_method_ids) or at the door on the night
-// (onnight_method_ids) — same shape as quiz/elimination.
+// (onnight_method_ids) - same shape as quiz/elimination.
 export interface LinkedPaymentMethods {
   ticket_method_ids?:  number[];
   onnight_method_ids?: number[];
@@ -102,7 +102,7 @@ export interface ScheduleTicketedEventPayload {
   venueCapacity?:  number;
   eventTitle?:     string | null;
   eventLocation?:  string | null;
-  // Ticketed events DO have an advance/on-the-night split — tickets can be
+  // Ticketed events DO have an advance/on-the-night split - tickets can be
   // bought ahead of time online, or at the door on the night. Optional:
   // an empty array is a valid choice (no methods yet), so default to []
   // at the call site rather than omitting either field.
@@ -191,17 +191,17 @@ class TicketedEventMgmtService extends BaseService {
   }
 
   formatEntryFee(config: TicketedEventConfig | null): string {
-    if (!config) return '—';
+    if (!config) return '-';
     if (config.fundraisingMode === 'donation') return 'Donation';
     const types = (config.ticketTypes ?? []).filter(t => t.isEnabled !== false);
     if (types.length > 1) {
       const prices = types.map(t => parseFloat(t.price)).filter(p => !isNaN(p));
-      if (!prices.length) return '—';
+      if (!prices.length) return '-';
       const min = Math.min(...prices), max = Math.max(...prices);
       if (min === max) return `${config.currencySymbol}${min.toFixed(2)}`;
       return `${config.currencySymbol}${min.toFixed(2)} – ${config.currencySymbol}${max.toFixed(2)}`;
     }
-    if (!config.entryFee) return '—';
+    if (!config.entryFee) return '-';
     return `${config.currencySymbol}${Number(config.entryFee).toFixed(2)}`;
   }
 }

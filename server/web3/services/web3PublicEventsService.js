@@ -2,9 +2,9 @@
 //
 // Database operations for fundraisely_web3_public_events.
 //
-// IMPORTANT — two permanent fixes in this file:
-//   1. `import { connection as db }` — database.js exports `connection`, NOT `getConnection`
-//   2. `Number(limit), Number(offset)` — mysql2 requires integers for LIMIT/OFFSET,
+// IMPORTANT - two permanent fixes in this file:
+//   1. `import { connection as db }` - database.js exports `connection`, NOT `getConnection`
+//   2. `Number(limit), Number(offset)` - mysql2 requires integers for LIMIT/OFFSET,
 //      req.query values are strings and will throw ER_WRONG_ARGUMENTS without this cast
 
 import { v4 as uuidv4 } from 'uuid';

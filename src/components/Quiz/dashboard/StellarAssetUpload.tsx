@@ -47,7 +47,7 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   const chainConfig = toChainConfig(config);
   const { isConnected: isWalletConnected, address } = useChainWallet(chainConfig);
 
-  // Stellar-specific contract hook — untouched
+  // Stellar-specific contract hook - untouched
   const stellarContract = useStellarQuizContract();
 
   const [copying, setCopying] = useState<string | null>(null);

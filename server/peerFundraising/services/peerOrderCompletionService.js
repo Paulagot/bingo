@@ -16,7 +16,7 @@ const fail = (message, status=400) => { throw Object.assign(new Error(message), 
 // to 'confirmed' here from 'pending'/'claimed').
 //
 // This replaces the old bare status-flip confirmOrder() that used to live in
-// peerCoreService.js — that version never called expandPeerOrder, so cash
+// peerCoreService.js - that version never called expandPeerOrder, so cash
 // orders confirmed through the mgmt UI never produced tickets or join links.
 export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   const [rows] = await connection.execute(
@@ -45,7 +45,7 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   }
 
   // expandPeerOrder runs its own transaction internally (see
-  // peerEntryExpansionService.js) and is idempotent — if it fails partway
+  // peerEntryExpansionService.js) and is idempotent - if it fails partway
   // through, a retry of confirm will skip already-created entries rather
   // than duplicating them, since it checks existing confirmed/pending counts
   // first. Keeping it outside the status-update transaction above avoids
@@ -81,7 +81,7 @@ export async function rejectPeerOrder(orderId, fundraiserId, clubId, reason = nu
       [orderId]
     );
     for (const entry of confirmedEntries) {
-      // No-op for entries with no linked ticket (puzzle/event/custom items) —
+      // No-op for entries with no linked ticket (puzzle/event/custom items) -
       // blockTicketForPeerEntry just returns early if linked_ticket_id is null.
       await blockTicketForPeerEntry(entry.id);
     }
@@ -122,13 +122,13 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
 
   // NOTE: Stripe fires BOTH checkout.session.completed AND
   // payment_intent.succeeded for every Checkout Session payment, and
-  // stripeWebhooks.js calls confirmPeerOrder from both — so this function
+  // stripeWebhooks.js calls confirmPeerOrder from both - so this function
   // WILL genuinely be invoked twice, nearly simultaneously, for the same
   // order. expandPeerOrder now handles that safely itself (row-level
-  // locking — see peerEntryExpansionService.js), but wrapping it here too
+  // locking - see peerEntryExpansionService.js), but wrapping it here too
   // means a failure in expansion can never silently prevent the order-
   // confirmation email below from firing. Previously this call had no
-  // try/catch at all — if it threw (exactly what the race could cause),
+  // try/catch at all - if it threw (exactly what the race could cause),
   // the email code further down never ran, even though the order's status
   // itself was already correctly set.
   if(order.payment_status==='confirmed'){
@@ -146,7 +146,7 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
   try {
     await expandPeerOrder(order.id);
   } catch (expandErr) {
-    // Order is already marked confirmed above — an expansion failure here
+    // Order is already marked confirmed above - an expansion failure here
     // (e.g. losing the race to the other webhook event, or a genuine data
     // problem) should never stop the supporter from at least getting their
     // order-confirmation email. Logged clearly so it can be manually
@@ -154,7 +154,7 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
     console.error('[PeerOrderCompletion] ⚠️ Expansion failed (non-fatal):', expandErr.message);
   }
 
-  // Order-confirmation email — peer had no equivalent at all. Fired here,
+  // Order-confirmation email - peer had no equivalent at all. Fired here,
   // same reasoning as campaign's confirmOrderByStripeIntent: the webhook
   // always runs, unlike a frontend-triggered send that depends on the
   // supporter's tab staying open through the redirect-and-poll cycle.

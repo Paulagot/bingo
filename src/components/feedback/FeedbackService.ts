@@ -1,5 +1,5 @@
 // services/FeedbackService.ts (frontend)
-// Plain fetch — no auth headers. Players are not logged in.
+// Plain fetch - no auth headers. Players are not logged in.
 
 export interface FeedbackAnswers {
   enjoyed_game?: boolean | null;

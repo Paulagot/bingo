@@ -1,9 +1,9 @@
 // server/donations/services/DonationButtonService.js
 //
-// Tier A (manual-link) donation button service — handles buttons backed
+// Tier A (manual-link) donation button service - handles buttons backed
 // by a static external payment link (SumUp, Revolut, Monzo, ZippyPay).
 // Tier B (Stripe/crypto/sumup_api trackable checkout) lives in
-// DonationCheckoutService.js — the two are kept independent by design,
+// DonationCheckoutService.js - the two are kept independent by design,
 // each owning its own small copies of shared-shape queries rather than
 // importing across services (see that file's header comment).
 //
@@ -11,7 +11,7 @@
 // (fundraisely_club_allowed_domains): which website hostnames a club's
 // donate.js embed is allowed to actually render its button on. This is
 // a short-term measure ahead of a planned proper club onboarding flow
-// (where domain registration will move into entity setup) — for now
+// (where domain registration will move into entity setup) - for now
 // it's surfaced as a field on this same donation-button management
 // modal, since that's the only place clubs currently interact with the
 // embed at all.
@@ -22,7 +22,7 @@ import database from '../../config/database.js';
 // Must be: method_category = 'instant_payment', enabled, has a link.
 // Cash/card_tap (in-person), bank_transfer (instructions-based, no
 // single link), and stripe/crypto (require their own checkout/wallet
-// flow) are intentionally excluded — see spec section 6.
+// flow) are intentionally excluded - see spec section 6.
 const ELIGIBLE_DONATION_PROVIDERS = ['sumup', 'revolut', 'monzo', 'zippypay'];
 
 const BUTTON_METHODS_TABLE = 'fundraisely_donation_button_methods';
@@ -30,7 +30,7 @@ const ALLOWED_DOMAINS_TABLE = 'fundraisely_club_allowed_domains';
 
 /**
  * Validates a #rrggbb hex color string. Deliberately duplicated from
- * DonationCheckoutService.js's identical helper rather than shared —
+ * DonationCheckoutService.js's identical helper rather than shared -
  * see this file's _getLinkedMethodRow/_setLinkedMethod comments for
  * why the two tiers keep their own copies of small shared logic
  * instead of importing across services.
@@ -96,7 +96,7 @@ function escapeHtml(value) {
  * input even though the field asks for a domain.
  *
  * Returns null if the input can't be reduced to a sane hostname (e.g.
- * empty, or unparseable) — callers treat null as "reject this entry,"
+ * empty, or unparseable) - callers treat null as "reject this entry,"
  * not as a different valid hostname.
  */
 function normalizeHostname(value) {
@@ -190,14 +190,14 @@ class DonationButtonService {
    * fundraisely_club_donation_buttons (now renamed
    * legacy_club_payment_method_id and no longer read or written by
    * this file). For Tier A this table will only ever hold ONE row per
-   * button — manual-link buttons have no "supporter picks one of
-   * several" concept — but using the same table as Tier B means both
+   * button - manual-link buttons have no "supporter picks one of
+   * several" concept - but using the same table as Tier B means both
    * tiers share one source of truth for "what's linked to this
    * button," rather than Tier A quietly relying on a deprecated column
    * forever.
    *
    * Deliberately duplicated here rather than imported from
-   * DonationCheckoutService.js — the two tiers are kept independent by
+   * DonationCheckoutService.js - the two tiers are kept independent by
    * design (see this file's original header comment and the Phase 3b
    * handoff doc), so each owns its own small copy of this query rather
    * than introducing a cross-service dependency for two SELECTs.
@@ -215,7 +215,7 @@ class DonationButtonService {
     // clubId isn't used in the query above (club_donation_button_id
     // already scopes to one club's button), but accepted as a param
     // for symmetry with _getPaymentMethodRow and in case a future
-    // caller wants to assert it defensively — currently unused.
+    // caller wants to assert it defensively - currently unused.
     void clubId;
     return rows?.[0] || null;
   }
@@ -223,7 +223,7 @@ class DonationButtonService {
   /**
    * Replaces this button's single linked method row in the join
    * table. Delete-then-insert, same pattern as Tier B's
-   * upsertTierBButton — Tier A only ever has one row so there's no
+   * upsertTierBButton - Tier A only ever has one row so there's no
    * ordering/diffing concern, just "make the table reflect exactly
    * this one id."
    */
@@ -259,19 +259,19 @@ class DonationButtonService {
   }
 
   /**
-   * Replaces a club's full allowed-domain list in one call —
+   * Replaces a club's full allowed-domain list in one call -
    * delete-then-reinsert, same pattern as _setLinkedMethod and
    * upsertTierBButton's method-list save. Used by the donation button
    * modal's "save" action, which submits the complete intended list
    * rather than diffing client-side.
    *
-   * Invalid entries are DROPPED rather than failing the whole save —
-   * same convention as upsertTierBButton's droppedMethodIds — since one
+   * Invalid entries are DROPPED rather than failing the whole save -
+   * same convention as upsertTierBButton's droppedMethodIds - since one
    * mistyped domain shouldn't block saving the rest of the button
    * config. Returns { domains, droppedDomains } so the modal can warn
    * about anything that didn't make it through.
    *
-   * Deliberately allows an EMPTY list to be saved — a club with zero
+   * Deliberately allows an EMPTY list to be saved - a club with zero
    * registered domains just means donate.js will refuse to render
    * anywhere until they add one. This is a valid (if non-functional)
    * state, not an error, since a club might be mid-setup.
@@ -314,7 +314,7 @@ class DonationButtonService {
    * Public, unauthenticated check: is `hostname` an allowed domain for
    * `clubId`? Used by GET /donations/:clubId/domain-check, which
    * donate.js calls before rendering the button. Returns a plain
-   * boolean rather than throwing on "not found" — an unregistered
+   * boolean rather than throwing on "not found" - an unregistered
    * hostname is an expected, common outcome here (anyone can call this
    * with any club id + any hostname), not an error condition worth a
    * stack trace or a 4xx-mapped exception.
@@ -507,7 +507,7 @@ class DonationButtonService {
 
     await this._setLinkedMethod({ buttonId, clubPaymentMethodId: methodIdNum });
 
-    // allowedDomains is OPTIONAL on the request — undefined means
+    // allowedDomains is OPTIONAL on the request - undefined means
     // "don't touch the saved domain list," not "clear it." Only call
     // replaceAllowedDomains when the caller actually sent something
     // (including an explicit empty array, which DOES mean "clear it").
@@ -559,7 +559,7 @@ class DonationButtonService {
     const safeHref = escapeHtml(link);
 
     // Use the button's own saved colors rather than the previous
-    // hardcoded teal/white — escapeHtml is applied even though these
+    // hardcoded teal/white - escapeHtml is applied even though these
     // are validated hex strings (validateBranding/HEX_COLOR_PATTERN
     // already constrain them to #rrggbb at save time), as cheap
     // defense-in-depth against any value that reached the DB before

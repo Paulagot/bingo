@@ -12,7 +12,7 @@ export default function PuzzleCheckEmailPage() {
   const navigate = useNavigate();
 
   // Branding is passed through from PuzzleJoinPage via navigation state
-  // rather than fetched again here — this page never had its own
+  // rather than fetched again here - this page never had its own
   // challenge/club fetch, and adding one just to re-derive the same
   // theme the join page already resolved would be a redundant round
   // trip. Falls back to the default FundRaisely look if state is
@@ -170,7 +170,7 @@ export default function PuzzleCheckEmailPage() {
               {resent ? (
                 <div className="mt-4 rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-3">
                   <p className="text-sm font-semibold text-[#2E6A46]">
-                    ✓ New link sent — check your inbox.
+                    ✓ New link sent - check your inbox.
                   </p>
                 </div>
               ) : null}

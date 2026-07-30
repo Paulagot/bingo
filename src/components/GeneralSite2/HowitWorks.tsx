@@ -29,7 +29,7 @@ const HowItWorks: React.FC = () => {
             <span className="bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent"> The Magic Behind FundRaisely</span>
           </h2>
           <p className="text-white/80 mx-auto max-w-2xl text-lg">
-            We turn complex fundraising into a simple, transparent, and repeatable flow—from setup to celebratory payout.
+            We turn complex fundraising into a simple, transparent, and repeatable flow-from setup to celebratory payout.
           </p>
         </div>
 

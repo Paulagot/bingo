@@ -29,7 +29,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
 
   // Flash duration: noticeably shorter as rounds progress but never punishing.
   // Round 1: 4.5–6s  →  Round 8: 3–4s
-  // Floor raised from 2.5s — 8 numbers need at least 3s to register.
+  // Floor raised from 2.5s - 8 numbers need at least 3s to register.
   const minDisplay = Math.round(lerp(4500, 3000, t));
   const maxDisplay = Math.round(lerp(6000, 4000, t));
   const displayDurationMs = Math.round(randomBetween(minDisplay, maxDisplay));

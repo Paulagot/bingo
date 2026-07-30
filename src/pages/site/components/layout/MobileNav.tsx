@@ -38,7 +38,7 @@ export function MobileNav() {
           <Link to="/pricing" onClick={() => setOpen(false)}>Pricing</Link>
          {isAuthenticated ? (
   <>
-    <Link to="/quiz/eventdashboard" onClick={() => setOpen(false)}>
+    <Link to="/eventdashboard" onClick={() => setOpen(false)}>
       Dashboard
     </Link>
 

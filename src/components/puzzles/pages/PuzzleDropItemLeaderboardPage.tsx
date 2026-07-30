@@ -4,11 +4,11 @@
 // PublicWeekLeaderboardPage.tsx's layout/medal styling, but calls
 // puzzleDropPlayService's Drop-specific leaderboard methods instead of
 // publicLeaderboardService (which is challenge/week-shaped and hits a
-// different route tree) — the two components aren't directly shared
+// different route tree) - the two components aren't directly shared
 // since PublicWeekLeaderboardPage.tsx hardcodes its own service import
 // rather than taking one as a prop.
 //
-// No branding fetch — same deliberate simplification as
+// No branding fetch - same deliberate simplification as
 // PuzzleDropPlayPage.tsx; default theme only.
 
 import { useEffect, useState } from 'react';

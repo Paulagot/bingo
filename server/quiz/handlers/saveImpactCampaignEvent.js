@@ -5,13 +5,13 @@ import { toEur, getTokenPriceEur } from '../../mgtsystem/services/Tokenpriceserv
 /**
  * Saves a completed Web3 quiz room to the impact ledger.
  *
- * EUR columns added (require migration — see bottom of file):
+ * EUR columns added (require migration - see bottom of file):
  *   total_raised_eur    decimal(18,4)
  *   charity_amount_eur  decimal(18,4)
  *   host_fee_amount_eur decimal(18,4)
  *   token_price_eur     decimal(18,8)   ← snapshot of price at time of save
  *
- * All four columns are nullable — if the price API is down we store NULL
+ * All four columns are nullable - if the price API is down we store NULL
  * rather than a wrong value of 0.
  */
 export async function saveImpactCampaignEvent(eventData) {
@@ -21,13 +21,13 @@ export async function saveImpactCampaignEvent(eventData) {
     // ------------------------------------------------------------------
     // 1) Resolve the token code
     //    eventData.feeToken should already be a SolanaTokenCode string
-    //    e.g. 'SOL', 'BONK', 'USDG' — matching solanaTokenConfig.ts
+    //    e.g. 'SOL', 'BONK', 'USDG' - matching solanaTokenConfig.ts
     // ------------------------------------------------------------------
     const tokenCode = eventData.feeToken ?? null;
 
     // ------------------------------------------------------------------
     // 2) Fetch EUR price once for this token
-    //    toEur() handles caching — safe to call multiple times
+    //    toEur() handles caching - safe to call multiple times
     // ------------------------------------------------------------------
     let tokenPriceEur = null;
     let totalRaisedEur = null;
@@ -52,7 +52,7 @@ export async function saveImpactCampaignEvent(eventData) {
           hostFeeAmountEur,
         });
       } catch (priceErr) {
-        // Price fetch failed — store raw amounts only, EUR cols stay NULL
+        // Price fetch failed - store raw amounts only, EUR cols stay NULL
         console.warn(
           `[saveImpactCampaignEvent] ⚠️ Price fetch failed for ${tokenCode}, EUR cols will be NULL:`,
           priceErr?.message

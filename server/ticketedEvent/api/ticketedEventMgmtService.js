@@ -73,7 +73,7 @@ export async function scheduleTicketedEvent({
   prizes, eventSponsors,
   roomCaps, venueCapacity,
   eventTitle, eventLocation,
-  // Payment methods — ticketed events DO have an advance/onnight split,
+  // Payment methods - ticketed events DO have an advance/onnight split,
   // same as quiz/elimination. ticket_method_ids = bought online ahead of
   // time, onnight_method_ids = paid at the door on the night.
   ticketMethodIds  = [],
@@ -153,11 +153,11 @@ export async function scheduleTicketedEvent({
     ]
   );
 
-  console.log(`[ticketedEventMgmtService] 📅 Scheduled ${roomId} — ${normalisedTicketTypes.length} ticket type(s)`);
+  console.log(`[ticketedEventMgmtService] 📅 Scheduled ${roomId} - ${normalisedTicketTypes.length} ticket type(s)`);
 
   // ── Write payment methods directly onto the room ────────────────────────
   // Same gap-closing pattern as scheduleEliminationRoom / insertWeb2RoomRecord
-  // — a freshly-created room previously had NO payment methods until later
+  // - a freshly-created room previously had NO payment methods until later
   // linked to an event. Non-fatal: the room is created either way.
   if (ticketMethodIds.length > 0 || onnightMethodIds.length > 0) {
     try {
@@ -334,13 +334,13 @@ export async function updateTicketedEvent({
     );
     if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
     throw Object.assign(
-      new Error('room_not_editable — only scheduled events can be edited'),
+      new Error('room_not_editable - only scheduled events can be edited'),
       { statusCode: 409, currentStatus: rows[0].status }
     );
   }
 
-  // ── Payment methods — separate write, separate from the column UPDATE above ──
-  // undefined means "don't touch", [] means "clear all selections" — see
+  // ── Payment methods - separate write, separate from the column UPDATE above ──
+  // undefined means "don't touch", [] means "clear all selections" - see
   // the param comment above for why this distinction matters (defaulting
   // to [] here would wrongly wipe out existing selections on every edit
   // that doesn't touch the payment step, e.g. just adding a ticket type).
@@ -360,7 +360,7 @@ export async function updateTicketedEvent({
     }
 
     // Editing payment methods on an already-linked room must also refresh
-    // the event's denormalized copy — same fix already applied to
+    // the event's denormalized copy - same fix already applied to
     // updateEliminationRoom and the quiz web2-rooms.js PATCH route.
     await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId });
   }
@@ -390,7 +390,7 @@ export async function cancelTicketedEvent({ clubId, roomId }) {
     );
     if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
     throw Object.assign(
-      new Error('room_not_cancellable — only scheduled or open events can be cancelled'),
+      new Error('room_not_cancellable - only scheduled or open events can be cancelled'),
       { statusCode: 409, currentStatus: rows[0].status }
     );
   }

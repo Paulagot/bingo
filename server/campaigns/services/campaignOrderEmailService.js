@@ -5,7 +5,7 @@
 // crypto) and are being shown the thank-you screen.
 //
 // This is deliberately separate from the per-ticket emails sent by
-// campaignTicketBridgeService — that email fires per ticket once the
+// campaignTicketBridgeService - that email fires per ticket once the
 // club confirms. This email fires once per ORDER, immediately, and tells
 // the supporter:
 //   • what they bought
@@ -13,7 +13,7 @@
 //   • what happens next (varies by payment method)
 //
 // It is non-fatal everywhere it is called. If the send fails the order
-// and ticket records are already committed — we just log and move on.
+// and ticket records are already committed - we just log and move on.
 
 import { sendEmailSafe } from '../../utils/mailer.js';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
@@ -42,7 +42,7 @@ function currencySymbol(currency) {
 
 /**
  * Returns the "what happens next" block copy based on payment method category.
- * The supporter's payment is never confirmed at this point for manual methods —
+ * The supporter's payment is never confirmed at this point for manual methods -
  * the club still needs to verify.
  */
 function nextStepsHtml(paymentMethodCategory, paymentReference, symbol) {
@@ -92,7 +92,7 @@ function nextStepsHtml(paymentMethodCategory, paymentReference, symbol) {
       </div>`;
   }
 
-  // Stripe / card — auto-confirmed, tickets are ready
+  // Stripe / card - auto-confirmed, tickets are ready
   return `
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 20px;margin:24px 0;">
       <p style="margin:0 0 10px;font-weight:700;color:#14532d;font-size:15px;">✅ What happens next</p>
@@ -137,10 +137,10 @@ function buildItemsTableHtml(items, currency) {
 /**
  * Send the order confirmation email to the supporter.
  *
- * @param {string} orderId  — the campaign_product_orders.id
+ * @param {string} orderId  - the campaign_product_orders.id
  *
  * Looks up the order, its items, the campaign name, and the club name
- * from the DB — so the caller doesn't need to pass anything extra.
+ * from the DB - so the caller doesn't need to pass anything extra.
  */
 export async function sendCampaignOrderConfirmationEmail(orderId) {
   // ── 1. Load the order ──────────────────────────────────────────────────────
@@ -154,12 +154,12 @@ export async function sendCampaignOrderConfirmationEmail(orderId) {
 
   const order = orderRows[0];
   if (!order) {
-    console.warn(`[OrderEmail] ⚠️ Order ${orderId} not found — skipping email`);
+    console.warn(`[OrderEmail] ⚠️ Order ${orderId} not found - skipping email`);
     return;
   }
 
   if (!order.supporter_email) {
-    console.warn(`[OrderEmail] ⚠️ Order ${orderId} has no supporter_email — skipping email`);
+    console.warn(`[OrderEmail] ⚠️ Order ${orderId} has no supporter_email - skipping email`);
     return;
   }
 
@@ -233,7 +233,7 @@ export async function sendCampaignOrderConfirmationEmail(orderId) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Order confirmed — FundRaisely</title>
+  <title>Order confirmed - FundRaisely</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
   <div style="max-width:580px;margin:36px auto 24px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
@@ -286,7 +286,7 @@ export async function sendCampaignOrderConfirmationEmail(orderId) {
         <span style="font-size:22px;line-height:1;">💌</span>
         <p style="margin:0;color:#64748b;font-size:13px;line-height:1.6;">
           This confirmation was sent to <strong style="color:#1e293b;">${order.supporter_email}</strong>.
-          If you have any questions, contact the club directly — they manage all orders through FundRaisely.
+          If you have any questions, contact the club directly - they manage all orders through FundRaisely.
         </p>
       </div>
 
@@ -305,7 +305,7 @@ export async function sendCampaignOrderConfirmationEmail(orderId) {
 
   // ── 4. Subject line ────────────────────────────────────────────────────────
   const subjectEmoji = isCash || isInstant ? '⏳' : '✅';
-  const subject = `${subjectEmoji} Your order for ${campaignName} — ${clubName}`;
+  const subject = `${subjectEmoji} Your order for ${campaignName} - ${clubName}`;
 
   // ── 5. Send ────────────────────────────────────────────────────────────────
   await sendEmailSafe({

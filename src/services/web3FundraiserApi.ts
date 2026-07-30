@@ -96,7 +96,7 @@ export const getDashboard = () =>
   web3FundraiserService.getDashboard();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-// Stub types for PR 1 — expanded in PR 2 when the dashboard endpoint is built
+// Stub types for PR 1 - expanded in PR 2 when the dashboard endpoint is built
 
 export interface DashboardPayload {
   wallet: {

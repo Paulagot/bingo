@@ -2,17 +2,17 @@
 //
 // Shared ledger writer for fundraisely_web3_transactions.
 // Called from:
-//   - web3TransactionRoutes.js  (player join payments — frontend-triggered)
-//   - eliminationRoutes.js      (prize payouts — server-side only on finalize-confirm)
-//   - quiz equivalent routes    (prize payouts — server-side only)
+//   - web3TransactionRoutes.js  (player join payments - frontend-triggered)
+//   - eliminationRoutes.js      (prize payouts - server-side only on finalize-confirm)
+//   - quiz equivalent routes    (prize payouts - server-side only)
 //
 // One row per confirmed on-chain transaction. Never called speculatively.
 
-// No uuid needed — id is AUTO_INCREMENT BIGINT, MySQL assigns it
+// No uuid needed - id is AUTO_INCREMENT BIGINT, MySQL assigns it
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { getTokenPriceEur, toEur } from '../../mgtsystem/services/Tokenpriceservice.js';
 
-// ── Token decimals — keep in sync with syncEliminationImpactToDb.js ───────────
+// ── Token decimals - keep in sync with syncEliminationImpactToDb.js ───────────
 const TOKEN_DECIMALS = {
   USDC:  6,
   USDT:  6,
@@ -40,7 +40,7 @@ function round2(value) {
 /**
  * Insert a confirmed web3 transaction into fundraisely_web3_transactions.
  *
- * This function is idempotent — duplicate tx_hash + chain + network
+ * This function is idempotent - duplicate tx_hash + chain + network
  * combinations are silently ignored (the table has a unique constraint).
  *
  * @param {object} params
@@ -84,7 +84,7 @@ export async function insertWeb3Transaction({
   const table = `${TABLE_PREFIX}web3_transactions`;
 
   // ── Validate breakdown adds up (join_payment only) ───────────────────────
-  // prize_payout and refund rows intentionally have breakdown fields as zero —
+  // prize_payout and refund rows intentionally have breakdown fields as zero -
   // only the total amount matters for those transaction types.
   const totalAmount = Number(amount);
   if (transaction_type === 'join_payment') {
@@ -125,7 +125,7 @@ export async function insertWeb3Transaction({
   // ── Check for duplicate (idempotent) ──────────────────────────────────────
   // The unique constraint on (tx_hash, chain, network) will also catch this,
   // but checking first gives us a clean log and avoids a DB error on replay.
-  // Unique per (tx_hash + chain + network + wallet_address) —
+  // Unique per (tx_hash + chain + network + wallet_address) -
   // allows multiple rows for the same tx when multiple wallets are paid
   // (e.g. quiz prize distribution paying multiple winners in one tx)
    const [existing] = await connection.execute(
@@ -165,7 +165,7 @@ export async function insertWeb3Transaction({
     return { success: true, id: existing[0].id, duplicate: true };
   }
 
-  // ── Insert — id is AUTO_INCREMENT, MySQL assigns it ──────────────────────
+  // ── Insert - id is AUTO_INCREMENT, MySQL assigns it ──────────────────────
   const [insertResult] = await connection.execute(
     `INSERT INTO ${table}
      (
@@ -217,7 +217,7 @@ export async function insertWeb3Transaction({
   const insertedId = insertResult.insertId;
 
   console.log(
-    `[web3Tx] ✅ ${transaction_type} (${direction}) recorded — id: ${insertedId}, room: ${room_id}, ` +
+    `[web3Tx] ✅ ${transaction_type} (${direction}) recorded - id: ${insertedId}, room: ${room_id}, ` +
     `tx: ${tx_hash.slice(0, 12)}…, amount: ${amountHuman} ${fee_token} (€${amountEur ?? '?'})`
   );
 
@@ -234,7 +234,7 @@ export async function insertWeb3Transaction({
 }
 
 /**
- * Convenience wrapper — insert a join_payment row.
+ * Convenience wrapper - insert a join_payment row.
  * Called from the HTTP route after on-chain verification.
  */
 export async function insertJoinPayment({
@@ -274,7 +274,7 @@ export async function insertJoinPayment({
 }
 
 /**
- * Convenience wrapper — insert a prize_payout row.
+ * Convenience wrapper - insert a prize_payout row.
  * Called server-side only from finalize-confirm routes.
  * Never called directly from the frontend.
  */

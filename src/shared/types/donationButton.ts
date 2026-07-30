@@ -1,14 +1,14 @@
 // src/shared/types/donationButton.ts
 //
-// UPDATED (Phase 3b) — ClubDonationButton's single clubPaymentMethodId
+// UPDATED (Phase 3b) - ClubDonationButton's single clubPaymentMethodId
 // is replaced by clubPaymentMethodIds: string[], and
 // ClubDonationButtonWithPaymentMethod's single `paymentMethod` is
 // replaced by `paymentMethods: []`, reflecting the new
-// fundraisely_donation_button_methods join table — a button can now be
+// fundraisely_donation_button_methods join table - a button can now be
 // linked to multiple Tier B (trackable) methods. Tier A (manual link)
-// buttons still only ever have exactly one method in practice — the
+// buttons still only ever have exactly one method in practice - the
 // backend enforces Tier A/Tier B mutual exclusivity and Tier A always
-// saves a single-element array — but the TYPE allows a list either way,
+// saves a single-element array - but the TYPE allows a list either way,
 // since the row itself doesn't know which tier it's in without looking
 // at the linked method(s).
 //
@@ -26,7 +26,7 @@ import type { DonationAmountConfig, DonationBrandingConfig, EligibleTrackableMet
  * donate.js widget to render. Stored in fundraisely_club_allowed_domains.
  * This is a short-term, button-level field ahead of the planned proper
  * club onboarding flow, where domain registration will move to entity
- * setup — see migration 001_club_allowed_domains.sql.
+ * setup - see migration 001_club_allowed_domains.sql.
  */
 export interface AllowedDomain {
   hostname: string;
@@ -49,12 +49,12 @@ export interface ClubDonationButton {
   buttonTitle?: string | null;
 
   /**
-   * PHASE 3b: plural — every clubPaymentMethodId currently linked to
+   * PHASE 3b: plural - every clubPaymentMethodId currently linked to
    * this button via fundraisely_donation_button_methods, in
    * display_order. For a Tier A (manual link) button this will always
    * be a single-element array (Tier A and Tier B are mutually
    * exclusive on one button, and Tier A has no concept of multiple
-   * linked methods) — callers that know they're in the Tier A case can
+   * linked methods) - callers that know they're in the Tier A case can
    * safely read clubPaymentMethodIds[0], but should not assume that
    * for a button generally without checking which tier it is first.
    */
@@ -66,13 +66,13 @@ export interface ClubDonationButton {
 
 export interface ClubDonationButtonWithPaymentMethod extends ClubDonationButton {
   /**
-   * PHASE 3b: plural — was a single `paymentMethod` object. Empty
+   * PHASE 3b: plural - was a single `paymentMethod` object. Empty
    * array if every linked method has since been deleted (button still
-   * exists but has nothing usable attached — same edge case the old
+   * exists but has nothing usable attached - same edge case the old
    * single `paymentMethod: null` represented).
    *
    * Tier B entries don't populate `link` (no single static URL for a
-   * checkout-based method) — `link` is only meaningful for Tier A.
+   * checkout-based method) - `link` is only meaningful for Tier A.
    */
   paymentMethods: {
     id: string;
@@ -81,7 +81,7 @@ export interface ClubDonationButtonWithPaymentMethod extends ClubDonationButton 
     link: string;
     /**
      * Whether this linked payment method is currently enabled. If
-     * false, this entry is effectively dead weight on the button —
+     * false, this entry is effectively dead weight on the button -
      * for Tier A (where there's only ever one), that makes the whole
      * button inactive even if isEnabled (the button's own toggle) is
      * true. For Tier B, an individual disabled method here just means
@@ -101,18 +101,18 @@ export interface UpsertClubDonationButtonRequest {
    * PHASE 3b: plural for the Tier B save path
    * (DonationCheckoutService.upsertTierBButton). Tier A's own upsert
    * (DonationButtonService.upsert) still takes a single
-   * clubPaymentMethodId — see donationButtonRoutes.js's PUT handler,
+   * clubPaymentMethodId - see donationButtonRoutes.js's PUT handler,
    * which inspects the FIRST id here to decide which tier's service to
    * call, then for Tier A passes clubPaymentMethodIds[0] through as
    * that service's singular field. Sending more than one id when the
    * resolved tier turns out to be Tier A is rejected by the route
    * (manual-link buttons have no concept of "supporter picks one of
-   * several" — there's no checkout step to choose at).
+   * several" - there's no checkout step to choose at).
    */
   clubPaymentMethodIds: (string | number)[];
   /**
    * Only meaningful when clubPaymentMethodIds resolves to Tier B
-   * methods — ignored by the backend's Tier A upsert path. Sending
+   * methods - ignored by the backend's Tier A upsert path. Sending
    * these alongside Tier A method ids is harmless (they're simply not
    * read), but the modal should only show/collect them once at least
    * one Tier B method is selected, to avoid implying they do anything
@@ -121,7 +121,7 @@ export interface UpsertClubDonationButtonRequest {
   allowCustomAmount?: boolean;
   presetAmounts?: number[];
   /**
-   * Branding applies regardless of tier — both a Tier A manual-link
+   * Branding applies regardless of tier - both a Tier A manual-link
    * button and a Tier B trackable button render the same widget shell
    * (button itself, and for Tier B the full amount-picker card), so
    * this is required on every save rather than optional alongside the
@@ -132,11 +132,11 @@ export interface UpsertClubDonationButtonRequest {
 
 /**
  * Slim shape returned for the "pick a payment method" dropdown/checkbox
- * list (Tier A / manual-link section only — Tier B's equivalent is
+ * list (Tier A / manual-link section only - Tier B's equivalent is
  * EligibleTrackableMethod in donationCheckout.ts).
  *
  * Deliberately excludes addedBy/editedBy/full methodConfig per the
- * public-exposure rules — only what the admin needs to choose a
+ * public-exposure rules - only what the admin needs to choose a
  * method and understand why it might not be selectable.
  *
  * Includes disabled-but-otherwise-eligible methods (right category,
@@ -153,7 +153,7 @@ export interface EligibleDonationPaymentMethod {
 }
 
 /**
- * Combined management response — Tier A and Tier B data side by side.
+ * Combined management response - Tier A and Tier B data side by side.
  * See donationButtonRoutes.js's GET /donation-buttons/:clubId/manage
  * for the server side of this shape.
  *
@@ -177,7 +177,7 @@ export interface GetDonationButtonManageResponse {
 
 /**
  * Response shape specifically for PUT /donation-buttons/:clubId (the
- * save call) — adds droppedMethodIds on top of the same fields GET
+ * save call) - adds droppedMethodIds on top of the same fields GET
  * /manage returns. Only the save path can ever report dropped
  * methods (a method becoming invalid between page load and the save
  * landing), so this is intentionally a separate type from

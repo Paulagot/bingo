@@ -26,7 +26,7 @@ const inputBase =
   'w-full rounded-xl border border-indigo-200 bg-white px-4 py-3 text-indigo-900 placeholder:text-indigo-900/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
 export const ClubLeaguePledgeForm: React.FC<Props> = ({
-  compactTitle = 'Pledge Now — Reserve Your Club Spot',
+  compactTitle = 'Pledge Now - Reserve Your Club Spot',
   endpoint = '/api/pledges/clubs-league',
 }) => {
   const [clubName, setClubName] = useState('');
@@ -216,7 +216,7 @@ export const ClubLeaguePledgeForm: React.FC<Props> = ({
 
         {status === 'success' && (
           <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-            ✅ Thanks — pledge received. We’ll email your club the league pack and next steps.
+            ✅ Thanks - pledge received. We’ll email your club the league pack and next steps.
           </div>
         )}
 

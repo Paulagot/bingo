@@ -18,7 +18,7 @@ const DISK_COUNTS = {
   [Difficulty.HARD]:   5,
 };
 
-// Scoring settings scale with disk count / minimum moves — previously flat
+// Scoring settings scale with disk count / minimum moves - previously flat
 // regardless of difficulty, despite minMoves ranging from 7 (easy) to 31
 // (hard): a hard solve legitimately takes far longer than an easy one but
 // paid the same base score and used the same tight bonus decay window.
@@ -30,7 +30,7 @@ const DIFFICULTY_SETTINGS = {
 
 // validate() already computes the exact, server-verified move count (it's
 // replayed from the move list, not trusted from client state), so this
-// efficiency bonus is fully trustworthy — unlike the time bonus, it can't be
+// efficiency bonus is fully trustworthy - unlike the time bonus, it can't be
 // faked by lying in the submission payload.
 function moveEfficiencyBonus(moveCount, minMoves) {
   if (!Number.isFinite(moveCount) || !Number.isFinite(minMoves) || minMoves <= 0) return 0;
@@ -86,7 +86,7 @@ const MAX_MOVES_MULTIPLIER = 20;
 /**
  * Replays a move list from the known initial layout and returns either
  * the resulting peg state or a reason the replay failed. This is the
- * single source of truth for scoring — client-submitted `pegs` are never
+ * single source of truth for scoring - client-submitted `pegs` are never
  * trusted directly.
  */
 function replayMoves(moves, initialPegs, diskCount) {

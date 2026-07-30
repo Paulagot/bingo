@@ -16,7 +16,7 @@ const PRIZE_SPLITS = [
   { place: 2, label: '2nd place', pct: 12 },
 ] as const;
 
-// Remaining 15% — platform fee / unallocated (25 + 30 + 30 = 85, so 15 left)
+// Remaining 15% - platform fee / unallocated (25 + 30 + 30 = 85, so 15 left)
 const PLATFORM_PCT = 15;
 
 // ─── Color map ─────────────────────────────────────────────────────────────────
@@ -31,10 +31,10 @@ const COLOR: Record<ColorKey, { bg: string; border: string; text: string; bar: s
 
 // ─── Helper: sum what a single player has paid (entry + confirmed extras) ──────
 function playerTotal(player: any, entryFee: number): number {
-  // Entry fee — only count if the player is marked paid (on-chain confirmation)
+  // Entry fee - only count if the player is marked paid (on-chain confirmation)
   const entry = player.paid ? entryFee : 0;
 
-  // Extras — each key in extraPayments is { amount, method }
+  // Extras - each key in extraPayments is { amount, method }
   const extras = player.extraPayments
     ? Object.values(player.extraPayments as Record<string, { amount?: number }>).reduce(
         (sum, val) => sum + (Number(val?.amount) || 0),
@@ -53,7 +53,7 @@ const PoolTab: React.FC = () => {
   const entryFee    = parseFloat(String(config?.entryFee ?? '0'));
   const currency    = config?.currencySymbol ?? '€';
 
-  // Token info — Web3 rooms may store these; fall back to currency symbol
+  // Token info - Web3 rooms may store these; fall back to currency symbol
   const tokenSymbol: string = (config as any)?.tokenSymbol ?? (config as any)?.currency ?? currency;
   const tokenName:   string = (config as any)?.tokenName   ?? tokenSymbol;
 
@@ -199,7 +199,7 @@ const fmt = (n: number) => {
         </div>
       </div>
 
-      {/* Extras callout — only shown when extras exist */}
+      {/* Extras callout - only shown when extras exist */}
       {totalExtras > 0 && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-start gap-2">

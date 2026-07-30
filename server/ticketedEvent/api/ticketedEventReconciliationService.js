@@ -2,13 +2,13 @@
 //
 // DB logic for ticketed event reconciliation.
 // Reuses the shared fundraisely_quiz_reconciliation and
-// fundraisely_quiz_reconciliation_adjustments tables — same schema,
+// fundraisely_quiz_reconciliation_adjustments tables - same schema,
 // same saveCompleteReconciliation / calculateStartingTotalsFromLedger
-// functions — so the report and audit view tabs work without changes.
+// functions - so the report and audit view tabs work without changes.
 //
 // Key differences from quiz/elimination:
 //   - No leaderboard / prize awards (ticketed_event has neither)
-//   - No in-memory socket room — everything goes straight to DB
+//   - No in-memory socket room - everything goes straight to DB
 //   - Adjustments are persisted individually as they are added/edited/deleted,
 //     not flushed in bulk at approval time
 //   - A "draft" reconciliation row (approved_at IS NULL) is created on the
@@ -146,7 +146,7 @@ export async function getAdjustmentsByRoomId(roomId) {
 // ─── Ensure a draft reconciliation row exists ─────────────────────────────────
 // Called before inserting the first adjustment.
 // If approved_at is already set (approved), returns the existing ID without
-// touching it — callers should block edits if already approved.
+// touching it - callers should block edits if already approved.
 
 export async function ensureDraftReconciliation(roomId, clubId) {
   const [existing] = await connection.execute(
@@ -158,7 +158,7 @@ export async function ensureDraftReconciliation(roomId, clubId) {
     return { id: existing[0].id.toString(), approved: !!existing[0].approved_at };
   }
 
-  // Create an unapproved placeholder row — totals will be recalculated at approval
+  // Create an unapproved placeholder row - totals will be recalculated at approval
   const [result] = await connection.execute(
     `INSERT INTO ${RECONCILIATION_TABLE}
        (room_id, club_id, starting_entry_fees, starting_extras, starting_total,
@@ -238,7 +238,7 @@ export async function deleteAdjustment(roomId, adjustmentId) {
 }
 
 // ─── Payment ledger summary (for display before approval) ─────────────────────
-// Summarises confirmed rows from quiz_payment_ledger — works for ticketed events
+// Summarises confirmed rows from quiz_payment_ledger - works for ticketed events
 // because every ticket flow writes to that table.
 
 export async function getPaymentSummary(roomId) {

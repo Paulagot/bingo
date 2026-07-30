@@ -68,7 +68,7 @@ const MemoryPairsRenderer: React.FC<MemoryPairsRendererProps> = ({
           lockRef.current = false;
           return new Set<number>();
         } else {
-          // No match — flip back after delay
+          // No match - flip back after delay
           setTimeout(() => {
             setFlipped(new Set());
             lockRef.current = false;
@@ -129,7 +129,7 @@ const MemoryPairsRenderer: React.FC<MemoryPairsRendererProps> = ({
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 text-center">
           <p className="text-emerald-700 font-semibold">All pairs found!</p>
           <p className="text-emerald-600 text-sm mt-0.5">
-            {attempts === pairCount ? '⭐ Perfect — no wrong attempts!' : `Completed in ${attempts} attempts.`} Hit Submit.
+            {attempts === pairCount ? '⭐ Perfect - no wrong attempts!' : `Completed in ${attempts} attempts.`} Hit Submit.
           </p>
         </div>
       ) : !isReadOnly ? (

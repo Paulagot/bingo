@@ -1,7 +1,7 @@
 // src/components/elimination/EliminationAdminJoinPage.tsx
 //
 // Admin lands here after scanning the QR code from the host dashboard.
-// No login required — they join via socket as role 'admin'.
+// No login required - they join via socket as role 'admin'.
 // They see the same EliminationHostDashboard panel as the host,
 // but can only confirm payments (no start game, no room controls).
 
@@ -107,7 +107,7 @@ export const EliminationAdminJoinPage: React.FC = () => {
     );
   }
 
-  // ── Joined — show admin view ───────────────────────────────────────────────
+  // ── Joined - show admin view ───────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Header bar */}
@@ -125,7 +125,7 @@ export const EliminationAdminJoinPage: React.FC = () => {
         Use the Host button in the bottom-right to manage players and confirm payments.
       </div>
 
-      {/* The same dashboard the host uses — floats over the page */}
+      {/* The same dashboard the host uses - floats over the page */}
       <EliminationHostDashboard
         roomId={roomId!}
         hostId={adminId!}

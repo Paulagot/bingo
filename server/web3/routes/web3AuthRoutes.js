@@ -3,13 +3,13 @@
 // Wallet challenge / verify / logout routes for the Web3 fundraiser dashboard.
 //
 // Security model:
-//   1. Rate limiting          — tight per-IP limits (web3AuthLimiter)
-//   2. Challenge nonce        — one-time, expires in 5 minutes, stored server-side
-//   3. Signature verification — server re-derives the message and verifies the
+//   1. Rate limiting          - tight per-IP limits (web3AuthLimiter)
+//   2. Challenge nonce        - one-time, expires in 5 minutes, stored server-side
+//   3. Signature verification - server re-derives the message and verifies the
 //                               signature against the submitted wallet address
-//   4. Session token          — short-lived JWT signed with WEB3_SESSION_SECRET,
+//   4. Session token          - short-lived JWT signed with WEB3_SESSION_SECRET,
 //                               sent back and stored in sessionStorage on client
-//   5. No web2 JWT required   — this is a parallel auth path for wallets only
+//   5. No web2 JWT required   - this is a parallel auth path for wallets only
 
 import express from 'express';
 import { web3AuthLimiter } from '../../middleware/rateLimit.js';
@@ -25,7 +25,7 @@ const router = express.Router();
 // ── POST /api/web3/auth/challenge ─────────────────────────────────────────────
 //
 // Returns a human-readable challenge message and a nonce.
-// The frontend displays nothing — it just signs the message immediately.
+// The frontend displays nothing - it just signs the message immediately.
 //
 // Body: { wallet_address: string, chain_family: 'evm' | 'solana' }
 
@@ -93,7 +93,7 @@ router.post('/verify', web3AuthLimiter, async (req, res) => {
 // ── POST /api/web3/auth/logout ────────────────────────────────────────────────
 //
 // Invalidates the wallet session token server-side.
-// Best-effort — client clears sessionStorage regardless of response.
+// Best-effort - client clears sessionStorage regardless of response.
 
 router.post('/logout', async (req, res) => {
   try {
@@ -103,14 +103,14 @@ router.post('/logout', async (req, res) => {
     }
     return res.json({ success: true });
   } catch (err) {
-    // Non-critical — always return success so client clears its state
+    // Non-critical - always return success so client clears its state
     return res.json({ success: true });
   }
 });
 
 // ── GET /api/web3/auth/me ─────────────────────────────────────────────────────
 //
-// Lightweight session check — used by the dashboard guard on mount.
+// Lightweight session check - used by the dashboard guard on mount.
 
 router.get('/me', async (req, res) => {
   try {

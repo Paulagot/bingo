@@ -101,7 +101,7 @@ export const PurchaseExtrasStep: React.FC<Props> = ({
                     Give yourself an edge
                   </div>
                   <div className="text-sm text-yellow-800">
-                    These power-ups can change the game — add one or two and play smarter.
+                    These power-ups can change the game - add one or two and play smarter.
                   </div>
                 </div>
               </div>

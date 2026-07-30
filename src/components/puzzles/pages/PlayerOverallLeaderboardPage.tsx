@@ -1,16 +1,16 @@
 // src/components/puzzles/pages/PlayerOverallLeaderboardPage.tsx
 //
-// PLAYER page — supporter auth required. The cumulative "my standing"
+// PLAYER page - supporter auth required. The cumulative "my standing"
 // view across every week of the challenge. Uses the same backend route
 // as the club dashboard's ChallengeLeaderboardPage
 // (GET /puzzle-challenges/:challengeId/leaderboard, authenticateAny),
 // but called with a supporter token via SupporterAuthService rather than
-// ChallengeService — that route accepts either, and this stays a
+// ChallengeService - that route accepts either, and this stays a
 // player-styled page (branded, PuzzlePageShell) instead of reusing the
 // club-dashboard component, which is auth'd only for club tokens and
 // styled for club admins.
 //
-// Never shows answers or solutions — see challengeService.js's
+// Never shows answers or solutions - see challengeService.js's
 // getLeaderboard comment for why that's safe: the query already omits
 // them server-side.
 
@@ -74,7 +74,7 @@ export default function PlayerOverallLeaderboardPage() {
       return;
     }
 
-    // Not logged in — send to the join/login flow rather than showing an
+    // Not logged in - send to the join/login flow rather than showing an
     // error state, since this page has no meaning for an anonymous visitor.
     if (!supporterAuthService.isAuthenticated()) {
       navigate('/puzzle-login', { state: { challengeId } });

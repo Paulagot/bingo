@@ -38,7 +38,7 @@ import { refreshReconciliationStartingTotal } from '../services/eliminationStats
 
 // ── STATUS TRANSITION: open → live ───────────────────────────────────────────
 // Imported here so the socket layer can write to DB without going through
-// the HTTP route. Non-fatal — a DB failure never blocks the game from starting.
+// the HTTP route. Non-fatal - a DB failure never blocks the game from starting.
 import { markEliminationRoomAsLive } from '../api/eliminationMgmtService.js';
 const DEBUG = false; // set to true to see socket debug logs in server console
 
@@ -49,7 +49,7 @@ const getAllPlayers = (roomId) =>
     connected:          p.connected,
     eliminated:         p.eliminated ?? false,
     walletAddress:      p.walletAddress ?? null,
-    // ── web2 payment status — needed by host waiting room UI ──
+    // ── web2 payment status - needed by host waiting room UI ──
     paid:               p.paid            ?? false,
     paymentClaimed:     p.paymentClaimed  ?? false,
     payAtDoor:          p.payAtDoor       ?? false,
@@ -139,7 +139,7 @@ const writeLedgerEntry = async (room, player) => {
       confirmedByRole:      isConfirmed ? 'admin' : null,
     });
 
-    if (DEBUG) console.log(`[Elimination] Ledger entry written — room: ${room.roomId} player: ${player.playerId} status: ${status}`);
+    if (DEBUG) console.log(`[Elimination] Ledger entry written - room: ${room.roomId} player: ${player.playerId} status: ${status}`);
   } catch (err) {
     console.error('[Elimination] Ledger write failed (non-fatal):', err.message);
   }
@@ -215,7 +215,7 @@ export const registerEliminationSockets = (io) => {
         socket.emit('elimination_reconciliation_ledger_updated', { ok: true, insertId, roomId });
 
         if (DEBUG) console.log(
-          `[Elimination] Reconciliation ledger entry added — room: ${roomId} type: ${adjustmentType} amount: ${amount}`
+          `[Elimination] Reconciliation ledger entry added - room: ${roomId} type: ${adjustmentType} amount: ${amount}`
         );
       } catch (err) {
         console.error('[Elimination] elimination_update_reconciliation_ledger error:', err);
@@ -237,13 +237,13 @@ export const registerEliminationSockets = (io) => {
         }
 
         if (room.reconciliationApproved) {
-          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Reconciliation already approved — cannot edit' });
+          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Reconciliation already approved - cannot edit' });
         }
 
         const result = await deleteAdjustmentEntry(adjustmentId, roomId);
         socket.emit('elimination_reconciliation_ledger_updated', { ok: result.ok, deleted: adjustmentId, roomId });
 
-        if (DEBUG) console.log(`[Elimination] Reconciliation ledger entry deleted — room: ${roomId} id: ${adjustmentId}`);
+        if (DEBUG) console.log(`[Elimination] Reconciliation ledger entry deleted - room: ${roomId} id: ${adjustmentId}`);
       } catch (err) {
         console.error('[Elimination] elimination_delete_reconciliation_ledger_item error:', err);
         socket.emit(SERVER_EVENTS.ERROR, { message: 'Failed to delete adjustment' });
@@ -286,7 +286,7 @@ export const registerEliminationSockets = (io) => {
           finalTotal:      result.finalTotal,
         });
 
-        if (DEBUG) console.log(`[Elimination] ✅ Reconciliation approved via socket — room: ${roomId} by: ${approvedBy}`);
+        if (DEBUG) console.log(`[Elimination] ✅ Reconciliation approved via socket - room: ${roomId} by: ${approvedBy}`);
       } catch (err) {
         console.error('[Elimination] elimination_approve_reconciliation error:', err);
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message || 'Failed to approve reconciliation' });
@@ -513,7 +513,7 @@ export const registerEliminationSockets = (io) => {
         // ── Reconnect flow ────────────────────────────────────────────────────
         // A playerId is present when:
         //   (a) a returning player reconnects mid-game, OR
-        //   (b) a Stripe walk-in arrives at the success page — their playerId
+        //   (b) a Stripe walk-in arrives at the success page - their playerId
         //       was stored in Stripe metadata and is passed on the success URL.
         //
         // Case (b) has a timing race: the success page socket join can fire
@@ -524,7 +524,7 @@ export const registerEliminationSockets = (io) => {
         // payload has paid:true + paymentMethod:'stripe', we trust the payment
         // (it was confirmed in the DB by the webhook) and add the player now.
           if (playerId) {
-          if (DEBUG) console.log('[JoinRoom] 🔍 playerId present — attempting reconnect:', { roomId, playerId, paid, paymentMethod });
+          if (DEBUG) console.log('[JoinRoom] 🔍 playerId present - attempting reconnect:', { roomId, playerId, paid, paymentMethod });
  
           const result = reconnectPlayer(roomId, playerId, socket.id);
           if (DEBUG) console.log('[JoinRoom] reconnectPlayer result:', { success: result.success, error: result.error });
@@ -532,7 +532,7 @@ export const registerEliminationSockets = (io) => {
           if (!result.success && result.error === 'Player not found in this room') {
  
             if (paid && paymentMethod === 'stripe') {
-              if (DEBUG) console.log('[JoinRoom] 💳 Stripe walk-in — adding player directly:', { roomId, playerId, name: name_safe });
+              if (DEBUG) console.log('[JoinRoom] 💳 Stripe walk-in - adding player directly:', { roomId, playerId, name: name_safe });
  
               try {
                 addPlayerWithId(roomId, playerId, {
@@ -545,7 +545,7 @@ export const registerEliminationSockets = (io) => {
               } catch (addErr) {
                 console.error('[JoinRoom] ❌ addPlayerWithId failed:', addErr.message);
                 return socket.emit(SERVER_EVENTS.ERROR, {
-                  message: addErr.message ?? 'Could not join room — please contact the host.',
+                  message: addErr.message ?? 'Could not join room - please contact the host.',
                 });
               }
  
@@ -567,7 +567,7 @@ export const registerEliminationSockets = (io) => {
               return;
             }
  
-            console.warn('[JoinRoom] ⚠️ Player not found and not a Stripe payment — rejecting');
+            console.warn('[JoinRoom] ⚠️ Player not found and not a Stripe payment - rejecting');
             return socket.emit(SERVER_EVENTS.ERROR, { message: result.error });
           }
  
@@ -648,14 +648,14 @@ if (room.paymentMode === 'web2' && room.clubId) {
 
   if (capacity.isFull && !joinToken) {
   return socket.emit(SERVER_EVENTS.ERROR, {
-    message: 'Sorry, this game is full — no spots remaining.',
+    message: 'Sorry, this game is full - no spots remaining.',
   });
 }
 
-    // Player has a ticket — they have reserved capacity, always let them through
+    // Player has a ticket - they have reserved capacity, always let them through
     if (!joinToken && capacity.availableForWalkIns < 1) {
       return socket.emit(SERVER_EVENTS.ERROR, {
-        message: 'Sorry, this game is full — all remaining spots are reserved for ticket holders.',
+        message: 'Sorry, this game is full - all remaining spots are reserved for ticket holders.',
       });
     }
   } catch (capErr) {
@@ -714,7 +714,7 @@ if (room.paymentMode === 'web2' && room.clubId) {
     // ── START GAME ─────────────────────────────────────────────────────────────
     // STATUS TRANSITION: open → live
     // markEliminationRoomAsLive writes to DB once the game loop starts cleanly.
-    // It is non-fatal — a DB failure here must never prevent the game from running.
+    // It is non-fatal - a DB failure here must never prevent the game from running.
     socket.on(CLIENT_EVENTS.START_GAME, ({ roomId, hostId }) => {
       if (!rateCheck(socket, 'start_elimination_game')) return;
       try {
@@ -723,7 +723,7 @@ if (room.paymentMode === 'web2' && room.clubId) {
 
         startGame(roomId, (event, payload) => emitToRoom(roomId, event, payload))
           .then(() => {
-            // Game loop started cleanly — write 'live' to DB
+            // Game loop started cleanly - write 'live' to DB
             markEliminationRoomAsLive(roomId).catch((err) =>
               console.warn('[Elimination] Failed to mark room live (non-fatal):', err.message)
             );
@@ -863,7 +863,7 @@ if (room.paymentMode === 'web2' && room.clubId) {
           return socket.emit('host_add_player_error', { message: 'Not authorised.' });
         }
  
-        // addPlayer enforces the maxPlayers cap — throws if full
+        // addPlayer enforces the maxPlayers cap - throws if full
         const { player } = addPlayer(roomId, {
           name:               sanitiseName(playerData.name),
           socketId:           null,   // host-added players have no socket of their own

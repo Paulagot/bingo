@@ -1,12 +1,12 @@
 /**
- * useChainWallet — unified wallet hook for all chains.
+ * useChainWallet - unified wallet hook for all chains.
  *
  * Key rules:
  * - Config flows IN as a parameter. This hook never reads from stores or localStorage.
  * - switchToCorrectNetwork() is a function you call explicitly (e.g. in a useEffect
  *   on mount). It does NOT run automatically inside this hook.
  * - No global flags. No auto-switch useEffect.
- * - Mini app detection via useMiniAppContext().isMiniApp — that context stays.
+ * - Mini app detection via useMiniAppContext().isMiniApp - that context stays.
  */
 
 import { useCallback, useMemo } from 'react';
@@ -145,7 +145,7 @@ export interface ChainWalletState {
 // ---------------------------------------------------------------------------
 export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
 
-  // Derive chain family from config — no store reads
+  // Derive chain family from config - no store reads
   const chainFamily = useMemo<ChainFamily>(() => {
     const chain = chainConfig.web3Chain;
     if (chain === 'evm' || chain === 'solana' || chain === 'stellar') return chain;
@@ -156,13 +156,13 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
     return null;
   }, [chainConfig.web3Chain, chainConfig.evmNetwork, chainConfig.solanaCluster, chainConfig.stellarNetwork]);
 
-  // Mini app detection (context is fine — it's not chain config)
+  // Mini app detection (context is fine - it's not chain config)
   const { isMiniApp } = useMiniAppContext();
 
-  // wagmi — used by mini app path (SDK-backed wallet)
+  // wagmi - used by mini app path (SDK-backed wallet)
   const { address: wagmiAddress, isConnected: wagmiIsConnected, status: wagmiStatus } = useConnection();
 
-  // AppKit — used by normal browser path for EVM + Solana
+  // AppKit - used by normal browser path for EVM + Solana
   const appKitAccount = useSafeAppKitAccount();
   const { caipNetwork, switchNetwork } = useSafeAppKitNetwork();
   const { open: openAppKitModal } = useSafeAppKit();
@@ -170,7 +170,7 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
   const { walletProvider: solanaWalletProvider } = useAppKitProvider('solana');
   const { disconnect: disconnectAppKit } = useDisconnect();
 
-  // Stellar — has its own separate SDK
+  // Stellar - has its own separate SDK
   const stellarWallet = useStellarWallet();
 
   // ---------------------------------------------------------------------------
@@ -232,7 +232,7 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
   // Derived: current chain ID (EVM only)
   // ---------------------------------------------------------------------------
   const currentChainId = useMemo<number | undefined>(() => {
-    if (isMiniApp) return 8453; // Base mainnet — mini app is always Base
+    if (isMiniApp) return 8453; // Base mainnet - mini app is always Base
     if (chainFamily !== 'evm') return undefined;
     const caipId = caipNetwork?.caipNetworkId;
     if (!caipId?.startsWith('eip155:')) return undefined;
@@ -336,11 +336,11 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
 
     if (chainFamily === 'evm' || chainFamily === 'solana') {
       if (isMiniApp) {
-        // Mini app wallet is already connected via SDK — nothing to do
+        // Mini app wallet is already connected via SDK - nothing to do
         return { success: true };
       }
       try {
-        // For Solana: always open modal — AppKit needs the correct namespace.
+        // For Solana: always open modal - AppKit needs the correct namespace.
         // For EVM: skip modal only if already connected AND on correct network.
         const alreadyGood =
           chainFamily === 'evm' &&
@@ -374,7 +374,7 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
   }, [chainFamily, stellarWallet, disconnectAppKit]);
 
   /**
-   * switchToCorrectNetwork — call this explicitly, never runs automatically.
+   * switchToCorrectNetwork - call this explicitly, never runs automatically.
    *
    * For EVM: uses EIP-1193 direct provider switch (reaches the actual wallet
    * e.g. MetaMask), with AppKit switchNetwork as fallback.
@@ -382,7 +382,7 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
    */
   const switchToCorrectNetwork = useCallback(async (): Promise<void> => {
     if (chainFamily !== 'evm') return;
-    if (isMiniApp) return; // mini app is always on Base — no switching needed
+    if (isMiniApp) return; // mini app is always on Base - no switching needed
     if (!expectedEvmMeta) return;
     if (currentChainId === expectedEvmMeta.id) return; // already correct
 

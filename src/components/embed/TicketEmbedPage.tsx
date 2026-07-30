@@ -4,18 +4,18 @@
 // /embed/tickets/:roomId. Mirrors DonateEmbedPage.tsx's role, but is
 // much thinner: TicketPurchaseFlow already owns the entire state
 // machine (loading, payment methods, Stripe polling, crypto's
-// synchronous confirm, instant-payment's manual confirm) — this page's
+// synchronous confirm, instant-payment's manual confirm) - this page's
 // only job is to render it with the right embed-specific props and
 // relay a UI-courtesy "done" notice to the parent frame.
 //
 // Security note (same principle as donate.js / DonateEmbedPage.tsx):
 // the postMessage below is a courtesy notification only, so the
 // club's page can close its modal a little sooner. It is NOT how
-// payment success is determined — that already happened inside
+// payment success is determined - that already happened inside
 // TicketPurchaseFlow, via useTicketStatusPoll polling the backend's
 // own ledger (Stripe), or the on-chain-verified confirmOnBackend call
 // (crypto), or the manual admin-reconciled instant_payment path. This
-// page has no independent opinion about whether payment succeeded —
+// page has no independent opinion about whether payment succeeded -
 // it only reacts to onComplete firing.
 
 import { useEffect } from 'react';
@@ -46,7 +46,7 @@ export default function TicketEmbedPage() {
   };
 
   const handleComplete = (ticket: Ticket) => {
-    // Courtesy notice only — see file header. tickets.js's listener
+    // Courtesy notice only - see file header. tickets.js's listener
     // downgrades this the same way donate.js's does: it may close the
     // modal sooner, but is never the thing that decided payment
     // succeeded.

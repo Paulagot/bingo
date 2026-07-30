@@ -22,7 +22,7 @@ interface DisconnectResponse {
   error?: string;
 }
 
-// StripeConnectService.ts — update the interface
+// StripeConnectService.ts - update the interface
 interface ReconnectResponse {
   ok:    boolean;
   ready?: boolean;

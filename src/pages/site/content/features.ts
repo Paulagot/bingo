@@ -1040,7 +1040,7 @@ ticketing: feature({
     "Some supporters buy tickets before the event, while others decide to join on the night. Most ticketing tools are built for card checkout, but real club fundraisers also need instant payments, QR joins, ticket redemption and manual checks for cash or card tap payments.",
   solutionTitle: "Advance tickets and on-the-night entry in one flow",
   solutionText:
-    "FundRaisely lets clubs sell tickets in advance, redeem tickets at the event and use QR codes for on-the-night player entry. Stripe and supported crypto can auto-confirm, while instant payments, cash and card tap payments can be manually verified by the organiser. Funds go directly to the club — FundRaisely does not hold funds or take a transaction percentage.",
+    "FundRaisely lets clubs sell tickets in advance, redeem tickets at the event and use QR codes for on-the-night player entry. Stripe and supported crypto can auto-confirm, while instant payments, cash and card tap payments can be manually verified by the organiser. Funds go directly to the club - FundRaisely does not hold funds or take a transaction percentage.",
   videoSlot: {
     title: "See how FundRaisely manages tickets, QR entry and payment confirmation",
     text: "This walkthrough should show a club linking payment methods, selling tickets in advance, redeeming a ticket at the event, and handling an on-the-night player who scans a QR code to join.",

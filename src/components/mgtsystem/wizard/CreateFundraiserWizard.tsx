@@ -22,7 +22,7 @@
 //     the event already exists, so the chain treats its id as phase-1
 //     complete and only creates + links the room.
 //   • CREDIT CHECK (new): the moment a type is picked in step 0, its
-//     entitlements are fetched (useEntitlements — same hook/cache the
+//     entitlements are fetched (useEntitlements - same hook/cache the
 //     rest of the app already uses) and checked BEFORE the user is
 //     allowed to advance to steps 2–3. This surfaces "no credits" right
 //     away instead of after filling in the whole form. The server-side
@@ -143,7 +143,7 @@ export default function CreateFundraiserWizard({
   // ── Credit check for the selected activity ──────────────────────────────
   // Fires as soon as a type is chosen. FREE plans are siloed per activity
   // type (see entitlements.js's credit_key logic) so a club can easily
-  // have credits for one type and none for another — this needs to be
+  // have credits for one type and none for another - this needs to be
   // checked per-type, every time the selection changes, not just once.
   const {
     ents: selectedEnts,
@@ -171,7 +171,7 @@ export default function CreateFundraiserWizard({
     setError(null);
     if (step === 0) {
       if (!def || !def.available) return;
-      if (noCredits) return; // blocked — inline banner explains why
+      if (noCredits) return; // blocked - inline banner explains why
       // Seed this type's config the first time it's chosen.
       if (!activityConfigs[def.id]) setActivityConfig(def.id, def.defaultConfig());
       setStep(isInjected ? 2 : 1);

@@ -5,9 +5,9 @@
  *
  * - init_pool_room now takes ONLY 2 args:  roomId, entryFee
  *   All fee splits (platform 15%, host 25%, charity 30%, prizes 18%/12%)
- *   are fixed on-chain — no hostFeePct / prizePoolPct / prizeSplits params.
- * - No GlobalConfig PDA — removed from accounts
- * - No TokenRegistry PDA — removed from accounts
+ *   are fixed on-chain - no hostFeePct / prizePoolPct / prizeSplits params.
+ * - No GlobalConfig PDA - removed from accounts
+ * - No TokenRegistry PDA - removed from accounts
  * - Program ID updated to AMuhGgHziizhHzC4xETZUjyXBeVCjhbknMcXU5HPxocv
  *
  * ## Usage
@@ -198,7 +198,7 @@ export function useSolanaCreatePoolRoom(params?: UseSolanaCreatePoolRoomParams) 
       // ============================================================================
       // Step 7: Build Instruction
       //
-      // NEW: only 2 args — roomId and entryFee.
+      // NEW: only 2 args - roomId and entryFee.
       // hostFeeBps, prizePoolBps, prizeSplits, charityMemo, expirationSlots are GONE.
       // GlobalConfig, TokenRegistry, and rent accounts are GONE from accounts.
       // ============================================================================

@@ -570,7 +570,7 @@ export default function PaymentMethodForm({
 
           <p className="text-xs text-gray-600">
             Players will be shown this public wallet address during the crypto
-            payment flow. Only enter a public wallet address here — never a seed
+            payment flow. Only enter a public wallet address here - never a seed
             phrase or private key.
           </p>
         </div>

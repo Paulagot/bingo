@@ -44,7 +44,7 @@ export const TiebreakerService = {
           if (typeof mgr.loadClosestNumberBank === 'function') {
             room.questionBankTiebreak = mgr.loadClosestNumberBank();
           } else {
-            // duplicate in case not exported — fallback to local minimal
+            // duplicate in case not exported - fallback to local minimal
             room.questionBankTiebreak = [];
           }
           this._emitOrAbort(room, namespace, roomId);

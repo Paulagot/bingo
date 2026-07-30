@@ -2,13 +2,13 @@
  * Solana Contract Configuration
  * src/chains/solana/config/contracts.ts
  *
- * Quiz program — single program for all room types.
+ * Quiz program - single program for all room types.
  *
  * ## What changed (new contract)
  *
  * - New Program ID
- * - No GlobalConfig or TokenRegistry PDAs — removed entirely
- * - No quiz_admin program — removed entirely
+ * - No GlobalConfig or TokenRegistry PDAs - removed entirely
+ * - No quiz_admin program - removed entirely
  * - init_pool_room now takes only 2 args: roomId + entryFee
  * - Fee splits are now FIXED on-chain (not configurable by host at creation time)
  * - refund_room is a new instruction
@@ -24,14 +24,14 @@ export const SOLANA_CONTRACT = {
   PROGRAM_ID: new PublicKey('AMuhGgHziizhHzC4xETZUjyXBeVCjhbknMcXU5HPxocv'),
 
   /**
-   * Platform wallet address string — your deployer wallet (`solana address` output).
+   * Platform wallet address string - your deployer wallet (`solana address` output).
    * Kept as a string so module load never throws on an unconfigured value.
    * Use getPlatformWallet() wherever a PublicKey is needed.
    */
   PLATFORM_WALLET_ADDRESS: '2Ptb5n55a68EDJjSePZh85AVqdgeGuC6YuvwgsGWqjrY',
 
   /**
-   * Fixed fee splits (for display in the UI — not configurable by host).
+   * Fixed fee splits (for display in the UI - not configurable by host).
    *
    * Platform   15%
    * Host       25%
@@ -55,7 +55,7 @@ export const SOLANA_CONTRACT = {
   MAX_CHARITY_MEMO:    28,
 
   /**
-   * PDA seeds — must match the Rust program exactly.
+   * PDA seeds - must match the Rust program exactly.
    *
    * GlobalConfig and TokenRegistry seeds are GONE.
    * Only room-level PDAs remain.
@@ -95,7 +95,7 @@ export function getProgramExplorerUrl(
 }
 
 // ---------------------------------------------------------------------------
-// calculateFeeBps — kept for any UI that still wants basis-point values,
+// calculateFeeBps - kept for any UI that still wants basis-point values,
 // but now derived from the FIXED splits above (not host-configurable).
 // ---------------------------------------------------------------------------
 

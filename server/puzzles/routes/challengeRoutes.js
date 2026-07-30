@@ -41,11 +41,11 @@ const router = express.Router();
 
 // ─── PUBLIC ROUTES ────────────────────────────────────────────────────────────
 // Registered FIRST so Express never matches 'public' as a :challengeId value
-// (same ordering trick as /by-room/:roomId below). No auth middleware — the
+// (same ordering trick as /by-room/:roomId below). No auth middleware - the
 // service layer's status gate ('active'/'completed' only) is the guard.
 
 // GET /api/puzzle-challenges/public/:challengeId/leaderboard-summary
-// Top 3 for every week — the shareable "wall of fame" + recruitment page.
+// Top 3 for every week - the shareable "wall of fame" + recruitment page.
 router.get('/public/:challengeId/leaderboard-summary', async (req, res) => {
   try {
     const summary = await getPublicLeaderboardSummary({
@@ -60,7 +60,7 @@ router.get('/public/:challengeId/leaderboard-summary', async (req, res) => {
 });
 
 // GET /api/puzzle-challenges/public/:challengeId/weeks/:weekNumber/leaderboard
-// Full board for one week's puzzle. Rolling — grows as late joiners submit;
+// Full board for one week's puzzle. Rolling - grows as late joiners submit;
 // isFinal flips true only when the challenge completes.
 router.get('/public/:challengeId/weeks/:weekNumber/leaderboard', async (req, res) => {
   try {
@@ -98,7 +98,7 @@ router.post('/', authenticateToken, async (req, res) => {
     if (!startsAt)   return res.status(400).json({ error: 'startsAt is required' });
 
     // puzzleSchedule is OPTIONAL: when the club doesn't hand-pick weeks
-    // (the default create flow), generate one — shuffled-deck type
+    // (the default create flow), generate one - shuffled-deck type
     // rotation + difficulty ramp, see scheduleGeneratorService.js. A
     // provided schedule (edit mode / advanced use) must still cover every
     // week exactly. Either way, downstream code sees a normal schedule.
@@ -116,11 +116,11 @@ router.post('/', authenticateToken, async (req, res) => {
     // ── Entitlements gate ──────────────────────────────────────────────────
     // Mirrors the pattern in ticketedEventMgmtRoutes.js POST /schedule:
     // resolve entitlements, block on no credits, enforce plan caps, create,
-    // then consume the credit (non-fatal if the consume step itself fails —
+    // then consume the credit (non-fatal if the consume step itself fails -
     // the challenge has already been created at that point).
     const ents = await resolveEntitlements({ userId: clubId, scope: 'puzzle_sub' });
 
-    console.log(`[challenges] 🔑 Entitlements — plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
+    console.log(`[challenges] 🔑 Entitlements - plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
 
     if ((ents.game_credits_remaining ?? 0) <= 0) {
       return res.status(402).json({
@@ -156,10 +156,10 @@ router.post('/', authenticateToken, async (req, res) => {
     const creditResult = await consumeCredit(clubId, 'puzzle_sub', ents.plan_code);
     if (!creditResult.ok) {
       console.error(
-        `[challenges] ⚠️ Credit consume failed after challenge creation — club: ${clubId} challenge: ${challenge.id}`,
+        `[challenges] ⚠️ Credit consume failed after challenge creation - club: ${clubId} challenge: ${challenge.id}`,
       );
     } else {
-      console.log(`[challenges] ✅ Credit consumed — club: ${clubId}`);
+      console.log(`[challenges] ✅ Credit consumed - club: ${clubId}`);
     }
 
     res.status(201).json(challenge);
@@ -217,7 +217,7 @@ router.get('/:challengeId', authenticateToken, async (req, res) => {
 });
 
 // ─── PATCH /api/puzzle-challenges/:challengeId ───────────────────────────────
-// Full edit — only succeeds while the challenge is still a draft (see
+// Full edit - only succeeds while the challenge is still a draft (see
 // updateChallenge's own guard). Separate from the /status route below,
 // which only ever changes the one field.
 router.patch('/:challengeId', authenticateToken, async (req, res) => {
@@ -248,7 +248,7 @@ router.patch('/:challengeId', authenticateToken, async (req, res) => {
     if (err.message === 'challenge_not_editable') {
       return res.status(409).json({
         error: err.message,
-        message: 'This challenge can no longer be edited — it has already been activated.',
+        message: 'This challenge can no longer be edited - it has already been activated.',
       });
     }
     if (err.message?.includes('weeklyPrice')) {
@@ -326,7 +326,7 @@ router.get('/:challengeId/players', authenticateToken, async (req, res) => {
 // ─── GET /api/puzzle-challenges/:challengeId/leaderboard ─────────────────────
 // authenticateAny: visible to the club AND to supporters (players). The
 // payload contains no answers or solutions (see getLeaderboard's comment),
-// so a supporter seeing other players' scores/times is by design — it's the
+// so a supporter seeing other players' scores/times is by design - it's the
 // cumulative competition standing.
 router.get('/:challengeId/leaderboard', authenticateAny, async (req, res) => {
   try {

@@ -35,7 +35,7 @@ function isComplete(grid: Grid): boolean {
  * Return a set of "conflicting" cell keys for quick highlighting.
  * A conflict is any duplicate in the same row, column, or 3×3 box.
  */
-/** Safe cell accessor — returns 0 if out of bounds */
+/** Safe cell accessor - returns 0 if out of bounds */
 function cell(grid: Grid, r: number, c: number): number {
   return grid[r]?.[c] ?? 0;
 }
@@ -103,7 +103,7 @@ const Cell: React.FC<CellProps> = ({
   isFixed, isSelected, isHighlighted, isConflict, isSameValue,
   isReadOnly, onClick,
 }) => {
-  // Border thickness — thicker on box boundaries
+  // Border thickness - thicker on box boundaries
   const borderRight  = (col + 1) % 3 === 0 && col !== 8 ? 'border-r-2 border-r-gray-500' : 'border-r border-r-gray-300';
   const borderBottom = (row + 1) % 3 === 0 && row !== 8 ? 'border-b-2 border-b-gray-500' : 'border-b border-b-gray-300';
 
@@ -190,7 +190,7 @@ const SudokuRenderer: React.FC<SudokuRendererProps> = ({
 }) => {
   const data = puzzleData as unknown as SudokuPuzzleData;
 
-  // Initialise grid — from saved answer or fresh puzzle
+  // Initialise grid - from saved answer or fresh puzzle
   const getInitialGrid = (): Grid => {
     const saved = currentAnswer?.grid as Grid | undefined;
     if (saved && Array.isArray(saved) && saved.length === 9) return cloneGrid(saved);
@@ -219,7 +219,7 @@ const SudokuRenderer: React.FC<SudokuRendererProps> = ({
   const handleNumber = useCallback((n: number) => {
     if (!selected) return;
     const [r, c] = selected;
-    if (fixedCells[r]?.[c]) return; // locked cell — ignore
+    if (fixedCells[r]?.[c]) return; // locked cell - ignore
 
     setGrid(prev => {
       const next    = cloneGrid(prev);
@@ -242,7 +242,7 @@ const SudokuRenderer: React.FC<SudokuRendererProps> = ({
     });
   }, [selected, fixedCells]);
 
-  // Keyboard support — type numbers directly while a cell is selected
+  // Keyboard support - type numbers directly while a cell is selected
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!selected || isReadOnly) return;
@@ -281,7 +281,7 @@ const SudokuRenderer: React.FC<SudokuRendererProps> = ({
         </div>
       )}
 
-      {/* Grid — outer border forms the puzzle border */}
+      {/* Grid - outer border forms the puzzle border */}
       <div className="border-2 border-gray-700 inline-grid w-full max-w-xs"
            style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)' }}>
         {grid.map((row, r) =>
@@ -314,7 +314,7 @@ const SudokuRenderer: React.FC<SudokuRendererProps> = ({
           <p className="text-xs text-gray-400 text-center max-w-xs">
             {selected
               ? fixedCells[selected[0]]?.[selected[1]]
-                ? 'This cell is locked — select an empty cell to enter a number.'
+                ? 'This cell is locked - select an empty cell to enter a number.'
                 : 'Tap a number to fill the selected cell, or ✕ to erase.'
               : 'Tap a cell to select it, then use the number pad below.'}
           </p>

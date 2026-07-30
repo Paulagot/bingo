@@ -28,7 +28,7 @@ function safeHex(value: string | null | undefined, fallback: string): string {
 // publicLeaderboardService's PublicChallengeMeta is camelCase
 // (clubLogoUrl, matching that service's existing convention for
 // totalWeeks etc). Rather than forcing one service to adopt the
-// other's casing, resolvePuzzleTheme accepts either — every field is
+// other's casing, resolvePuzzleTheme accepts either - every field is
 // optional and both spellings are checked.
 interface BrandSource {
   club_logo_url?: string | null;

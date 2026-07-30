@@ -57,7 +57,7 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
       payment_confirmed: {
         icon:        '✅',
         title:       'Payment confirmed',
-        message:     `Your ticket is ready — you can join when the ${meta.eventNoun} opens.`,
+        message:     `Your ticket is ready - you can join when the ${meta.eventNoun} opens.`,
         badgeClass:  'bg-green-100 text-green-800 border-green-200',
         boxClass:    'bg-green-50',
         borderClass: 'border-green-200',
@@ -160,7 +160,7 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({
           <h2 className="font-semibold text-gray-900 mb-3">Ticket summary</h2>
           <div className="space-y-2 text-sm">
 
-            {/* Ticket type — only shown for ticketed events */}
+            {/* Ticket type - only shown for ticketed events */}
             {ticket.ticketTypeName && (
               <div className="flex justify-between gap-3">
                 <span className="text-gray-600">Ticket type</span>

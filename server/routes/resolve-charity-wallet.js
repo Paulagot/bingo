@@ -3,18 +3,18 @@
 // POST /api/charities/resolve-wallet
 //
 // Called by:
-//   - useSolanaEndRoom.ts  (quiz, Solana)  — replaces /api/tgb/create-deposit-address
-//   - useEvmDistributePrizes.ts (quiz, EVM) — replaces /api/tgb/create-deposit-address
-//   - elimination finalize-prepare route   — replaces its internal TGB fetch
+//   - useSolanaEndRoom.ts  (quiz, Solana)  - replaces /api/tgb/create-deposit-address
+//   - useEvmDistributePrizes.ts (quiz, EVM) - replaces /api/tgb/create-deposit-address
+//   - elimination finalize-prepare route   - replaces its internal TGB fetch
 //
 // Request body mirrors what the hooks already send to /api/tgb/create-deposit-address,
 // plus charityName so we can do the DB lookup:
 //   {
-//     organizationId:  12345,           // TGB org id — used if no direct wallet found
+//     organizationId:  12345,           // TGB org id - used if no direct wallet found
 //     charityName:     'ISPCC',         // used for DB lookup
 //     tokenCode:       'USDC',
 //     amount:          '12.500000',
-//     network:         'solana',        // optional — passed through to TGB if needed
+//     network:         'solana',        // optional - passed through to TGB if needed
 //     metadata:        { roomId: '...' }
 //   }
 //
@@ -22,7 +22,7 @@
 //   {
 //     ok:             true,
 //     depositAddress: '...wallet...',
-//     source:         'direct' | 'tgb',   // extra field — useful for your logs
+//     source:         'direct' | 'tgb',   // extra field - useful for your logs
 //     // tgb fields only present when source === 'tgb':
 //     depositTag, id, requestId, offchainIntentId, expectedAmountDecimal
 //   }
@@ -42,7 +42,7 @@ const router = express.Router();
 
 const DIRECT_WALLETS_TABLE = `${TABLE_PREFIX}direct_charity_wallets`;
 
-// Platform reserve — used when TGB minimum not met (same constant used in elimination)
+// Platform reserve - used when TGB minimum not met (same constant used in elimination)
 const PLATFORM_CHARITY_RESERVE = '4dBPGPU6tmsWSsGhHgNMK9QBADWLs9AxKL1Jh7hZeS6o';
 
 function tryParse(s) {
@@ -61,7 +61,7 @@ async function lookupDirectWallet(charityName, chain) {
           AND chain        = ?
           AND is_active    = 1
         LIMIT 1`,
-      // utf8mb4_general_ci makes this case-insensitive — 'ISPCC' matches 'ispcc'
+      // utf8mb4_general_ci makes this case-insensitive - 'ISPCC' matches 'ispcc'
       [charityName.trim(), chain.toLowerCase()]
     );
 
@@ -70,7 +70,7 @@ async function lookupDirectWallet(charityName, chain) {
       return rows[0].wallet_address;
     }
 
-    console.log(`[resolve-charity-wallet] No direct wallet for "${charityName}" on ${chain} — trying TGB`);
+    console.log(`[resolve-charity-wallet] No direct wallet for "${charityName}" on ${chain} - trying TGB`);
     return null;
   } catch (err) {
     // Non-fatal: log and fall through to TGB
@@ -139,7 +139,7 @@ async function callTgb({ organizationId, pledgeCurrency, pledgeAmount, metadata,
     throw new Error(`TGB returned no depositAddress for org ${organizationId}: ${text}`);
   }
 
-  // Persist intent — same as create-deposit-address.js
+  // Persist intent - same as create-deposit-address.js
   try {
     saveIntent({
       depositAddress,
@@ -169,7 +169,7 @@ router.post('/resolve-wallet', async (req, res) => {
   try {
     const {
       organizationId,
-      charityName,       // NEW field — used for DB lookup
+      charityName,       // NEW field - used for DB lookup
       tokenCode,
       currency,          // legacy fallback
       network,
@@ -202,10 +202,10 @@ router.post('/resolve-wallet', async (req, res) => {
 
     // ── Step 2: TGB fallback ──────────────────────────────────────────────
     if (!organizationId) {
-      // No direct wallet AND no TGB org id — use platform reserve
+      // No direct wallet AND no TGB org id - use platform reserve
       console.warn(
         `[resolve-charity-wallet] No direct wallet for "${charityName ?? '(none)'}" on ${chain} ` +
-        `and no organizationId supplied — using platform reserve`
+        `and no organizationId supplied - using platform reserve`
       );
       return res.json({
         ok: true,
@@ -232,10 +232,10 @@ router.post('/resolve-wallet', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing or invalid token/currency' });
     }
 
-    // Check TGB minimum (Solana tokens only) — fall back to reserve if below
+    // Check TGB minimum (Solana tokens only) - fall back to reserve if below
     if (isSolanaToken && effectiveAmount !== undefined) {
       if (!meetsMinDonation(parseFloat(effectiveAmount), resolvedTokenCode)) {
-        console.warn(`[resolve-charity-wallet] Below TGB minimum — using reserve wallet`);
+        console.warn(`[resolve-charity-wallet] Below TGB minimum - using reserve wallet`);
         return res.json({
           ok: true,
           depositAddress: PLATFORM_CHARITY_RESERVE,

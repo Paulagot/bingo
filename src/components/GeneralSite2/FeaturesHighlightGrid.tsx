@@ -6,7 +6,7 @@ const items = [
   { 
     icon: Sparkles, 
     title: 'Enchanting Fundraising Extras', 
-    copy: 'Transform engagement into vital funds with clues, lifelines, freeze-outs, and more — optional power-ups that magically boost excitement and contributions.',
+    copy: 'Transform engagement into vital funds with clues, lifelines, freeze-outs, and more - optional power-ups that magically boost excitement and contributions.',
     gradient: 'from-purple-500 to-pink-500',
     bgGradient: 'from-purple-50 to-pink-50'
   },
@@ -45,7 +45,7 @@ const FeaturesHighlightGrid: React.FC = () => (
         <h2 className="text-3xl md:text-4xl font-bold text-indigo-900 mb-4 leading-tight">
           Unleash Your Potential: Fundraising, Reporting, and 
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Reconciliation </span>
-          — All Magically Integrated
+          - All Magically Integrated
         </h2>
         
         <p className="mx-auto max-w-2xl text-lg text-indigo-800/70 leading-relaxed">

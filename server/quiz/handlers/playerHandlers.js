@@ -185,7 +185,7 @@ let joinedUser = null;
     if (role === 'host') {
       updateHostSocketId(roomId, socket.id);
       if (debug) console.log(`[Join] 👑 Host "${room.config.hostName}" (${user.id}) joined with socket ${socket.id}`);
-  // ✅ THIS is the right place — inside the role branch, before emitRoomState
+  // ✅ THIS is the right place - inside the role branch, before emitRoomState
   const isWeb2 = room.config?.paymentMethod !== 'web3' && !room.config?.isWeb3Room;
   if (isWeb2) {
     try {
@@ -219,7 +219,7 @@ let joinedUser = null;
       room.config?.roomCaps?.maxPlayers ??
       20;
 
-    // Ticket holders have a pre-reserved spot — never block them here
+    // Ticket holders have a pre-reserved spot - never block them here
     if (!ticketId && room.players.length >= limit) {
       console.warn(`[Join] 🚫 Player limit reached (${limit}) in room ${roomId}`);
       socket.emit('quiz_error', { message: `Room is full (limit ${limit}).` });

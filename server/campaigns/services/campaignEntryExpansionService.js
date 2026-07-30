@@ -49,7 +49,7 @@ function parseJson(v, fallback = null) {
  * The campaign stores its linked payment methods in
  * fundraisely_campaigns.linked_payment_methods_json.
  * We find the method that matches the order's payment_method_category
- * so the ticket and ledger entries record the right payment method ID —
+ * so the ticket and ledger entries record the right payment method ID -
  * not the room's on-the-night method (which is what the bridge used to
  * look up from the room's linked_payment_methods_json).
  *
@@ -134,7 +134,7 @@ async function apportionBundlePrice(productItems, bundlePrice) {
   const feeMap = new Map(); // productItemId → apportionedFee
 
   if (productItems.length === 1) {
-    // Single item — no apportionment needed
+    // Single item - no apportionment needed
     feeMap.set(productItems[0].id, Number(bundlePrice));
     return feeMap;
   }
@@ -151,7 +151,7 @@ async function apportionBundlePrice(productItems, bundlePrice) {
   const roomFeeByRoomId = {};
   for (const row of roomRows) {
     const cfg = parseJson(row.config_json, {});
-    // entryFee can be stored as number or string — coerce to number
+    // entryFee can be stored as number or string - coerce to number
     const fee = Number(cfg?.entryFee ?? 0);
     roomFeeByRoomId[row.room_id] = Number.isFinite(fee) && fee > 0 ? fee : 0;
   }
@@ -163,17 +163,17 @@ async function apportionBundlePrice(productItems, bundlePrice) {
   const price = Number(bundlePrice);
 
   if (referenceTotal === 0) {
-    // Fallback: equal split — no room fees configured
+    // Fallback: equal split - no room fees configured
     const equalShare = Number((price / productItems.length).toFixed(2));
     const remainder  = Number((price - equalShare * (productItems.length - 1)).toFixed(2));
     productItems.forEach((pi, idx) => {
       feeMap.set(pi.id, idx === productItems.length - 1 ? remainder : equalShare);
     });
-    console.log(`[EntryExpansion] ⚠️ No room entry fees found — falling back to equal split (${equalShare} each)`);
+    console.log(`[EntryExpansion] ⚠️ No room entry fees found - falling back to equal split (${equalShare} each)`);
     return feeMap;
   }
 
-  // Ratio-based apportionment — last item gets remainder to avoid rounding drift
+  // Ratio-based apportionment - last item gets remainder to avoid rounding drift
   let allocated = 0;
   productItems.forEach((pi, idx) => {
     if (idx === productItems.length - 1) {
@@ -206,9 +206,9 @@ async function apportionBundlePrice(productItems, bundlePrice) {
  *
  * @param {string} orderId
  * @param {object} opts
- * @param {string|null} opts.existingTicketId   — ticket already created by CryptoFixedFeeStep
- * @param {string|null} opts.existingJoinToken  — join token for that ticket
- * @param {string|null} opts.existingTicketRoomId — the room the existing ticket belongs to.
+ * @param {string|null} opts.existingTicketId   - ticket already created by CryptoFixedFeeStep
+ * @param {string|null} opts.existingJoinToken  - join token for that ticket
+ * @param {string|null} opts.existingTicketRoomId - the room the existing ticket belongs to.
  *   IMPORTANT: if not supplied we look it up from the DB so we can correctly
  *   match it to only the product_item for that room, not every item in the bundle.
  */
@@ -358,7 +358,7 @@ export async function confirmPendingEntries(orderId) {
       `SELECT * FROM ${T_PROD_ITEMS} WHERE product_id = ?`, [productId]
     );
 
-    // Fetch the order item for price — use first entry's order_item_id (same for all)
+    // Fetch the order item for price - use first entry's order_item_id (same for all)
     const [orderItemRows] = await connection.execute(
       `SELECT * FROM ${T_ORDER_ITEMS} WHERE id = ? LIMIT 1`,
       [productEntries[0].order_item_id]

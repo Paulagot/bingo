@@ -1,39 +1,39 @@
 // src/components/mgtsystem/modals/ManageDonationButtonModal.tsx
 //
-// PHASE 3b — MULTI-METHOD:
+// PHASE 3b - MULTI-METHOD:
 //   - Trackable (Tier B) section is now a checkbox multi-select instead
-//     of a single <select> — an admin can attach Stripe AND crypto (and
+//     of a single <select> - an admin can attach Stripe AND crypto (and
 //     later sumup_api) to the same button; the supporter picks one at
 //     checkout.
-//   - Manual link (Tier A) stays single-select — mutual exclusivity with
+//   - Manual link (Tier A) stays single-select - mutual exclusivity with
 //     Tier B is preserved (selecting any Tier B checkbox clears the Tier A
 //     selection, and vice versa), enforced here in the UI AND re-checked
-//     by the backend (which rejects a mixed submission outright — see
+//     by the backend (which rejects a mixed submission outright - see
 //     donationButtonRoutes.js's resolveTierAndAssertNotMixed).
 //   - handleSave now sends clubPaymentMethodIds: string[] instead of a
 //     single clubPaymentMethodId.
-//   - After a save, the backend may report droppedMethodIds — methods
+//   - After a save, the backend may report droppedMethodIds - methods
 //     that were selected but turned out to be invalid by the time the
 //     save landed (disabled, deleted, or no longer eligible). These are
 //     surfaced as a dismissable warning rather than silently vanishing
 //     from the selection.
 //   - The blue info box's copy has been rewritten to describe the new
-//     model — see the JSX near the bottom.
+//     model - see the JSX near the bottom.
 //   - "Test donation page" button relabeled per the handoff doc section
-//     4.2 — it cannot exercise the postMessage relay chain (no
+//     4.2 - it cannot exercise the postMessage relay chain (no
 //     opener/parent relationship when opened this way), so it's now
 //     explicitly described as preview-only rather than implying it
 //     tests the full modal-closing flow.
 //
-// PHASE 3c — BRANDING (this fix):
+// PHASE 3c - BRANDING (this fix):
 //   - UpsertClubDonationButtonRequest now requires a `branding` field on
-//     every save, regardless of tier — see donationButton.ts. Color
+//     every save, regardless of tier - see donationButton.ts. Color
 //     picker UI (ColorField, below) lets the admin choose all three
 //     colors directly, with a live preview of the resulting widget.
 //   - The Manual link section and its accompanying info box had been
 //     accidentally left commented out in JSX, which is why
 //     handleSelectManual / selectedManualIsStale / the Link2 import were
-//     flagged as unused by TypeScript — restored here unchanged.
+//     flagged as unused by TypeScript - restored here unchanged.
 
 import { useState, useEffect, useMemo } from 'react';
 import {
@@ -91,7 +91,7 @@ function formatDroppedReason(reason: DroppedMethod['reason']): string {
 const MAX_PRESETS = 4;
 
 // Initial/fallback branding shown before the real saved values load (or
-// if a button doesn't exist yet) — matches the migration's column
+// if a button doesn't exist yet) - matches the migration's column
 // defaults exactly. Once load() runs, the color state below is
 // overwritten with res.branding from the backend; this constant is
 // only ever the starting point, never silently re-sent over real saved
@@ -102,7 +102,7 @@ const DEFAULT_BRANDING: DonationBrandingConfig = {
   textOnPrimaryColor: '#ffffff',
 };
 
-// Loose validation for the hex TEXT input specifically — allows the
+// Loose validation for the hex TEXT input specifically - allows the
 // user to type freely (including incomplete values mid-edit) without
 // the input fighting them, but flags when what's currently typed isn't
 // a valid #rrggbb so handleSave can block on it. The native
@@ -147,7 +147,7 @@ function buildTrackableModalEmbed({
   const safeTitle = escapeHtml(buttonTitle || 'Donate');
   // escapeHtml applied even though these are validated hex strings
   // (isValidHexColor already constrains the modal's own state to
-  // #rrggbb before save) — cheap defense-in-depth since this string is
+  // #rrggbb before save) - cheap defense-in-depth since this string is
   // inserted directly into a style attribute the admin copies verbatim
   // onto their own site.
   const safePrimary = escapeHtml(primaryColor);
@@ -184,18 +184,18 @@ export default function ManageDonationButtonModal({
   const [buttonLabel, setButtonLabel] = useState('Donate now');
   const [buttonTitle, setButtonTitle] = useState('');
 
-  // Mutually exclusive — selectedManualMethodId is only ever non-empty
+  // Mutually exclusive - selectedManualMethodId is only ever non-empty
   // when selectedTrackableMethodIds is empty, and vice versa.
   const [selectedManualMethodId, setSelectedManualMethodId] = useState<string>('');
   const [selectedTrackableMethodIds, setSelectedTrackableMethodIds] = useState<string[]>([]);
 
-  // Amount-tier config — only relevant when at least one trackable
+  // Amount-tier config - only relevant when at least one trackable
   // method is selected.
   const [allowCustomAmount, setAllowCustomAmount] = useState(true);
   const [presetAmounts, setPresetAmounts] = useState<number[]>([]);
   const [newPresetValue, setNewPresetValue] = useState('');
 
-  // Branding — applies regardless of tier (Tier A's static button and
+  // Branding - applies regardless of tier (Tier A's static button and
   // Tier B's full widget card both render with these three colors).
   // Initialized to DEFAULT_BRANDING and overwritten by load() with the
   // button's actual saved values once the GET /manage response arrives.
@@ -208,7 +208,7 @@ export default function ManageDonationButtonModal({
   const [loadingEmbed, setLoadingEmbed] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Allowed domains — short-term, button-level domain registration
+  // Allowed domains - short-term, button-level domain registration
   // ahead of the planned proper club onboarding flow. donate.js checks
   // window.location.hostname against this list before rendering a
   // working button on any given page.
@@ -232,7 +232,7 @@ export default function ManageDonationButtonModal({
       setAllowedDomains(res.allowedDomains || []);
 
       // linkedTrackableMethodIds is the authoritative "what's actually
-      // checked" list from the backend — using it directly (rather than
+      // checked" list from the backend - using it directly (rather than
       // re-deriving from donationButton.clubPaymentMethodIds) avoids
       // having to figure out client-side whether a button is Tier A or
       // Tier B before deciding what the checkboxes should show.
@@ -242,7 +242,7 @@ export default function ManageDonationButtonModal({
         setSelectedTrackableMethodIds(linkedTrackableIds);
         setSelectedManualMethodId('');
       } else if (res.donationButton) {
-        // Not Tier B (or Tier B but nothing currently eligible) — fall
+        // Not Tier B (or Tier B but nothing currently eligible) - fall
         // back to treating the button's own id(s) as the Tier A
         // selection. A Tier A button always has exactly one id.
         const savedId = res.donationButton.clubPaymentMethodIds?.[0] ?? '';
@@ -303,7 +303,7 @@ export default function ManageDonationButtonModal({
   }, [selectedManualMethodId, eligibleManualMethods]);
 
   // Any selected trackable id that's no longer in the eligible list at
-  // all (disabled, or deleted) — used to show the same kind of "this
+  // all (disabled, or deleted) - used to show the same kind of "this
   // is stale" hint the manual section already has, surfaced per-item
   // rather than as one blanket message.
   const staleTrackableIds = useMemo(() => {
@@ -329,7 +329,7 @@ export default function ManageDonationButtonModal({
   const handleAddDomain = () => {
     const value = newDomainValue.trim();
     if (!value) return;
-    // Lightweight client-side normalize for the chip display only —
+    // Lightweight client-side normalize for the chip display only -
     // the backend is the real source of truth for validation/dedup
     // and will reject/drop anything malformed on save.
     const stripped = value.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
@@ -379,7 +379,7 @@ export default function ManageDonationButtonModal({
       setDroppedMethods([]);
       setDroppedDomains([]);
 
-      // branding is required on every save regardless of tier — see
+      // branding is required on every save regardless of tier - see
       // UpsertClubDonationButtonRequest in donationButton.ts. Sends the
       // admin's actual chosen colors now, not a hardcoded placeholder.
       const res = await DonationButtonService.save(clubId, {
@@ -408,7 +408,7 @@ export default function ManageDonationButtonModal({
       setDroppedDomains(res.droppedDomains || []);
 
       // After a Tier B save, re-sync the checkbox selection to exactly
-      // what the backend actually kept — if anything was dropped, the
+      // what the backend actually kept - if anything was dropped, the
       // checkboxes shouldn't keep showing it as checked.
       if (isTrackableSelection) {
         setSelectedTrackableMethodIds(res.linkedTrackableMethodIds || []);
@@ -552,7 +552,7 @@ export default function ManageDonationButtonModal({
                   const label = matched?.methodLabel || `Method #${d.clubPaymentMethodId}`;
                   return (
                     <li key={d.clubPaymentMethodId}>
-                      {label} — {formatDroppedReason(d.reason)}
+                      {label} - {formatDroppedReason(d.reason)}
                     </li>
                   );
                 })}
@@ -678,7 +678,7 @@ export default function ManageDonationButtonModal({
 
                 <p className="text-xs text-gray-500">
                   Choose colors to match your club's brand. These apply to the donation widget
-                  shown to supporters — both the trackable amount-picker card and the manual-link
+                  shown to supporters - both the trackable amount-picker card and the manual-link
                   button use these colors.
                 </p>
 
@@ -758,7 +758,7 @@ export default function ManageDonationButtonModal({
                 </div>
 
                 <p className="text-xs text-gray-500">
-                  Add every domain where this donation button will be embedded — your main
+                  Add every domain where this donation button will be embedded - your main
                   website and any subdomains you use (e.g. <code>yourclub.com</code> and{' '}
                   <code>events.yourclub.com</code> are separate entries). The button won't work
                   on a domain that isn't listed here.
@@ -811,14 +811,14 @@ export default function ManageDonationButtonModal({
 
                 {allowedDomains.length === 0 && (
                   <p className="text-xs text-amber-700">
-                    No websites are authorized yet — the embed code will be generated, but the
+                    No websites are authorized yet - the embed code will be generated, but the
                     button won't activate anywhere until you add at least one domain here.
                   </p>
                 )}
 
                 {droppedDomains.length > 0 && (
                   <p className="text-xs text-amber-700">
-                    {droppedDomains.map((d) => d.input).join(', ')} could not be saved — please
+                    {droppedDomains.map((d) => d.input).join(', ')} could not be saved - please
                     check the spelling and try again.
                   </p>
                 )}
@@ -869,7 +869,7 @@ export default function ManageDonationButtonModal({
                           />
                           <span className="text-sm text-gray-900">
                             {m.methodLabel} ({formatProviderName(m.providerName)})
-                            {!m.isEnabled ? ' — disabled' : ''}
+                            {!m.isEnabled ? ' - disabled' : ''}
                           </span>
                         </label>
                       );
@@ -981,7 +981,7 @@ export default function ManageDonationButtonModal({
                     {eligibleManualMethods.map((m) => (
                       <option key={m.id} value={m.id} disabled={!m.isEnabled}>
                         {m.methodLabel} ({formatProviderName(m.providerName)})
-                        {!m.isEnabled ? ' — disabled' : ''}
+                        {!m.isEnabled ? ' - disabled' : ''}
                       </option>
                     ))}
                   </select>
@@ -997,7 +997,7 @@ export default function ManageDonationButtonModal({
 
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-800">
-                  Choose either one or more trackable methods above, OR a single manual link — not
+                  Choose either one or more trackable methods above, OR a single manual link - not
                   both. Selecting a trackable method clears the manual link, and selecting a
                   manual link clears any trackable selections. With multiple trackable methods,
                   supporters choose which to pay with at checkout.
@@ -1094,7 +1094,7 @@ export default function ManageDonationButtonModal({
                         <p className="text-xs text-gray-500">
                           The copied code creates a button on the club's website. When clicked,
                           it loads the FundRaisely donation form in a modal iframe. The preview
-                          link above opens the form directly with no opener — it's useful for
+                          link above opens the form directly with no opener - it's useful for
                           checking how the amount picker looks, but it can't show whether the
                           modal closes itself after a successful donation. Use the embed code on
                           a real test page for that.
@@ -1130,7 +1130,7 @@ export default function ManageDonationButtonModal({
  * One color swatch + hex text input pair. The native color input
  * always produces a well-formed #rrggbb value on its own (the
  * browser's picker UI guarantees this), so its onChange always calls
- * onChange with something valid. The text input is looser — it allows
+ * onChange with something valid. The text input is looser - it allows
  * free typing (including transiently invalid/incomplete values while
  * the admin is mid-edit) and only feeds a value back up via onChange
  * once it's a complete, valid hex string; this avoids the input
@@ -1152,7 +1152,7 @@ function ColorField({
 
   // Keep the text field in sync if the parent value changes from
   // somewhere else (e.g. load() populating saved colors, or a save
-  // response re-syncing state) — but not on every render, only when
+  // response re-syncing state) - but not on every render, only when
   // the actual saved value changes.
   useEffect(() => {
     setTextValue(value);

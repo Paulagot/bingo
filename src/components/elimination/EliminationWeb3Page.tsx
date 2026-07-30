@@ -109,10 +109,10 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         );
 
         if (event.charity_id === 0 && event.charity_name) {
-          // Direct-wallet charity — stored with id=0, use direct prefix.
+          // Direct-wallet charity - stored with id=0, use direct prefix.
           setSelectedCharityKey(`direct:${event.charity_name}`);
         } else if (event.charity_id) {
-          // TGB charity — numeric id as string.
+          // TGB charity - numeric id as string.
           setSelectedCharityKey(String(event.charity_id));
         } else {
           setSelectedCharityKey('');
@@ -176,7 +176,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
 
   const lockPrefilledFields = Boolean(eventId && eventPrefilled && !prefillError);
 
-  // Selected charity object — used for the summary line and badge.
+  // Selected charity object - used for the summary line and badge.
   const selectedCharity = useMemo(
     () => allCharities.find(c => charityKey(c) === selectedCharityKey) ?? null,
     [selectedCharityKey, allCharities]
@@ -303,7 +303,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
           >
             {SOLANA_TOKEN_LIST.map(code => (
               <option key={code} value={code}>
-                {code} — {SOLANA_TOKENS[code as keyof typeof SOLANA_TOKENS].name}
+                {code} - {SOLANA_TOKENS[code as keyof typeof SOLANA_TOKENS].name}
               </option>
             ))}
           </select>
@@ -334,7 +334,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
           )}
         </div>
 
-        {/* Charity — merged TGB + direct */}
+        {/* Charity - merged TGB + direct */}
         <div>
           <label style={labelStyle}>Charity</label>
           <select
@@ -452,7 +452,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         {isReady && (
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
             <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6 }}>
-              Players pay {entryFeeDisplay || '—'} {tokenSymbol} on-chain to join. Prize pool
+              Players pay {entryFeeDisplay || '-'} {tokenSymbol} on-chain to join. Prize pool
               distributed to winner, host, platform, and {selectedCharity?.name ?? 'charity'} automatically.
             </p>
           </div>

@@ -19,27 +19,39 @@ const parseJson=(v,f={})=>{if(!v)return f;if(typeof v==='object')return v;try{re
 // the room's own real game_type).
 async function apportionAndRoomTypes(items, packPrice) {
   const ids=[...new Set(items.map(i=>i.target_room_id))],ph=ids.map(()=>'?').join(',');
-  const [rows]=await connection.execute(`SELECT room_id,config_json,game_type FROM ${R} WHERE room_id IN (${ph})`,ids);
-  const feeBy={}; const gameTypeBy={};
-  for(const row of rows){
-    const n=Number(parseJson(row.config_json,{}).entryFee||0);
-    feeBy[row.room_id]=Number.isFinite(n)&&n>0?n:0;
-    gameTypeBy[row.room_id]=row.game_type||null;
-  }
-  let feeMap;
-  if(items.length===1){
-    feeMap=new Map([[items[0].id,Number(packPrice)]]);
-  } else {
-    const refs=items.map(i=>feeBy[i.target_room_id]||0),total=refs.reduce((a,b)=>a+b,0),price=Number(packPrice);
-    feeMap=new Map(); let used=0;
-    items.forEach((item,index)=>{
-      let fee;
-      if(index===items.length-1) fee=Number((price-used).toFixed(2));
-      else { fee=total>0?Number((price*(refs[index]/total)).toFixed(2)):Number((price/items.length).toFixed(2)); used+=fee; }
-      feeMap.set(item.id,fee);
-    });
-  }
-  return { feeMap, gameTypeBy };
+  const [rows]=await connection.execute(
+    `SELECT room_id,game_type FROM ${R} WHERE room_id IN (${ph})`,
+    ids
+  );
+
+  const gameTypeBy=Object.fromEntries(rows.map(row=>[row.room_id,row.game_type||null]));
+  const refs=items.map(item=>{
+    const metadata=parseJson(item.metadata_json,{});
+    const referencePrice=Number(metadata.referencePrice ?? metadata.configuredPrice ?? 0);
+    return Number.isFinite(referencePrice)&&referencePrice>0
+      ? referencePrice * Math.max(1,Number(item.quantity||1))
+      : 0;
+  });
+
+  const total=refs.reduce((sum,value)=>sum+value,0);
+  const price=Number(packPrice||0);
+  const feeMap=new Map();
+  let used=0;
+
+  items.forEach((item,index)=>{
+    let fee;
+    if(items.length===1 || index===items.length-1){
+      fee=Number((price-used).toFixed(2));
+    } else {
+      fee=total>0
+        ? Number((price*(refs[index]/total)).toFixed(2))
+        : Number((price/items.length).toFixed(2));
+      used+=fee;
+    }
+    feeMap.set(item.id,fee);
+  });
+
+  return {feeMap,gameTypeBy};
 }
 
 // Corrects a pack item's stored item_type against its room's actual
@@ -121,7 +133,7 @@ export async function expandPeerOrder(orderId) {
                  originalItemType: pi.item_type !== correctedType ? pi.item_type : undefined,
                })]
             );
-            created.push({entryId,packItem:pi,fee:feeMap.get(pi.id),correctedType});
+            created.push({entryId,packItem:pi,fee:feeMap.get(pi.id),correctedType,packItemMetadata:parseJson(pi.metadata_json,{})});
           }
         }
       }
@@ -133,9 +145,9 @@ export async function expandPeerOrder(orderId) {
     const itemType = x.correctedType;
     try {
       if(['quiz_team_ticket','quiz_individual_ticket','elimination_entry','game_entry'].includes(itemType)){
-        await createTicketForPeerEntry(x.entryId,{order,packItem:x.packItem,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
+        await createTicketForPeerEntry(x.entryId,{order,packItem:x.packItem,packItemMetadata:x.packItemMetadata,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
       } else if(itemType==='puzzle_entry'){
-        await createPuzzleAccessForPeerEntry(x.entryId,{packItem:x.packItem});
+        await createPuzzleAccessForPeerEntry(x.entryId,{order,packItem:x.packItem,packItemMetadata:x.packItemMetadata,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
       } else {
         await connection.execute(`UPDATE ${E} SET status='confirmed',entry_code=?,confirmed_at=UTC_TIMESTAMP() WHERE id=?`,[`PE-${nanoid(8).toUpperCase()}`,x.entryId]);
       }

@@ -189,7 +189,7 @@ export default function ContactForm() {
                     <div>
                       <h4 className="text-lg font-bold text-indigo-900 mb-2">Message Sent Successfully!</h4>
                       <p className="text-sm text-indigo-800/70 leading-relaxed">
-                        Thank you for reaching out. Our team will get back to you as soon as possible — usually within 24 hours.
+                        Thank you for reaching out. Our team will get back to you as soon as possible - usually within 24 hours.
                       </p>
                     </div>
                   </div>

@@ -20,7 +20,7 @@ export type PaymentMethod = {
 export type LinkedPaymentMethodsData = {
   ticket_method_ids:  number[];
   onnight_method_ids: number[];
-  // Legacy field — present on old rooms that haven't been re-saved
+  // Legacy field - present on old rooms that haven't been re-saved
   payment_method_ids?: number[];
   updated_at?: string;
   updated_by?: string;
