@@ -60,17 +60,10 @@ async function apportionAndRoomTypes(items, packPrice) {
 // previously stopped it from being wrong (or drifting out of sync if the
 // room's own game_type ever changed after the pack was built).
 function correctEntryType(originalItemType, roomGameType) {
+  if (roomGameType === 'quiz') return 'game_entry';
   if (roomGameType === 'elimination') return 'elimination_entry';
-  if (roomGameType === 'quiz') {
-    return ['quiz_team_ticket','quiz_individual_ticket','game_entry'].includes(originalItemType)
-      ? originalItemType
-      : 'quiz_individual_ticket';
-  }
   if (roomGameType === 'ticketed_event') return 'event_ticket';
-  if (roomGameType === 'puzzle_sub' || roomGameType === 'puzzle_drop') return 'puzzle_entry';
-  // No room match at all (room deleted, or a genuinely non-room-backed
-  // custom item) — trust whatever was stored as a fallback rather than
-  // guessing further.
+  if (roomGameType === 'puzzle_drop') return 'puzzle_entry';
   return originalItemType;
 }
 
@@ -144,7 +137,7 @@ export async function expandPeerOrder(orderId) {
   for(const x of created){
     const itemType = x.correctedType;
     try {
-      if(['quiz_team_ticket','quiz_individual_ticket','elimination_entry','game_entry'].includes(itemType)){
+      if(['game_entry','elimination_entry','event_ticket'].includes(itemType)){
         await createTicketForPeerEntry(x.entryId,{order,packItem:x.packItem,packItemMetadata:x.packItemMetadata,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
       } else if(itemType==='puzzle_entry'){
         await createPuzzleAccessForPeerEntry(x.entryId,{order,packItem:x.packItem,packItemMetadata:x.packItemMetadata,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
