@@ -41,6 +41,32 @@ export async function createPuzzleAccessForPeerEntry(entryId, context) {
     clubPaymentMethodId,
   } = context;
 
+  const [entryRows] = await connection.execute(
+    `SELECT join_url,metadata_json,status
+     FROM ${E}
+     WHERE id=?
+     LIMIT 1`,
+    [entryId],
+  );
+  const existingEntry=entryRows[0];
+  const existingMetadata=parseJson(
+    existingEntry?.metadata_json,
+    {},
+  );
+
+  if(
+    existingEntry?.status==='confirmed' &&
+    Array.isArray(existingMetadata.puzzleEntitlements) &&
+    existingMetadata.puzzleEntitlements.length
+  ){
+    return {
+      ledgerId:existingMetadata.ledgerId||null,
+      entitlements:existingMetadata.puzzleEntitlements,
+      puzzleUrl:existingEntry.join_url,
+      duplicate:true,
+    };
+  }
+
   const roomId = packItem.target_room_id;
   const puzzleQuantity = Number(packItemMetadata.puzzleQuantity || 0);
   const availableItemIds = Array.isArray(packItemMetadata.puzzleItemIds)
@@ -73,9 +99,28 @@ export async function createPuzzleAccessForPeerEntry(entryId, context) {
   if (result.ledgerId && Number.isFinite(apportionedAmount)) {
     await connection.execute(
       `UPDATE ${L}
-       SET amount=?, updated_at=UTC_TIMESTAMP()
+       SET amount=?,
+           extra_metadata=JSON_SET(
+             COALESCE(extra_metadata,'{}'),
+             '$.peerFundraiserId', ?,
+             '$.peerOrderId', ?,
+             '$.peerEntryId', ?,
+             '$.pricingTierId', ?,
+             '$.configuredTierPrice', ?,
+             '$.apportionedAmount', ?
+           ),
+           updated_at=UTC_TIMESTAMP()
        WHERE id=?`,
-      [apportionedAmount, result.ledgerId]
+      [
+        apportionedAmount,
+        order.peer_fundraiser_id,
+        order.id,
+        entryId,
+        packItemMetadata.pricingTierId||null,
+        Number(packItemMetadata.referencePrice||0),
+        apportionedAmount,
+        result.ledgerId,
+      ]
     );
   }
 
@@ -113,6 +158,7 @@ export async function createPuzzleAccessForPeerEntry(entryId, context) {
   );
   const config = parseJson(roomRow?.config_json, {});
 
+  if(!existingMetadata.puzzleEmailSentAt){
   try {
     await sendPuzzleDropConfirmationEmail({
       clubId: order.club_id,
@@ -128,11 +174,22 @@ export async function createPuzzleAccessForPeerEntry(entryId, context) {
         accessToken: entitlement.accessToken,
       })),
     });
+    await connection.execute(
+      `UPDATE ${E}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.puzzleEmailSentAt',
+         UTC_TIMESTAMP()
+       )
+       WHERE id=?`,
+      [entryId],
+    );
   } catch (emailError) {
     console.error(
       '[PeerPuzzleAccess] Puzzle confirmation email failed (non-fatal):',
       emailError.message,
     );
+  }
   }
 
   return {

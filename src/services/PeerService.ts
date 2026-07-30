@@ -281,6 +281,22 @@ export interface PeerOrder {
   created_at: string;
   updated_at?: string;
   confirmed_at: string | null;
+  metadata_json?: Record<string, unknown> | string | null;
+  fulfilment_status?: 'not_started' | 'pending' | 'retrying' | 'complete' | 'failed' | 'attention_required';
+  fulfilment_error?: string | null;
+  allocation_status?: 'pending' | 'balanced' | 'out_of_balance' | 'check_failed';
+  allocation_check?: {
+    orderTotal?: number;
+    ledgerTotal?: number;
+    difference?: number;
+    currency?: string;
+    ledgerCount?: number;
+    checkedAt?: string;
+  } | null;
+  entry_count?: number;
+  confirmed_entry_count?: number;
+  pending_entry_count?: number;
+  failed_entry_count?: number;
 }
 
 export interface ClubPaymentMethod {
@@ -522,18 +538,6 @@ class PeerService extends BaseService {
     );
   }
 
-  applyTemplate(
-    id: string,
-    templateKey: 'door_to_door' | 'quiz_only' | 'puzzle_campaign',
-  ) {
-    return this.request<{ packs: PeerPack[] }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/packs/apply-template`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ templateKey }),
-      },
-    );
-  }
 
   orders(id: string) {
     return this.request<{
@@ -593,6 +597,34 @@ class PeerService extends BaseService {
       {
         method: 'POST',
         body: JSON.stringify({ reason }),
+      },
+    );
+  }
+
+  retryFulfilment(
+    id: string,
+    orderId: string,
+  ) {
+    return this.request<{
+      order: PeerOrder;
+      expansion: {
+        createdCount?: number;
+        duplicate?: boolean;
+      };
+      allocation: {
+        status: 'balanced' | 'out_of_balance';
+        orderTotal: number;
+        ledgerTotal: number;
+        difference: number;
+      };
+    }>(
+      `/peer-fundraisers/${encodeURIComponent(
+        id,
+      )}/orders/${encodeURIComponent(
+        orderId,
+      )}/retry-fulfilment`,
+      {
+        method: 'POST',
       },
     );
   }

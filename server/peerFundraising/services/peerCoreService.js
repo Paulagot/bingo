@@ -737,101 +737,6 @@ function findPuzzleRoom(rooms) {
   return rooms.find(r => String(r.game_type || '').startsWith('puzzle'));
 }
 
-const TEMPLATES = {
-  door_to_door: (rooms) => {
-    const elimination = findRoomByGameType(rooms, 'elimination');
-    const quiz        = findRoomByGameType(rooms, 'quiz');
-    const blueprints = [];
-
-    if (elimination) {
-      blueprints.push(
-        { name: 'Tournament Game Pack', packType: 'bundle', price: 10, isFeatured: true, badgeLabel: 'Most Popular',
-          items: [{ targetRoomId: elimination.room_id, itemType: 'elimination_entry', quantity: 1 }] },
-        { name: 'Last Player Standing Entry', packType: 'single_entry', price: 5,
-          items: [{ targetRoomId: elimination.room_id, itemType: 'elimination_entry', quantity: 1 }] },
-      );
-    }
-    if (quiz) {
-      const quizOption = quiz.sellable_options?.find(
-        option => option.itemType === 'quiz_entry'
-      );
-
-      if (quizOption) {
-        blueprints.push({
-          name: 'Quiz Entry + All Extras',
-          packType: 'single_entry',
-          price: Number(quizOption.configuredPrice),
-          items: [{
-            targetRoomId: quiz.room_id,
-            itemType: 'quiz_entry',
-            quantity: 1,
-            metadata: {
-              ...quizOption.metadata,
-              optionId: quizOption.optionId,
-              configuredPrice: quizOption.configuredPrice,
-            },
-          }],
-        });
-      }
-    }
-    return blueprints;
-  },
-
-  quiz_only: (rooms) => {
-    const quiz = findRoomByGameType(rooms, 'quiz');
-    const quizOption = quiz?.sellable_options?.find(
-      option => option.itemType === 'quiz_entry'
-    );
-
-    if (!quiz || !quizOption) return [];
-
-    return [{
-      name: 'Quiz Entry + All Extras',
-      packType: 'single_entry',
-      price: Number(quizOption.configuredPrice),
-      items: [{
-        targetRoomId: quiz.room_id,
-        itemType: 'quiz_entry',
-        quantity: 1,
-        metadata: {
-          ...quizOption.metadata,
-          optionId: quizOption.optionId,
-          configuredPrice: quizOption.configuredPrice,
-        },
-      }],
-    }];
-  },
-
-  puzzle_campaign: (rooms) => {
-    const puzzle = findPuzzleRoom(rooms);
-    if (!puzzle) return [];
-    return [
-      { name: 'Puzzle Challenge Entry', packType: 'single_entry', price: 8,
-        items: [{ targetRoomId: puzzle.room_id, itemType: 'puzzle_entry', quantity: 1 }] },
-    ];
-  },
-};
-
-export async function applyTemplate(fid, clubId, templateKey) {
-  await assertFundraiser(fid, clubId);
-  const builder = TEMPLATES[templateKey];
-  if (!builder) fail('invalid_template_key');
-
-  const { rooms } = await availableRooms(fid, clubId);
-  if (!rooms.length) fail('no_available_events', 400);
-
-  const blueprints = builder(rooms);
-  if (!blueprints.length) fail('no_matching_events_for_template', 400);
-
-  const created = [];
-  for (const blueprint of blueprints) {
-    const { packId } = await savePack(fid, clubId, null, blueprint);
-    created.push(packId);
-  }
-  return listPacks(fid, clubId).then(r => ({
-    packs: r.packs.filter(p => created.includes(p.id)),
-  }));
-}
 export async function publicPayload(clubSlug,fundraiserSlug,participantSlug=null) {
   // NOTE: clubs.logo_url doesn't exist in this schema — the original query
   // selected it and crashed every public page load with "Unknown column
@@ -999,7 +904,22 @@ export async function getPublicOrderSummary(orderId) {
 
   const E=`${TABLE_PREFIX}peer_entries`;
   const [entryRows]=await connection.execute(
-    `SELECT id,entry_type,status,entry_code,join_url,room_id FROM ${E} WHERE order_id=? ORDER BY created_at`,
+    `SELECT
+       e.id,
+       e.entry_type,
+       e.status,
+       e.entry_code,
+       e.join_url,
+       e.room_id,
+       e.linked_ticket_id,
+       e.metadata_json,
+       t.ticket_type_id,
+       t.ticket_type_name
+     FROM ${E} e
+     LEFT JOIN ${TABLE_PREFIX}quiz_tickets t
+       ON t.ticket_id=e.linked_ticket_id
+     WHERE e.order_id=?
+     ORDER BY e.created_at`,
     [orderId]
   );
 
@@ -1014,19 +934,87 @@ export async function getPublicOrderSummary(orderId) {
       paymentReference: order.payment_reference,
       totalAmount: Number(order.total_amount),
       currency: order.currency,
+      fulfilmentStatus:
+        parseJson(order.metadata_json,{}).fulfilmentStatus ||
+        (order.payment_status==='confirmed' ? 'pending' : 'not_started'),
+      fulfilmentError:
+        parseJson(order.metadata_json,{}).fulfilmentError || null,
+      allocationStatus:
+        parseJson(order.metadata_json,{}).allocationStatus || 'pending',
+      allocationCheck:
+        parseJson(order.metadata_json,{}).allocationCheck || null,
       items: itemRows.map(i=>({
         packName: i.pack_name_snapshot,
         quantity: Number(i.quantity),
         lineTotal: Number(i.line_total),
       })),
     },
-    entries: entryRows,
+    entries: entryRows.map(entry=>{
+      const metadata=parseJson(entry.metadata_json,{});
+      const label=
+        entry.ticket_type_name ||
+        metadata.ticketTypeName ||
+        (entry.entry_type==='game_entry'
+          ? 'Quiz Entry + All Extras'
+          : entry.entry_type==='elimination_entry'
+            ? 'Elimination Entry'
+            : entry.entry_type==='event_ticket'
+              ? 'Event Ticket'
+              : entry.entry_type==='puzzle_entry'
+                ? 'Puzzle Drop'
+                : 'Entry');
+
+      return {
+        ...entry,
+        displayLabel:label,
+        expansionError:metadata.expansionError||null,
+      };
+    }),
   };
 }
 export async function listOrders(fid,clubId) {
   await assertFundraiser(fid,clubId);
-  const [rows]=await connection.execute(`SELECT * FROM ${O} WHERE peer_fundraiser_id=? AND club_id=? ORDER BY created_at DESC`,[fid,clubId]);
-  return { orders:rows };
+
+  const [rows]=await connection.execute(
+    `SELECT
+       o.*,
+       COUNT(e.id) AS entry_count,
+       SUM(e.status='confirmed') AS confirmed_entry_count,
+       SUM(e.status='pending_payment') AS pending_entry_count,
+       SUM(
+         JSON_EXTRACT(
+           e.metadata_json,'$.expansionError'
+         ) IS NOT NULL
+       ) AS failed_entry_count
+     FROM ${O} o
+     LEFT JOIN ${TABLE_PREFIX}peer_entries e
+       ON e.order_id=o.id
+     WHERE o.peer_fundraiser_id=?
+       AND o.club_id=?
+     GROUP BY o.id
+     ORDER BY o.created_at DESC`,
+    [fid,clubId],
+  );
+
+  return {
+    orders:rows.map(order=>{
+      const metadata=parseJson(order.metadata_json,{});
+      return {
+        ...order,
+        fulfilment_status:
+          metadata.fulfilmentStatus ||
+          (order.payment_status==='confirmed'
+            ? 'pending'
+            : 'not_started'),
+        fulfilment_error:
+          metadata.fulfilmentError || null,
+        allocation_status:
+          metadata.allocationStatus || 'pending',
+        allocation_check:
+          metadata.allocationCheck || null,
+      };
+    }),
+  };
 }
 // NOTE: confirmOrder used to live here as a bare status-flip that never
 // called expandPeerOrder — confirming a cash order through the mgmt UI

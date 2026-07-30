@@ -1,10 +1,39 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { expandPeerOrder } from './peerEntryExpansionService.js';
 import { blockTicketForPeerEntry } from './peerTicketBridgeService.js';
+import {
+  checkPeerOrderAllocation,
+} from './peerOrderIntegrityService.js';
 const O=`${TABLE_PREFIX}peer_orders`;
 const E=`${TABLE_PREFIX}peer_entries`;
 
 const fail = (message, status=400) => { throw Object.assign(new Error(message), { status }); };
+
+async function completeFulfilmentState(orderId) {
+  const allocation = await checkPeerOrderAllocation(
+    orderId,
+    { persist:true },
+  );
+
+  const fulfilmentStatus =
+    allocation.status === 'balanced'
+      ? 'complete'
+      : 'attention_required';
+
+  await connection.execute(
+    `UPDATE ${O}
+     SET metadata_json=JSON_SET(
+       COALESCE(metadata_json,'{}'),
+       '$.fulfilmentStatus', ?,
+       '$.fulfilmentCompletedAt', UTC_TIMESTAMP(),
+       '$.fulfilmentError', NULL
+     )
+     WHERE id=?`,
+    [fulfilmentStatus,orderId],
+  );
+
+  return allocation;
+}
 
 // ─── Management: confirm a manual (cash/instant) order ───────────────────────
 //
@@ -16,7 +45,7 @@ const fail = (message, status=400) => { throw Object.assign(new Error(message), 
 // to 'confirmed' here from 'pending'/'claimed').
 //
 // This replaces the old bare status-flip confirmOrder() that used to live in
-// peerCoreService.js - that version never called expandPeerOrder, so cash
+// peerCoreService.js — that version never called expandPeerOrder, so cash
 // orders confirmed through the mgmt UI never produced tickets or join links.
 export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   const [rows] = await connection.execute(
@@ -45,15 +74,34 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   }
 
   // expandPeerOrder runs its own transaction internally (see
-  // peerEntryExpansionService.js) and is idempotent - if it fails partway
+  // peerEntryExpansionService.js) and is idempotent — if it fails partway
   // through, a retry of confirm will skip already-created entries rather
   // than duplicating them, since it checks existing confirmed/pending counts
   // first. Keeping it outside the status-update transaction above avoids
   // holding that transaction open for the duration of ticket/ledger writes.
-  await expandPeerOrder(orderId);
+  try {
+    await expandPeerOrder(orderId);
+    const allocation=await completeFulfilmentState(orderId);
 
-  const [updated] = await connection.execute(`SELECT * FROM ${O} WHERE id=? LIMIT 1`, [orderId]);
-  return { order: updated[0] };
+    const [updated] = await connection.execute(
+      `SELECT * FROM ${O} WHERE id=? LIMIT 1`,
+      [orderId],
+    );
+    return { order:updated[0],allocation };
+  } catch(error) {
+    await connection.execute(
+      `UPDATE ${O}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.fulfilmentStatus','failed',
+         '$.fulfilmentError',?,
+         '$.fulfilmentFailedAt',UTC_TIMESTAMP()
+       )
+       WHERE id=?`,
+      [error.message,orderId],
+    );
+    throw error;
+  }
 }
 
 // ─── Management: reject a manual order ────────────────────────────────────────
@@ -81,7 +129,7 @@ export async function rejectPeerOrder(orderId, fundraiserId, clubId, reason = nu
       [orderId]
     );
     for (const entry of confirmedEntries) {
-      // No-op for entries with no linked ticket (puzzle/event/custom items) -
+      // No-op for entries with no linked ticket (puzzle/event/custom items) —
       // blockTicketForPeerEntry just returns early if linked_ticket_id is null.
       await blockTicketForPeerEntry(entry.id);
     }
@@ -122,19 +170,41 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
 
   // NOTE: Stripe fires BOTH checkout.session.completed AND
   // payment_intent.succeeded for every Checkout Session payment, and
-  // stripeWebhooks.js calls confirmPeerOrder from both - so this function
+  // stripeWebhooks.js calls confirmPeerOrder from both — so this function
   // WILL genuinely be invoked twice, nearly simultaneously, for the same
   // order. expandPeerOrder now handles that safely itself (row-level
-  // locking - see peerEntryExpansionService.js), but wrapping it here too
+  // locking — see peerEntryExpansionService.js), but wrapping it here too
   // means a failure in expansion can never silently prevent the order-
   // confirmation email below from firing. Previously this call had no
-  // try/catch at all - if it threw (exactly what the race could cause),
+  // try/catch at all — if it threw (exactly what the race could cause),
   // the email code further down never ran, even though the order's status
   // itself was already correctly set.
   if(order.payment_status==='confirmed'){
-    try { await expandPeerOrder(order.id); }
-    catch(expandErr){ console.error('[PeerOrderCompletion] ⚠️ Re-expansion failed (non-fatal):', expandErr.message); }
-    return order;
+    try {
+      await expandPeerOrder(order.id);
+      await completeFulfilmentState(order.id);
+    } catch(expandErr) {
+      console.error(
+        '[PeerOrderCompletion] Re-expansion failed:',
+        expandErr.message,
+      );
+      await connection.execute(
+        `UPDATE ${O}
+         SET metadata_json=JSON_SET(
+           COALESCE(metadata_json,'{}'),
+           '$.fulfilmentStatus','failed',
+           '$.fulfilmentError',?,
+           '$.fulfilmentFailedAt',UTC_TIMESTAMP()
+         )
+         WHERE id=?`,
+        [expandErr.message,order.id],
+      );
+    }
+    const [updated]=await connection.execute(
+      `SELECT * FROM ${O} WHERE id=? LIMIT 1`,
+      [order.id],
+    );
+    return updated[0];
   }
 
   await connection.execute(
@@ -145,16 +215,27 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
 
   try {
     await expandPeerOrder(order.id);
+    await completeFulfilmentState(order.id);
   } catch (expandErr) {
-    // Order is already marked confirmed above - an expansion failure here
-    // (e.g. losing the race to the other webhook event, or a genuine data
-    // problem) should never stop the supporter from at least getting their
-    // order-confirmation email. Logged clearly so it can be manually
-    // re-expanded if entries genuinely never got created.
-    console.error('[PeerOrderCompletion] ⚠️ Expansion failed (non-fatal):', expandErr.message);
+    console.error(
+      '[PeerOrderCompletion] Expansion failed:',
+      expandErr.message,
+    );
+
+    await connection.execute(
+      `UPDATE ${O}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.fulfilmentStatus','failed',
+         '$.fulfilmentError',?,
+         '$.fulfilmentFailedAt',UTC_TIMESTAMP()
+       )
+       WHERE id=?`,
+      [expandErr.message,order.id],
+    );
   }
 
-  // Order-confirmation email - peer had no equivalent at all. Fired here,
+  // Order-confirmation email — peer had no equivalent at all. Fired here,
   // same reasoning as campaign's confirmOrderByStripeIntent: the webhook
   // always runs, unlike a frontend-triggered send that depends on the
   // supporter's tab staying open through the redirect-and-poll cycle.
@@ -168,6 +249,70 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
   const [updated]=await connection.execute(`SELECT * FROM ${O} WHERE id=?`,[order.id]);
   return updated[0];
 }
+
+export async function retryPeerOrderFulfilment(
+  orderId,
+  fundraiserId,
+  clubId,
+) {
+  const [rows]=await connection.execute(
+    `SELECT *
+     FROM ${O}
+     WHERE id=?
+       AND peer_fundraiser_id=?
+       AND club_id=?
+     LIMIT 1`,
+    [orderId,fundraiserId,clubId],
+  );
+
+  const order=rows[0];
+  if(!order) fail('peer_order_not_found',404);
+  if(order.payment_status!=='confirmed'){
+    fail('order_not_confirmed',400);
+  }
+
+  await connection.execute(
+    `UPDATE ${O}
+     SET metadata_json=JSON_SET(
+       COALESCE(metadata_json,'{}'),
+       '$.fulfilmentStatus','retrying',
+       '$.fulfilmentRetryStartedAt',UTC_TIMESTAMP(),
+       '$.fulfilmentError',NULL
+     )
+     WHERE id=?`,
+    [orderId],
+  );
+
+  try {
+    const expansion=await expandPeerOrder(orderId);
+    const allocation=await completeFulfilmentState(orderId);
+
+    const [updated]=await connection.execute(
+      `SELECT * FROM ${O} WHERE id=? LIMIT 1`,
+      [orderId],
+    );
+
+    return {
+      order:updated[0],
+      expansion,
+      allocation,
+    };
+  } catch(error) {
+    await connection.execute(
+      `UPDATE ${O}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.fulfilmentStatus','failed',
+         '$.fulfilmentError',?,
+         '$.fulfilmentFailedAt',UTC_TIMESTAMP()
+       )
+       WHERE id=?`,
+      [error.message,orderId],
+    );
+    throw error;
+  }
+}
+
 export async function cancelExpiredPeerOrder(orderId,sessionId){
   const [result]=await connection.execute(
     `UPDATE ${O} SET payment_status='cancelled',metadata_json=JSON_SET(COALESCE(metadata_json,'{}'),'$.cancelReason','stripe_session_expired','$.expiredSessionId',?)
