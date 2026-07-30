@@ -4,7 +4,7 @@
 //   - New "Ticketed Event" pill with its own icon/colour
 //   - "Players" relabelled "Attendees" for ticketed events
 //   - Volunteers section now reads config.admins (now populated by the
-//     check-in dashboard — see CheckinDashboard.PATCH.tsx) for ticketed events,
+//     check-in dashboard - see CheckinDashboard.PATCH.tsx) for ticketed events,
 //     same pattern as quiz/elimination
 
 import { useEffect, useState } from 'react';
@@ -228,7 +228,7 @@ export default function ImpactTab({
 
   // ── Detect game type ───────────────────────────────────────────────────────
   // FIXED: previously only checked for 'elimination' and fell through to
-  // 'quiz' for everything else — including ticketed_event rooms, which is
+  // 'quiz' for everything else - including ticketed_event rooms, which is
   // why the pill incorrectly said "Quiz". Now explicitly detects all three.
   const auditLeaderboard = auditView?.reconciliation?.finalLeaderboard;
   const roomGameType = (room as any).game_type ?? (room as any).room_type ?? null;
@@ -246,10 +246,10 @@ export default function ImpactTab({
       ? 'How this elimination brought your community together.'
       : 'How this quiz brought your community together.';
 
-  // Label for "players" stat — ticketed events have attendees, not players
+  // Label for "players" stat - ticketed events have attendees, not players
   const personLabel = isTicketedEvent ? 'Attendees' : 'Players';
 
-  // ── Leaderboard data — not applicable to ticketed events ──────────────────
+  // ── Leaderboard data - not applicable to ticketed events ──────────────────
   const eliminationData: EliminationLeaderboard | null =
     isElimination && auditLeaderboard?.type === 'elimination' ? auditLeaderboard : null;
   const quizLeaderboard: LeaderboardEntry[] =
@@ -278,7 +278,7 @@ export default function ImpactTab({
     ? eliminationAdminCount + 1
     : admins.length + 1;
 
-  // ── Rounds / questions — not applicable to ticketed events ─────────────────
+  // ── Rounds / questions - not applicable to ticketed events ─────────────────
   const roundCount = isTicketedEvent
     ? 0
     : isElimination
@@ -308,12 +308,12 @@ export default function ImpactTab({
     (sum, a) => sum + Number(a.declaredValue || 0), 0
   );
 
-  // Prize sponsors — organisations attached to a specific prize award
+  // Prize sponsors - organisations attached to a specific prize award
   const prizeSponsorNames = [...new Set(
     prizeAwards.map(a => getSponsorName(a.sponsor)).filter(Boolean)
   )];
 
-  // Event sponsors — organisations supporting the event as a whole, set up
+  // Event sponsors - organisations supporting the event as a whole, set up
   // in the event config (config.eventSponsors), separate from prize sponsors.
   // Previously this data existed but was never read by the Impact tab.
   const eventSponsors: EventSponsor[] = Array.isArray(config?.eventSponsors)
@@ -353,7 +353,7 @@ export default function ImpactTab({
 
     const html = `<!doctype html><html><head>
       <meta charset="utf-8"/>
-      <title>Community Impact — ${eventLabel}</title>
+      <title>Community Impact - ${eventLabel}</title>
       ${styles}
       <style>
         body { margin: 0; padding: 0; background: #fff;
@@ -504,7 +504,7 @@ export default function ImpactTab({
           />
         )}
 
-        {/* ── Feedback stats — only shown when responses exist ── */}
+        {/* ── Feedback stats - only shown when responses exist ── */}
         {feedbackLoading && (
           <div className="col-span-2 sm:col-span-1 rounded-xl border border-[#dce1df] bg-[#fbf8f2] p-4 flex items-center gap-2">
             <RefreshCw className="h-4 w-4 animate-spin text-[#8a9bab]" />
@@ -565,7 +565,7 @@ export default function ImpactTab({
         </div>
       )}
 
-      {/* ── Volunteers — collapsible ────────────────────────────────────────── */}
+      {/* ── Volunteers - collapsible ────────────────────────────────────────── */}
       <CollapsibleSection
         icon={<Heart className="h-5 w-5 text-[#52636f]" />}
         title="Volunteers"
@@ -620,7 +620,7 @@ export default function ImpactTab({
         </div>
       </CollapsibleSection>
 
-      {/* ── Final Leaderboard — collapsible (not shown for ticketed events) ── */}
+      {/* ── Final Leaderboard - collapsible (not shown for ticketed events) ── */}
       {isTicketedEvent ? null : isElimination ? (
         eliminationData && eliminationData.finalStandings.length > 0 && (
           <CollapsibleSection
@@ -695,7 +695,7 @@ export default function ImpactTab({
         </CollapsibleSection>
       )}
 
-      {/* ── Prize Awards — collapsible ──────────────────────────────────────── */}
+      {/* ── Prize Awards - collapsible ──────────────────────────────────────── */}
       {prizeAwards.length > 0 && (
         <CollapsibleSection
           icon={<Medal className="h-5 w-5 text-[#8a6d2f]" />}
@@ -715,7 +715,7 @@ export default function ImpactTab({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-semibold text-[#102532]">
-                        {getPlaceLabel(award.place)} — {award.prizeName}
+                        {getPlaceLabel(award.place)} - {award.prizeName}
                       </span>
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
                         award.status === 'collected'
@@ -728,7 +728,7 @@ export default function ImpactTab({
                       </span>
                     </div>
                     <div className="text-xs text-[#52636f] mt-0.5">
-                      Winner: <strong>{award.winnerName || '—'}</strong>
+                      Winner: <strong>{award.winnerName || '-'}</strong>
                       {sponsorName && ` · Sponsor: ${sponsorName}`}
                     </div>
                   </div>

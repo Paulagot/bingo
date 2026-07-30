@@ -1,14 +1,14 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/LaunchTabDrop.tsx
 //
-// Drop has no "launch" in the quiz/elimination sense — there's no room to
+// Drop has no "launch" in the quiz/elimination sense - there's no room to
 // open, no dashboard to join. It goes on sale itself once scheduled_at
 // passes (see maybeOpenDropRoom, lazy-flipped server-side). This tab is
 // purely about the other end: marking it done. Two-step confirm, same
-// shape as LaunchTab's ticketed-event "Close Event" — irreversible,
+// shape as LaunchTab's ticketed-event "Close Event" - irreversible,
 // affects buyers, so it needs the explicit warning step.
 //
 // Marking complete stops new purchases (backend already 409s anything
-// but 'open') but does NOT touch existing entitlements — buyers who
+// but 'open') but does NOT touch existing entitlements - buyers who
 // already paid keep their puzzle links working forever. The copy below
 // says this explicitly so a host doesn't think "complete" means "delete".
 
@@ -79,7 +79,7 @@ export default function LaunchTabDrop({ roomId, status, scheduledAt, onStatusCha
           <CheckCircle className="mx-auto mb-3 h-8 w-8 text-[#7c3aed]" />
           <p className="text-sm font-bold text-[#102532]">This Drop is completed</p>
           <p className="mx-auto mt-2 max-w-sm text-xs text-[#52636f]">
-            New purchases are closed. Anyone who already bought a puzzle can still play it — nothing already sold has been affected.
+            New purchases are closed. Anyone who already bought a puzzle can still play it - nothing already sold has been affected.
           </p>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function LaunchTabDrop({ roomId, status, scheduledAt, onStatusCha
             </h3>
             <p className="mt-0.5 text-xs text-[#52636f]">
               {status === 'scheduled'
-                ? 'This Drop opens for purchases automatically once its scheduled time passes — nothing to launch manually.'
+                ? 'This Drop opens for purchases automatically once its scheduled time passes - nothing to launch manually.'
                 : 'Buyers can purchase puzzles right now. This stays on sale indefinitely until you mark it completed below.'}
             </p>
           </div>
@@ -165,7 +165,7 @@ export default function LaunchTabDrop({ roomId, status, scheduledAt, onStatusCha
           <div>
             <h3 className="text-sm font-semibold text-[#8b1c1c]">Mark as completed</h3>
             <p className="mt-0.5 text-xs text-[#52636f]">
-              Stops new purchases for good. People who've already bought a puzzle keep full access — nothing is taken away or refunded.
+              Stops new purchases for good. People who've already bought a puzzle keep full access - nothing is taken away or refunded.
             </p>
           </div>
         </div>

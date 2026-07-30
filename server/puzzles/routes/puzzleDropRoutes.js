@@ -1,19 +1,19 @@
 /**
- * Puzzle Drop — puzzle play routes
+ * Puzzle Drop - puzzle play routes
  * server/puzzles/routes/puzzleDropRoutes.js
  *
  * Deliberately NOT reusing puzzleRoutes.js's authenticateAny middleware.
- * That middleware resolves req.user.id from a club or supporter JWT — but
+ * That middleware resolves req.user.id from a club or supporter JWT - but
  * Drop buyers are, by design, never given a fundraisely_supporters row
  * (confirmed decision: Drop buyers are fully separate from the
  * supporter/subscriber identity system). Access here is proven by the
  * entitlement's own access_token instead (the same token the magic-link
- * email carries — see spec §5.4), checked directly against
+ * email carries - see spec §5.4), checked directly against
  * fundraisely_puzzle_drop_entitlements on every request.
  *
  * The "player_id" written into fundraisely_puzzle_views /
  * _progress / _submissions for a Drop play session is a synthetic id
- * derived from the entitlement, `dropentitlement_${entitlementId}` —
+ * derived from the entitlement, `dropentitlement_${entitlementId}` -
  * exactly the same synthetic-id convention quizTicketService.js already
  * uses for ticket buyers (`ticket_${ticketId}`) who also have no real
  * supporter/player row. Not a new pattern, just the established one
@@ -21,7 +21,7 @@
  *
  * NOTE: this file currently authenticates by raw access_token (query
  * param or Authorization: Bearer) rather than through a real session/JWT.
- * That's intentional at this stage of the build — the magic-link/session
+ * That's intentional at this stage of the build - the magic-link/session
  * wiring described in spec §5.4 depends on the backend supporterAuthService
  * file, which hasn't been reviewed yet. Once that's in hand, requireDropAccess
  * below is the one place that needs updating to read from whatever session
@@ -64,7 +64,7 @@ import {
 
 const router = express.Router();
 
-// ⚠️ TEMPORARY DIAGNOSTIC — remove once the routing issue is found.
+// ⚠️ TEMPORARY DIAGNOSTIC - remove once the routing issue is found.
 // router.use((req, res, next) => {
 //   console.log('[puzzleDropRoutes] 🔎 incoming:', req.method, req.originalUrl);
 //   next();
@@ -176,12 +176,12 @@ router.post('/', authenticateToken, async (req, res) => {
     // ── Entitlements gate ──────────────────────────────────────────────────
     // Mirrors challengeRoutes.js POST / exactly: resolve entitlements for
     // this scope, block on no credits, create, then consume the credit
-    // (non-fatal if the consume step itself fails — the Drop has already
+    // (non-fatal if the consume step itself fails - the Drop has already
     // been created at that point, same reasoning as every other activity
     // type's create route).
     const ents = await resolveEntitlements({ userId: clubId, scope: 'puzzle_drop' });
 
-    console.log(`[puzzleDropRoutes] 🔑 Entitlements — plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
+    console.log(`[puzzleDropRoutes] 🔑 Entitlements - plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
 
     if ((ents.game_credits_remaining ?? 0) <= 0) {
       return res.status(402).json({
@@ -211,10 +211,10 @@ router.post('/', authenticateToken, async (req, res) => {
     const creditResult = await consumeCredit(clubId, 'puzzle_drop', ents.plan_code);
     if (!creditResult.ok) {
       console.error(
-        `[puzzleDropRoutes] ⚠️ Credit consume failed after Drop creation — club: ${clubId} room: ${result.roomId}`,
+        `[puzzleDropRoutes] ⚠️ Credit consume failed after Drop creation - club: ${clubId} room: ${result.roomId}`,
       );
     } else {
-      console.log(`[puzzleDropRoutes] ✅ Credit consumed — club: ${clubId}`);
+      console.log(`[puzzleDropRoutes] ✅ Credit consumed - club: ${clubId}`);
     }
 
     res.status(201).json(result);
@@ -390,7 +390,7 @@ router.get('/:dropRoomId/stripe/session/:sessionId', async (req, res) => {
 // ─── CRYPTO CONFIRM ─────────────────────────────────────────────────────────
 // POST /api/puzzle-drop/:dropRoomId/crypto/confirm?itemIds=<JSON array>
 //
-// itemIds is read from the QUERY STRING, not the body — CryptoFixedFeeStep.tsx
+// itemIds is read from the QUERY STRING, not the body - CryptoFixedFeeStep.tsx
 // builds its own POST body internally and has no field for it. The real
 // body fields it sends (ticket mode): clubPaymentMethodId, network, txHash,
 // senderWallet, tokenMint, entryFeeRaw, purchaserName, purchaserEmail, playerName.
@@ -476,7 +476,7 @@ const result = await createDropEntitlements({
       initialStatus: 'confirmed',
     });
 
-    // NEW — crypto confirms entitlements directly, bypassing confirmDropPurchase,
+    // NEW - crypto confirms entitlements directly, bypassing confirmDropPurchase,
     // so the email needs to be sent here instead.
     try {
       await sendPuzzleDropConfirmationEmail({

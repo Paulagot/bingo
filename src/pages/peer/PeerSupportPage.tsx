@@ -325,7 +325,7 @@ function itemTypeLabel(itemType?: string, gameType?: string): string {
 function includedLine(room: PackRoomDetails): string {
   const quantity = room.quantity > 1 ? `${room.quantity} × ` : '';
   const label = itemTypeLabel(room.itemType, room.gameType);
-  return `${quantity}${label}${room.roomName ? ` — ${room.roomName}` : ''}`;
+  return `${quantity}${label}${room.roomName ? ` - ${room.roomName}` : ''}`;
 }
 
 function formatEventDate(value?: string | null): string | null {
@@ -884,7 +884,7 @@ function PackChoiceCard({ pack, currency, quantity, onOpen, onAdd, onRemove }: {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="max-w-full break-words text-[clamp(1.05rem,4.8vw,1.25rem)] font-black leading-tight tracking-tight text-slate-950">{pack.name} — {fmt(pack.price, pack.currency ?? currency)}</h2>
+            <h2 className="max-w-full break-words text-[clamp(1.05rem,4.8vw,1.25rem)] font-black leading-tight tracking-tight text-slate-950">{pack.name} - {fmt(pack.price, pack.currency ?? currency)}</h2>
             <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300" />
           </div>
           <div className="mt-2 space-y-1">

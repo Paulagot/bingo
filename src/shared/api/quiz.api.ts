@@ -5,7 +5,7 @@ import { apiClient } from './client';
 import type { Entitlements } from '../types';
 
 /**
- * Game scopes — matches the scope values used in plan_entitlements on the server.
+ * Game scopes - matches the scope values used in plan_entitlements on the server.
  * Add new game types here as they are added to the platform.
  */
 export type GameScope = 'quiz' | 'elimination';
@@ -74,7 +74,7 @@ export interface ParsedConfig {
 // ── Payment methods ──────────────────────────────────────────────────────────
 // Mirrors the JSON shape written by QuizPaymentMethodsService /
 // eliminationMgmtService on the backend. Set at the ACTIVITY level (the
-// room itself) — not copied down from the event. See
+// room itself) - not copied down from the event. See
 // PaymentMethodSelector.tsx for the full reasoning, and
 // EliminationMgmtService.ts's LinkedPaymentMethods for the equivalent type
 // on the elimination side (kept as a separate type here since this file
@@ -97,7 +97,7 @@ export type Web2RoomListItem = {
   room_caps_json?: string | RoomCaps | null;
   prize_description?: string | null;
   prize_value?: number | null;
-  // Set at schedule time by the activity itself — read here so any edit
+  // Set at schedule time by the activity itself - read here so any edit
   // modal built on top of Web2RoomListItem (e.g. via the SetupTab cast)
   // can hydrate current payment-method selections. May be string (raw
   // JSON) or already-parsed object depending on the MySQL driver, same

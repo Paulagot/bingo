@@ -110,7 +110,7 @@ const TowersOfHanoiRenderer: React.FC<TowersOfHanoiRendererProps> = ({
   }, [selected, pegs, isReadOnly]);
 
   // ---- geometry ----
-  // Scaled down from the original 92/34/46 — those values, combined with
+  // Scaled down from the original 92/34/46 - those values, combined with
   // the wood base intentionally being wider than its own peg column (a
   // visual "stand" effect) and generous gaps between pegs, added up to
   // roughly 494px minimum width for three pegs. That's wider than the
@@ -166,7 +166,7 @@ const TowersOfHanoiRenderer: React.FC<TowersOfHanoiRendererProps> = ({
         )}
       </div>
 
-      {/* Pegs — overflow-x-auto is a safety net: if the three pegs still
+      {/* Pegs - overflow-x-auto is a safety net: if the three pegs still
           don't fit on a very narrow phone even after the size/gap
           reductions above, this makes it scroll neatly contained within
           the dark board (which keeps its rounded corners and border)

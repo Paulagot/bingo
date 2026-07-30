@@ -1,5 +1,5 @@
 /**
- * Solana Refund Room Hook — IDL-verified (newquiz.json)
+ * Solana Refund Room Hook - IDL-verified (newquiz.json)
  *
  * refund_room: host cancels the room.
  * Platform keeps 15%, players get 85% back. Extras refunded 100%.
@@ -53,7 +53,7 @@ export interface RefundRoomParams {
   roomAddress: PublicKey | string;
   /**
    * All wallets that joined the room.
-   * Must match room.player_count exactly — IDL error 6019 otherwise.
+   * Must match room.player_count exactly - IDL error 6019 otherwise.
    */
   playerWallets: (PublicKey | string)[];
 }
@@ -234,7 +234,7 @@ export function useSolanaRefundRoom() {
         throw new Error(`Simulation failed: ${simulation.error}`);
       }
 
-      console.log('[Solana][RefundRoom] ✅ Simulation passed — sending...');
+      console.log('[Solana][RefundRoom] ✅ Simulation passed - sending...');
 
       let signature: string | undefined;
 

@@ -6,7 +6,7 @@ import authenticateToken from '../middleware/auth.js';
 const router = express.Router();
 const authService = new AuthService();
 
-// Simple inline validation — avoids needing a separate middleware file
+// Simple inline validation - avoids needing a separate middleware file
 const requireFields = (fields) => (req, res, next) => {
   const missing = fields.filter((f) => !req.body[f]);
   if (missing.length > 0) {

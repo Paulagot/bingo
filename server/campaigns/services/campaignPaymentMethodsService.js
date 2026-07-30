@@ -102,7 +102,7 @@ export async function updateCampaignPaymentMethods(campaignId, clubId, methodIds
 
 /**
  * Get enabled payment methods linked to a campaign for the public supporter page.
- * Falls back to empty array if none configured — frontend shows "contact organiser".
+ * Falls back to empty array if none configured - frontend shows "contact organiser".
  */
 export async function getPublicCampaignPaymentMethods(campaignId) {
   const [campRows] = await connection.execute(

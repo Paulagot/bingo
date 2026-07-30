@@ -3,9 +3,9 @@
 // Donation-flavored sibling of useCryptoQuote.ts
 // (src/components/Quiz/joinroom/crypto/useCryptoQuote.ts).
 //
-// Reuses that hook's logic almost line-for-line — same countdown timer,
+// Reuses that hook's logic almost line-for-line - same countdown timer,
 // same in-flight dedup guard, same "don't auto-refetch on expiry"
-// behavior — because none of that is room-specific, it's just quote
+// behavior - because none of that is room-specific, it's just quote
 // lifecycle management. The only real differences:
 //   - clubId instead of roomId
 //   - POST /api/donations/:clubId/crypto/quote (body) instead of
@@ -15,7 +15,7 @@
 // since donation buttons and quiz rooms could reasonably diverge on
 // quote behavior over time (same reasoning as donationCryptoQuoteRouter.js
 // keeping its own SUPPORTED_TOKENS list rather than importing the quiz
-// one) — and editing the working, tested quiz hook to add a donation
+// one) - and editing the working, tested quiz hook to add a donation
 // branch risks regressing something that already works.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -108,7 +108,7 @@ export function useDonationCryptoQuote({
         if (remaining === 0) {
           clearTimer();
           setStatus('expired');
-          // Do NOT auto-fetch here — same reasoning as useCryptoQuote:
+          // Do NOT auto-fetch here - same reasoning as useCryptoQuote:
           // auto-refetching on expiry risks a loop. The Refresh button
           // lets the supporter get a new quote when ready.
         }

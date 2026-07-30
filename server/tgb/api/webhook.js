@@ -120,7 +120,7 @@ export default async function tgbWebhookHandler(req, res) {
         requestId: req.requestId,
         depositAddress: event.depositAddress,
         metadata: event.metadata
-      }, 'No matching intent found for TGB webhook — saving as orphaned event');
+      }, 'No matching intent found for TGB webhook - saving as orphaned event');
 
       // Save a minimal orphan record so ops can inspect
       const orphan = {

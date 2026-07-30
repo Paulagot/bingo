@@ -1,5 +1,5 @@
 /**
- * useSolanaCreateAssetRoom — STUB
+ * useSolanaCreateAssetRoom - STUB
  *
  * Asset-based rooms were removed from the new contract.
  * This file is kept to avoid breaking any imports.

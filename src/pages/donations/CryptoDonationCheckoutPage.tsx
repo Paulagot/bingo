@@ -1,9 +1,9 @@
 // src/pages/donations/CryptoDonationCheckoutPage.tsx
 //
-// Rendered at /donate/:clubId/crypto/:donationId — a full, top-level
+// Rendered at /donate/:clubId/crypto/:donationId - a full, top-level
 // browser tab, NOT iframe content. Opened via window.open() from
 // DonateEmbedPage.tsx's handleDonate(), exactly the same pattern
-// already used for Stripe/SumUp ('_blank', no 'noopener' — see the
+// already used for Stripe/SumUp ('_blank', no 'noopener' - see the
 // comment in DonateEmbedPage.tsx explaining why window.opener needs to
 // stay intact so the success postMessage relay works).
 //
@@ -12,23 +12,23 @@
 // cross-origin iframe for injected wallets (MetaMask/Phantom
 // extensions). What was deliberately NOT verified is WalletConnect's
 // mobile deep-link return inside that same iframe nesting (club page ->
-// iframe -> modal) — and donation buttons likely see significant mobile
+// iframe -> modal) - and donation buttons likely see significant mobile
 // traffic. Rather than ship on an untested assumption, crypto follows
 // the same "open a real tab" pattern Stripe already uses, putting the
 // wallet flow in the same top-level browser context every WalletConnect
 // integration is normally tested against. This sidesteps the open
-// question rather than resolving it — a deliberate, acknowledged
+// question rather than resolving it - a deliberate, acknowledged
 // tradeoff. Mobile WalletConnect-in-iframe testing remains parked, not
 // done.
 //
-// REUSE NOTE — this page is built almost entirely from existing,
+// REUSE NOTE - this page is built almost entirely from existing,
 // working pieces rather than new logic:
-//   - useSolanaDirectDonation (src/components/Quiz/joinroom/crypto/) —
+//   - useSolanaDirectDonation (src/components/Quiz/joinroom/crypto/) -
 //     the EXACT hook CryptoDonationStep.tsx already uses to build and
 //     send the on-chain transfer. Reused unmodified; it has zero room/
 //     player coupling, it just takes recipientWalletAddress/tokenCode/
 //     displayAmount and returns a txHash.
-//   - useDonationCryptoQuote — a donation-flavored sibling of
+//   - useDonationCryptoQuote - a donation-flavored sibling of
 //     useCryptoQuote.ts (same countdown/dedup/expiry logic, posts to
 //     the donation quote endpoint instead of the quiz one).
 //   - The confirm POST body below mirrors confirmCryptoDonationOnBackend
@@ -41,7 +41,7 @@
 // club's page) so donate.js can close the modal -> this tab closes
 // itself after a short pause.
 //
-// TEMPORARY DIAGNOSTIC LOGGING (search [FR-DEBUG]) — added to find why
+// TEMPORARY DIAGNOSTIC LOGGING (search [FR-DEBUG]) - added to find why
 // the modal closes on localhost but not staging. This page's success
 // effect is hop 1 of a 3-hop relay chain (this tab -> iframe -> club
 // page -> donate.js). Logging here confirms whether hop 1 succeeds,
@@ -315,7 +315,7 @@ function CryptoCheckoutInner() {
   // ── Success side effect: relay back to the opener (the
   // DonateEmbedPage iframe), mirroring that page's own success effect.
   //
-  // [FR-DEBUG] See file header — this is hop 1 of the 3-hop relay
+  // [FR-DEBUG] See file header - this is hop 1 of the 3-hop relay
   // chain. Logging confirms whether THIS hop succeeds, independent of
   // whether the iframe's relay or donate.js's listener do.
   useEffect(() => {
@@ -337,7 +337,7 @@ function CryptoCheckoutInner() {
       }, 2500);
       return () => clearTimeout(t);
     }
-    console.warn('[FR-DEBUG CryptoCheckout success-effect] hasOpener is FALSE — no opener reference at all, so nothing can be relayed back. This tab will just sit here with no way to notify the modal.');
+    console.warn('[FR-DEBUG CryptoCheckout success-effect] hasOpener is FALSE - no opener reference at all, so nothing can be relayed back. This tab will just sit here with no way to notify the modal.');
     return undefined;
   }, [status, clubId]);
 
@@ -453,7 +453,7 @@ function CryptoCheckoutInner() {
           )}
           {isExpired && (
             <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: '#b54708' }}>
-              <AlertCircle className="h-4 w-4" /> Quote expired — tap Refresh
+              <AlertCircle className="h-4 w-4" /> Quote expired - tap Refresh
             </div>
           )}
           {quoteStatus === 'error' && quoteError && (

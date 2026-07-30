@@ -117,11 +117,11 @@ export function FundraiserHostEarnings({ hosted }: Props) {
         <div className="fl-earn-footer">
           <div className="fl-earn-footnote">
             <span className="fl-earn-dot fl-earn-dot--cyan" />
-            <p>Host earnings = your pre-calculated share — split varies by game type</p>
+            <p>Host earnings = your pre-calculated share - split varies by game type</p>
           </div>
           <div className="fl-earn-footnote">
             <span className="fl-earn-dot fl-earn-dot--amber" />
-            <p>Prizes facilitated = winners' share — a separate pool, not a cost to you</p>
+            <p>Prizes facilitated = winners' share - a separate pool, not a cost to you</p>
           </div>
         </div>
       </div>

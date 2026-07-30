@@ -10,6 +10,8 @@ const O = `${TABLE_PREFIX}peer_orders`;
 const OI = `${TABLE_PREFIX}peer_order_items`;
 const R = `${TABLE_PREFIX}web2_quiz_rooms`;
 const C = `${TABLE_PREFIX}clubs`;
+const DROP_TIERS = `${TABLE_PREFIX}puzzle_drop_pricing_tiers`;
+const DROP_ITEMS = `${TABLE_PREFIX}puzzle_drop_items`;
 
 const id = () => nanoid(21);
 const parseJson = (v, f={}) => {
@@ -78,7 +80,7 @@ export async function createFundraiser(clubId,b,clubReportingCurrency=null) {
     `INSERT INTO ${F}
       (id,club_id,name,description,format_type,target_amount,currency,start_date,end_date,status,public_slug,settings_json)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [fundraiserId,clubId,b.name.trim(),b.description?.trim()||null,b.formatType||'door_to_door_pack',
+    [fundraiserId,clubId,b.name.trim(),b.description?.trim()||null,b.formatType||'door_to_door',
      Number(b.targetAmount||0),b.currency||clubReportingCurrency||'EUR',b.startDate||null,b.endDate||null,b.status||'draft',
      publicSlug,JSON.stringify(b.settings||{})]);
 
@@ -118,52 +120,253 @@ export async function updateFundraiser(fid,clubId,b) {
 }
 export async function availableRooms(fid,clubId) {
   await assertFundraiser(fid,clubId);
-  // Previously this only ever showed raw room_ids or whatever ad-hoc name
-  // happened to be buried in a room's config_json — EventService.js never
-  // actually writes an event's title/description into that config_json
-  // (confirmed by reading it), so that was often just the room_id itself.
-  // Now LEFT JOIN through fundraisely_event_integrations to the room's real
-  // linked event, if one exists, and prefer its title/description.
+
   const [rows]=await connection.execute(
-    `SELECT r.room_id,r.game_type,r.status,r.scheduled_at,r.time_zone,r.config_json,r.prize_description,r.prize_value,
-            e.title AS event_title, e.summary AS event_summary, e.description AS event_description
+    `SELECT r.room_id,r.game_type,r.status,r.scheduled_at,r.time_zone,r.config_json,
+            r.prize_description,r.prize_value,
+            e.title AS event_title,e.summary AS event_summary,e.description AS event_description
      FROM ${R} r
      LEFT JOIN ${TABLE_PREFIX}event_integrations ei
-       ON ei.external_ref = r.room_id
-       AND ei.club_id = r.club_id
-       AND ei.integration_type IN ('quiz_web2','elimination','ticketed_event','puzzle_sub','puzzle_drop')
+       ON ei.external_ref=r.room_id
+      AND ei.club_id=r.club_id
+      AND ei.integration_type IN ('quiz_web2','elimination','ticketed_event','puzzle_drop')
      LEFT JOIN ${TABLE_PREFIX}events e
-       ON e.id = ei.event_id
-       AND e.club_id = r.club_id
-     WHERE r.club_id=? AND r.status NOT IN ('completed','cancelled')
+       ON e.id=ei.event_id
+      AND e.club_id=r.club_id
+     WHERE r.club_id=?
+       AND r.game_type IN ('quiz','elimination','ticketed_event','puzzle_drop')
+       AND r.status NOT IN ('completed','cancelled')
      ORDER BY CASE r.status WHEN 'scheduled' THEN 1 WHEN 'open' THEN 2 WHEN 'live' THEN 3 ELSE 4 END,
-              r.scheduled_at ASC,r.created_at DESC`,[clubId]);
+              r.scheduled_at ASC,r.created_at DESC`,
+    [clubId]
+  );
 
-  // A room could in principle be linked to more than one event row — dedupe
-  // to one entry per room (keep the first match).
-  const seen = new Set();
-  const deduped = rows.filter(r => {
-    if (seen.has(r.room_id)) return false;
-    seen.add(r.room_id);
+  const seen=new Set();
+  const deduped=rows.filter(row=>{
+    if(seen.has(row.room_id)) return false;
+    seen.add(row.room_id);
     return true;
   });
 
-  return { rooms: deduped.map(r=>{
-    const config = parseJson(r.config_json,{});
-    const fallbackName = config.eventName||config.eventTitle||config.quizName||config.roomName||r.room_id;
-    return {
-      room_id: r.room_id,
-      game_type: r.game_type,
-      status: r.status,
-      scheduled_at: r.scheduled_at,
-      time_zone: r.time_zone,
-      prize_description: r.prize_description,
-      prize_value: r.prize_value,
-      config,
-      name: r.event_title || fallbackName,
-      description: r.event_description || r.event_summary || null,
-    };
-  }) };
+  const dropRoomIds=deduped
+    .filter(row=>row.game_type==='puzzle_drop')
+    .map(row=>row.room_id);
+
+  const tiersByRoom={};
+  const itemsByRoom={};
+
+  if(dropRoomIds.length){
+    const placeholders=dropRoomIds.map(()=>'?').join(',');
+
+    const [tiers]=await connection.execute(
+      `SELECT id,drop_room_id,quantity,price,label,display_order
+       FROM ${DROP_TIERS}
+       WHERE drop_room_id IN (${placeholders})
+       ORDER BY drop_room_id,display_order,id`,
+      dropRoomIds
+    );
+
+    const [dropItems]=await connection.execute(
+      `SELECT id,drop_room_id,item_number,puzzle_type,difficulty,display_order
+       FROM ${DROP_ITEMS}
+       WHERE drop_room_id IN (${placeholders})
+       ORDER BY drop_room_id,display_order,item_number`,
+      dropRoomIds
+    );
+
+    for(const tier of tiers){
+      (tiersByRoom[tier.drop_room_id] ||= []).push(tier);
+    }
+    for(const item of dropItems){
+      (itemsByRoom[item.drop_room_id] ||= []).push(item);
+    }
+  }
+
+  const now=Date.now();
+
+  return {
+    rooms:deduped.map(row=>{
+      const config=parseJson(row.config_json,{});
+      const fallbackName=
+        config.eventName||
+        config.eventTitle||
+        config.quizName||
+        config.dropTitle||
+        config.roomName||
+        row.room_id;
+
+      const name=row.event_title||fallbackName;
+      const currency=config.currency||'EUR';
+      const sellableOptions=[];
+
+      if(row.game_type==='quiz'){
+        const entryFee=Number(config.entryFee||0);
+        const extras=Object.entries(config.fundraisingOptions||{})
+          .filter(([,enabled])=>enabled===true)
+          .map(([extraId])=>({
+            extraId,
+            label:{
+              buyHint:'Hint',
+              restorePoints:'Restore Points',
+              robPoints:'Rob Points',
+              freezeOutTeam:'Freeze Out Team',
+            }[extraId]||extraId,
+            price:Number(config.fundraisingPrices?.[extraId]||0),
+          }))
+          .filter(extra=>Number.isFinite(extra.price)&&extra.price>0);
+
+        const extrasTotal=extras.reduce((sum,extra)=>sum+extra.price,0);
+        const trueConfiguredValue=entryFee+extrasTotal;
+
+        if(Number.isFinite(trueConfiguredValue) && trueConfiguredValue>0){
+          sellableOptions.push({
+            optionId:`quiz_entry:${row.room_id}`,
+            roomId:row.room_id,
+            gameType:'quiz',
+            itemType:'quiz_entry',
+            label:`${name} entry + all extras`,
+            description:extras.length
+              ? `Includes entry and all ${extras.length} available fundraising extras.`
+              : row.event_description||row.event_summary||null,
+            configuredPrice:trueConfiguredValue,
+            currency,
+            quantity:1,
+            metadata:{
+              optionKind:'room_entry',
+              entryFee,
+              includedExtras:extras,
+              extrasTotal,
+              referencePrice:trueConfiguredValue,
+            },
+          });
+        }
+      }
+
+      if(row.game_type==='elimination'){
+        const price=Number(config.entryFee||0);
+        if(Number.isFinite(price) && price>0){
+          sellableOptions.push({
+            optionId:`elimination_entry:${row.room_id}`,
+            roomId:row.room_id,
+            gameType:'elimination',
+            itemType:'elimination_entry',
+            label:`${name} entry`,
+            description:row.event_description||row.event_summary||null,
+            configuredPrice:price,
+            currency,
+            quantity:1,
+            metadata:{
+              optionKind:'room_entry',
+              referencePrice:price,
+            },
+          });
+        }
+      }
+
+      if(row.game_type==='ticketed_event'){
+        const configuredTypes=Array.isArray(config.ticketTypes) && config.ticketTypes.length
+          ? config.ticketTypes
+          : config.entryFee
+            ? [{
+                id:'general',
+                name:'General Admission',
+                price:String(config.entryFee),
+                isEnabled:true,
+                quantity:null,
+                saleEndsAt:null,
+              }]
+            : [];
+
+        for(const ticketType of configuredTypes){
+          const price=Number(ticketType.price||0);
+          if(ticketType.isEnabled===false || !Number.isFinite(price) || price<=0) continue;
+
+          const saleEndsAt=ticketType.saleEndsAt||null;
+          if(saleEndsAt){
+            const endMs=new Date(saleEndsAt).getTime();
+            if(Number.isFinite(endMs) && endMs<now) continue;
+          }
+
+          const ticketTypeId=String(ticketType.id||'').trim();
+          if(!ticketTypeId) continue;
+
+          sellableOptions.push({
+            optionId:`ticket_type:${row.room_id}:${ticketTypeId}`,
+            roomId:row.room_id,
+            gameType:'ticketed_event',
+            itemType:'event_ticket',
+            label:String(ticketType.name||'Event ticket'),
+            description:name,
+            configuredPrice:price,
+            currency,
+            quantity:1,
+            metadata:{
+              optionKind:'ticket_type',
+              ticketTypeId,
+              ticketTypeName:String(ticketType.name||'Event ticket'),
+              ticketTypeQuantity:ticketType.quantity??null,
+              ticketTypeSaleEndsAt:saleEndsAt,
+              referencePrice:price,
+            },
+          });
+        }
+      }
+
+      if(row.game_type==='puzzle_drop'){
+        const puzzleItems=(itemsByRoom[row.room_id]||[]).map(item=>({
+          id:item.id,
+          itemNumber:Number(item.item_number),
+          puzzleType:item.puzzle_type,
+          difficulty:item.difficulty,
+        }));
+        const puzzleItemIds=puzzleItems.map(item=>item.id);
+
+        for(const tier of tiersByRoom[row.room_id]||[]){
+          const price=Number(tier.price||0);
+          const quantity=Number(tier.quantity||0);
+          if(!Number.isFinite(price) || price<=0 || !Number.isInteger(quantity) || quantity<1) continue;
+          if(quantity>puzzleItems.length) continue;
+
+          const tierLabel=tier.label||`${quantity} Puzzle${quantity===1?'':'s'}`;
+
+          sellableOptions.push({
+            optionId:`puzzle_tier:${row.room_id}:${tier.id}`,
+            roomId:row.room_id,
+            gameType:'puzzle_drop',
+            itemType:'puzzle_entry',
+            label:tierLabel,
+            description:`Choose exactly ${quantity} puzzle${quantity===1?'':'s'} from ${name}.`,
+            configuredPrice:price,
+            currency,
+            quantity:1,
+            metadata:{
+              optionKind:'puzzle_tier',
+              pricingTierId:tier.id,
+              pricingTierLabel:tier.label||null,
+              puzzleQuantity:quantity,
+              puzzleItemIds,
+              puzzleItems,
+              referencePrice:price,
+            },
+          });
+        }
+      }
+
+      return {
+        room_id:row.room_id,
+        game_type:row.game_type,
+        status:row.status,
+        scheduled_at:row.scheduled_at,
+        time_zone:row.time_zone,
+        prize_description:row.prize_description,
+        prize_value:row.prize_value,
+        config,
+        name,
+        description:row.event_description||row.event_summary||null,
+        sellable_options:sellableOptions,
+      };
+    }).filter(room=>room.sellable_options.length>0),
+  };
 }
 export async function listParticipants(fid,clubId) {
   await assertFundraiser(fid,clubId);
@@ -293,28 +496,101 @@ function validItemTypesForRoomGameType(gameType) {
 // testing, at save time, with a clear error, instead of silently
 // persisting bad data that only surfaced as a wrong join link days later.
 async function validatePackPayload(b, clubId) {
-  if (!b?.name?.trim()) fail('invalid_pack_name');
-  const price = Number(b.price);
-  if (!Number.isFinite(price) || price < 0) fail('invalid_price');
-  if (b.packType && !VALID_PACK_TYPES.has(b.packType)) fail('invalid_pack_type');
-  if (!Array.isArray(b.items) || !b.items.length) fail('invalid_pack');
-  for (const item of b.items) {
-    if (!item.targetRoomId) fail('invalid_pack_item_room');
-    if (!item.itemType || !VALID_ITEM_TYPES.has(item.itemType)) fail('invalid_item_type');
-    const qty = Number(item.quantity);
-    if (!Number.isFinite(qty) || qty < 1) fail('invalid_quantity');
+  if(!b?.name?.trim()) fail('invalid_pack_name');
+
+  const price=Number(b.price);
+  if(!Number.isFinite(price) || price<0) fail('invalid_price');
+  if(b.packType && !VALID_PACK_TYPES.has(b.packType)) fail('invalid_pack_type');
+  if(!Array.isArray(b.items) || !b.items.length) fail('invalid_pack');
+
+  const roomIds=[...new Set(b.items.map(item=>item.targetRoomId).filter(Boolean))];
+  if(roomIds.length!==new Set(b.items.map(item=>item.targetRoomId)).size) fail('invalid_pack_item_room');
+
+  const placeholders=roomIds.map(()=>'?').join(',');
+  const [rooms]=await connection.execute(
+    `SELECT room_id,game_type,config_json,status
+     FROM ${R}
+     WHERE room_id IN (${placeholders}) AND club_id=?`,
+    [...roomIds,clubId]
+  );
+
+  const roomById=Object.fromEntries(rooms.map(room=>[room.room_id,room]));
+  if(rooms.length!==roomIds.length) fail('invalid_pack_room');
+
+  const dropRoomIds=rooms.filter(room=>room.game_type==='puzzle_drop').map(room=>room.room_id);
+  const tierById={};
+
+  if(dropRoomIds.length){
+    const dropPlaceholders=dropRoomIds.map(()=>'?').join(',');
+    const [tiers]=await connection.execute(
+      `SELECT id,drop_room_id,quantity,price,label
+       FROM ${DROP_TIERS}
+       WHERE drop_room_id IN (${dropPlaceholders})`,
+      dropRoomIds
+    );
+    for(const tier of tiers) tierById[tier.id]=tier;
   }
 
-  const roomIds = [...new Set(b.items.map(i => i.targetRoomId))];
-  if (roomIds.length) {
-    const ph = roomIds.map(() => '?').join(',');
-    const [rooms] = await connection.execute(`SELECT room_id, game_type FROM ${R} WHERE room_id IN (${ph}) AND club_id=?`, [...roomIds, clubId]);
-    const gameTypeByRoom = Object.fromEntries(rooms.map(r => [r.room_id, r.game_type]));
-    for (const item of b.items) {
-      const validTypes = validItemTypesForRoomGameType(gameTypeByRoom[item.targetRoomId]);
-      if (validTypes && !validTypes.has(item.itemType)) {
-        fail(`item_type_mismatch: ${item.itemType} is not valid for a ${gameTypeByRoom[item.targetRoomId]} room`);
+  for(const item of b.items){
+    if(!item.targetRoomId) fail('invalid_pack_item_room');
+    if(!item.itemType || !VALID_ITEM_TYPES.has(item.itemType)) fail('invalid_item_type');
+
+    const quantity=Number(item.quantity);
+    if(!Number.isFinite(quantity) || quantity<1) fail('invalid_quantity');
+
+    const room=roomById[item.targetRoomId];
+    if(!room) fail('invalid_pack_room');
+    if(['completed','cancelled'].includes(room.status)) fail('room_not_available_for_pack');
+
+    const validTypes=validItemTypesForRoomGameType(room.game_type);
+    if(validTypes && !validTypes.has(item.itemType)){
+      fail(`item_type_mismatch: ${item.itemType} is not valid for a ${room.game_type} room`);
+    }
+
+    const metadata=item.metadata||{};
+    const configuredPrice=Number(metadata.configuredPrice);
+    const referencePrice=Number(metadata.referencePrice);
+    if(!Number.isFinite(configuredPrice) || configuredPrice<0) fail('configured_price_required');
+    if(!Number.isFinite(referencePrice) || referencePrice<0) fail('reference_price_required');
+
+    const config=parseJson(room.config_json,{});
+
+    if(room.game_type==='quiz' || room.game_type==='elimination'){
+      const livePrice=Number(config.entryFee||0);
+      if(Math.abs(livePrice-referencePrice)>0.001) fail('activity_price_changed');
+    }
+
+    if(room.game_type==='ticketed_event'){
+      const ticketTypeId=String(metadata.ticketTypeId||'').trim();
+      if(!ticketTypeId) fail('ticket_type_required');
+
+      const allTypes=Array.isArray(config.ticketTypes) && config.ticketTypes.length
+        ? config.ticketTypes
+        : config.entryFee
+          ? [{id:'general',name:'General Admission',price:String(config.entryFee),isEnabled:true}]
+          : [];
+
+      const ticketType=allTypes.find(type=>String(type.id)===ticketTypeId);
+      if(!ticketType || ticketType.isEnabled===false) fail('ticket_type_unavailable');
+
+      if(ticketType.saleEndsAt){
+        const endMs=new Date(ticketType.saleEndsAt).getTime();
+        if(Number.isFinite(endMs) && endMs<Date.now()) fail('ticket_type_unavailable');
       }
+
+      const livePrice=Number(ticketType.price||0);
+      if(Math.abs(livePrice-referencePrice)>0.001) fail('ticket_type_price_changed');
+    }
+
+    if(room.game_type==='puzzle_drop'){
+      const tierId=String(metadata.pricingTierId||'').trim();
+      const tier=tierById[tierId];
+      if(!tier || tier.drop_room_id!==room.room_id) fail('puzzle_tier_unavailable');
+
+      const livePrice=Number(tier.price||0);
+      const liveQuantity=Number(tier.quantity||0);
+      if(Math.abs(livePrice-referencePrice)>0.001) fail('puzzle_tier_price_changed');
+      if(Number(metadata.puzzleQuantity)!==liveQuantity) fail('puzzle_tier_quantity_changed');
     }
   }
 }
@@ -361,7 +637,7 @@ export async function savePack(fid,clubId,packId,b) {
         `INSERT INTO ${PI}
          (id,pack_id,peer_fundraiser_id,club_id,target_room_id,item_type,quantity,metadata_json)
          VALUES (?,?,?,?,?,?,?,?)`,
-        [id(),pid,fid,clubId,item.targetRoomId,item.itemType,Number(item.quantity||1),
+        [id(),pid,fid,clubId,item.targetRoomId,item.itemType==='quiz_entry'?'game_entry':item.itemType,Number(item.quantity||1),
          item.metadata?JSON.stringify(item.metadata):null]);
     }
     await conn.commit();

@@ -28,7 +28,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
   const { setupConfig } = useQuizSetupStore();
 
   // ← CHANGED: read chain config from context (set by Web3QuizWizard via Web3Provider)
-  // This is what was broken before — toChainConfig(setupConfig) was reading the right
+  // This is what was broken before - toChainConfig(setupConfig) was reading the right
   // values but Web3Provider wasn't accepting roomConfig so nothing was wired up.
   const chainConfig = useWeb3ChainConfig();
 

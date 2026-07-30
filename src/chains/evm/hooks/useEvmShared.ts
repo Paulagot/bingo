@@ -14,7 +14,7 @@ export interface EvmSetupConfig {
 export function useEvmShared() {
   const wagmiConfig = useConfig();
 
-  // getSetupConfig stays in the file — other callers (useEvmDeploy etc.) may use it.
+  // getSetupConfig stays in the file - other callers (useEvmDeploy etc.) may use it.
   // It is no longer called inside resolveTarget.
   const getSetupConfig = useCallback((): EvmSetupConfig => {
     try {
@@ -28,7 +28,7 @@ export function useEvmShared() {
 
   // Step 2 change: setupKey is always null.
   // resolveEvmTarget falls back to the live wagmi chainId, then to 'baseSepolia'.
-  // We never read localStorage here — stale host config was causing join flow
+  // We never read localStorage here - stale host config was causing join flow
   // to target the wrong network (e.g. 'base' when the room was on 'baseSepolia').
   const resolveTarget = useCallback(async (): Promise<ResolvedEvmTarget> => {
     let runtimeChainId: number | null = null;
@@ -39,10 +39,10 @@ export function useEvmShared() {
     }
 
     return resolveEvmTarget({
-      setupKey: null,          // Never read from localStorage — trust live wagmi state
+      setupKey: null,          // Never read from localStorage - trust live wagmi state
       runtimeChainId,
     });
-  }, [wagmiConfig]);            // getSetupConfig removed from deps — no longer called here
+  }, [wagmiConfig]);            // getSetupConfig removed from deps - no longer called here
 
   return {
     wagmiConfig,

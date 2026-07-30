@@ -20,7 +20,7 @@ import { LOCATION_TYPE_META } from '../../types/event';
 // NOTE: payment method selection has moved OUT of this form entirely.
 // It now lives in each Schedule*Modal (Elimination/Quiz/TicketedEvent/
 // Drop), via the shared <PaymentMethodSelector> component, because the
-// activity type — and therefore which payment-method rules apply — isn't
+// activity type - and therefore which payment-method rules apply - isn't
 // known yet at the point this form is filled in. See
 // src/components/mgtsystem/shared/PaymentMethodSelector.tsx for the full
 // reasoning, and EventIntegrationsService.addIntegration on the backend
@@ -43,7 +43,7 @@ interface CreateEventFormProps {
 //   A <input type="datetime-local"> gives you a string like "2025-06-07T19:00"
 //   with NO timezone info. The browser treats it as local time (Dublin = UTC+1
 //   in summer), but if you send that bare string to the backend and store it in
-//   MySQL, it gets saved as "19:00" with no offset — and Railway/MySQL running
+//   MySQL, it gets saved as "19:00" with no offset - and Railway/MySQL running
 //   in UTC will later treat it as "19:00 UTC", which is 20:00 Dublin. Wrong.
 //
 // THE SOLUTION:
@@ -63,7 +63,7 @@ function detectTimezone(): string {
  * Why `new Date(str)` works here:
  *   Browsers parse "YYYY-MM-DDTHH:MM" (no Z, no offset) as LOCAL time.
  *   So new Date("2025-06-07T19:00") in a Dublin browser = 19:00 IST = 18:00 UTC.
- *   .toISOString() then gives us "2025-06-07T18:00:00.000Z" — correct for storage.
+ *   .toISOString() then gives us "2025-06-07T18:00:00.000Z" - correct for storage.
  */
 function localInputToUTC(localDateTimeStr: string): string {
   if (!localDateTimeStr) return '';
@@ -173,7 +173,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
         // We must convert it back to local time for the datetime-local input,
         // otherwise the form shows 18:00 instead of 19:00.
         // Old (buggy):  existingEvent.start_datetime.slice(0, 16)
-        //               — this just strips the Z and treats UTC as local time.
+        //               - this just strips the Z and treats UTC as local time.
         // New (correct): utcToLocalInput() converts UTC → local "YYYY-MM-DDTHH:MM".
         start_datetime: existingEvent.start_datetime
           ? utcToLocalInput(existingEvent.start_datetime, existingEvent.time_zone || tz)
@@ -253,7 +253,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
       //
       // form.start_datetime is "YYYY-MM-DDTHH:MM" from the datetime-local input.
       // The browser treats this as local time (Dublin = UTC+1 in summer).
-      // localInputToUTC() calls new Date(str) — which the browser parses as local —
+      // localInputToUTC() calls new Date(str) - which the browser parses as local -
       // then .toISOString() which gives us the correct UTC string.
       //
       // Example: user picks 19:00 in Dublin
@@ -315,7 +315,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
                 {editMode ? 'Edit Event' : 'Create Event'}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>
-                {editMode ? 'Update the details below' : 'Fill in the details — saved as draft until you publish'}
+                {editMode ? 'Update the details below' : 'Fill in the details - saved as draft until you publish'}
               </p>
             </div>
           </div>
@@ -338,7 +338,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
                   onChange={handleChange} placeholder="e.g. Christmas Quiz Night"
                   className={inputClass(errors.title)} disabled={submitting} autoFocus />
               </Field>
-              <Field label="Summary" hint="(optional — max 280 chars)" error={errors.summary}>
+              <Field label="Summary" hint="(optional - max 280 chars)" error={errors.summary}>
                 <textarea name="summary" value={form.summary || ''} onChange={handleChange}
                   placeholder="A one-liner that tells people what this event is about…"
                   rows={2} maxLength={280} className={inputClass(errors.summary)}
@@ -348,7 +348,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
                   {summaryLen}/280
                 </p>
               </Field>
-              <Field label="Description" hint="(optional — max 750 chars)">
+              <Field label="Description" hint="(optional - max 750 chars)">
                 <textarea name="description" value={form.description || ''} onChange={handleChange}
                   placeholder="Tell people what to expect, how to prepare, or anything else they need to know…"
                   rows={3} maxLength={750} className={inputClass()}
@@ -381,7 +381,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
                   type="datetime-local"
                   value={form.start_datetime || ''}
                   onChange={e => {
-                    // Store the raw local string in form state — we convert to UTC only on submit.
+                    // Store the raw local string in form state - we convert to UTC only on submit.
                     // Also keep event_date in sync using the LOCAL date portion (before T).
                     handleChange(e);
                     if (e.target.value) {

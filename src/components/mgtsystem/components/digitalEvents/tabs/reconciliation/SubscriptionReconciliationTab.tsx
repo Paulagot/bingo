@@ -1,13 +1,13 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/reconciliation/SubscriptionReconciliationTab.tsx
 //
 // Three sections, in order:
-//   1. Lifetime summary — the "overall" rollup across every period, always
+//   1. Lifetime summary - the "overall" rollup across every period, always
 //      visible at the top so a club never loses the big picture while
 //      looking at one period.
-//   2. Current period — opening balance → this period's Stripe receipts →
+//   2. Current period - opening balance → this period's Stripe receipts →
 //      adjustments → closing balance. Approve locks it and starts the next
 //      period's opening balance from this one's closing figure.
-//   3. Period history — every past (approved) period, collapsed by default.
+//   3. Period history - every past (approved) period, collapsed by default.
 
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -76,7 +76,7 @@ export default function SubscriptionReconciliationTab({ roomId, currencySymbol =
     if (!history.length) {
       try {
         const res = await subscriptionReconciliationService.getHistory(roomId);
-        // Most recent first for a history list — getHistory returns oldest-first.
+        // Most recent first for a history list - getHistory returns oldest-first.
         setHistory([...res.history].reverse());
       } catch (e) {
         console.error('[SubscriptionReconciliationTab] history load failed:', e);
@@ -95,7 +95,7 @@ export default function SubscriptionReconciliationTab({ roomId, currencySymbol =
       });
       setCurrent(res.reconciliation);
    
-      // Refresh the lifetime summary too — this period's numbers now count
+      // Refresh the lifetime summary too - this period's numbers now count
       // toward it, and a new draft period will open the next time someone
       // adds an adjustment or approves again.
       const summaryRes = await subscriptionReconciliationService.getSummary(roomId);

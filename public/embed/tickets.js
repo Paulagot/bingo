@@ -1,27 +1,27 @@
 /**
  * public/embed/tickets.js
  *
- * Served at /embed/tickets.js — this is the script clubs paste on
+ * Served at /embed/tickets.js - this is the script clubs paste on
  * their own websites alongside the <button data-fundraisely-tickets ...>
  * tag.
  *
- * Deliberately near-identical to donate.js — same modal, same
+ * Deliberately near-identical to donate.js - same modal, same
  * domain-check gate, same "postMessage is a courtesy notice, not a
  * confirmation" contract. Differences: keyed by roomId instead of
  * clubId, and the iframe content (TicketEmbedPage) does its own
  * Stripe-new-tab handoff, so this script does NOT need any special
- * handling for that — it only ever manages ONE iframe (the ticket
+ * handling for that - it only ever manages ONE iframe (the ticket
  * purchase flow itself); the Stripe/crypto tabs are opened and
  * tracked entirely inside that iframe, invisible to this script.
  *
  * TODO before shipping: confirm/build the domain-check endpoint below.
  * donate.js's equivalent is GET /api/donations/:clubId/domain-check.
  * This assumes a parallel GET /api/quiz/tickets/room/:roomId/domain-check
- * — verify this exists (it did not appear in any router file shown so
+ * - verify this exists (it did not appear in any router file shown so
  * far) or add it alongside the club's existing per-room domain
  * allow-list before relying on this in production. Until it exists,
  * every button will show as "not authorized" (fails closed, same as
- * donate.js's own fallback behavior on network failure) — safe by
+ * donate.js's own fallback behavior on network failure) - safe by
  * default, but won't actually work for anyone yet.
  */
 
@@ -149,7 +149,7 @@
     // Allow payment APIs inside the iframe (Apple Pay / Google Pay via
     // Stripe's Payment Request button, if/when enabled).
     // Allow payment APIs (Apple Pay / Google Pay via Stripe's Payment
-    // Request button) AND clipboard-write — without the latter,
+    // Request button) AND clipboard-write - without the latter,
     // navigator.clipboard.writeText() inside the iframe silently fails
     // for any cross-origin iframe (this is a Permissions Policy the
     // BROWSER enforces; only the embedding page granting it here can
@@ -187,19 +187,19 @@
   // once TicketPurchaseFlow has ALREADY independently confirmed the
   // ticket (via backend polling for Stripe, on-chain verification for
   // crypto, or the existing manual-confirm path for instant payments).
-  // This listener does not itself decide anything — it just lets the
+  // This listener does not itself decide anything - it just lets the
   // modal close a little sooner when the message happens to arrive.
   //
   // IMPORTANT: on FUNDRAISELY_TICKET_SUCCESS, we deliberately do NOT
   // close the modal. The 'complete' step's confirmation UI (ticket
   // details, join token, etc.) is already rendered inside the iframe
-  // at the exact moment this message fires — auto-closing here would
+  // at the exact moment this message fires - auto-closing here would
   // tear that down before the buyer ever sees it, for every payment
   // method (Stripe, crypto, instant_payment/Revolut alike), not just
   // some. Same behavior the inline (no-button, no-modal) embed already
   // has: nothing closes it automatically, the buyer reads their
   // confirmation and closes it themselves (X button, Esc, or clicking
-  // outside — all still work below).
+  // outside - all still work below).
 
   window.addEventListener('message', function (event) {
     if (event.origin !== baseUrl) return;

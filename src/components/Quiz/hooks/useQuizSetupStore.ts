@@ -318,7 +318,7 @@ export const useQuizSetupStore = create<QuizSetupState>()(
         }),
 
       // =========================================================
-      // ✅ EDIT SESSION (WEB2) — SAFE, RESTORABLE, NON-PERSISTED
+      // ✅ EDIT SESSION (WEB2) - SAFE, RESTORABLE, NON-PERSISTED
       // =========================================================
 
       beginEditWeb2Room: ({ roomId, hostId, scheduledAt, timeZone, config, roomCaps }) => {

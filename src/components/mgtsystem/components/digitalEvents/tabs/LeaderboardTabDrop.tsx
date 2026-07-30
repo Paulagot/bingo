@@ -1,11 +1,11 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/LeaderboardTabDrop.tsx
 //
 // Leaderboard tab for Puzzle Drop. Backend already existed for this
-// (getDropItemLeaderboard, getPublicDropSummary) — this is purely a tab
+// (getDropItemLeaderboard, getPublicDropSummary) - this is purely a tab
 // wrapper, same two-tier shape as LeaderboardTabSubscription: a cheap
 // summary call up front (top 3 per item), full per-item list fetched only
 // when that item is expanded. No week-by-week breakdown per player here
-// the way Subscription's does — Drop's items are independent puzzles,
+// the way Subscription's does - Drop's items are independent puzzles,
 // not a weekly sequence, so the natural grouping is by ITEM, then by
 // player within that item, not the other way around.
 
@@ -21,7 +21,7 @@ interface Props {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (seconds === null || seconds === undefined) return '—';
+  if (seconds === null || seconds === undefined) return '-';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   if (m === 0) return `${s}s`;
@@ -29,7 +29,7 @@ function formatDuration(seconds: number | null): string {
 }
 
 function titleCase(value: string | null | undefined) {
-  if (!value) return '—';
+  if (!value) return '-';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -109,7 +109,7 @@ export default function LeaderboardTabDrop({ roomId }: Props) {
   return (
     <div className="space-y-3 p-5">
       {items.map(item => {
-        const itemNumber = item.weekNumber; // backend field name — see getPublicDropSummary
+        const itemNumber = item.weekNumber; // backend field name - see getPublicDropSummary
         const isExpanded = expandedItem === itemNumber;
         const isLoadingFull = expandLoading === itemNumber;
         const entries = fullEntries[itemNumber] ?? item.top;

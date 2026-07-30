@@ -33,7 +33,7 @@ export async function updateRoomStatus(roomId, newStatus) {
 }
 
 
-// In roomStatusManager.js — add alongside your existing markRoomAsLive:
+// In roomStatusManager.js - add alongside your existing markRoomAsLive:
 
 export async function markRoomAsOpen(roomId) {
   const sql = `
@@ -130,7 +130,7 @@ export async function getRoomStatus(roomId) {
 /**
  * Mark room reconciliation_status as 'reconciling'.
  * Called when the operator leaves the game controls (phase = complete).
- * The room status stays 'completed' — this is a separate track.
+ * The room status stays 'completed' - this is a separate track.
  */
 export async function markRoomAsReconciling(roomId) {
   try {
@@ -150,7 +150,7 @@ export async function markRoomAsReconciling(roomId) {
 
 /**
  * Mark room reconciliation_status as 'closed'.
- * Called at the end of end_quiz_cleanup — this is the final state.
+ * Called at the end of end_quiz_cleanup - this is the final state.
  */
 export async function markRoomAsClosed(roomId) {
   try {

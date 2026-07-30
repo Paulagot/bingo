@@ -56,7 +56,7 @@ export const TicketStatusChecker: React.FC = () => {
 
   useEffect(() => { loadTicketStatus(); }, [loadTicketStatus]);
 
-  // Polling — quiz/elimination only
+  // Polling - quiz/elimination only
   useEffect(() => {
     if (pollTimerRef.current) { clearInterval(pollTimerRef.current); pollTimerRef.current = null; }
     if (!ticket) return;
@@ -73,7 +73,7 @@ export const TicketStatusChecker: React.FC = () => {
     return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
   }, [ticket, loadTicketStatus]);
 
-  // Countdown — quiz/elimination only
+  // Countdown - quiz/elimination only
   useEffect(() => {
     if (countdownTimerRef.current) { clearInterval(countdownTimerRef.current); countdownTimerRef.current = null; }
     const meta = getGameTypeMeta(ticket?.gameType);
@@ -244,7 +244,7 @@ export const TicketStatusChecker: React.FC = () => {
     );
   }
 
-  // ── QUIZ / ELIMINATION — unchanged ────────────────────────────────────────
+  // ── QUIZ / ELIMINATION - unchanged ────────────────────────────────────────
 
   const joinUrl = meta.joinPath!(ticket.roomId, ticket.joinToken);
   const joinAllowed = ticket.paymentStatus === 'payment_confirmed' && ticket.redemptionStatus === 'ready' && ticket.canJoinNow === true;

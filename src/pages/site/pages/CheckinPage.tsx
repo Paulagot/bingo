@@ -2,8 +2,8 @@
 //
 // Route: /ticketed-event/checkin/:roomId
 // Query params:
-//   ?hostId=xxx   — logged-in host opening from the drawer
-//   ?token=xxx    — door staff operator token (no club login needed)
+//   ?hostId=xxx   - logged-in host opening from the drawer
+//   ?token=xxx    - door staff operator token (no club login needed)
 
 import { useParams, useSearchParams } from 'react-router-dom';
 import CheckinDashboard from '../../../components/ticketedEvent/CheckinDashboard';

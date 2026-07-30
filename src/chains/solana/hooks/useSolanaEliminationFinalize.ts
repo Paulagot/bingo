@@ -1,6 +1,6 @@
 /**
  * Calls finalize_game on the Elimination program.
- * Host signs — distributes prizes to winner, host, platform, charity.
+ * Host signs - distributes prizes to winner, host, platform, charity.
  */
 import { useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';

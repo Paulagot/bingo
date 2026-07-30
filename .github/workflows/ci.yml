@@ -19,7 +19,7 @@ jobs:
       - run: npm ci
       # typecheck: non-blocking for now (remove "|| true" later)
       - run: npx tsc --noEmit || true
-      # Required step — if this fails, PRs can't merge
+      # Required step - if this fails, PRs can't merge
       - run: npm run build
 
   lint:

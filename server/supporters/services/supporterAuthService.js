@@ -42,7 +42,7 @@ export async function sendMagicLink({ supporterId, clubId, email, name, challeng
   const token = crypto.randomBytes(32).toString('hex');
 
   // Store token with expiry calculated entirely in MySQL using UTC_TIMESTAMP()
-  // Never calculate expiry in JS — avoids timezone interpretation issues
+  // Never calculate expiry in JS - avoids timezone interpretation issues
   await database.connection.execute(
     `INSERT INTO fundraisely_supporter_auth
        (supporter_id, club_id, magic_link_token, magic_link_expires_at)
@@ -66,7 +66,7 @@ export async function sendMagicLink({ supporterId, clubId, email, name, challeng
   const html = buildMagicLinkEmail({ name, magicLink, clubName });
   await sendEmailSafe({
     to:      email,
-    subject: `🧩 Your puzzle access link — ${clubName}`,
+    subject: `🧩 Your puzzle access link - ${clubName}`,
     html,
   });
 
@@ -74,7 +74,7 @@ export async function sendMagicLink({ supporterId, clubId, email, name, challeng
 }
 
 export async function verifyMagicLink({ token, challengeId }) {
-  // Expiry check done in MySQL with UTC_TIMESTAMP() — timezone safe
+  // Expiry check done in MySQL with UTC_TIMESTAMP() - timezone safe
   const [[authRow]] = await database.connection.execute(
     `SELECT
        sa.supporter_id, sa.club_id,
@@ -97,7 +97,7 @@ export async function verifyMagicLink({ token, challengeId }) {
     throw new Error('This link has expired. Please request a new one.');
   }
 
-  // Clear token — single use
+  // Clear token - single use
   await database.connection.execute(
     `UPDATE fundraisely_supporter_auth
      SET magic_link_token      = NULL,
@@ -109,12 +109,12 @@ export async function verifyMagicLink({ token, challengeId }) {
 
   // Auto-enroll in the challenge the magic link was sent for, if it's free.
   // This is the actual moment the player has proven ownership of the email
-  // and is about to land on the challenge page — equivalent to them
+  // and is about to land on the challenge page - equivalent to them
   // clicking "Join Free" themselves, just without the redundant extra step.
-  // Request time (sendMagicLink) is deliberately NOT where this happens —
+  // Request time (sendMagicLink) is deliberately NOT where this happens -
   // at that point we don't yet know they'll ever open the email, so
   // enrolling then would create challenge_players rows for people who
-  // never came back. Paid challenges are never touched here — joinFree
+  // never came back. Paid challenges are never touched here - joinFree
   // itself throws if the challenge isn't free, and that failure is
   // swallowed (logged, not re-thrown) so a sign-in never fails just
   // because auto-enrollment wasn't applicable (wrong challenge type,
@@ -158,7 +158,7 @@ export async function verifyMagicLink({ token, challengeId }) {
  * Deliberately NOT built on the same mechanism as sendMagicLink. That
  * token is designed to be used within 15 minutes of being sent and is
  * single-use (a fresh request overwrites any unused prior token, since
- * fundraisely_supporter_auth.supporter_id is a primary key — one slot
+ * fundraisely_supporter_auth.supporter_id is a primary key - one slot
  * per supporter). A renewal notification might sit unread for days, so
  * reusing that mechanism would mean most of these links are already
  * dead by the time anyone actually clicks them.
@@ -168,7 +168,7 @@ export async function verifyMagicLink({ token, challengeId }) {
  * is intentional, not a shortcut: the email itself is the credential
  * delivery channel here, exactly the same trust model the magic-link
  * flow already relies on (anyone with the link can act as this
- * supporter) — the only difference is duration, chosen to match how
+ * supporter) - the only difference is duration, chosen to match how
  * long the email itself realistically needs to stay useful.
  */
 export async function sendWeekReadyNotification({ supporterId, clubId, email, name, challengeId, weekNumber }) {
@@ -190,7 +190,7 @@ export async function sendWeekReadyNotification({ supporterId, clubId, email, na
   const html = buildWeekReadyEmail({ name, playLink, clubName, weekNumber });
   await sendEmailSafe({
     to: email,
-    subject: `🧩 Week ${weekNumber} is ready — ${clubName}`,
+    subject: `🧩 Week ${weekNumber} is ready - ${clubName}`,
     html,
   });
 

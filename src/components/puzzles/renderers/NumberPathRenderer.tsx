@@ -105,7 +105,7 @@ const NumberPathRenderer: React.FC<NumberPathRendererProps> = ({
   }, [drawing, isReadOnly]);
 
   // Touch devices fire onTouchStart but never onMouseEnter, so without this
-  // the path never grows past its starting cell on mobile — onTouchMove has
+  // the path never grows past its starting cell on mobile - onTouchMove has
   // to look up whatever cell is currently under the finger itself.
   const handleTouchMoveOnGrid = useCallback((e: React.TouchEvent) => {
     if (!drawing || isReadOnly) return;

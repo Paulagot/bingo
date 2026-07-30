@@ -16,10 +16,10 @@ import { utcToLocalDate, utcToLocalTime } from '../../../../utils/dateUtils';
 
 interface LinkedActivity {
   room_id: string;
-  // ADDED 'puzzle_drop' — was missing, which is why a linked Drop
+  // ADDED 'puzzle_drop' - was missing, which is why a linked Drop
   // activity's card always fell into the "No activity yet" branch even
   // though activityMap DID have an entry (once QuizEventDashboard's own
-  // fix lands) — this component's own type union needed the same fix,
+  // fix lands) - this component's own type union needed the same fix,
   // since TS narrows on it and the runtime checks below keyed off it too.
   game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
@@ -42,7 +42,7 @@ export interface FundraiselyEventCardProps {
 // ── Colour system ─────────────────────────────────────────────────────────────
 
 /**
- * LAYER 1 — Top stripe: game type identity
+ * LAYER 1 - Top stripe: game type identity
  * Lets you scan a column of cards and instantly know what kind of activity it is.
  */
 const GAME_TYPE_COLOURS = {
@@ -50,7 +50,7 @@ const GAME_TYPE_COLOURS = {
   elimination:    { stripe: '#c8423b', label: 'Elimination' },
   ticketed_event: { stripe: '#0369a1', label: 'Ticketed Event' },
   puzzle_sub:     { stripe: '#7c3aed', label: 'Puzzle Subscription' },
-  // ADDED — same orange used for the wizard's Puzzle Drop accent
+  // ADDED - same orange used for the wizard's Puzzle Drop accent
   // (ACCENTS.orange in shared/ui.tsx), so the colour identity is
   // consistent between the creation flow and the dashboard.
   puzzle_drop:    { stripe: '#e08a2c', label: 'Puzzle Drop' },
@@ -58,7 +58,7 @@ const GAME_TYPE_COLOURS = {
 } satisfies Record<LinkedActivity['game_type'], { stripe: string; label: string }>;
 
 /**
- * LAYER 2 — Status pill: current state of the activity
+ * LAYER 2 - Status pill: current state of the activity
  * Independent of game type so you can see "what it is" vs "where it's at" at a glance.
  */
 const STATUS_PILL = {
@@ -80,7 +80,7 @@ const STATUS_PILL = {
 } satisfies Record<LinkedActivity['status'], { bg: string; color: string; border: string; label: string }>;
 
 /**
- * LAYER 3 — Action button: what happens when you click
+ * LAYER 3 - Action button: what happens when you click
  * Colour signals intent, not state.
  *   Settings/configure → teal (neutral, informational)
  *   View live / View open → amber (active, attention)
@@ -121,9 +121,9 @@ function GameTypeIcon({ type, size = 14 }: { type: LinkedActivity['game_type']; 
   const s = { width: size, height: size };
   if (type === 'elimination') return <Trophy style={s} />;
   if (type === 'ticketed_event') return <Ticket style={s} />;
-  // ADDED — puzzle_drop falls through to Puzzle, same icon puzzle_sub
+  // ADDED - puzzle_drop falls through to Puzzle, same icon puzzle_sub
   // uses. Listed explicitly (rather than relying on the final default)
-  // so it's clear this is a deliberate choice, not an oversight — Drop
+  // so it's clear this is a deliberate choice, not an oversight - Drop
   // and Subscription share an icon but are distinguished by the stripe
   // colour and label above.
   if (type === 'puzzle_sub' || type === 'puzzle_drop') return <Puzzle style={s} />;
@@ -306,7 +306,7 @@ export function FundraiselyEventCard({
               </span>
             )}
 
-            {/* Game type pill — uses the same stripe colour, keeps the system coherent */}
+            {/* Game type pill - uses the same stripe colour, keeps the system coherent */}
             {hasActivity && gameColour && (
               <span
                 className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
@@ -331,7 +331,7 @@ export function FundraiselyEventCard({
             )}
           </div>
 
-          {/* Edit button — only while the fundraiser is still editable */}
+          {/* Edit button - only while the fundraiser is still editable */}
           {onEdit && (
             <button
               type="button"
@@ -396,13 +396,13 @@ export function FundraiselyEventCard({
             <p className="text-sm font-bold" style={{ color: ticketsSold > 0 ? '#4f46e5' : '#d1d5db' }}>
               {ticketsSold > 0
                 ? <span className="flex items-center gap-1"><Ticket className="h-3 w-3" />{ticketsSold}</span>
-                : '—'}
+                : '-'}
             </p>
           </div>
           <div className="px-3 py-2.5" style={{ background: '#ffffff' }}>
             <p className="text-xs font-medium mb-0.5" style={{ color: '#52636f' }}>Income</p>
             <p className="text-sm font-bold" style={{ color: totalIncome > 0 ? '#16a34a' : '#d1d5db' }}>
-              {totalIncome > 0 ? formatMoney(totalIncome) : '—'}
+              {totalIncome > 0 ? formatMoney(totalIncome) : '-'}
             </p>
           </div>
         </div>

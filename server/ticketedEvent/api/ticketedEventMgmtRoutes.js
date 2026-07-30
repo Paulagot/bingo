@@ -76,7 +76,7 @@ router.post('/schedule', async (req, res) => {
       venueCapacity,
       eventTitle,
       eventLocation,
-      // Payment methods — ticketed events DO have an advance/onnight
+      // Payment methods - ticketed events DO have an advance/onnight
       // split, same as quiz/elimination. See PaymentMethodSelector.tsx
       // (mode="split").
       ticketMethodIds  = [],
@@ -85,11 +85,11 @@ router.post('/schedule', async (req, res) => {
 
     const roomId = providedRoomId || uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
 
-    console.log(`[ticketedEventMgmtRoutes] 📅 Schedule ticketed event — club: ${clubId} room: ${roomId} ticket types: ${Array.isArray(ticketTypes) ? ticketTypes.length : 0}`);
+    console.log(`[ticketedEventMgmtRoutes] 📅 Schedule ticketed event - club: ${clubId} room: ${roomId} ticket types: ${Array.isArray(ticketTypes) ? ticketTypes.length : 0}`);
 
     const ents = await resolveEntitlements({ userId: clubId, scope: 'ticketed_event' });
 
-    console.log(`[ticketedEventMgmtRoutes] 🔑 Entitlements — plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
+    console.log(`[ticketedEventMgmtRoutes] 🔑 Entitlements - plan: ${ents.plan_code} credits: ${ents.game_credits_remaining}`);
 
     if ((ents.game_credits_remaining ?? 0) <= 0) {
       return res.status(402).json({
@@ -132,10 +132,10 @@ router.post('/schedule', async (req, res) => {
     const creditResult = await consumeCredit(clubId, 'ticketed_event', ents.plan_code);
     if (!creditResult.ok) {
       console.error(
-        `[ticketedEventMgmtRoutes] ⚠️ Credit consume failed after room creation — club: ${clubId} room: ${roomId}`,
+        `[ticketedEventMgmtRoutes] ⚠️ Credit consume failed after room creation - club: ${clubId} room: ${roomId}`,
       );
     } else {
-      console.log(`[ticketedEventMgmtRoutes] ✅ Credit consumed — club: ${clubId}`);
+      console.log(`[ticketedEventMgmtRoutes] ✅ Credit consumed - club: ${clubId}`);
     }
 
     return res.status(201).json({ ...result, roomCaps });
@@ -192,7 +192,7 @@ router.patch('/rooms/:roomId', async (req, res) => {
       currency, currencySymbol,
       ticketTypes,      // ← new
       prizes, eventSponsors,
-      // Left undefined if not sent — undefined means "don't touch payment
+      // Left undefined if not sent - undefined means "don't touch payment
       // methods", [] means "clear all selections". NOT defaulted to [] here,
       // unlike the POST /schedule route, since defaulting would wrongly
       // wipe out existing selections on every edit that doesn't touch the
@@ -201,7 +201,7 @@ router.patch('/rooms/:roomId', async (req, res) => {
       onnightMethodIds,
     } = req.body;
 
-    console.log(`[ticketedEventMgmtRoutes] ✏️  Update ticketed event ${roomId} — club: ${clubId} — ticket types: ${Array.isArray(ticketTypes) ? ticketTypes.length : 'unchanged'}`);
+    console.log(`[ticketedEventMgmtRoutes] ✏️  Update ticketed event ${roomId} - club: ${clubId} - ticket types: ${Array.isArray(ticketTypes) ? ticketTypes.length : 'unchanged'}`);
 
     const updated = await updateTicketedEvent({
       clubId, roomId,
@@ -228,7 +228,7 @@ router.post('/rooms/:roomId/cancel', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    console.log(`[ticketedEventMgmtRoutes] 🚫 Cancel ticketed event ${roomId} — club: ${clubId}`);
+    console.log(`[ticketedEventMgmtRoutes] 🚫 Cancel ticketed event ${roomId} - club: ${clubId}`);
 
     await cancelTicketedEvent({ clubId, roomId });
     return res.status(200).json({ ok: true });
@@ -246,7 +246,7 @@ router.post('/rooms/:roomId/open-checkin', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    console.log(`[ticketedEventMgmtRoutes] 🚪 Open check-in for ${roomId} — club: ${clubId}`);
+    console.log(`[ticketedEventMgmtRoutes] 🚪 Open check-in for ${roomId} - club: ${clubId}`);
 
     const result = await openCheckIn({ clubId, roomId });
     return res.status(200).json(result);
@@ -264,7 +264,7 @@ router.post('/rooms/:roomId/complete', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    console.log(`[ticketedEventMgmtRoutes] ✅ Complete ticketed event ${roomId} — club: ${clubId}`);
+    console.log(`[ticketedEventMgmtRoutes] ✅ Complete ticketed event ${roomId} - club: ${clubId}`);
 
     await completeTicketedEvent({ clubId, roomId });
     return res.status(200).json({ ok: true });

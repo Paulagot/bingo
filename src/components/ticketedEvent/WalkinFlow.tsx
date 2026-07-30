@@ -94,7 +94,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
   useEffect(() => {
     const load = async () => {
       try {
-        // Use the public info endpoint — it already returns available ticket types
+        // Use the public info endpoint - it already returns available ticket types
         const infoRes = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
         if (!infoRes.ok) {
           const d = await infoRes.json().catch(() => ({}));
@@ -133,7 +133,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           setSelectedType(ticketTypes[0]);
         }
 
-        // On-night payment methods — use context=onnight to get cash, card tap etc.
+        // On-night payment methods - use context=onnight to get cash, card tap etc.
         const methodsRes = await fetch(
           `/api/quiz-rooms/${roomId}/available-payment-methods?context=onnight`,
           { headers: getAuthHeaders(token) }
@@ -143,13 +143,13 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           ? methodsData.paymentMethods
           : [];
 
-        // Walk-in check-in only supports payment collected at the door —
+        // Walk-in check-in only supports payment collected at the door -
         // cash in hand, or a card-tap terminal. Other on-night methods a
         // club may have enabled (e.g. instant payment, pay-host) require a
         // reference/claim step that doesn't fit the walk-in flow, so they're
         // filtered out here even if the club has them switched on elsewhere.
         // Matched on providerName (falling back to methodCategory) since
-        // that's the field actually carrying 'cash' / 'card_tap' — not
+        // that's the field actually carrying 'cash' / 'card_tap' - not
         // methodCategory, which turned out to be a broader bucket.
         const WALKIN_ALLOWED_METHODS = new Set(['cash', 'card_tap']);
         const enabled = all.filter(m => {
@@ -209,7 +209,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           totalAmount:         amount,
           // The ledger's payment_method column only recognises the fixed
           // set of canonical categories (cash, card, stripe, instant_payment,
-          // etc.) — methodCategory is that value. providerName is a
+          // etc.) - methodCategory is that value. providerName is a
           // club-editable free-text label (e.g. "Revolut", "AIB Instant
           // Transfer") meant for display only; sending it here was causing
           // the ledger insert to fail for any club-named provider the
@@ -246,7 +246,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
     setName('');
     setEmail('');
     setCustomAmount('');
-    // Keep type selected if only one — reset if multiple
+    // Keep type selected if only one - reset if multiple
     if (hasMultiTypes) setSelectedType(null);
     setSelectedMethod(methods[0] ?? null);
     setResult(null);

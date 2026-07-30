@@ -2,7 +2,7 @@
 //
 // The unauthenticated game-control page for the person with the mic.
 // Accessed via /quiz/operate/:roomId?token=xyz
-// No login required — the token is validated server-side on socket join.
+// No login required - the token is validated server-side on socket join.
 
 import * as React from 'react';
 import { lazy, Suspense } from 'react';

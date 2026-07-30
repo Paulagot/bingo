@@ -4,7 +4,7 @@
 // URL: /fundraise/:clubSlug/:fundraiserSlug/order-success?orderId=xxx&session_id=xxx
 //
 // peerStripeCheckoutService.js has generated this exact URL since it was
-// written — nothing rendered here before. Mirrors CampaignStripeSuccess.tsx:
+// written - nothing rendered here before. Mirrors CampaignStripeSuccess.tsx:
 // poll the public order summary until the webhook confirms, then show the
 // same thank-you screen the manual-payment flow uses.
 
@@ -44,7 +44,7 @@ export default function PeerStripeSuccess() {
         if (data.order.paymentStatus === 'confirmed') {
           // Previously this stopped polling the instant status flipped to
           // 'confirmed', showing whatever entries happened to be in THIS
-          // exact response — even if expansion (which now does more work:
+          // exact response - even if expansion (which now does more work:
           // row-locking, per-item ticket creation, emails) hadn't actually
           // finished yet. Confirming the order and expanding it into
           // tickets are two separate backend steps, not atomic, so there's

@@ -62,7 +62,7 @@ const EliminationJoinInner: React.FC = () => {
 
   // ── Ticket redemption ──────────────────────────────────────────────────────
   // If ?ticket= is present, redeem immediately and join via socket.
-  // Bypasses the payment flow entirely — the ticket already paid.
+  // Bypasses the payment flow entirely - the ticket already paid.
 // ── Ticket redemption ──────────────────────────────────────────────────────
 useEffect(() => {
   if (!ticketToken || !resolvedRoomId) return;
@@ -108,7 +108,7 @@ useEffect(() => {
 }, [ticketToken]); // <-- only ticketToken, not resolvedRoomId
 
   // ── Fetch room when roomId is in URL ────────────────────────────────────────
-  // Skip room fetch if we have a ticket — we don't need room data for that path
+  // Skip room fetch if we have a ticket - we don't need room data for that path
   useEffect(() => {
     const code = roomIdFromUrl ?? '';
     if (!code || ticketToken) return;
@@ -121,7 +121,7 @@ useEffect(() => {
   setIsWeb3Room(isWeb3);
   setIsWeb2FeeRoom(!isWeb3 && fee > 0);
 
-  // Check capacity — block join page before any payment flow starts
+  // Check capacity - block join page before any payment flow starts
 if (!isWeb3) {
   try {
     const inMemoryCount = ((room as any).players ?? []).length;
@@ -142,11 +142,11 @@ if (!isWeb3) {
       }
     }
   } catch {
-    // Non-fatal — socket enforces the cap
+    // Non-fatal - socket enforces the cap
   }
 }
 })
-      .catch(() => { /* Room not found — player may be on manual entry flow */ })
+      .catch(() => { /* Room not found - player may be on manual entry flow */ })
       .finally(() => setRoomLoading(false));
   }, [roomIdFromUrl, ticketToken]);
 
@@ -183,7 +183,7 @@ if (!isWeb3) {
       }
     }
   } catch {
-    // Non-fatal — socket enforces the cap
+    // Non-fatal - socket enforces the cap
   }
 }
 })
@@ -252,7 +252,7 @@ if (!isWeb3) {
 
     if (!isValidSig) {
       console.error('[Web3Join] Invalid txHash received:', txHash);
-      setError('Payment signature invalid — please try again.');
+      setError('Payment signature invalid - please try again.');
       return;
     }
 
@@ -312,14 +312,14 @@ if (!isWeb3) {
     );
   }
 
-  // ── Room full — show before any payment flow ──────────────────────────────────
+  // ── Room full - show before any payment flow ──────────────────────────────────
 if (roomFull) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6" style={styles.page}>
       <div style={styles.eyebrow}>FundRaisely</div>
       <h1 style={styles.title}>SOLD OUT</h1>
       <p style={{ ...styles.subtitle, marginTop: '12px', fontSize: '15px' }}>
-        This game is full — no spots remaining.
+        This game is full - no spots remaining.
       </p>
       <button
         onClick={() => navigate('/')}
@@ -333,7 +333,7 @@ if (roomFull) {
   );
 }
 
-  // ── Web2 fee room — delegate to EliminationJoinFlow ─────────────────────────
+  // ── Web2 fee room - delegate to EliminationJoinFlow ─────────────────────────
   if (isWeb2FeeRoom && roomData && !roomLoading) {
     return (
       <EliminationJoinFlow
@@ -362,14 +362,14 @@ if (roomFull) {
           {roomLoading
             ? 'Loading room...'
             : isWeb3Room
-            ? 'Web3 room — connect wallet to pay entry fee'
+            ? 'Web3 room - connect wallet to pay entry fee'
             : 'Enter your name and room code to play'}
         </p>
       </div>
 
       <div className="flex flex-col gap-4 w-full max-w-xs">
 
-        {/* Name — always shown */}
+        {/* Name - always shown */}
         <div>
           <label style={styles.label}>Your Name</label>
           <input
@@ -383,7 +383,7 @@ if (roomFull) {
           />
         </div>
 
-        {/* Room code — only if not pre-filled from URL */}
+        {/* Room code - only if not pre-filled from URL */}
         {!roomIdFromUrl && (
           <div>
             <label style={styles.label}>Room Code</label>
@@ -410,10 +410,10 @@ if (roomFull) {
           </Web3Provider>
         )}
 
-        {/* Web3 payment confirmed — waiting for socket */}
+        {/* Web3 payment confirmed - waiting for socket */}
         {web3PaymentDone && (
           <div style={{ fontSize: '13px', color: 'rgba(0,229,255,0.7)', textAlign: 'center', fontFamily: 'Inter' }}>
-            ✓ Payment confirmed — joining room...
+            ✓ Payment confirmed - joining room...
           </div>
         )}
 

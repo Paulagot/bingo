@@ -569,7 +569,7 @@ setStep('player-details');
         setPaymentMethods(usable);
       }
     } catch {
-      // Silent — methods will load on demand.
+      // Silent - methods will load on demand.
     }
   };
 
@@ -1347,7 +1347,7 @@ setStep('player-details');
           icon="💶"
           title={isDonationMode ? 'How would you like to donate?' : 'Choose how to pay'}
           subtitle={`${roomConfig.currencySymbol}${
-            totalAmount > 0 ? totalAmount.toFixed(2) : '—'
+            totalAmount > 0 ? totalAmount.toFixed(2) : '-'
           } · ${
             roomConfig.hostName
               ? `${roomConfig.hostName}'s quiz`
@@ -1365,7 +1365,7 @@ setStep('player-details');
                 <div className="flex items-start gap-2">
                   <HeartHandshake className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-600" />
                   <span>
-                    Choose your payment method — you'll set your donation amount
+                    Choose your payment method - you'll set your donation amount
                     on the next screen.
                   </span>
                 </div>

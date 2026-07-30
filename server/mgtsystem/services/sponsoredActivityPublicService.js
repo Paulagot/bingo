@@ -291,7 +291,7 @@ export async function createSponsoredStripeCheckout(payload) {
       line_items: [{
         price_data: {
           currency: created.currency.toLowerCase(),
-          product_data: { name: `Sponsorship — ${payload.activityLabel || 'Sponsored activity'}` },
+          product_data: { name: `Sponsorship - ${payload.activityLabel || 'Sponsored activity'}` },
           unit_amount: Math.round(numericAmount * 100),
         },
         quantity: 1,

@@ -366,7 +366,7 @@ export default function CharitiesPage() {
           <article>
             <p className="eyebrow">Problem</p>
             <h2>
-              Charity fundraisers create more than money — they create evidence
+              Charity fundraisers create more than money - they create evidence
             </h2>
             <p>
               A charity fundraiser is rarely just a one-night event. It creates

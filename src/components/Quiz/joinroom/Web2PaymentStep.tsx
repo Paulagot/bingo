@@ -190,7 +190,7 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
     }
   } catch (err) {
     console.error('[Web2PaymentStep] Capacity check failed:', err);
-    // allow through — socket will be final guard
+    // allow through - socket will be final guard
   }
 
     const playerId = nanoid();

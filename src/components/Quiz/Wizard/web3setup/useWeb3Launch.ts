@@ -125,7 +125,7 @@ const chainConfig = useWeb3ChainConfig();
     return networkInfo.expectedNetwork || selectedChain || "wallet";
   }, [networkInfo.expectedNetwork, selectedChain]);
 
-  // Build deploy params — unchanged logic, just pulled from setupConfig directly
+  // Build deploy params - unchanged logic, just pulled from setupConfig directly
   const deployConfigDeps = useMemo(() => ({
     prizeMode: setupConfig.prizeMode,
     web3PrizeSplit: setupConfig.web3PrizeSplit,
@@ -318,7 +318,7 @@ const chainConfig = useWeb3ChainConfig();
       return;
     }
 
-    // address comes from useChainWallet — no secondary sources needed
+    // address comes from useChainWallet - no secondary sources needed
     const hostWallet = address ?? null;
 
     if (!isWalletConnected || !hostWallet) {

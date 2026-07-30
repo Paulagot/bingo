@@ -13,7 +13,7 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
   // Grid: 4x4 at round 1, 6x6 at round 8
   const gridSize = Math.min(6, 4 + Math.floor((difficulty - 1) * 2));
 
-  // Flash duration: fixed at 2000ms — difficulty comes from grid and cell count only
+  // Flash duration: fixed at 2000ms - difficulty comes from grid and cell count only
   const flashDurationMs = 2000;
 
   // Cell count: scales with grid size so the density feels consistent
@@ -73,7 +73,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
     const cellCy = (cell.row + 0.5) * cellSize;
 
     if (taps.length === 0) {
-      // Missed entirely — max penalty
+      // Missed entirely - max penalty
       totalError += 1.0;
       continue;
     }

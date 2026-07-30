@@ -13,7 +13,7 @@ import { createCampaignStripeSession } from './campaignStripeCheckoutService.js'
 
 export const stripeRouter = Router();
 
-// ─── Public routes — BEFORE authenticateToken ────────────────────────────────
+// ─── Public routes - BEFORE authenticateToken ────────────────────────────────
 
 stripeRouter.post('/walkin-checkout', async (req, res) => {
   try {
@@ -72,7 +72,7 @@ stripeRouter.post('/campaign-checkout', async (req, res) => {
   }
 });
 
-// ─── Private routes — club admins only ───────────────────────────────────────
+// ─── Private routes - club admins only ───────────────────────────────────────
 stripeRouter.use(authenticateToken);
 
 stripeRouter.post('/connect/start',       startStripeConnect);

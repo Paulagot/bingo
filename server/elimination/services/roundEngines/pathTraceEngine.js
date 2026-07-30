@@ -115,7 +115,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
 
-  // Template pool scales with difficulty — easy rounds only get smooth curves,
+  // Template pool scales with difficulty - easy rounds only get smooth curves,
   // hard rounds introduce zigzags and S-curves that are harder to memorise.
   const templatePool = t < 0.33
     ? TEMPLATE_POOLS.easy
@@ -132,7 +132,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const laneWidth = lerp(0.13, 0.07, t);
 
   // Path scale: larger at low difficulty so the path is easier to see and trace.
-  // Round 1 fills ~72% of the arena. Round 8 fills ~52% — still substantial
+  // Round 1 fills ~72% of the arena. Round 8 fills ~52% - still substantial
   // but combined with narrower lane, less preview time and harder shapes.
   const scale = lerp(0.72, 0.52, t);
 
@@ -214,7 +214,7 @@ export const scoreSubmission = (submission, config) => {
   const averageDeviation = totalDeviation / sampleCount;
 
   // Completion: measured by how close the player's last point is to the
-  // finish anchor — not by point count. This is robust to the throttling
+  // finish anchor - not by point count. This is robust to the throttling
   // that caps point density, and rewards players who traced to the end.
   // Within 30% of arena from finish = full completion. Further = partial.
   const lastPoint = submission.points[submission.points.length - 1];

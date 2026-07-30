@@ -1,7 +1,7 @@
 // src/services/web3PublicEventsService.ts
 //
 // All HTTP calls for fundraisely_web3_public_events.
-// Extends BaseService — overrides auth headers to use the wallet session
+// Extends BaseService - overrides auth headers to use the wallet session
 // token (x-wallet-session) instead of the web2 JWT (Authorization: Bearer).
 //
 // Mirrors the pattern in web3FundraiserApi.ts.
@@ -84,7 +84,7 @@ export interface MyEventsResponse {
 
 class Web3PublicEventsService extends BaseService {
 
-  // Wallet session headers — same pattern as web3FundraiserApi.ts
+  // Wallet session headers - same pattern as web3FundraiserApi.ts
   private walletHeaders(): Record<string, string> {
     const token = sessionStorage.getItem(SESSION_KEY);
     return {

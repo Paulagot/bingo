@@ -52,7 +52,7 @@ export function Landing() {
         structuredData={{
           '@context': 'https://schema.org',
           '@type': 'WebPage',
-          name: 'FundRaisely — The Transformative Platform for Fundraising Quiz Events',
+          name: 'FundRaisely - The Transformative Platform for Fundraising Quiz Events',
           description:
             "Experience the magic of effortless fundraising. FundRaisely empowers your club or charity with interactive quiz events, turning traditional challenges into opportunities for unprecedented community engagement and financial growth.",
           isPartOf: { '@type': 'WebSite', name: 'FundRaisely' }

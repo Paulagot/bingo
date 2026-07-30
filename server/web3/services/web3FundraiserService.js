@@ -2,7 +2,7 @@ import { connection as db } from '../../config/database.js'
 
 /**
  * Fetches the full dashboard payload for a given wallet address.
- * All EUR values come directly from stored _eur columns — no conversion needed.
+ * All EUR values come directly from stored _eur columns - no conversion needed.
  * Token amounts come from amount + fee_token columns per transaction row.
  */
 

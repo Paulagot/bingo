@@ -49,7 +49,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const edgeMargin = lerp(0.25, 0.08, tCurved);
   const targetPosition = randomBetween(edgeMargin, 1 - edgeMargin);
 
-  // Target width: wide early, narrower late — also uses softened curve
+  // Target width: wide early, narrower late - also uses softened curve
   // Round 1: 8%–14% of bar  →  Round 8: 3%–7% of bar
   const targetWidth = clamp(
     randomBetween(lerp(0.08, 0.03, tCurved), lerp(0.14, 0.07, tCurved)),
@@ -57,7 +57,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
     0.14,
   );
 
-  // Bar thickness — cosmetic only
+  // Bar thickness - cosmetic only
   const barThickness = randomBetween(3, 8);
 
   return {

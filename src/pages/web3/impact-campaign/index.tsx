@@ -121,7 +121,7 @@ const ImpactCampaignOverview: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
-        title="Web3 Impact Campaign — Annual Crypto Fundraising Drive | FundRaisely"
+        title="Web3 Impact Campaign - Annual Crypto Fundraising Drive | FundRaisely"
         description="Fundraise for real-world good, on-chain. The annual Web3 Impact Campaign by FundRaisely unites DAOs, dApps, NFT and meme communities to host quizzes, raise for verified charities, and climb the leaderboard. date TBC."
         keywords="web3 fundraising, crypto charity, DAO fundraising, blockchain philanthropy, on-chain donations, Solana fundraising, Stellar fundraising, Base fundraising, Glo Dollar, The Giving Block"
         type="event"
@@ -157,7 +157,7 @@ const ImpactCampaignOverview: React.FC = () => {
               <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl leading-relaxed">
                 Unite the Web3 world for real-world impact. dates TBC,
                 DAOs, dApps, NFT &amp; meme communities host quizzes and route funds
-                on-chain directly to verified charities — with transparent reports and a global leaderboard.
+                on-chain directly to verified charities - with transparent reports and a global leaderboard.
               </p>
 
               <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -188,7 +188,7 @@ const ImpactCampaignOverview: React.FC = () => {
             <div className="container mx-auto max-w-6xl">
               <div className="grid gap-8 lg:grid-cols-2">
                 <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm">
-                  <h3 className="text-indigo-900 mb-4 text-xl font-bold">🤝 Pledge to Host — Get Full Support</h3>
+                  <h3 className="text-indigo-900 mb-4 text-xl font-bold">🤝 Pledge to Host - Get Full Support</h3>
                   <p className="text-indigo-900/80 mb-6 leading-relaxed">
                     Perfect for communities hosting their first fundraising quiz. We'll coach your team,
                     provide templates and media assets, and help you go live on Solana, Base or Avalanche.
@@ -202,7 +202,7 @@ const ImpactCampaignOverview: React.FC = () => {
                 </div>
 
                 <div className="rounded-2xl border border-indigo-200 bg-white p-8 shadow-lg">
-                  <PledgeForm compactTitle="Pledge Now — Get Support" />
+                  <PledgeForm compactTitle="Pledge Now - Get Support" />
                   <p className="mt-4 text-xs text-indigo-900/60">
                     Tip: When the campaign kicks off , this section will switch to
                     <strong> "Request Help / Demo"</strong> for late joiners.
@@ -231,7 +231,7 @@ const ImpactCampaignOverview: React.FC = () => {
                   <h3 className="mb-2 text-indigo-900 text-lg font-bold">A global, on-chain charity drive</h3>
                   <p className="text-sm text-indigo-900/80 leading-relaxed">
                     A 3-month fundraising campaign (date TBC '26') where Web3 communities host quiz nights and raise funds
-                    directly to verified charities — no custodians, no middlemen, transparent by default.
+                    directly to verified charities - no custodians, no middlemen, transparent by default.
                   </p>
                 </div>
 
@@ -290,7 +290,7 @@ const ImpactCampaignOverview: React.FC = () => {
                     <Zap className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-2xl font-bold text-indigo-900">20%</h3>
-                  <p className="text-sm text-purple-600 font-medium">Platform — building tools for good</p>
+                  <p className="text-sm text-purple-600 font-medium">Platform - building tools for good</p>
                 </div>
               </div>
             </div>

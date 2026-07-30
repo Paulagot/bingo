@@ -12,13 +12,48 @@ const paymentMethod = cat => ({stripe:'stripe',crypto:'crypto',instant_payment:'
 const paymentSource = cat => cat === 'stripe' ? 'webhook_auto' : cat === 'crypto' ? 'onchain_auto' : 'admin_assigned';
 
 export async function createTicketForPeerEntry(entryId, context) {
-  const { order, packItem, apportionedFee, clubPaymentMethodId } = context;
+  const { order, packItem, packItemMetadata = {}, apportionedFee, clubPaymentMethodId } = context;
   const ticketId = nanoid(12), joinToken = nanoid(16), roomId = packItem.target_room_id;
   const [rooms] = await connection.execute(`SELECT config_json, game_type FROM ${R} WHERE room_id=? AND club_id=? LIMIT 1`, [roomId,order.club_id]);
   if (!rooms[0]) throw new Error(`room_not_found:${roomId}`);
   const cfg = parseJson(rooms[0].config_json, {});
-  const extras = Object.entries(cfg.fundraisingOptions || {}).filter(([,v])=>v===true).map(([extraId])=>({extraId,price:0,source:'peer_pack',included:true}));
   const fee = Number(apportionedFee || 0);
+
+  const configuredEntryFee=Number(packItemMetadata.entryFee ?? cfg.entryFee ?? 0);
+  const configuredExtras=Array.isArray(packItemMetadata.includedExtras)
+    ? packItemMetadata.includedExtras
+    : Object.entries(cfg.fundraisingOptions||{})
+        .filter(([,enabled])=>enabled===true)
+        .map(([extraId])=>({
+          extraId,
+          price:Number(cfg.fundraisingPrices?.[extraId]||0),
+        }))
+        .filter(extra=>extra.price>0);
+
+  const configuredExtrasTotal=configuredExtras.reduce(
+    (sum,extra)=>sum+Number(extra.price||0),
+    0
+  );
+  const configuredTotal=configuredEntryFee+configuredExtrasTotal;
+  const allocationRatio=configuredTotal>0 ? fee/configuredTotal : 1;
+
+  const entryFee=Number((configuredEntryFee*allocationRatio).toFixed(2));
+  let allocatedExtrasUsed=0;
+  const extras=configuredExtras.map((extra,index)=>{
+    const price=index===configuredExtras.length-1
+      ? Number((fee-entryFee-allocatedExtrasUsed).toFixed(2))
+      : Number((Number(extra.price||0)*allocationRatio).toFixed(2));
+    allocatedExtrasUsed+=price;
+    return {
+      extraId:extra.extraId,
+      label:extra.label||extra.extraId,
+      price,
+      configuredPrice:Number(extra.price||0),
+      source:'peer_pack',
+      included:true,
+    };
+  });
+  const extrasTotal=Number(extras.reduce((sum,extra)=>sum+extra.price,0).toFixed(2));
   // Previously derived purely from packItem.item_type, which is only ever
   // set once, manually, at pack-build time — nothing stopped it from being
   // wrong. peerEntryExpansionService.js now corrects item_type against the
@@ -33,10 +68,10 @@ export async function createTicketForPeerEntry(entryId, context) {
        entry_fee,extras,extras_total,total_amount,currency,payment_status,payment_method,
        payment_reference,club_payment_method_id,redemption_status,join_token,
        confirmed_at,confirmed_by,confirmed_by_name,confirmed_by_role,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,0,?,?,'payment_confirmed','peer_pack',?,?, 'ready',?,UTC_TIMESTAMP(),
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'payment_confirmed','peer_pack',?,?, 'ready',?,UTC_TIMESTAMP(),
              'system','Peer-to-Peer Pack','system',UTC_TIMESTAMP(),UTC_TIMESTAMP())`,
     [ticketId,roomId,order.club_id,order.supporter_name,order.supporter_email,order.supporter_phone,
-     order.supporter_name,fee,JSON.stringify(extras),fee,order.currency,`peer_entry_${entryId}`,
+     order.supporter_name,entryFee,JSON.stringify(extras),extrasTotal,fee,order.currency,`peer_entry_${entryId}`,
      clubPaymentMethodId || null,joinToken]
   );
 
@@ -57,7 +92,7 @@ export async function createTicketForPeerEntry(entryId, context) {
   // tickets.ledger_id would silently show peer tickets as unlinked.
   const ledgerId = await createExpectedPayment({
     roomId, clubId: order.club_id, playerId: `ticket_${ticketId}`,
-    playerName: order.supporter_name, ledgerType: 'entry_fee', amount: fee,
+    playerName: order.supporter_name, ledgerType: 'entry_fee', amount: entryFee,
     currency: order.currency, paymentMethod: paymentMethod(order.payment_method_category),
     paymentSource: paymentSource(order.payment_method_category),
     clubPaymentMethodId: clubPaymentMethodId || null,
@@ -71,6 +106,41 @@ export async function createTicketForPeerEntry(entryId, context) {
 
   if (ledgerId) {
     await connection.execute(`UPDATE ${T} SET ledger_id=? WHERE ticket_id=?`, [ledgerId, ticketId]);
+  }
+
+  for (const extra of extras) {
+    if (extra.price <= 0) continue;
+    await createExpectedPayment({
+      roomId,
+      clubId: order.club_id,
+      playerId: `ticket_${ticketId}`,
+      playerName: order.supporter_name,
+      ledgerType: 'extra_purchase',
+      amount: extra.price,
+      currency: order.currency,
+      paymentMethod: paymentMethod(order.payment_method_category),
+      paymentSource: paymentSource(order.payment_method_category),
+      clubPaymentMethodId: clubPaymentMethodId || null,
+      paymentReference: order.payment_reference || `peer_order_${order.id}`,
+      externalTransactionId: order.external_transaction_id || null,
+      status: 'confirmed',
+      confirmedAt: new Date(),
+      confirmedBy: paymentSource(order.payment_method_category),
+      confirmedByName: order.payment_method_category === 'stripe'
+        ? 'Stripe'
+        : order.payment_method_category === 'crypto'
+          ? 'Solana'
+          : 'Club Admin',
+      confirmedByRole: 'system',
+      ticketId,
+      extraId: extra.extraId,
+      extraMetadata: {
+        ...extra,
+        peerFundraiserId: order.peer_fundraiser_id,
+        peerOrderId: order.id,
+        peerEntryId: entryId,
+      },
+    });
   }
 
   // Per-ticket confirmation email — peer had no equivalent to campaign's

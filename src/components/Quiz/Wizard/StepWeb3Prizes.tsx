@@ -91,7 +91,7 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
     setFlow('web3');
   }, [setFlow]);
 
-  // No store writes needed — the new Solana contract has fixed splits on-chain.
+  // No store writes needed - the new Solana contract has fixed splits on-chain.
   // useContractActions only passes roomId + currency + entryFee for Solana rooms.
   // Writing web3PrizeSplit / prizeSplits here was misleading and caused the
   // "prizes: 30" confusion in the stored config.
@@ -103,7 +103,7 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
         <div>
           <h2 className="heading-2">Step 4 of 4: Prize & Fee Split</h2>
           <div className="text-fg/70 mt-0.5 text-xs sm:text-sm">
-            Fixed on-chain — no configuration needed
+            Fixed on-chain - no configuration needed
           </div>
         </div>
         <ClearSetupButton
@@ -115,7 +115,7 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
         />
       </div>
 
-      <Character message="The fee split is fixed in the smart contract — no choices needed here. Review how your entry fees will be distributed, then continue to deploy." />
+      <Character message="The fee split is fixed in the smart contract - no choices needed here. Review how your entry fees will be distributed, then continue to deploy." />
 
       {/* Visual bar */}
       <div className="overflow-hidden rounded-xl border border-border">
@@ -164,7 +164,7 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
         <div className="text-xs text-blue-800 space-y-1">
           <p className="font-medium">These splits are enforced by the smart contract</p>
-          <p>Distribution happens automatically when the host ends the room — no manual steps required. Winners must have a wallet that holds the room's token.</p>
+          <p>Distribution happens automatically when the host ends the room - no manual steps required. Winners must have a wallet that holds the room's token.</p>
         </div>
       </div>
 

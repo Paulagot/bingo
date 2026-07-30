@@ -4,7 +4,7 @@
 // AND the new in-page donation modal (DonationModal.tsx). Originally
 // written as a standalone-page-only file; renamed/widened once it
 // became clear the modal needed the exact same three calls
-// (getPublicConfig, startCheckout, getStatus) — no reason to duplicate.
+// (getPublicConfig, startCheckout, getStatus) - no reason to duplicate.
 //
 // Deliberately a SEPARATE file from
 // src/components/embed/services/DonationCheckoutService.ts (the iframe
@@ -12,7 +12,7 @@
 // and everything built here are meant to stay independent, so a future
 // edit to one never silently changes the other.
 //
-// Auth: no BaseService, no auth header — same reasoning as the embed
+// Auth: no BaseService, no auth header - same reasoning as the embed
 // service. A supporter is never logged in; this stays a plain
 // anonymous fetch even if a club admin happens to be signed in
 // elsewhere in the same browser.
@@ -58,7 +58,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return response.json();
 }
 
-// Superset of the shared request type — adds the one field this needs
+// Superset of the shared request type - adds the one field this needs
 // that the embed page never sends. `returnPath` is OPTIONAL on the
 // backend (see DonationCheckoutService.js patch); omitting it just
 // means Stripe falls back to the old hardcoded embed path, so widening
@@ -86,7 +86,7 @@ class DonationModalService {
 
   /**
    * Polls the new GET /api/donations/:clubId/:donationId/status route
-   * (server/donations/api/donationStatusRouter.js) — used by the modal
+   * (server/donations/api/donationStatusRouter.js) - used by the modal
    * to detect confirmation without any postMessage/relay mechanism.
    */
   getStatus(clubId: string, donationId: string) {

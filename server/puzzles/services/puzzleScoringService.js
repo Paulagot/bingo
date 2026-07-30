@@ -3,13 +3,13 @@ import { getEngine } from './puzzleGenerationService.js';
 /**
  * Calculate the score for a validated submission.
  *
- * NOTE: this appears unused — puzzleRoutes.js's submit handler goes through
+ * NOTE: this appears unused - puzzleRoutes.js's submit handler goes through
  * puzzleValidationService.validateAndScore, which does its own inline
  * validate()+score() call rather than calling this. Left in and fixed for
  * consistency (it previously called engine.score() without difficulty,
  * solutionData, or the answer payload, which would have silently produced
  * wrong scores for any engine using difficulty-scaled settings or an
- * efficiency bonus). If nothing calls this, it's a candidate for deletion —
+ * efficiency bonus). If nothing calls this, it's a candidate for deletion -
  * worth confirming rather than assuming, in case something outside this
  * folder imports it directly.
  *

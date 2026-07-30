@@ -143,7 +143,7 @@ export default function ReconciliationLedger() {
       typeof a.prizeValue === 'number'
         ? `${currency}${a.prizeValue.toFixed(2)}`
         : `${currency}0.00`;
-    return `${place} — ${name} (${val})`;
+    return `${place} - ${name} (${val})`;
   };
 
   const onPrizeSelect = (row: any, prizeAwardId: string) => {
@@ -201,7 +201,7 @@ export default function ReconciliationLedger() {
                 key={l.id}
                 className="rounded-lg border border-gray-200 p-4 bg-gray-50 hover:bg-gray-100 transition"
               >
-                {/* ROW 1 — compact fields */}
+                {/* ROW 1 - compact fields */}
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
 
                   {/* Date */}
@@ -291,7 +291,7 @@ export default function ReconciliationLedger() {
                   </div>
                 </div>
 
-                {/* ROW 2 — prize + note + createdBy */}
+                {/* ROW 2 - prize + note + createdBy */}
                 <div className="mt-4 space-y-3">
 
                   {/* Prize Link */}
@@ -305,7 +305,7 @@ export default function ReconciliationLedger() {
                         onChange={(e) => onPrizeSelect(l, e.target.value)}
                       >
                         <option value="">
-                          {awards.length ? '— Select prize —' : '— No prizes —'}
+                          {awards.length ? '- Select prize -' : '- No prizes -'}
                         </option>
                         {awards.map((a) => (
                           <option key={a.prizeAwardId} value={a.prizeAwardId}>
@@ -331,7 +331,7 @@ export default function ReconciliationLedger() {
 
                   {/* Created By */}
                   <div className="text-right text-xs text-gray-600 pr-1">
-                    By: {l.createdBy || '—'}
+                    By: {l.createdBy || '-'}
                   </div>
                 </div>
               </div>

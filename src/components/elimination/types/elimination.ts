@@ -231,7 +231,7 @@ export interface SequenceGapSubmission { roundId: string; playerId: string; roun
 export interface ColourCountSubmission { roundId: string; playerId: string; roundType: 'colour_count'; submittedAt: number; value: number; }
 
 // startPressedAt is the server-recorded timestamp of when the player pressed START.
-// It is NOT sent by the client in the submission — the server records it via
+// It is NOT sent by the client in the submission - the server records it via
 // the SUBMIT_START_PRESS socket event and stores it on the round state.
 export interface TimeEstimationSubmission {
   roundId: string;

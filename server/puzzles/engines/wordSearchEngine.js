@@ -3,7 +3,7 @@
  * server/puzzles/engines/wordSearchEngine.js
  *
  * Objective: Find all target words hidden in a letter grid.
- * Supports horizontal, vertical, and diagonal — forwards and backwards.
+ * Supports horizontal, vertical, and diagonal - forwards and backwards.
  */
 
 import { createSeededRandom, shuffleArray, calcTimeBonus } from '../utils/puzzleHelpers.js';
@@ -143,7 +143,7 @@ export function generate(config) {
     meta: {
       gridSize:    size,
       wordCount:   finalWordList.length,
-      failedWords: failed, // for debug — remove in prod if desired
+      failedWords: failed, // for debug - remove in prod if desired
     },
   };
 }
@@ -179,7 +179,7 @@ export function validate(input, solution) {
 
 export function score({ validationResult, submission }) {
   if (!validationResult.valid) {
-    // Partial scoring allowed — award points per word found
+    // Partial scoring allowed - award points per word found
     const partial = validationResult.foundCount ?? 0;
     const total   = validationResult.totalCount  ?? 1;
     const baseScore = Math.round((partial / total) * 80);

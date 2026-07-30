@@ -392,7 +392,7 @@ function LeaderboardCard({
 
 // ⚠️ Answers and solutions are deliberately never shown here (or sent by
 // the backend). Weekly puzzles stay live for the whole challenge because
-// players join on their own clock and always start at week 1 — a correct
+// players join on their own clock and always start at week 1 - a correct
 // player's answer IS the solution. Do not reintroduce an answer reveal.
 function WeekBreakdownCard({
   week,

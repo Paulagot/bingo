@@ -138,7 +138,7 @@ const getMode = useCallback((normX: number, normY: number): 'move' | 'rotate' =>
       >
         <rect width="100" height="100" fill="rgba(255,255,255,0.01)" />
 
-        {/* Target — shown briefly */}
+        {/* Target - shown briefly */}
         {showTarget && (
           <g>
             {renderShape(config.shapeType, config.targetX*100, config.targetY*100, r, config.targetRotation, `${colour}30`, colour)}
@@ -152,13 +152,13 @@ const getMode = useCallback((normX: number, normY: number): 'move' | 'rotate' =>
         {/* Player shape */}
         {!showTarget && (
           <g>
-            {/* Rotate zone indicator ring — subtle outer ring */}
+            {/* Rotate zone indicator ring - subtle outer ring */}
             <circle cx={cx} cy={cy} r={r + 8} fill="none"
               stroke={`${colour}18`} strokeWidth="4" strokeDasharray="3,3" />
 
             {renderShape(config.shapeType, cx, cy, r, rotation, `${colour}25`, colour)}
 
-            {/* Centre dot — drag here to move */}
+            {/* Centre dot - drag here to move */}
             <circle cx={cx} cy={cy} r="2.5" fill={colour} opacity="0.7" />
 
             {/* Gesture hint arrows */}

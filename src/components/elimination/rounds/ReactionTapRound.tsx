@@ -38,7 +38,7 @@ export const ReactionTapRound: React.FC<Props> = ({
 
   // Records the exact client timestamp when the target became visible.
   // Sent with the submission so the server can score true reaction time
-  // from when the player actually saw the target — not from validTargetAt,
+  // from when the player actually saw the target - not from validTargetAt,
   // which is offset by server→client clock drift.
   const targetVisibleAtRef = useRef<number | null>(null);
 
@@ -87,7 +87,7 @@ export const ReactionTapRound: React.FC<Props> = ({
   }, [hasSubmitted, submitTap]);
 
   useAutoSubmit(hasSubmitted, endsAt ?? null, () => {
-    // No forced payload — missed tap scores zero.
+    // No forced payload - missed tap scores zero.
   });
 
   const targetX = config.targetPosition.x * 100;
@@ -129,7 +129,7 @@ export const ReactionTapRound: React.FC<Props> = ({
           {isActive ? 'TAP THE TARGET' : 'WAIT…'}
         </text>
 
-        {/* Outer ring — hidden during wait, lights up when target is live */}
+        {/* Outer ring - hidden during wait, lights up when target is live */}
         <circle
           cx={targetX}
           cy={targetY}
@@ -138,7 +138,7 @@ export const ReactionTapRound: React.FC<Props> = ({
           stroke={isActive ? colour : 'rgba(255,255,255,0.12)'}
           strokeWidth="0.8"
         />
-        {/* Inner dot — faintly visible during wait so player knows where to aim */}
+        {/* Inner dot - faintly visible during wait so player knows where to aim */}
         <circle
           cx={targetX}
           cy={targetY}
@@ -146,7 +146,7 @@ export const ReactionTapRound: React.FC<Props> = ({
           fill={isActive ? colour : 'rgba(255,255,255,0.06)'}
         />
 
-        {/* Tap marker — X shown after player taps */}
+        {/* Tap marker - X shown after player taps */}
         {tapMarker && (
           <>
             <line

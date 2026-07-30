@@ -37,7 +37,7 @@ export const authenticateAny = (req, res, next) => {
     // Puzzle routes use req.user.id as the playerId
     req.user         = { id: decoded.supporterId };
   } else {
-    // Club user token — existing behaviour unchanged
+    // Club user token - existing behaviour unchanged
     req.user    = decoded;
     req.club_id = decoded.club_id ?? req.user?.club_id;
   }

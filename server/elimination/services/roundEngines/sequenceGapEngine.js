@@ -37,7 +37,7 @@ const generateSequence = (patternType, t) => {
     }
 
   } else {
-    // Growing — increment increases each step
+    // Growing - increment increases each step
     // Larger starting increment and growth at high difficulty
     const start = Math.floor(randomBetween(1, Math.round(lerp(10, 30, t))));
     seq = [start];

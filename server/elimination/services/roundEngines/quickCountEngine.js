@@ -84,7 +84,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   const speedBonus = calcSpeedBonus(
     submission.submittedAt, roundStartTimestamp,
     config.durationMs, errorDistance, config.roundType,
-    0.25, // wider threshold — count-based answers are harder to nail exactly
+    0.25, // wider threshold - count-based answers are harder to nail exactly
   );
   return { score: precisionScore + speedBonus, precisionScore, speedBonus, errorDistance, diff };
 };

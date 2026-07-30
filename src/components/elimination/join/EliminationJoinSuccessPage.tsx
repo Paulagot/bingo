@@ -97,12 +97,12 @@ export const EliminationJoinSuccessPage: React.FC = () => {
     };
 
     if (socket.connected) {
-      if (DEBUG) console.log('[JoinSuccess] ✅ Socket already connected — joining immediately');
+      if (DEBUG) console.log('[JoinSuccess] ✅ Socket already connected - joining immediately');
       doJoin();
     } else {
-      if (DEBUG) console.log('[JoinSuccess] ⏳ Socket not connected — waiting for connect event');
+      if (DEBUG) console.log('[JoinSuccess] ⏳ Socket not connected - waiting for connect event');
       socket.once('connect', () => {
-        if (DEBUG) console.log('[JoinSuccess] 🔌 Socket connected — now joining');
+        if (DEBUG) console.log('[JoinSuccess] 🔌 Socket connected - now joining');
         doJoin();
       });
     }

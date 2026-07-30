@@ -3,7 +3,7 @@
 // Frontend service for recording confirmed Web3 transactions in the
 // FundRaisely ledger (fundraisely_web3_transactions).
 //
-// Pattern: extends BaseService — same as all other FundRaisely services.
+// Pattern: extends BaseService - same as all other FundRaisely services.
 // These are unauthenticated endpoints; no auth token is sent.
 //
 // Usage:
@@ -26,7 +26,7 @@ export interface JoinPaymentParams {
   wallet_address: string;
   /** Chain family */
   chain: Chain;
-  /** Network name — e.g. 'devnet', 'mainnet', 'base_sepolia', 'base' */
+  /** Network name - e.g. 'devnet', 'mainnet', 'base_sepolia', 'base' */
   network: string;
   /** On-chain transaction hash / signature */
   tx_hash: string;
@@ -48,9 +48,9 @@ export interface JoinPaymentParams {
   extras_amount?: number;
   /** Donation uplift portion in raw token units. 0 if no donation. */
   donation_amount?: number;
-  /** Solana cluster — required when chain === 'solana' */
+  /** Solana cluster - required when chain === 'solana' */
   solana_cluster?: 'devnet' | 'mainnet';
-  /** Optional metadata — extras detail, wallet provider info, etc. */
+  /** Optional metadata - extras detail, wallet provider info, etc. */
   metadata_json?: Record<string, unknown> | null;
 }
 
@@ -68,7 +68,7 @@ class Web3TransactionService extends BaseService {
    *
    * Call this immediately after on-chain confirmation is received,
    * BEFORE emitting the socket join event. If the call fails (network
-   * error, RPC issue etc.) it is safe to proceed with the socket join —
+   * error, RPC issue etc.) it is safe to proceed with the socket join -
    * the ledger write is non-blocking for the player flow.
    *
    * The server will re-verify the tx on-chain before writing to the DB,
@@ -122,7 +122,7 @@ class Web3TransactionService extends BaseService {
       return result;
     } catch (err: unknown) {
       // Ledger write failures are non-critical for the player join flow.
-      // Log the error but don't throw — the game should not be blocked
+      // Log the error but don't throw - the game should not be blocked
       // if the ledger write fails due to an RPC hiccup or network issue.
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error('[Web3TransactionService] recordJoinPayment failed:', message);
@@ -131,6 +131,6 @@ class Web3TransactionService extends BaseService {
   }
 }
 
-// Export a single shared instance — same pattern as other FundRaisely services
+// Export a single shared instance - same pattern as other FundRaisely services
 export const web3TransactionService = new Web3TransactionService();
 export default web3TransactionService;

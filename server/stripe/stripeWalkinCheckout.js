@@ -1,7 +1,7 @@
 // server/stripe/stripeWalkinCheckout.js
 // CHANGES from original:
 //   1. Stripe checkout session now expires after 30 minutes (expires_after: { minutes: 30 })
-//   Walk-in payments don't pre-create DB rows so no expires_at needed here —
+//   Walk-in payments don't pre-create DB rows so no expires_at needed here -
 //   the webhook creates ledger rows only on success. Abandoned sessions simply never
 //   write anything to the DB, so cleanup is automatic.
 
@@ -98,7 +98,7 @@ export async function createWalkinStripeSession({
 
   // 5) Create Stripe session
   //    Walk-in payments write nothing to the DB until the webhook fires on success,
-  //    so abandoned sessions are automatically harmless — no cleanup needed.
+  //    so abandoned sessions are automatically harmless - no cleanup needed.
   //    We still set expires_after for a consistent UX (30-min timer shown to user).
   const session = await stripe.checkout.sessions.create(
     {
@@ -111,7 +111,7 @@ export async function createWalkinStripeSession({
             currency: currency.toLowerCase(),
             unit_amount: totalAmountCents,
          product_data: {
-  name: `Quiz Entry — ${config.hostName || roomId}`,
+  name: `Quiz Entry - ${config.hostName || roomId}`,
 },
           },
         },
@@ -160,7 +160,7 @@ export async function createWalkinStripeSession({
  * from the DB, so there is no separate getRoomConfig call needed.
  *
  * The webhook handler picks up `type: 'elimination_walkin_payment'` and writes
- * the confirmed ledger entry — see stripeWebhooks.js patch.
+ * the confirmed ledger entry - see stripeWebhooks.js patch.
  *
  * @param {{ roomId, playerName, appOrigin }} opts
  * @returns {{ url: string, playerId: string }}
@@ -187,7 +187,7 @@ export async function createEliminationWalkinStripeSession({
   const stripeConn = await getReadyStripeForClub(room.clubId);
   if (!stripeConn) throw new Error('stripe_not_ready_or_disabled');
  
-  // 3) Generate a stable playerId — embedded in the success URL so the
+  // 3) Generate a stable playerId - embedded in the success URL so the
   //    return page can do the socket join without needing sessionStorage
   const playerId = nanoid();
  
@@ -205,7 +205,7 @@ export async function createEliminationWalkinStripeSession({
             currency: currency.toLowerCase(),
             unit_amount: totalAmountCents,
             product_data: {
-              name: `Elimination Entry — ${room.hostName || roomId}`,
+              name: `Elimination Entry - ${room.hostName || roomId}`,
             },
           },
         },

@@ -1,13 +1,13 @@
 // server/elimination/services/eliminationStatsService.js
 //
 // Saves elimination game stats to the quiz_reconciliation table when a game ends.
-// Uses the same table as the quiz — no schema changes needed.
+// Uses the same table as the quiz - no schema changes needed.
 //
 // Only runs for Web2 rooms that have a clubId (i.e. rooms scheduled via the
 // management system and hydrated from DB). Web3 and ad-hoc rooms have no
 // clubId and no payment ledger rows, so we skip them silently.
 //
-// This function is fire-and-forget — it must NEVER throw or block the game loop.
+// This function is fire-and-forget - it must NEVER throw or block the game loop.
 // Wrap every call in .catch().
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
@@ -20,7 +20,7 @@ const ROOMS_TABLE          = `${TABLE_PREFIX}web2_quiz_rooms`;
 // ─── Timeline builder ─────────────────────────────────────────────────────────
 
 /**
- * Build the elimination timeline — who got eliminated in each round.
+ * Build the elimination timeline - who got eliminated in each round.
  * Groups players by eliminatedInRound ascending, winner(s) at the end.
  *
  * @param {Object} room - in-memory room object
@@ -45,7 +45,7 @@ function buildTimeline(room) {
     eliminated: byRound[round],
   }));
 
-  // Survivors (not eliminated) — the winner(s)
+  // Survivors (not eliminated) - the winner(s)
   const survivors = players.filter((p) => !p.eliminated);
   if (survivors.length > 0) {
     timeline.push({
@@ -85,7 +85,7 @@ function buildFinalStandings(room) {
 
 /**
  * Save elimination game statistics to quiz_reconciliation.
- * Called at game end — non-fatal, always fire-and-forget.
+ * Called at game end - non-fatal, always fire-and-forget.
  *
  * @param {Object} room - the in-memory room object (before deleteRoom is called)
  * @param {string} winnerId - the winning player's ID
@@ -94,7 +94,7 @@ export async function saveEliminationGameStats(room, winnerId) {
   // Only run for managed Web2 rooms with a clubId and DB record
   if (!room.clubId || !room.roomId) {
     console.log(
-      `[EliminationStats] Skipping stats save — no clubId (roomId: ${room.roomId}, paymentMode: ${room.paymentMode})`
+      `[EliminationStats] Skipping stats save - no clubId (roomId: ${room.roomId}, paymentMode: ${room.paymentMode})`
     );
     return;
   }
@@ -104,7 +104,7 @@ export async function saveEliminationGameStats(room, winnerId) {
   try {
     // ── Calculate starting totals from the payment ledger ──────────────────
     // This reads confirmed entries from quiz_payment_ledger for this room.
-    // Returns { entryFees, extras, total } — all zero if no payments were taken.
+    // Returns { entryFees, extras, total } - all zero if no payments were taken.
     let startingTotals = { entryFees: 0, extras: 0, total: 0 };
     try {
       startingTotals = await calculateStartingTotalsFromLedger(room.roomId);
@@ -165,7 +165,7 @@ export async function saveEliminationGameStats(room, winnerId) {
       startingTotals.entryFees,
       startingTotals.extras,
       startingTotals.total,
-      startingTotals.total,       // final_total starts equal to starting — host adjusts later
+      startingTotals.total,       // final_total starts equal to starting - host adjusts later
       JSON.stringify(finalLeaderboard),
     ];
 
@@ -188,13 +188,13 @@ export async function saveEliminationGameStats(room, winnerId) {
     );
 
     console.log(
-      `[EliminationStats] ✅ Stats saved — room: ${room.roomId}`,
+      `[EliminationStats] ✅ Stats saved - room: ${room.roomId}`,
       `players: ${allPlayers.length}`,
       `winner: ${winner?.name}`,
       `startingTotal: ${startingTotals.total}`
     );
   } catch (err) {
-    // Non-fatal — log and move on. The game loop must not be interrupted.
+    // Non-fatal - log and move on. The game loop must not be interrupted.
     console.error(`[EliminationStats] ❌ Failed to save stats for room ${room.roomId}:`, err.message);
   }
 }
@@ -296,7 +296,7 @@ export async function getEliminationReconciliation(roomId) {
  * stays in sync with the actual confirmed payments.
  *
  * @param {string} roomId
- * @returns {{ entryFees, extras, total }} — the fresh totals, or null if no record
+ * @returns {{ entryFees, extras, total }} - the fresh totals, or null if no record
  */
 export async function refreshReconciliationStartingTotal(roomId) {
   // Check a reconciliation record exists first (case-insensitive)
@@ -307,7 +307,7 @@ export async function refreshReconciliationStartingTotal(roomId) {
   );
 
   if (!Array.isArray(existingRows) || !existingRows.length) {
-    // No record yet — nothing to refresh (game stats may not have saved yet)
+    // No record yet - nothing to refresh (game stats may not have saved yet)
     return null;
   }
 
@@ -322,7 +322,7 @@ export async function refreshReconciliationStartingTotal(roomId) {
   }
 
   // Update the reconciliation record with fresh starting totals.
-  // We don't update adjustments_net or final_total here — those are set at approval.
+  // We don't update adjustments_net or final_total here - those are set at approval.
   await connection.execute(
     `UPDATE ${RECONCILIATION_TABLE}
      SET
@@ -336,7 +336,7 @@ export async function refreshReconciliationStartingTotal(roomId) {
   );
 
   console.log(
-    `[EliminationStats] 🔄 Refreshed starting totals — room: ${dbRoomId}`,
+    `[EliminationStats] 🔄 Refreshed starting totals - room: ${dbRoomId}`,
     `total: ${freshTotals.total}`
   );
 
@@ -428,7 +428,7 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
     ]
   );
 
-  // Mark the room record as closed — reconciliation_status moves to 'closed'
+  // Mark the room record as closed - reconciliation_status moves to 'closed'
   // so the management dashboard shows this room is fully reconciled.
   await connection.execute(
     `UPDATE ${ROOMS_TABLE}
@@ -440,7 +440,7 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
   );
 
   console.log(
-    `[EliminationStats] ✅ Reconciliation approved — room: ${dbRoomId}`,
+    `[EliminationStats] ✅ Reconciliation approved - room: ${dbRoomId}`,
     `by: ${approvedBy}`,
     `starting: ${startingTotal}`,
     `net adjustments: ${adjustmentsNet}`,
@@ -449,7 +449,7 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
 
   // ── Step 5: Read back the reconciliation record id ────────────────────────
   // Then stamp all confirmed payment ledger rows with the reconciliation id
-  // and approver details — same pattern as the quiz uses.
+  // and approver details - same pattern as the quiz uses.
   try {
     const [recIdRows] = await connection.execute(
       `SELECT id FROM ${RECONCILIATION_TABLE} WHERE room_id = ? LIMIT 1`,
@@ -471,8 +471,8 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
            AND status  = 'confirmed'`,
         [
           reconciliationId,
-          approvedBy ?? null,   // member ID when available — display name otherwise
-          approvedBy ?? null,   // reconciled_by_name — same value for elimination hosts
+          approvedBy ?? null,   // member ID when available - display name otherwise
+          approvedBy ?? null,   // reconciled_by_name - same value for elimination hosts
           dbRoomId,
         ]
       );
@@ -482,10 +482,10 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
         `for room ${dbRoomId} with reconciliation_id ${reconciliationId}`
       );
     } else {
-      console.warn(`[EliminationStats] Could not read back reconciliation id for room ${dbRoomId} — ledger not stamped`);
+      console.warn(`[EliminationStats] Could not read back reconciliation id for room ${dbRoomId} - ledger not stamped`);
     }
   } catch (stampErr) {
-    // Non-fatal — the reconciliation record is already approved, just log
+    // Non-fatal - the reconciliation record is already approved, just log
     console.error(`[EliminationStats] Ledger stamp failed (non-fatal) for room ${dbRoomId}:`, stampErr.message);
   }
 

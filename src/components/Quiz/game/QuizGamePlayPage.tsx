@@ -87,7 +87,7 @@ const QuizGamePlayPage = () => {
     const id = Date.now() + Math.random();
     setNotifications((prev) => [...prev, { id, type, message }]);
     setTimeout(() => setNotifications((prev) => prev.filter((n) => n.id !== id)), 4000);
-  }, []); // stable — only uses the setState callback form
+  }, []); // stable - only uses the setState callback form
 
   const { robinHoodData, isAnimationActive, handleAnimationComplete } = useRobinHoodAnimation(socket);
 
@@ -286,7 +286,7 @@ const QuizGamePlayPage = () => {
     socket,
     roomId,
     playerId,
-    // serverRoomState.roundTypeId intentionally removed — we read from ref instead
+    // serverRoomState.roundTypeId intentionally removed - we read from ref instead
   ]);
 
   const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects(handleAutoSubmit);
@@ -463,7 +463,7 @@ const QuizGamePlayPage = () => {
           currentQuestionIndexRef.current = r.currentQuestionIndex;
         }
 
-        if (snap.speed) setPhaseMessage(`Speed Round — ${snap.speed.remaining}s left`);
+        if (snap.speed) setPhaseMessage(`Speed Round - ${snap.speed.remaining}s left`);
 
         if (snap.hiddenObject?.puzzle) {
           setHiddenPuzzle({
@@ -474,7 +474,7 @@ const QuizGamePlayPage = () => {
           });
           setHiddenFoundIds(snap.hiddenObject.foundIds || []);
           setHiddenFinished(!!snap.hiddenObject.finished);
-          setPhaseMessage(`Find It Fast — ${snap.hiddenObject.remaining}s left`);
+          setPhaseMessage(`Find It Fast - ${snap.hiddenObject.remaining}s left`);
         }
 
         if (snap.orderImageQuestion) {
@@ -678,7 +678,7 @@ const QuizGamePlayPage = () => {
       setUsedExtrasThisRound({});
     };
 
-    // FIX 4: The original code registered 'round_time_remaining' TWICE —
+    // FIX 4: The original code registered 'round_time_remaining' TWICE -
     // once via handleRoundTimeRemaining and again via an anonymous inline
     // listener below. Only the named one was cleaned up, leaking the second.
     // Now there is exactly one handler registered and one cleanup.
@@ -687,9 +687,9 @@ const QuizGamePlayPage = () => {
       // Read roundTypeId from the ref to avoid stale closure
       const roundTypeId = serverRoomStateRef.current.roundTypeId;
       if (roundTypeId === 'speed_round') {
-        setPhaseMessage(`Speed Round — ${remaining}s left`);
+        setPhaseMessage(`Speed Round - ${remaining}s left`);
       } else if (roundTypeId === 'hidden_object') {
-        setPhaseMessage(`Find It Fast — ${remaining}s left`);
+        setPhaseMessage(`Find It Fast - ${remaining}s left`);
       }
     };
 
@@ -808,7 +808,7 @@ const QuizGamePlayPage = () => {
       const timestamp = Date.now();
       if (debug) console.log(`🔵 [room_state] ${timestamp}:`, data);
 
-      // Read from ref — never stale
+      // Read from ref - never stale
       const previousRound = currentRoundRef.current;
       const previousPhase = serverRoomStateRef.current.phase;
 
@@ -1304,7 +1304,7 @@ const QuizGamePlayPage = () => {
   }, [socket, roomId, tbAnswer]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // FIX 1: Early return guard — placed here, AFTER every hook declaration.
+  // FIX 1: Early return guard - placed here, AFTER every hook declaration.
   // All hooks above run unconditionally; this just short-circuits the render.
   // ─────────────────────────────────────────────────────────────────────────
   if (!roomId || !playerId) {

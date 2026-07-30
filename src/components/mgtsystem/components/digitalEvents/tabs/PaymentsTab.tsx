@@ -35,7 +35,7 @@ type PaymentMethod_ = PaymentMethod;
 interface Props {
   room: Room;
   config?: any;
-  onPaymentMethodSuccess: () => void;  // reserved — selection moved to CreateEventForm
+  onPaymentMethodSuccess: () => void;  // reserved - selection moved to CreateEventForm
   confirmedBy: string;
   confirmedByName?: string;
 }

@@ -55,7 +55,7 @@ const OrderImageAsking: React.FC<OrderImageAskingProps> = ({
     onOrderChangeRef.current = onOrderChange;
   });
 
-  // Notify parent of order changes — only re-runs when items/answerSubmitted
+  // Notify parent of order changes - only re-runs when items/answerSubmitted
   // actually change, not when the parent re-renders.
   useEffect(() => {
     if (items.length > 0 && !answerSubmitted) {
@@ -395,7 +395,7 @@ const OrderImageAsking: React.FC<OrderImageAskingProps> = ({
               {/* Drag handle */}
               {!isFrozen && !answerSubmitted && (
                 <div style={{ flexShrink: 0, color: '#cbd5e1', padding: '0 2px' }}>
-                  {/* Three-line drag handle — clearer than dots on mobile */}
+                  {/* Three-line drag handle - clearer than dots on mobile */}
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
                     <rect y="3" width="18" height="2.5" rx="1.25" />
                     <rect y="7.75" width="18" height="2.5" rx="1.25" />

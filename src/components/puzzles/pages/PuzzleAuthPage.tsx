@@ -1,5 +1,5 @@
 // src/components/puzzles/pages/PuzzleAuthPage.tsx
-// Handles the magic link callback — /puzzle-auth?token=...&challengeId=...
+// Handles the magic link callback - /puzzle-auth?token=...&challengeId=...
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -24,11 +24,11 @@ export default function PuzzleAuthPage() {
   const token = searchParams.get('token');
   const challengeId = searchParams.get('challengeId');
 
-  // Club branding — this page is reached by clicking a link in an
+  // Club branding - this page is reached by clicking a link in an
   // email, so it never inherits theme via navigation state the way
   // PuzzleJoinPage's success path can. It only ever has challengeId
   // from the URL, so it needs its own small getPublicChallenge fetch,
-  // run independently of the token verification below — a branding
+  // run independently of the token verification below - a branding
   // fetch failure should never affect whether the magic link itself
   // verifies successfully, it should just fall back to the default
   // FundRaisely look.
@@ -42,7 +42,7 @@ export default function PuzzleAuthPage() {
       .getPublicChallenge(challengeId)
       .then(setChallenge)
       .catch(() => {
-        // No branding available — resolvePuzzleTheme already falls
+        // No branding available - resolvePuzzleTheme already falls
         // back to the default theme when challenge stays null.
       });
   }, [challengeId]);

@@ -1,7 +1,7 @@
 // server/quiz/api/quizTicketCryptoFixedFeeRouter.js
 //
 // POST /api/quiz/tickets/crypto-fixed-fee/confirm
-// Ticket fixed-fee crypto payment — verifies on-chain, creates confirmed ticket.
+// Ticket fixed-fee crypto payment - verifies on-chain, creates confirmed ticket.
 
 import express from 'express';
 import rateLimit from 'express-rate-limit';

@@ -77,7 +77,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onNext, onResetToFirst,
     onNext();
   } else {
     resetSetupConfig({ keepIds: false });
-    navigate('/quiz/eventdashboard');
+    navigate('/eventdashboard');
   }
 };
 
@@ -127,7 +127,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onNext, onResetToFirst,
       onNext();
     } else {
       resetSetupConfig({ keepIds: false });
-      navigate('/quiz/eventdashboard');
+      navigate('/eventdashboard');
     }
   } catch (err: any) {
     // ... error handling unchanged

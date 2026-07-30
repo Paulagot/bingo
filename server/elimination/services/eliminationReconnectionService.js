@@ -19,7 +19,7 @@ export const reconnectPlayer = (roomId, playerId, newSocketId) => {
   if (!room) return { success: false, error: 'Room not found' };
 
   if (room.status === ROOM_STATUS.ENDED) {
-    // Game is over — send final state for winner/results display
+    // Game is over - send final state for winner/results display
     const snapshot = getReconnectSnapshot(roomId, playerId);
     return { success: true, snapshot, spectating: true, gameEnded: true };
   }

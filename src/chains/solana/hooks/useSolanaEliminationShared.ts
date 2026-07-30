@@ -15,7 +15,7 @@ export const ELIMINATION_PROGRAM_ID = new PublicKey(
   '27gprMMqQ3SKJ9bRAQFh2kkaP72GJEkVNaNm1HjEgqkM'
 );
 
-// PDA seeds — must match the Rust program exactly
+// PDA seeds - must match the Rust program exactly
 export const ELIMINATION_SEEDS = {
   GLOBAL_CONFIG: 'global-config',
   ROOM: 'room',

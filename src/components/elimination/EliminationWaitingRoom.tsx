@@ -19,7 +19,7 @@ interface Props {
   onCancelled?: () => void;
 }
 
-// ── Live prize pool panel — shown for web3 rooms only ────────────────────────
+// ── Live prize pool panel - shown for web3 rooms only ────────────────────────
 const PrizePoolPanel: React.FC<{ roomData: any; playerCount: number }> = ({
   roomData,
   playerCount,
@@ -141,7 +141,7 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
         )}
       </div>
 
-      {/* ── Live prize pool — web3 rooms only ── */}
+      {/* ── Live prize pool - web3 rooms only ── */}
       {isWeb3Room && roomData?.feeMint && roomData?.entryFee && (
         <PrizePoolPanel roomData={roomData} playerCount={players.length} />
       )}
@@ -155,7 +155,7 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
             <span style={styles.roomCode}>{roomId}</span>
           </div>
 
-          {/* ── On-chain contract link — web3 rooms only ── */}
+          {/* ── On-chain contract link - web3 rooms only ── */}
 {isWeb3Room && roomData?.roomPda && (
   <a href={`https://explorer.solana.com/address/${roomData.roomPda}${roomData.solanaCluster === 'mainnet' ? '?cluster=mainnet' : ''}`}
     target="_blank"

@@ -1,6 +1,6 @@
 // src/components/puzzles/pages/PublicWeekLeaderboardPage.tsx
 //
-// PUBLIC page — no auth. The full leaderboard for one week's puzzle.
+// PUBLIC page - no auth. The full leaderboard for one week's puzzle.
 // Rolling until the challenge completes: late joiners always start at
 // puzzle 1, so this board can gain entries at any time. Never shows
 // answers or solutions.
@@ -36,12 +36,12 @@ export default function PublicWeekLeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
-  // Same "read once on mount" tradeoff as PublicWallOfFamePage — this is
+  // Same "read once on mount" tradeoff as PublicWallOfFamePage - this is
   // a public page a stranger might land on, so the link only shows for
   // someone who's already a logged-in supporter.
   const [isAuth] = useState(() => supporterAuthService.isAuthenticated());
 
-  // Same resolvePuzzleTheme(...challenge) pattern as PublicWallOfFamePage —
+  // Same resolvePuzzleTheme(...challenge) pattern as PublicWallOfFamePage -
   // WeekLeaderboard.challenge is the same PublicChallengeMeta shape.
   const theme = resolvePuzzleTheme(board?.challenge);
 
@@ -139,8 +139,8 @@ export default function PublicWeekLeaderboardPage() {
             }`}
           >
             {isFinal
-              ? '🏁 Final — the challenge has finished'
-              : '⏳ Still open — new players can enter this board'}
+              ? '🏁 Final - the challenge has finished'
+              : '⏳ Still open - new players can enter this board'}
           </p>
         </section>
 

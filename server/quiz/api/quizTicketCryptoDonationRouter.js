@@ -93,7 +93,7 @@ router.post('/confirm', limiter, async (req, res) => {
 
     if (donationFiat <= 0) {
       console.warn(
-        '[TicketCryptoDonation] ⚠️ Fiat conversion returned zero/null — recording ticket at 0.00',
+        '[TicketCryptoDonation] ⚠️ Fiat conversion returned zero/null - recording ticket at 0.00',
         { roomId, txHash, tokenCode, displayAmount, donationCurrency, donationFiat }
       );
     }

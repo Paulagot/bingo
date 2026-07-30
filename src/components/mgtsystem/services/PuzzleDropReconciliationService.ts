@@ -3,8 +3,8 @@
 // src/components/mgtsystem/services/PuzzleDropReconciliationService.ts
 //
 // Frontend service for Puzzle Drop's period-based reconciliation.
-// Same shape and calling convention as SubscriptionReconciliationService —
-// extends BaseService, this.request() handles auth — pointed at the
+// Same shape and calling convention as SubscriptionReconciliationService -
+// extends BaseService, this.request() handles auth - pointed at the
 // puzzle-drop-reconciliation router instead. Backend:
 // puzzleDropReconciliationService.js / puzzleDropReconciliationRoutes.js.
 

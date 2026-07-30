@@ -12,7 +12,7 @@ const fail=(res,e)=>res.status(e.status||500).json({ok:false,error:e.message||'i
 
 router.get('/peer-fundraisers',authenticateToken,async(req,res)=>{try{send(res,await svc.listFundraisers(req.club_id));}catch(e){fail(res,e);}});
 router.post('/peer-fundraisers',authenticateToken,async(req,res)=>{try{res.status(201).json({ok:true,...await svc.createFundraiser(req.club_id,req.body,req.reporting_currency)});}catch(e){fail(res,e);}});
-// Must be registered before GET /peer-fundraisers/:id — otherwise Express
+// Must be registered before GET /peer-fundraisers/:id - otherwise Express
 // matches "available-payment-methods" as the :id param and this 404s
 // (or worse, silently hits getFundraiser with a garbage id) depending on
 // route registration order elsewhere.
@@ -38,10 +38,10 @@ router.post('/peer-fundraisers/:id/orders/:orderId/reject',authenticateToken,asy
 
 // Must be registered before the wildcard :clubSlug/:fundraiserSlug[/:participantSlug]
 // routes below. Both are GET routes with the same segment count as this one,
-// and Express has no literal-vs-wildcard precedence rule — whichever route
+// and Express has no literal-vs-wildcard precedence rule - whichever route
 // is registered first wins. This previously lived in a separate file
 // (peerPaymentRoutes.js), which meant its precedence depended on which file
-// got app.use()'d first in the server — fragile, and the actual cause of
+// got app.use()'d first in the server - fragile, and the actual cause of
 // two rounds of "club_not_found" errors (first as a 2-segment collision
 // with :clubSlug/:fundraiserSlug, then again as a 3-segment collision with
 // :clubSlug/:fundraiserSlug/:participantSlug after the first attempted fix).
@@ -49,13 +49,13 @@ router.post('/peer-fundraisers/:id/orders/:orderId/reject',authenticateToken,asy
 // correct precedence no matter what else is mounted or in what order.
 router.get('/peer-support/fundraiser/:id/payment-methods',limiter,async(req,res)=>{try{send(res,await getPublicMethods(req.params.id));}catch(e){fail(res,e);}});
 
-// Same fix, same reasoning as payment-methods above — this is ALSO a
+// Same fix, same reasoning as payment-methods above - this is ALSO a
 // 3-segment GET route (orders/:orderId/summary) that was sitting AFTER
 // the :clubSlug/:fundraiserSlug/:participantSlug wildcard, meaning it was
 // silently vulnerable to the identical collision (an orderId would get
 // treated as a fundraiserSlug, "summary" as a participantSlug). This is
 // exactly the route the thank-you screen and Stripe-success polling
-// depend on — moved here proactively rather than waiting for it to
+// depend on - moved here proactively rather than waiting for it to
 // surface as a third round of "club_not_found".
 router.get('/peer-support/orders/:orderId/summary',limiter,async(req,res)=>{try{send(res,await svc.getPublicOrderSummary(req.params.orderId));}catch(e){fail(res,e);}});
 

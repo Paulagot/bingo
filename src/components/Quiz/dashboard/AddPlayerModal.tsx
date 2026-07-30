@@ -282,7 +282,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   );
 
   // Always resolve the player being edited directly from the store by ID.
-  // Do NOT fall back to the playerToEdit prop for the name-uniqueness check —
+  // Do NOT fall back to the playerToEdit prop for the name-uniqueness check -
   // that prop is not passed from PlayerListPanel and would be undefined,
   // which was the root cause of the "admin gets stuck" bug.
   const livePlayerToEdit = useMemo(() => {
@@ -531,7 +531,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     // this is always reliable regardless of store-hydration timing.
     const isDuplicateName = players.some((player: any) => {
       if (effectiveMode === 'edit' && playerIdToEdit && player.id === playerIdToEdit) {
-        // Always skip the player currently being edited — their own name is allowed.
+        // Always skip the player currently being edited - their own name is allowed.
         return false;
       }
       return String(player.name || '').toLowerCase() === trimmedName.toLowerCase();
@@ -689,7 +689,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               <p className="text-sm text-red-600">{nameError}</p>
             )}
 
-            {/* Soft warning — duplicate name, but admin can proceed */}
+            {/* Soft warning - duplicate name, but admin can proceed */}
             {nameWarning && !nameError && (
               <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />

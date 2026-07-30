@@ -72,7 +72,7 @@ class QuizPaymentMethodsService {
   async updateLinkedPaymentMethods({ roomId, clubId, ticketMethodIds = [], onnightMethodIds = [], userId }) {
     await this._assertQuizRoomOwned({ roomId, clubId });
 
-    // Validate both lists — all IDs must belong to this club
+    // Validate both lists - all IDs must belong to this club
     const allIds = [...new Set([...ticketMethodIds, ...onnightMethodIds])];
     if (allIds.length > 0) {
       const placeholders = allIds.map(() => '?').join(',');

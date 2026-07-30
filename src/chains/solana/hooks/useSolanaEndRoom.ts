@@ -1,5 +1,5 @@
 /**
- * Solana End Room Hook (Two-Step Flow) — IDL-verified (newquiz.json)
+ * Solana End Room Hook (Two-Step Flow) - IDL-verified (newquiz.json)
  *
  * ## Account layout confirmed from IDL
  *
@@ -17,8 +17,8 @@
  *   intent_id_hash, timestamp
  *   (platform_amount / host_amount / prize_amount are GONE)
  *
- * IDL error 6010: InvalidWinnerCount — "Exactly 2 winners required"
- *   If you only have 1 winner, pass 1 — the contract gives 2nd-place share to charity.
+ * IDL error 6010: InvalidWinnerCount - "Exactly 2 winners required"
+ *   If you only have 1 winner, pass 1 - the contract gives 2nd-place share to charity.
  *   But you cannot pass 3+.
  */
 
@@ -191,7 +191,7 @@ export function useSolanaEndRoom() {
         throw new Error(`Declare winners simulation failed: ${declareSim.error}`);
       }
 
-      console.log('[Solana][EndRoom] ✅ Declare simulation passed — sending...');
+      console.log('[Solana][EndRoom] ✅ Declare simulation passed - sending...');
 
       let declareWinnersTxHash: string | undefined;
       try {
@@ -222,7 +222,7 @@ export function useSolanaEndRoom() {
 
       if (charityOrgId && charityAmountNum > 0) {
         if (!meetsMinDonation(charityAmountNum, currency)) {
-          console.warn('[Solana][EndRoom] ⚠️ Below TGB minimum — using reserve wallet');
+          console.warn('[Solana][EndRoom] ⚠️ Below TGB minimum - using reserve wallet');
           const fb = params.charityWallet ?? PLATFORM_CHARITY_RESERVE;
           charityWallet = typeof fb === 'string' ? new PublicKey(fb) : fb;
         } else {
@@ -246,7 +246,7 @@ export function useSolanaEndRoom() {
             charityWallet = new PublicKey(data.depositAddress);
             console.log('[Solana][EndRoom] ✅ TGB wallet:', charityWallet.toBase58());
           } catch (tgbErr: any) {
-            console.warn('[Solana][EndRoom] ⚠️ TGB failed:', tgbErr.message, '— using reserve');
+            console.warn('[Solana][EndRoom] ⚠️ TGB failed:', tgbErr.message, '- using reserve');
             const fb = params.charityWallet ?? PLATFORM_CHARITY_RESERVE;
             charityWallet = typeof fb === 'string' ? new PublicKey(fb) : fb;
           }
@@ -410,7 +410,7 @@ export function useSolanaEndRoom() {
         throw new Error(`End room simulation failed: ${endRoomSim.error}`);
       }
 
-      console.log('[Solana][EndRoom] ✅ Simulation passed — sending end_room...');
+      console.log('[Solana][EndRoom] ✅ Simulation passed - sending end_room...');
 
       let endRoomTxHash: string | undefined;
       try {
@@ -451,7 +451,7 @@ export function useSolanaEndRoom() {
           actualCharityAmount = charityAmountDecimal;
           console.log('[Solana][EndRoom] ✅ On-chain charity amount:', actualCharityAmount, currency);
         } else {
-          console.warn('[Solana][EndRoom] ⚠️ Event not parsed — using preview value');
+          console.warn('[Solana][EndRoom] ⚠️ Event not parsed - using preview value');
         }
       } catch (parseError: any) {
         console.warn('[Solana][EndRoom] ⚠️ Event parse error:', parseError.message);

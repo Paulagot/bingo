@@ -1,9 +1,9 @@
 // src/components/mgtsystem/modals/EditFundraiserModal.tsx
 //
-// THE single edit surface — mirrors CreateFundraiserWizard on the way
+// THE single edit surface - mirrors CreateFundraiserWizard on the way
 // out: one modal that edits BOTH the event details (title/date/venue/
 // goal) AND the linked activity's settings, saved together with one
-// button. Opened from the drawer's Setup tab AND the event card's Edit —
+// button. Opened from the drawer's Setup tab AND the event card's Edit -
 // same surface, two doors.
 //
 // This SUPERSEDES: EditEventModal (event-only edit) and every edit-mode
@@ -11,8 +11,8 @@
 // here, all five of those files have no callers and can be deleted.
 //
 // SAVE SEMANTICS (same resumable pattern as the wizard's submit chain):
-//   1. eventsService.updateEvent(...)        — skipped on retry if done
-//   2. per-type activity update              — quizApi.updateWeb2Room /
+//   1. eventsService.updateEvent(...)        - skipped on retry if done
+//   2. per-type activity update              - quizApi.updateWeb2Room /
 //      eliminationMgmtService.updateRoom / ticketedEventMgmtService
 //      .updateRoom / challengeService.updateChallenge
 // A mid-save failure shows an error with Retry that re-runs only the
@@ -20,28 +20,28 @@
 // same save: the ticketed room's scheduledAt/timeZone (this absorbs the
 // date-sync that used to live in the dashboard's handleUpdateEvent),
 // the elimination room's scheduledAt, and the quiz config's
-// eventDateTime — closing the old gap where editing an event's date
+// eventDateTime - closing the old gap where editing an event's date
 // left the quiz config stale.
 //
 // PER-TYPE NOTES
-//   quiz        — config lives in useQuizSetupStore; seeded here from
+//   quiz        - config lives in useQuizSetupStore; seeded here from
 //                 the room's config_json (hardReset first, like the old
 //                 modal). Payment methods stay outside config_json.
-//   elimination — flat prizeDescription/prizeValue still sent via the
+//   elimination - flat prizeDescription/prizeValue still sent via the
 //                 spread-payload trick (backend migration compat).
-//   ticketed    — sale deadlines converted with the EDITED timezone.
-//   puzzle_sub  — challenge fetched by room_id; its section is editable
+//   ticketed    - sale deadlines converted with the EDITED timezone.
+//   puzzle_sub  - challenge fetched by room_id; its section is editable
 //                 only while status === 'draft' (Stripe billing locks
 //                 it after activation); the EVENT stays editable either
 //                 way. The challenge keeps its own title/starts/weeks.
-//   puzzle_drop — items/pricing tiers/go-on-sale date/payment methods,
+//   puzzle_drop - items/pricing tiers/go-on-sale date/payment methods,
 //                 editable ONLY while the Drop's room status is still
-//                 'scheduled' (not yet on sale) — see updateDrop's
+//                 'scheduled' (not yet on sale) - see updateDrop's
 //                 backend comment for why wholesale item replacement is
 //                 only safe before purchases can exist. Fetched via
 //                 puzzleDropMgmtService.getDrop(room_id), same on-demand
 //                 fetch pattern puzzle_sub's challenge uses.
-//   no activity — legacy events: event section only.
+//   no activity - legacy events: event section only.
 
 import { useEffect, useState } from 'react';
 import { Calendar, X, Save, Lock, AlertCircle } from 'lucide-react';
@@ -85,8 +85,8 @@ import SponsoredActivityStep, { type SponsoredActivityConfig, defaultSponsoredAc
 // (under a different name, 'GameType' vs 'LinkedActivity') across at
 // least three files now (QuizEventDashboard.tsx, FundraiselyEventCard.tsx,
 // DashboardFundraisingSummary.tsx). Worth considering a single shared
-// export — e.g. from activityRegistry.tsx, which already has
-// ActivityTypeId as the canonical list — so adding a 6th activity type
+// export - e.g. from activityRegistry.tsx, which already has
+// ActivityTypeId as the canonical list - so adding a 6th activity type
 // later doesn't require hunting down every duplicate union again.
 type GameType = 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
 
@@ -96,11 +96,11 @@ interface Props {
   event:      Event;
   /** The linked activity, if any (from the dashboard's activityMap). */
   activity?:  { room_id: string; game_type: GameType } | null;
-  /** The activity's room row (config_json etc.) — not needed for puzzle_sub. */
+  /** The activity's room row (config_json etc.) - not needed for puzzle_sub. */
   room?:      Room | null;
   campaigns?: Campaign[];
   onClose:    () => void;
-  /** Fires after everything saved — caller reloads events. */
+  /** Fires after everything saved - caller reloads events. */
   onSaved:    () => void | Promise<void>;
 }
 
@@ -159,7 +159,7 @@ export default function EditFundraiserModal({
   // ticketed can parse defaults but saving defaults over a real config is
   // worse than saying so. puzzle_sub and puzzle_drop both fetch their own
   // detail on demand (room_id / challenge id is all that's needed up
-  // front), so both are unconditionally true here — the fetch's own
+  // front), so both are unconditionally true here - the fetch's own
   // loading/failure states are handled separately (subLoading/dropLoading
   // below), same pattern for both.
   const activityAvailable =
@@ -289,7 +289,7 @@ export default function EditFundraiserModal({
   const subLocked = gameType === 'puzzle_sub' && !!challenge && challenge.status !== 'draft';
 
   // Puzzle Drop: fetch the room+items+tiers detail (it holds the editable
-  // config) — same on-demand fetch pattern as the subscription's
+  // config) - same on-demand fetch pattern as the subscription's
   // challenge above.
   const [dropConfig, setDropConfig] = useState<PuzzleDropConfig>(defaultPuzzleDropConfig);
   const [dropDetail, setDropDetail] = useState<DropDetail | null>(null);
@@ -323,7 +323,7 @@ export default function EditFundraiserModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Locked once the Drop has gone on sale — matches the backend's own
+  // Locked once the Drop has gone on sale - matches the backend's own
   // updateDrop guard (status must still be 'scheduled'). Same shape as
   // subLocked above; kept separate rather than merged since the two
   // activity types lock for different reasons (Stripe billing vs.
@@ -444,7 +444,7 @@ export default function EditFundraiserModal({
             ticketMethodIds:  ticketedConfig.paymentMethods.ticketMethodIds,
             onnightMethodIds: ticketedConfig.paymentMethods.onnightMethodIds,
             // Absorbs the date-sync that used to live in the dashboard's
-            // handleUpdateEvent — one save, everything consistent.
+            // handleUpdateEvent - one save, everything consistent.
             scheduledAt: scheduledAtUTC,
             timeZone:    fields.time_zone,
           } as any);
@@ -527,7 +527,7 @@ export default function EditFundraiserModal({
       const code = String(e?.message || '');
       const activityPhase = eventSaved;
       if (code === 'challenge_not_editable') setError('This challenge has already been activated and can no longer be edited.');
-      else if (code === 'room_not_editable' || code.includes('409')) setError('The activity can no longer be edited — it may have already started. Your event details were saved.');
+      else if (code === 'room_not_editable' || code.includes('409')) setError('The activity can no longer be edited - it may have already started. Your event details were saved.');
       else if (code === 'entry_fee_required') setError('Entry fee is required.');
       else if (code === 'prize_description_required') setError('Prize description is required.');
       else setError(
@@ -559,7 +559,7 @@ export default function EditFundraiserModal({
             <div>
               <h2 className="text-lg font-bold" style={{ color: '#102532' }}>Edit Fundraiser</h2>
               <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>
-                {event.title}{activity ? ` · ${label}` : ''} — event and activity settings, saved together
+                {event.title}{activity ? ` · ${label}` : ''} - event and activity settings, saved together
               </p>
             </div>
           </div>
@@ -609,7 +609,7 @@ export default function EditFundraiserModal({
                   style={{ background: '#fffbeb', borderColor: '#fcd34d' }}>
                   <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: '#92400e' }} />
                   <p className="text-sm" style={{ color: '#92400e' }}>
-                    Couldn't load this activity's settings here — open the event's dashboard and edit from its Setup tab.
+                    Couldn't load this activity's settings here - open the event's dashboard and edit from its Setup tab.
                     Event details above can still be saved.
                   </p>
                 </div>
@@ -621,7 +621,7 @@ export default function EditFundraiserModal({
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <Lock className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" />
                   <p className="text-xs text-amber-900">
-                    This challenge is {challenge?.status} — the schedule and price are locked in for subscribers
+                    This challenge is {challenge?.status} - the schedule and price are locked in for subscribers
                     (Stripe billing depends on them). Event details above can still be edited.
                   </p>
                 </div>
@@ -629,7 +629,7 @@ export default function EditFundraiserModal({
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <Lock className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" />
                   <p className="text-xs text-amber-900">
-                    This Drop is already {dropDetail?.status} — it's gone on sale, so its items and pricing are
+                    This Drop is already {dropDetail?.status} - it's gone on sale, so its items and pricing are
                     locked in for buyers who've already purchased. Event details above can still be edited.
                   </p>
                 </div>

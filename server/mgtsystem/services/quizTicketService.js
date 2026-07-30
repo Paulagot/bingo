@@ -86,21 +86,21 @@ async function validateAndResolveTicketType(roomId, config, ticketTypeId, totalS
       : [];
  
   if (allTypes.length === 0) {
-    throw new Error('ticket_type_not_found — no ticket types configured for this event');
+    throw new Error('ticket_type_not_found - no ticket types configured for this event');
   }
  
   // Find the requested type, fall back to first if not found
   let type = ticketTypeId ? allTypes.find(t => t.id === ticketTypeId) : null;
   if (!type) type = allTypes[0];
-  if (!type) throw new Error('ticket_type_not_found — requested ticket type does not exist');
+  if (!type) throw new Error('ticket_type_not_found - requested ticket type does not exist');
  
   // Re-run availability checks
   if (type.isEnabled === false) {
-    throw new Error(`ticket_type_unavailable — "${type.name}" is not currently available`);
+    throw new Error(`ticket_type_unavailable - "${type.name}" is not currently available`);
   }
  
   if (type.saleEndsAt && Date.now() > new Date(type.saleEndsAt).getTime()) {
-    throw new Error(`ticket_type_unavailable — "${type.name}" sale has ended`);
+    throw new Error(`ticket_type_unavailable - "${type.name}" sale has ended`);
   }
  
   if (type.quantity != null) {
@@ -115,7 +115,7 @@ async function validateAndResolveTicketType(roomId, config, ticketTypeId, totalS
     );
     const typeSold = Number(soldRows?.[0]?.sold ?? 0);
     if (typeSold >= type.quantity) {
-      throw new Error(`ticket_type_unavailable — "${type.name}" is sold out`);
+      throw new Error(`ticket_type_unavailable - "${type.name}" is sold out`);
     }
   }
  
@@ -273,7 +273,7 @@ async function validateManualTicketPaymentMethod({
     linkedPaymentMethods,
     clubPaymentMethodId,
     context: 'tickets',
-    roomStatus,              // ← passed through — switches to onnight when open
+    roomStatus,              // ← passed through - switches to onnight when open
   });
  
   if (method.methodCategory !== 'instant_payment') {
@@ -286,7 +286,7 @@ async function validateManualTicketPaymentMethod({
     if (roomStatus !== 'open') {
       throw new Error('pay_at_door_not_allowed_for_ticket_purchase');
     }
-    // Room is open — allow it through
+    // Room is open - allow it through
     return {
       ...method,
       paymentMethod: 'instant_payment',
@@ -526,7 +526,7 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
   playerName = null,
  
   donationFiat = 0,     // amount in the room's currency (from toFiat conversion)
-  currency,             // ISO code e.g. 'USD', 'GBP', 'EUR' — derived from room config
+  currency,             // ISO code e.g. 'USD', 'GBP', 'EUR' - derived from room config
  
   clubPaymentMethodId,
   paymentReference,
@@ -570,7 +570,7 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
     throw new Error('crypto_tickets_only_supported_for_donation_rooms');
   }
  
-  // Derive currency from room config — this is the source of truth.
+  // Derive currency from room config - this is the source of truth.
   // The caller also passes currency but we verify against the room.
   const roomCurrency = currencyFromSymbol(config.currencySymbol) || currency || 'EUR';
  
@@ -629,11 +629,11 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
   await connection.execute(ticketSql, [
     ticketId, roomId, clubId,
     purchaserName, purchaserEmail, purchaserPhone, finalPlayerName,
-    safeAmount,                    // entry_fee — in room currency
+    safeAmount,                    // entry_fee - in room currency
     JSON.stringify(extrasForTicket),
     0,                             // extras_total
-    safeAmount,                    // total_amount — in room currency
-    roomCurrency,                  // currency — e.g. 'USD', 'GBP', 'EUR'
+    safeAmount,                    // total_amount - in room currency
+    roomCurrency,                  // currency - e.g. 'USD', 'GBP', 'EUR'
     paymentReference, clubPaymentMethodId,
     joinToken,
   ]);
@@ -1338,7 +1338,7 @@ export async function createCryptoFixedFeeTicketWithConfirmedPayment({
   web3TransactionId = null,
 
   tokenCode = null,          // e.g. 'SOL'
-  cryptoDisplayAmount = null, // e.g. 0.034521 — the SOL amount sent
+  cryptoDisplayAmount = null, // e.g. 0.034521 - the SOL amount sent
   entryFeeDisplay = null,    // fiat entry fee (for metadata)
   extrasDisplay = null,      // fiat extras (for metadata)
   entryFeeRaw = null,        // raw lamports entry portion
@@ -1375,7 +1375,7 @@ export async function createCryptoFixedFeeTicketWithConfirmedPayment({
   if (!paymentReference || !externalTransactionId)
     throw new Error('paymentReference and externalTransactionId are required');
 
-  // Build extras array — include token info for reconciliation
+  // Build extras array - include token info for reconciliation
   const extrasForTicket = Array.isArray(selectedExtras)
     ? selectedExtras.map((extraId) => ({
         extraId,

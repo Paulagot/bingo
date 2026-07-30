@@ -1,6 +1,6 @@
 /**
  * Calls host_cancel_room then host_refund_batch then close_room
- * on the Elimination program. Host signs all — no oracle needed.
+ * on the Elimination program. Host signs all - no oracle needed.
  * All player entry PDAs are derived client-side and passed as remaining accounts.
  */
 import { useCallback } from 'react';
@@ -127,7 +127,7 @@ if (!cancelTxHash) {
 
       // ── Step 2: host_refund_batch ─────────────────────────────────────────
       if (params.playerWallets.length === 0) {
-        console.log('[EliminationHostCancel] No players to refund — skipping to close');
+        console.log('[EliminationHostCancel] No players to refund - skipping to close');
 
         // Still close the room even with no players
         try {
@@ -184,7 +184,7 @@ if (!cancelTxHash) {
       }
 
       if (remainingAccounts.length === 0) {
-        console.log('[EliminationHostCancel] No valid player accounts — skipping refund batch');
+        console.log('[EliminationHostCancel] No valid player accounts - skipping refund batch');
 
         try {
           console.log('[EliminationHostCancel] Step 2: Closing room (no valid accounts)...');
@@ -253,7 +253,7 @@ try {
     err?.message?.includes('AlreadyProcessed');
 
   if (alreadyProcessed) {
-    console.log('[EliminationHostCancel] Refund already processed — recovering signature');
+    console.log('[EliminationHostCancel] Refund already processed - recovering signature');
     try {
       const sigs = await connection.getSignaturesForAddress(roomPda, { limit: 5 });
       const found = sigs.find(s => !s.err);
@@ -272,7 +272,7 @@ if (!refundTxHash) {
 }
 
       // ── Step 3: close_room (reclaim rent to platform) ─────────────────────
-      // Vault is now empty after refund batch — safe to close.
+      // Vault is now empty after refund batch - safe to close.
       // Non-critical: cancel and refund are already done.
       try {
         console.log('[EliminationHostCancel] Step 3: Closing room to reclaim rent...');

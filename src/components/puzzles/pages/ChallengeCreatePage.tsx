@@ -419,7 +419,7 @@ export default function ChallengeCreatePage() {
                         {currencySymbol}
                         {parsedPrice.toFixed(2)}/week
                       </span>{' '}
-                      for {totalWeeks} week{totalWeeks !== 1 ? 's' : ''} —{' '}
+                      for {totalWeeks} week{totalWeeks !== 1 ? 's' : ''} -{' '}
                       <span className="font-semibold text-[#071A44]">
                         {currencySymbol}
                         {(parsedPrice * totalWeeks).toFixed(2)} total

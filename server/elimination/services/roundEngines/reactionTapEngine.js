@@ -88,7 +88,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   // Use the client-stamped time when the target became visible if provided.
   // This removes server→client clock drift from the reaction time measurement.
   // If not provided (older clients), fall back to server validTargetAt.
-  // Cap targetVisibleAt to validTargetAt — a client cannot legitimately
+  // Cap targetVisibleAt to validTargetAt - a client cannot legitimately
   // report seeing the target before the server made it valid.
   const targetVisibleAt = submission.targetVisibleAt
     ? Math.max(submission.targetVisibleAt, validTargetAt)
@@ -98,7 +98,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   const earlyTap = reactionMs < 0;
 
   // Position error: normalised against full arena half-diagonal.
-  // Penalises distance from centre continuously — not just within the target radius.
+  // Penalises distance from centre continuously - not just within the target radius.
   const dx = submission.tapX - config.targetPosition.x;
   const dy = submission.tapY - config.targetPosition.y;
   const distanceToCentre = Math.sqrt(dx * dx + dy * dy);

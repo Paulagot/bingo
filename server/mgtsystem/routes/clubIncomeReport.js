@@ -2,7 +2,7 @@
 //
 // GET /api/income-report/:clubId
 //
-// Club-facing total income report — replaces the modal's two separate
+// Club-facing total income report - replaces the modal's two separate
 // calls (donations list + tickets summary) with one endpoint that owns
 // the whole shape. Authenticated, club-scoped, same access pattern as
 // /tickets/:clubId/summary.

@@ -3,15 +3,15 @@
 // Wizard state + persistence. Everything the user types lives here and is
 // autosaved to localStorage on every change (zustand persist middleware),
 // so a refresh, crash, or connection blip never loses their work. Nothing
-// touches the server until the final submit — see submitChain.ts.
+// touches the server until the final submit - see submitChain.ts.
 //
 // PERSISTENCE CONTRACT
 //   • Single versioned key. Bump STORE_VERSION on any breaking shape
-//     change — the persist `version`/`migrate` pair below simply discards
+//     change - the persist `version`/`migrate` pair below simply discards
 //     incompatible drafts rather than trying to migrate them (a lost
 //     draft is annoying; a corrupt one is worse).
 //   • The draft records which club it belongs to. If a different club is
-//     active, the draft is ignored (hasResumableDraft returns false) —
+//     active, the draft is ignored (hasResumableDraft returns false) -
 //     we never leak one club's half-typed event into another's wizard.
 //   • Drafts expire after DRAFT_TTL_MS (7 days). Stale drafts are treated
 //     as absent.
@@ -20,7 +20,7 @@
 //     after a mid-chain failure re-runs only the missing steps and can
 //     never create a duplicate event or room. Cleared with the rest of
 //     the draft on full success.
-//   • The QUIZ step's own config is NOT duplicated here — it lives in
+//   • The QUIZ step's own config is NOT duplicated here - it lives in
 //     useQuizSetupStore, which has its own persistence. This store only
 //     records that quiz was the chosen type; phase 2 rehydrates the quiz
 //     store alongside (see INTEGRATION.md).
@@ -51,13 +51,13 @@ export interface WizardEventFields {
 }
 
 export interface SubmitProgress {
-  /** Set once createEvent succeeds — retries skip event creation. */
+  /** Set once createEvent succeeds - retries skip event creation. */
   eventId?: string;
-  /** Set once the activity room is created — retries skip room creation. */
+  /** Set once the activity room is created - retries skip room creation. */
   roomId?:  string;
   /**
    * True once a createEvent request has been FIRED. If this is set but
-   * eventId is not, the response may have been lost mid-flight — the
+   * eventId is not, the response may have been lost mid-flight - the
    * submit chain will look for a matching just-created draft to adopt
    * before ever re-creating (see submitChain.adoptRecentDraft).
    */
@@ -74,7 +74,7 @@ interface WizardState {
   progress:        SubmitProgress;
   /**
    * Set when the wizard was opened from a legacy event card's
-   * "Add Activity" (event already exists) — step 2 is skipped and the
+   * "Add Activity" (event already exists) - step 2 is skipped and the
    * submit chain treats this as progress.eventId.
    */
   injectedEventId: string | null;
@@ -168,7 +168,7 @@ function freshState(clubId: string | null) {
 // ── Draft inspection helpers ──────────────────────────────────────────────────
 
 /**
- * True when a meaningful, fresh draft for THIS club exists — used by the
+ * True when a meaningful, fresh draft for THIS club exists - used by the
  * wizard shell to show the "Resume / Start fresh" banner. "Meaningful"
  * means the user got past a blank slate: chose a type or typed a title.
  */

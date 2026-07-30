@@ -3,15 +3,15 @@
 // Auto-generates a challenge's weekly puzzle schedule so clubs don't have
 // to hand-pick 30 dropdowns. Two independent mechanisms:
 //
-//   TYPE — "shuffled deck": every registered puzzle type goes into a
+//   TYPE - "shuffled deck": every registered puzzle type goes into a
 //   shuffled deck, dealt one per week. When the deck empties it's
 //   reshuffled and dealing continues, with the rule that the first card
 //   of a fresh deck can't equal the last card dealt (no back-to-back
 //   repeats). Guarantees no type repeats until ALL types have appeared,
-//   and stays automatically in sync with the engine registry — adding an
+//   and stays automatically in sync with the engine registry - adding an
 //   engine to ENGINE_MAP puts it in rotation with no changes here.
 //
-//   DIFFICULTY — "weighted ramp": each week's position fraction
+//   DIFFICULTY - "weighted ramp": each week's position fraction
 //   f = (week-1)/(totalWeeks-1) drives weighted-random difficulty
 //   selection. Early weeks are easy-dominant, the middle is
 //   medium-dominant, the run-in is hard-dominant, with a small floor on
@@ -30,7 +30,7 @@ import { getSupportedPuzzleTypes } from './puzzleGenerationService.js';
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
 // Small constant floor added to every difficulty weight mid-challenge so
-// no phase is 100% one difficulty — this is what prevents "a wall of easy".
+// no phase is 100% one difficulty - this is what prevents "a wall of easy".
 const WEIGHT_FLOOR = 0.12;
 
 // Never serve more than this many consecutive weeks at the same
@@ -40,7 +40,7 @@ const WEIGHT_FLOOR = 0.12;
 const MAX_DIFFICULTY_RUN = 3;
 
 function shuffle(array) {
-  // Fisher–Yates. Copy first — never mutate the caller's array.
+  // Fisher–Yates. Copy first - never mutate the caller's array.
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -92,7 +92,7 @@ export function generateSchedule(totalWeeks) {
 
   const allTypes = getSupportedPuzzleTypes();
   if (!allTypes.length) {
-    throw new Error('No puzzle engines registered — cannot generate a schedule');
+    throw new Error('No puzzle engines registered - cannot generate a schedule');
   }
 
   const schedule = [];

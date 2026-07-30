@@ -128,7 +128,7 @@ export function setupHostHandlers(socket, namespace) {
     }
   }
 
-// PATCH for hostHandlers.js — fix computeImpactEventTotals
+// PATCH for hostHandlers.js - fix computeImpactEventTotals
 //
 // The quiz contract now has FIXED splits. web3PrizeSplit in room.config
 // is either absent or stale from the old dynamic fee system.
@@ -174,7 +174,7 @@ function computeImpactEventTotals(room) {
     hostPercent     = QUIZ_WEB3_SPLIT.host;       // 25
     platformPercent = QUIZ_WEB3_SPLIT.platform;   // 15
   } else {
-    // Web2 rooms — still read from config (dynamic)
+    // Web2 rooms - still read from config (dynamic)
     const split = room.config?.web3PrizeSplit || {};
     charityPercent  = Number(split.charity  ?? 0);
     hostPercent     = Number(split.host ?? split.hostFee ?? split.hostFeePercent ?? 0);
@@ -751,7 +751,7 @@ socket.on('operator_complete', async ({ roomId }) => {
   room.currentPhase = 'reconciling';
   emitRoomState(namespace, roomId);
  
-  // Write reconciliation_status to DB — status stays 'completed'
+  // Write reconciliation_status to DB - status stays 'completed'
   await markRoomAsReconciling(roomId);
  
   console.log(`[Host] 🔄 Room ${roomId} moved to reconciling by operator`);
@@ -1064,14 +1064,14 @@ room.currentPhase = 'complete';
  
 // ── Write prize payout to web3 transaction ledger ─────────────────────────
 // room.finalWinners is an array of wallet addresses (set in end_quiz_and_distribute_prizes)
-// The distribute tx pays all winners in one on-chain call — we record one row
+// The distribute tx pays all winners in one on-chain call - we record one row
 // per winner wallet so we have a full per-wallet ledger.
 if (txHash && Array.isArray(room.finalWinners) && room.finalWinners.length > 0) {
   const resolvedChain   = web3Chain  ?? room.config?.web3Chain  ?? 'unknown';
   const resolvedNetwork = network    ?? room.config?.web3Network ?? room.config?.evmNetwork ?? room.config?.solanaCluster ?? 'unknown';
   const resolvedToken   = (room.config?.web3Currency ?? room.config?.currencySymbol ?? 'UNKNOWN').toUpperCase();
  
-  // entryFee is human-readable in the quiz — convert to raw for the ledger
+  // entryFee is human-readable in the quiz - convert to raw for the ledger
   const TOKEN_DECIMALS = {
     USDC: 6, USDT: 6, SOL: 9, BONK: 5, PYUSD: 6, EURC: 6,
     ETH: 18, MATIC: 18, BNB: 18,

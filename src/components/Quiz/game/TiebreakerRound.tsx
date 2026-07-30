@@ -19,7 +19,7 @@ interface TiebreakerRoundProps {
   playersInRoom?: { id: string; name: string }[];
   onAutoSubmit?: () => void;
   questionNumber?: number;
-  /** Controlled by parent — do NOT manage local state for this */
+  /** Controlled by parent - do NOT manage local state for this */
   hasSubmitted?: boolean;
 }
 

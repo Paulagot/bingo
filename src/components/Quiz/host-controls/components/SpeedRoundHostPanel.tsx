@@ -95,7 +95,7 @@ const SpeedRoundHostPanel: React.FC<SpeedRoundHostPanelProps> = ({  visible }) =
     <div className="mb-6 rounded-xl border-2 border-blue-200 bg-white p-6 shadow-lg">
       {/* Header with countdown */}
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-fg text-lg font-bold">⚡ Speed Round — Live Dashboard</h3>
+        <h3 className="text-fg text-lg font-bold">⚡ Speed Round - Live Dashboard</h3>
         {roundCountdown !== null && (
           <div className="flex items-center space-x-2">
             <Timer className="h-4 w-4 text-orange-600" />

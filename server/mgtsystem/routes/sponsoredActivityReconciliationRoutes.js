@@ -1,17 +1,17 @@
 // server/puzzles/routes/puzzleDropReconciliationRoutes.js
 //
 // Period-aware reconciliation endpoints for Sponsored Activity.
-// Mounted at /api/sponsored-activity-reconciliation — direct structural port of
+// Mounted at /api/sponsored-activity-reconciliation - direct structural port of
 // subscriptionReconciliationRoutes.js, only the room ownership check's
 // game_type differs ('puzzle_drop' instead of 'puzzle_sub').
 //
-// GET  /room/:roomId/current      — current (draft or just-approved) period + adjustments + live receipts
-// GET  /room/:roomId/history      — every period, oldest first
-// GET  /room/:roomId/summary      — lifetime rollup across all periods
-// POST /room/:roomId/adjustments  — add adjustment to the CURRENT period (opens one if needed)
+// GET  /room/:roomId/current      - current (draft or just-approved) period + adjustments + live receipts
+// GET  /room/:roomId/history      - every period, oldest first
+// GET  /room/:roomId/summary      - lifetime rollup across all periods
+// POST /room/:roomId/adjustments  - add adjustment to the CURRENT period (opens one if needed)
 // PATCH /room/:roomId/adjustments/:id
 // DELETE /room/:roomId/adjustments/:id
-// POST /room/:roomId/approve      — lock the current period, start the next one's baseline
+// POST /room/:roomId/approve      - lock the current period, start the next one's baseline
 
 import express from 'express';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
@@ -23,7 +23,7 @@ import {
   ensureCurrentDraftReconciliation,
   approveCurrentPeriod,
 } from '../services/sponsoredActivityReconciliationService.js';
-// Reused as-is, same as subscriptionReconciliationRoutes.js does — these
+// Reused as-is, same as subscriptionReconciliationRoutes.js does - these
 // are already generic (room_id + reconciliation_id), nothing ticketed-
 // event-specific in their SQL.
 import {
@@ -194,7 +194,7 @@ router.delete('/room/:roomId/adjustments/:id', async (req, res) => {
   }
 });
 
-// ─── POST approve — lock the current period ───────────────────────────────────
+// ─── POST approve - lock the current period ───────────────────────────────────
 
 router.post('/room/:roomId/approve', async (req, res) => {
   const { roomId } = req.params;

@@ -94,7 +94,7 @@ export function useCryptoQuote({
         if (remaining === 0) {
           clearTimer();
           setStatus('expired');
-          // Do NOT auto-fetch here — that causes the loop.
+          // Do NOT auto-fetch here - that causes the loop.
           // The Refresh button lets the user get a new quote when ready.
         }
       }, 1000);
@@ -110,7 +110,7 @@ export function useCryptoQuote({
   }, [roomId, tokenCode, fiatAmount]);
 
   // Fetch when enabled and inputs are present.
-  // Only re-fetch when inputs actually change — not on every render or timer tick.
+  // Only re-fetch when inputs actually change - not on every render or timer tick.
   useEffect(() => {
     if (!enabled || !tokenCode || fiatAmount <= 0) {
       clearTimer();

@@ -275,7 +275,7 @@ export default function CampaignSellersTab({ campaignId }: Props) {
             />
           </div>
           <div className="fl-form-row">
-            <label className="fl-label" htmlFor="seller-notes">Notes (optional — not visible to buyer)</label>
+            <label className="fl-label" htmlFor="seller-notes">Notes (optional - not visible to buyer)</label>
             <input
               id="seller-notes"
               className="fl-input"

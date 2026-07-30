@@ -1,6 +1,6 @@
 // server/ticketedEvent/api/ticketedEventCheckinRoutes.js
 //
-// Routes for the check-in dashboard — accessible by:
+// Routes for the check-in dashboard - accessible by:
 //   1. Logged-in club users (cookie/JWT auth via authenticateToken)
 //   2. Door staff via operator token (?token=xyz in query or Authorization header)
 //
@@ -9,13 +9,13 @@
 // UPDATED (settlement guard):
 //   - PATCH .../confirm now reads the ticket BEFORE writing it, and refuses
 //     to manually confirm auto-settled payments (Stripe, crypto). Those are
-//     settled by a webhook / on-chain confirmations — a person at the door
+//     settled by a webhook / on-chain confirmations - a person at the door
 //     has no way to verify them, which is how an insufficient-funds card got
 //     marked as paid and threw the reports out.
 //   - GET .../tickets now joins the club payment method row so every ticket
 //     carries settlementMode + canConfirmManually. The frontend renders from
 //     those flags, so the button and the server guard can never drift.
-//   - NEW POST .../collect-at-door — the escape hatch. When an online payment
+//   - NEW POST .../collect-at-door - the escape hatch. When an online payment
 //     never landed and the guest pays in person, this rewrites the ticket onto
 //     a real door method (cash / card tap) instead of lying about the old one.
 //
@@ -47,7 +47,7 @@ const ROOMS_TABLE   = `${TABLE_PREFIX}web2_quiz_rooms`;
 const METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
 
 // Providers where money physically changes hands at the door. A Revolut link
-// is instant_payment too, but you can't "collect" it in person — same rule as
+// is instant_payment too, but you can't "collect" it in person - same rule as
 // WALKIN_ALLOWED_METHODS in WalkinFlow.tsx.
 const DOOR_COLLECTABLE_PROVIDERS = new Set(['cash', 'card_tap']);
 
@@ -76,9 +76,9 @@ async function flexAuth(req, res, next) {
         req.operator         = decoded;
         return next();
       }
-      // Might be a club JWT — fall through to standard auth
+      // Might be a club JWT - fall through to standard auth
     } catch {
-      // Invalid token — fall through to standard auth
+      // Invalid token - fall through to standard auth
     }
   }
 
@@ -93,7 +93,7 @@ async function verifyRoomAccess(req, roomId) {
     // Operator token is scoped to a specific room
     return req.operator_room_id === roomId;
   }
-  // Club auth — verify the room belongs to this club
+  // Club auth - verify the room belongs to this club
   const clubId = req.club_id;
   if (!clubId) return false;
   const [rows] = await connection.execute(
@@ -137,15 +137,15 @@ function resolveConfirmerIdentity(req) {
 
 // ─── Auto-capture confirmer as a volunteer/admin ──────────────────────────────
 // Whenever someone confirms a payment or adds a walk-in, record their name in
-// config_json.admins if not already there — so the Impact tab's volunteer
+// config_json.admins if not already there - so the Impact tab's volunteer
 // count reflects everyone who actually helped, not just people explicitly
 // added via the Staff tab. Works identically for club users and door staff
-// on operator tokens, since it only needs roomId + a name string — it doesn't
+// on operator tokens, since it only needs roomId + a name string - it doesn't
 // care which auth path produced that name.
 async function ensureAdminCaptured(roomId, confirmerName) {
   if (!confirmerName || !confirmerName.trim()) return;
 
-  // Skip generic/system placeholder names — not real volunteers
+  // Skip generic/system placeholder names - not real volunteers
   const skip = new Set(['admin', 'host', 'system', 'door staff', 'unknown']);
   const trimmedName = confirmerName.trim();
   if (skip.has(trimmedName.toLowerCase())) return;
@@ -180,7 +180,7 @@ async function ensureAdminCaptured(roomId, confirmerName) {
       [JSON.stringify(updatedConfig), roomId]
     );
   } catch (err) {
-    // Non-fatal — never block a payment confirmation or walk-in over this
+    // Non-fatal - never block a payment confirmation or walk-in over this
     console.error('[ticketedEventCheckin] ensureAdminCaptured failed:', err);
   }
 }
@@ -209,7 +209,7 @@ router.post('/:roomId/operator-token', authenticateToken, async (req, res) => {
     const appOrigin  = process.env.APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const checkinUrl = `${appOrigin}/ticketed-event/checkin/${roomId}?token=${token}`;
 
-    console.log(`[ticketedEventCheckin] 🎤 Operator token generated — room: ${roomId} club: ${clubId}`);
+    console.log(`[ticketedEventCheckin] 🎤 Operator token generated - room: ${roomId} club: ${clubId}`);
 
     return res.status(200).json({ token, checkinUrl });
   } catch (err) {
@@ -270,7 +270,7 @@ router.get('/:roomId/info', flexAuth, async (req, res) => {
 });
 
 // ─── GET /api/ticketed-event/checkin/:roomId/tickets ─────────────────────────
-// List all tickets for the room — for the attendee list in the check-in dashboard.
+// List all tickets for the room - for the attendee list in the check-in dashboard.
 //
 // The LEFT JOIN pulls the club payment method row so we can classify each
 // ticket's settlement mode from method_category + method_config, rather than
@@ -349,7 +349,7 @@ router.get('/:roomId/tickets', flexAuth, async (req, res) => {
 });
 
 // ─── GET /api/ticketed-event/checkin/:roomId/door-methods ────────────────────
-// Payment methods that can actually be collected at the door — cash and card
+// Payment methods that can actually be collected at the door - cash and card
 // tap only. Used by the "Collect at door" flow when an online payment fails.
 router.get('/:roomId/door-methods', flexAuth, async (req, res) => {
   try {
@@ -387,12 +387,12 @@ router.get('/:roomId/door-methods', flexAuth, async (req, res) => {
 });
 
 // ─── POST /api/ticketed-event/checkin/:roomId/scan ───────────────────────────
-// QR code scan — redeem a ticket by its join_token.
+// QR code scan - redeem a ticket by its join_token.
 // This is the endpoint the QR scanner calls when a guest scans in.
 //
 // The frontend sends either:
-//   { joinToken: "raw-token" }      — manual entry or raw-token QR
-//   { ticketId:  "TICKET-ABC123" }  — scanned from the ticket status page URL
+//   { joinToken: "raw-token" }      - manual entry or raw-token QR
+//   { ticketId:  "TICKET-ABC123" }  - scanned from the ticket status page URL
 //
 router.post('/:roomId/scan', flexAuth, async (req, res) => {
   try {
@@ -406,7 +406,7 @@ router.post('/:roomId/scan', flexAuth, async (req, res) => {
     const hasAccess = await verifyRoomAccess(req, roomId);
     if (!hasAccess) return res.status(403).json({ error: 'forbidden' });
 
-    // Find the ticket — match by join_token OR ticket_id, whichever was provided
+    // Find the ticket - match by join_token OR ticket_id, whichever was provided
     const [rows] = await connection.execute(
       `SELECT ticket_id, purchaser_name, player_name,
               payment_status, redemption_status, redeemed_at
@@ -442,7 +442,7 @@ router.post('/:roomId/scan', flexAuth, async (req, res) => {
       });
     }
 
-    // Already redeemed — return a warning with who/when
+    // Already redeemed - return a warning with who/when
     if (ticket.redemption_status === 'redeemed') {
       return res.status(200).json({
         ok:           true,
@@ -483,11 +483,11 @@ router.post('/:roomId/scan', flexAuth, async (req, res) => {
 });
 
 // ─── PATCH /api/ticketed-event/checkin/:roomId/tickets/:ticketId/confirm ──────
-// Confirm a ticket payment — accessible to door staff via operator token.
+// Confirm a ticket payment - accessible to door staff via operator token.
 //
 // This handler used to go straight to UPDATE without reading the ticket, which
 // meant any ticket in any state could be stamped payment_confirmed by anyone
-// with room access — including a Stripe payment that had actually declined.
+// with room access - including a Stripe payment that had actually declined.
 router.patch('/:roomId/tickets/:ticketId/confirm', flexAuth, async (req, res) => {
   try {
     const roomId   = String(req.params.roomId   || '').trim();
@@ -535,7 +535,7 @@ router.patch('/:roomId/tickets/:ticketId/confirm', flexAuth, async (req, res) =>
 
     if (!canConfirmManually(methodForClassification)) {
       console.warn(
-        `[ticketedEventCheckin] 🚫 Blocked manual confirm — ticket: ${ticketId} ` +
+        `[ticketedEventCheckin] 🚫 Blocked manual confirm - ticket: ${ticketId} ` +
         `category: ${ticket.method_category ?? ticket.payment_method} room: ${roomId}`
       );
       return res.status(403).json({
@@ -571,7 +571,7 @@ router.patch('/:roomId/tickets/:ticketId/confirm', flexAuth, async (req, res) =>
       [confirmedById, confirmedByName, confirmedByRole, ticketId, roomId]
     );
 
-    // Update the ledger — marks all entries for this ticket as confirmed
+    // Update the ledger - marks all entries for this ticket as confirmed
     const playerId = `ticket_${ticketId}`;
     await confirmPayment({
       roomId,
@@ -616,7 +616,7 @@ router.post('/:roomId/tickets/:ticketId/collect-at-door', flexAuth, async (req, 
     const clubId = await resolveRoomClubId(req, roomId);
     if (!clubId) return res.status(404).json({ error: 'room_not_found' });
 
-    // Look up the method on the club — never trust a category string from the
+    // Look up the method on the club - never trust a category string from the
     // client, since that's what would let someone re-collect "as Stripe".
     const [methodRows] = await connection.execute(
       `SELECT id, method_category, provider_name, method_label, is_enabled
@@ -681,7 +681,7 @@ router.post('/:roomId/tickets/:ticketId/collect-at-door', flexAuth, async (req, 
          AND payment_status <> 'payment_confirmed'
        LIMIT 1`,
       [
-        method.method_category,       // canonical category — what the ledger accepts
+        method.method_category,       // canonical category - what the ledger accepts
         method.id,
         `DOOR:was_${originalMethod || 'unknown'}`,
         confirmer.id, confirmer.name, confirmer.role,
@@ -723,7 +723,7 @@ router.post('/:roomId/tickets/:ticketId/collect-at-door', flexAuth, async (req, 
 });
 
 // ─── POST /api/ticketed-event/checkin/:roomId/walkin ──────────────────────────
-// Create a walk-in ticket — payment confirmed + redeemed immediately.
+// Create a walk-in ticket - payment confirmed + redeemed immediately.
 // Used by door staff for guests paying on the night.
 router.post('/:roomId/walkin', flexAuth, async (req, res) => {
   try {
@@ -817,7 +817,7 @@ router.post('/:roomId/walkin', flexAuth, async (req, res) => {
 
     console.log(`[ticketedEventCheckin] 🚶 Walk-in: ${purchaserName} (${ticketId}) added by ${confirmer.name} for room ${roomId}`);
 
-    // Write ledger entry — same as all other ticket flows
+    // Write ledger entry - same as all other ticket flows
     const playerId = `ticket_${ticketId}`;
     const ledgerId = await createExpectedPayment({
       roomId,

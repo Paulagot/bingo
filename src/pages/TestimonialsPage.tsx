@@ -63,7 +63,7 @@ const TestimonialsPage: React.FC = () => {
   const collectionPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: 'Testimonials — FundRaisely Fundraising Quiz',
+    name: 'Testimonials - FundRaisely Fundraising Quiz',
     url: abs('/testimonials'),
     description:
       'Read testimonials and stories from schools, clubs, and charities using FundRaisely’s fundraising quiz for in-person events.',
@@ -80,7 +80,7 @@ const TestimonialsPage: React.FC = () => {
       </a>
 
       <SEO
-        title="Testimonials — FundRaisely Fundraising Quiz"
+        title="Testimonials - FundRaisely Fundraising Quiz"
         description="What schools, clubs, and charities say about running in-person quiz fundraisers with FundRaisely. Real stories, outcomes, and tips."
         keywords="fundraising quiz testimonials, quiz fundraiser case studies, charity quiz reviews, school quiz success stories"
         domainStrategy="geographic"
@@ -108,7 +108,7 @@ const TestimonialsPage: React.FC = () => {
 
           <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl">
             Real outcomes from <strong>schools, PTAs, sports clubs, and charities</strong> running in-person quiz nights with
-            FundRaisely — simple setup, engaging gameplay, and audit-ready reconciliation once paid + method are marked.
+            FundRaisely - simple setup, engaging gameplay, and audit-ready reconciliation once paid + method are marked.
           </p>
 
           <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -163,13 +163,13 @@ const TestimonialsPage: React.FC = () => {
                 org="St. Brigid’s Primary School PTA"
               />
               <TestimonialCard
-                quote="Marking payments was straightforward — once we marked paid + method, the reconciliation report just worked."
+                quote="Marking payments was straightforward - once we marked paid + method, the reconciliation report just worked."
                 name="Gavin R."
                 role="Club Treasurer"
                 org="Riverside Athletics Club"
               />
               <TestimonialCard
-                quote="The extras added fun! Freeze and RobinHood had everyone laughing — we’ll run it again next term."
+                quote="The extras added fun! Freeze and RobinHood had everyone laughing - we’ll run it again next term."
                 name="Niamh K."
                 role="Events Volunteer"
                 org="Westside Youth Charity"
@@ -220,7 +220,7 @@ const TestimonialsPage: React.FC = () => {
             <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white shadow-md">
               <h3 id="cta-heading" className="text-2xl font-bold mb-2">Ready to run your quiz night?</h3>
               <p className="text-white/90 mb-6">
-                Start free today — in-person events with automatic reconciliation once paid + method are marked.
+                Start free today - in-person events with automatic reconciliation once paid + method are marked.
               </p>
               <a
                 href="/free-trial"

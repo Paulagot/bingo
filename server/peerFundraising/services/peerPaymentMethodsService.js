@@ -32,7 +32,7 @@ async function fundraiser(id, clubId = null) {
 
 // Lists the club's enabled payment methods with no fundraiser context at
 // all. Needed so the "create fundraiser" form can offer payment method
-// selection during setup — previously every method here required an
+// selection during setup - previously every method here required an
 // existing fundraiser id, which doesn't exist yet at creation time.
 export async function getAvailableMethodsForClub(clubId) {
   const [rows] = await connection.execute(

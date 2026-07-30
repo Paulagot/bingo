@@ -764,7 +764,7 @@ export function setupRecoveryHandlers(socket, namespace) {
         }
 
         // ── FIX: Fire real socket events so the client UI updates ────────────
-        // The snap ack alone is not enough — the client's socket listeners for
+        // The snap ack alone is not enough - the client's socket listeners for
         // tiebreak:start / tiebreak:question / tiebreak:review / tiebreak:result
         // must fire so all hooks and player screens update correctly.
         emitTiebreakerRecovery(socket, room, user.id);

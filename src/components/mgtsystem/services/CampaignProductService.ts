@@ -1,7 +1,7 @@
 // src/components/mgtsystem/services/CampaignProductService.ts
 //
 // Frontend management service for the Campaign Product Builder.
-// Extends BaseService — same auth header/logging pattern as EliminationMgmtService.
+// Extends BaseService - same auth header/logging pattern as EliminationMgmtService.
 // All requests go to /api/campaigns/:campaignId/... (auth-gated).
 
 import BaseService from './BaseService';
@@ -310,6 +310,6 @@ class CampaignProductService extends BaseService {
   }
 }
 
-// Singleton — same pattern as EliminationMgmtService
+// Singleton - same pattern as EliminationMgmtService
 const campaignProductService = new CampaignProductService();
 export default campaignProductService;

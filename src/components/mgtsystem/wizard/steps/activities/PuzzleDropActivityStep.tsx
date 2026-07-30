@@ -6,14 +6,14 @@
 //
 // Modeled structurally on SubscriptionActivityStep's sponsors array (the
 // closest existing repeatable-list pattern using the shared Section/Field
-// primitives — see spec §4.1, which names EliminationActivityStep as the
+// primitives - see spec §4.1, which names EliminationActivityStep as the
 // structural model; Subscription's array-of-rows pattern is the closer
 // fit here since Elimination's fields are all singular). No API calls, no
-// submit button — config flows in/out via value/onChange like every other
+// submit button - config flows in/out via value/onChange like every other
 // activity step.
 //
-// PaymentMethodSelector uses mode="single" (§4.2) — Drop has no advance/
-// on-the-night split, just one purchase moment — and its selection is
+// PaymentMethodSelector uses mode="single" (§4.2) - Drop has no advance/
+// on-the-night split, just one purchase moment - and its selection is
 // still stored under paymentMethods.onnightMethodIds, matching every
 // other activity type's PaymentMethodSelection shape exactly (no new
 // field introduced downstream).
@@ -43,7 +43,7 @@ export interface PuzzleDropConfig {
   paymentMethods: PaymentMethodSelection;
 }
 
-// Same puzzle-type/difficulty lists SubscriptionActivityStep uses — kept
+// Same puzzle-type/difficulty lists SubscriptionActivityStep uses - kept
 // as a local copy here rather than a shared import, since the two steps'
 // config shapes are independent and the spec's own §11 file list doesn't
 // name a shared constants module for this. If PUZZLE_TYPES/DIFFICULTIES
@@ -101,7 +101,7 @@ export function validatePuzzleDropConfig(cfg: PuzzleDropConfig): Record<string, 
         break;
       }
       if (quantities.has(qty)) {
-        errs.pricingTiers = `You already have a tier for ${qty} item${qty !== 1 ? 's' : ''} — combine them or change the quantity`;
+        errs.pricingTiers = `You already have a tier for ${qty} item${qty !== 1 ? 's' : ''} - combine them or change the quantity`;
         break;
       }
       quantities.add(qty);
@@ -246,7 +246,7 @@ export default function PuzzleDropActivityStep({
         </div>
       </Section>
 
-      {/* ── 3. Payment methods — single mode, no advance/on-the-night split ── */}
+      {/* ── 3. Payment methods - single mode, no advance/on-the-night split ── */}
       <PaymentMethodSelector
         mode="single"
         value={value.paymentMethods}

@@ -106,7 +106,7 @@ const PricingPage: React.FC = () => {
   const webPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'Fundraising Quiz Pricing Plans — FundRaisely',
+    name: 'Fundraising Quiz Pricing Plans - FundRaisely',
     url: abs('/pricing'),
     description:
       `Simple, transparent pricing for fundraising quiz software. Free trial available. Event passes from ${eventPassPriceText}. Perfect for charities, schools & community groups.`,
@@ -217,7 +217,7 @@ const PricingPage: React.FC = () => {
       </a>
 
       <SEO
-        title="Fundraising Quiz Pricing Plans for Clubs, Charities & Schools — FundRaisely"
+        title="Fundraising Quiz Pricing Plans for Clubs, Charities & Schools - FundRaisely"
         description={`Simple, transparent pricing for fundraising quiz software. Free trial available. Event passes from ${eventPassPriceText}. Perfect for charities, schools & community groups in UK & Ireland.`}
         keywords="fundraising quiz pricing, charity quiz software pricing, school fundraiser pricing, quiz night pricing plans"
         ukKeywords="fundraising quiz pricing UK, charity quiz software pricing UK, school fundraiser pricing Britain"
@@ -384,7 +384,7 @@ const PricingPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Success Stories (keep generic—no currency claims) */}
+        {/* Success Stories (keep generic-no currency claims) */}
         {/* <section className="px-4 py-12">
           <div className="container mx-auto max-w-6xl">
             <h2 className="text-center text-3xl font-bold text-indigo-900 mb-8">Fundraising Quiz Success Stories</h2>
@@ -395,12 +395,12 @@ const PricingPage: React.FC = () => {
                 organization="PTA Treasurer, Oakwood Primary School"
               />
               <TestimonialCard
-                quote="The automatic reconciliation saved our treasurer hours—everything balanced perfectly."
+                quote="The automatic reconciliation saved our treasurer hours-everything balanced perfectly."
                 author="David Thompson"
                 organization="Rotary Club Fundraising Chair"
               />
               <TestimonialCard
-                quote="Players loved the interactive extras—friendly rivalry turned into real funds."
+                quote="Players loved the interactive extras-friendly rivalry turned into real funds."
                 author="Emma Clarke"
                 organization="Local Animal Rescue Charity"
               />

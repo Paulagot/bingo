@@ -88,7 +88,7 @@ const handleConfirm = async (walletAddress: string, contractAddress: string) => 
   const selectedNetwork = supportedNetworks.find((n) => String(n.id) === selectedChain);
   const namespace = selectedNetwork?.namespace || 'eip155';
 
-  // ✅ Don't treat Solana differently here — let ConfirmRoomModal handle it
+  // ✅ Don't treat Solana differently here - let ConfirmRoomModal handle it
   onCreateRoom({
     playerName: createName,
     entryFee,

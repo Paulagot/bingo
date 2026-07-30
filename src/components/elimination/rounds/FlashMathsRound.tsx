@@ -128,7 +128,7 @@ export const FlashMathsRound: React.FC<Props> = ({
         </p>
       )}
 
-      {/* Input + submit — shown after flash */}
+      {/* Input + submit - shown after flash */}
       {!showNumbers && (
         <div className="w-full flex flex-col items-center gap-4" style={{ maxWidth: '300px' }}>
 

@@ -1,5 +1,5 @@
 /**
- * Input Validation Utilities — updated for new contract
+ * Input Validation Utilities - updated for new contract
  *
  * ## What changed
  *
@@ -146,7 +146,7 @@ export function validateCharityMemo(memo?: string): ValidationResult {
 }
 
 // ---------------------------------------------------------------------------
-// Pool room — new contract: only roomId + entryFee needed
+// Pool room - new contract: only roomId + entryFee needed
 // ---------------------------------------------------------------------------
 
 export function validatePoolRoomParams(params: CreatePoolRoomParams): ValidationResult {
@@ -161,7 +161,7 @@ export function validatePoolRoomParams(params: CreatePoolRoomParams): Validation
   allErrors.push(...entryFeeResult.errors);
 
   // maxPlayers, hostFeePct, prizePoolPct, prizeSplits, charityName
-  // are NOT validated here — they are either gone from the new contract
+  // are NOT validated here - they are either gone from the new contract
   // or optional fields used only by EVM. Validating them here against
   // undefined would produce the "X is required" errors you're seeing.
 

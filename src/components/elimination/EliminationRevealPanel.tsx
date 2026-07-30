@@ -76,7 +76,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
     onContinue();
   };
 
-  const errorPct = reveal ? `${(reveal.errorDistance * 100).toFixed(1)}%` : '—';
+  const errorPct = reveal ? `${(reveal.errorDistance * 100).toFixed(1)}%` : '-';
   const didSubmit = localResult?.didSubmit ?? false;
 
   const reactionTapReveal = reveal?.roundType === 'reaction_tap' ? (reveal as ReactionTapReveal) : null;
@@ -87,7 +87,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
     !reactionTapReveal.earlyTap;
 
   return (
-    // Full-screen backdrop — centres the content column on desktop
+    // Full-screen backdrop - centres the content column on desktop
     <div style={{
       minHeight: '100svh',
       background: `radial-gradient(ellipse at 50% 0%, ${rc.tint} 0%, #0a0b0f 55%)`,
@@ -98,7 +98,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
       transition: 'opacity 0.35s ease',
       overflowY: 'auto',
     }}>
-      {/* Content column — max 520px on desktop, full width on mobile */}
+      {/* Content column - max 520px on desktop, full width on mobile */}
       <div style={{
         width: '100%',
         maxWidth: '520px',
@@ -132,7 +132,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
           </h2>
         </div>
 
-        {/* Visual reveal canvas — natural square size, never stretches */}
+        {/* Visual reveal canvas - natural square size, never stretches */}
         <div style={{ padding: '0 20px', position: 'relative' }}>
           <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto', position: 'relative' }}>
             {reveal && activeRound?.config && (
@@ -154,7 +154,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
                 gap: '8px',
                 pointerEvents: 'none',
               }}>
-                <span style={{ fontSize: '28px', color: 'rgba(255,255,255,0.25)' }}>—</span>
+                <span style={{ fontSize: '28px', color: 'rgba(255,255,255,0.25)' }}>-</span>
                 <span style={{
                   fontSize: '14px',
                   color: 'rgba(255,255,255,0.3)',
@@ -249,7 +249,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Flexible spacer — pushes footer down on tall screens */}
+        {/* Flexible spacer - pushes footer down on tall screens */}
         <div style={{ flex: 1, minHeight: '16px' }} />
 
         {/* Footer */}
@@ -363,7 +363,7 @@ const ReactionTapRevealCanvas: React.FC<{
 }> = ({ reveal, colour }) => {
   const reactionLabel = (() => {
     if (reveal.earlyTap) return 'EARLY TAP';
-    if (reveal.reactionMs == null || isNaN(reveal.reactionMs)) return '—';
+    if (reveal.reactionMs == null || isNaN(reveal.reactionMs)) return '-';
     return `${Math.max(0, Math.round(reveal.reactionMs))}ms`;
   })();
 
@@ -371,7 +371,7 @@ const ReactionTapRevealCanvas: React.FC<{
     <svg viewBox="0 0 100 100" style={{ width: '100%', aspectRatio: '1 / 1', display: 'block' }}>
       <rect width="100" height="100" fill="rgba(255,255,255,0.02)" />
 
-      {/* Target zone — outer ring */}
+      {/* Target zone - outer ring */}
       <circle
         cx={reveal.targetPosition.x * 100}
         cy={reveal.targetPosition.y * 100}
@@ -380,7 +380,7 @@ const ReactionTapRevealCanvas: React.FC<{
         stroke={colour}
         strokeWidth="0.8"
       />
-      {/* Target zone — inner dot */}
+      {/* Target zone - inner dot */}
       <circle
         cx={reveal.targetPosition.x * 100}
         cy={reveal.targetPosition.y * 100}
@@ -388,7 +388,7 @@ const ReactionTapRevealCanvas: React.FC<{
         fill={`${colour}55`}
       />
 
-      {/* Player tap — white X with dotted line to target */}
+      {/* Player tap - white X with dotted line to target */}
       {reveal.playerTap && (
         <>
           <line
@@ -457,7 +457,7 @@ const MovingTargetTapRevealCanvas: React.FC<{
         fill={`${colour}55`}
       />
 
-      {/* Player tap — white X */}
+      {/* Player tap - white X */}
       <line
         x1={reveal.playerTap.x * 100 - 2.4} y1={reveal.playerTap.y * 100 - 2.4}
         x2={reveal.playerTap.x * 100 + 2.4} y2={reveal.playerTap.y * 100 + 2.4}
@@ -498,7 +498,7 @@ const PathTraceRevealCanvas: React.FC<{
   <svg viewBox="0 0 100 100" style={{ width: '100%', aspectRatio: '1 / 1', display: 'block' }}>
     <rect width="100" height="100" fill="rgba(255,255,255,0.02)" />
 
-    {/* Ideal path — faint coloured lane */}
+    {/* Ideal path - faint coloured lane */}
     <path
       d={pointsToRevealPath(reveal.pathPoints)}
       fill="none"
@@ -509,7 +509,7 @@ const PathTraceRevealCanvas: React.FC<{
       opacity="0.28"
     />
 
-    {/* Player trace — white */}
+    {/* Player trace - white */}
     <path
       d={pointsToRevealPath(reveal.playerPoints)}
       fill="none"
@@ -572,7 +572,7 @@ const TrueCentreRevealCanvas: React.FC<{
       <rect width="100" height="100" fill={`url(#rg-${roundId})`} />
       {renderShape()}
 
-      {/* Player tap — white X */}
+      {/* Player tap - white X */}
       {hasTap && (
         <g style={{ filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.8))' }}>
           <line x1={tx-3} y1={ty-3} x2={tx+3} y2={ty+3} stroke="#ffffff" strokeWidth="0.8" strokeLinecap="round" />
@@ -581,7 +581,7 @@ const TrueCentreRevealCanvas: React.FC<{
         </g>
       )}
 
-      {/* Correct centre — coloured ring */}
+      {/* Correct centre - coloured ring */}
       <g style={{ filter: `drop-shadow(0 0 3px ${colour}88)` }}>
         <circle cx={ax} cy={ay} r="2.2" fill="none" stroke={colour} strokeWidth="0.7" />
         <circle cx={ax} cy={ay} r="0.7" fill={colour} />
@@ -626,7 +626,7 @@ const MidpointRevealCanvas: React.FC<{
         </g>
       ))}
 
-      {/* Player marker — white X */}
+      {/* Player marker - white X */}
       {hasMarker && (
         <g style={{ filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.8))' }}>
           <line x1={px-3} y1={py-3} x2={px+3} y2={py+3} stroke="#ffffff" strokeWidth="0.8" strokeLinecap="round" />
@@ -1020,11 +1020,11 @@ const PatternAlignRevealCanvas: React.FC<{
     <svg viewBox="0 0 100 100" style={{ width: '100%', aspectRatio: '1/1', display: 'block' }}>
       <rect width="100" height="100" fill="rgba(255,255,255,0.01)" />
 
-      {/* Player shape — dashed */}
+      {/* Player shape - dashed */}
       {shape(px, py, reveal.playerRotation ?? 0, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.5)', true)}
       <text x={px} y={py + r + 5} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="2.8" fontFamily="Inter">you</text>
 
-      {/* Target shape — solid */}
+      {/* Target shape - solid */}
       {shape(tx, ty, reveal.targetRotation ?? 0, `${colour}20`, colour, false)}
       <text x={tx} y={ty + r + 5} textAnchor="middle" fill={colour} fontSize="2.8" fontFamily="Inter">correct</text>
 

@@ -5,7 +5,7 @@ import { useFeedback } from './useFeedback';
 
 interface FeedbackModalProps {
   roomId:    string;
-  clubId?:   number;   // optional — players aren't logged in so this may not be available
+  clubId?:   number;   // optional - players aren't logged in so this may not be available
   gameType?: string;
   onClose?:  () => void;
 }

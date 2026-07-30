@@ -21,7 +21,7 @@ class PuzzleService extends BaseService {
    * Only fall back to auth_token when no supporter token is present at all
    * (dev/test path for club users on /dev/puzzles).
    *
-   * Never use ?? chaining between the two tokens — that silently fires the
+   * Never use ?? chaining between the two tokens - that silently fires the
    * club token if a club user is also logged in on the same browser, which
    * stores their integer user ID as player_id instead of the supporter UUID.
    */
@@ -61,14 +61,14 @@ class PuzzleService extends BaseService {
    * Best-effort save used only when the tab is being hidden or the page is
    * unloading. A normal fetch (including ones already in flight) is very
    * commonly cancelled by the browser the moment 'beforeunload'/'pagehide'
-   * fires — this is exactly the "child interrupts, laptop gets closed"
+   * fires - this is exactly the "child interrupts, laptop gets closed"
    * moment we most want the save to survive. `keepalive: true` is the
    * browser's purpose-built mechanism for letting a request finish even
    * though the page is going away.
    *
    * navigator.sendBeacon() is the more commonly-cited tool for this, but it
    * can't carry the Authorization header this API needs (it only supports
-   * a same-origin, header-less POST) — so it's the wrong fit for a
+   * a same-origin, header-less POST) - so it's the wrong fit for a
    * Bearer-token-authenticated endpoint like this one, and `keepalive`
    * is used instead.
    *
@@ -86,7 +86,7 @@ class PuzzleService extends BaseService {
       } as RequestInit & { body: string }
     ).catch(() => {
       // Best-effort only. The debounced save moments earlier (see
-      // usePuzzleAutosave) is the primary safety net — this is a last
+      // usePuzzleAutosave) is the primary safety net - this is a last
       // chance to catch the final few seconds of changes, not the only
       // save attempt.
     });

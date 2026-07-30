@@ -203,11 +203,11 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
       entryFeeRaw:          entryFeeRaw.toString(),
       extrasRaw:            extrasRaw.toString(),
 
-      // Fiat amounts — what the host priced the room at
+      // Fiat amounts - what the host priced the room at
       entryFeeDisplay:      entryFeeAmount,
       extrasDisplay:        extrasAmount,
 
-      // Crypto amounts — what was actually quoted and sent
+      // Crypto amounts - what was actually quoted and sent
       cryptoDisplayAmount:  quote!.tokenAmount,   // e.g. 0.034521
       cryptoRawAmount:      quote!.rawAmount,      // e.g. '34521000'
 
@@ -529,7 +529,7 @@ const result = await sendDonation({
           {isExpired && (
             <div className="mt-3 flex items-center gap-2 text-sm text-amber-700">
               <AlertCircle className="h-4 w-4" />
-              Quote expired — tap Refresh to get a new price
+              Quote expired - tap Refresh to get a new price
             </div>
           )}
 

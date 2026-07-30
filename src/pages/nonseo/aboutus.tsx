@@ -10,7 +10,7 @@ const AboutFundRaisely: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <SEO
-        title="About FundRaisely — Your Partner in Community Fundraising"
+        title="About FundRaisely - Your Partner in Community Fundraising"
         description="FundRaisely makes fundraising simple, transparent, and impactful for schools, clubs, and charities. Learn our mission, story, team, and values."
         keywords="about FundRaisely, community fundraising, transparent fundraising, compliant fundraising platform"
         type="about"
@@ -81,7 +81,7 @@ const AboutFundRaisely: React.FC = () => {
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-gray-100 bg-indigo-50/40 p-4">
-              <h3 className="text-lg font-semibold text-indigo-900">Paula Guilfoyle — Founder &amp; CTO</h3>
+              <h3 className="text-lg font-semibold text-indigo-900">Paula Guilfoyle - Founder &amp; CTO</h3>
               <p className="mt-1 text-sm text-indigo-900/80">
                 A seasoned technologist and innovator, Paula leads product vision and development. With experience
                 spanning AI, blockchain, and community-driven projects, she ensures FundRaisely is technically robust,
@@ -89,7 +89,7 @@ const AboutFundRaisely: React.FC = () => {
               </p>
             </div>
             <div className="rounded-xl border border-gray-100 bg-indigo-50/40 p-4">
-              <h3 className="text-lg font-semibold text-indigo-900">Simon Dyer — Co-Founder &amp; CEO/COO</h3>
+              <h3 className="text-lg font-semibold text-indigo-900">Simon Dyer - Co-Founder &amp; CEO/COO</h3>
               <p className="mt-1 text-sm text-indigo-900/80">
                 With 25+ years in financial services and a proven track record in building businesses, Simon brings
                 expertise in compliance, finance, and operations. He has led successful ventures in both TradFi and Web3,
@@ -99,7 +99,7 @@ const AboutFundRaisely: React.FC = () => {
           </div>
 
           <p className="mt-4 text-indigo-900/80">
-            Together, we combine financial acumen with technical excellence—backed by a network of advisors, partners,
+            Together, we combine financial acumen with technical excellence-backed by a network of advisors, partners,
             and a growing community of users who shape the platform’s evolution. Our journey began with a shared vision:
             a fundraising solution that’s both technologically advanced and deeply human-centered.
           </p>
@@ -110,7 +110,7 @@ const AboutFundRaisely: React.FC = () => {
             <p className="text-indigo-900/80">
               FundRaisely was founded in 2025 by Paula Guilfoyle and Simon Dyer, two entrepreneurs with a shared passion
               for using technology to solve real-world problems. Both had seen first-hand how schools, clubs, and charities
-              were struggling with outdated fundraising models—lots of effort, little reward, and limited transparency.
+              were struggling with outdated fundraising models-lots of effort, little reward, and limited transparency.
             </p>
             <p className="mt-2 text-indigo-900/80">
               The breakthrough came during a series of hackathons, where we built award-winning prototypes showing how
@@ -119,7 +119,7 @@ const AboutFundRaisely: React.FC = () => {
               creativity, and community impact.
             </p>
             <p className="mt-2 text-indigo-900/80">
-              What began as a fast prototype quickly grew into a full platform—giving local causes the sophistication
+              What began as a fast prototype quickly grew into a full platform-giving local causes the sophistication
               of larger organisations without the complexity or cost.
             </p>
           </div>
@@ -129,13 +129,13 @@ const AboutFundRaisely: React.FC = () => {
         <section className="mb-12 rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
           <h2 className="mb-3 text-2xl font-bold text-indigo-900">Our Team</h2>
           <p className="text-indigo-900/80">
-            We bring together expertise in technology, finance, and non-profit management—united by a commitment to our users’ success.
+            We bring together expertise in technology, finance, and non-profit management-united by a commitment to our users’ success.
             We’re lean and agile, which means fast iteration, hands-on support, and staying close to the needs of
             grassroots clubs through to national charities.
           </p>
           <p className="mt-3 text-indigo-900/80">
             As FundRaisely grows, we’ll continue to expand our team with creators, developers, and community leaders who
-            share our belief: when fundraising is fun, regenerative, and accessible to all—everyone wins.
+            share our belief: when fundraising is fun, regenerative, and accessible to all-everyone wins.
           </p>
         </section>
 
@@ -198,7 +198,7 @@ const AboutFundRaisely: React.FC = () => {
         <section className="rounded-2xl border border-indigo-100 bg-white p-6 text-center shadow-sm">
           <h2 className="mb-3 text-2xl font-bold text-indigo-900">Join Us on Our Journey</h2>
           <p className="mx-auto mb-6 max-w-3xl text-indigo-900/80">
-            We’re proud of what we’ve built—and we’re just getting started. Start your free trial and experience the
+            We’re proud of what we’ve built-and we’re just getting started. Start your free trial and experience the
             FundRaisely difference. Together, we can transform fundraising and build stronger communities.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">

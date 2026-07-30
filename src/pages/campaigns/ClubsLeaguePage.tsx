@@ -64,7 +64,7 @@ const ClubsLeaguePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
-        title="Junior Sports Clubs Quiz League 2026 — Family Fundraiser for Junior Sports Clubs | FundRaisely"
+        title="Junior Sports Clubs Quiz League 2026 - Family Fundraiser for Junior Sports Clubs | FundRaisely"
         description="Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night before the deadline, raises funds for junior teams, and competes for prizes and a sponsored club grant. Limited to 30 clubs."
         keywords="club fundraising, quiz night fundraiser, youth sports fundraising, GAA fundraiser, soccer club fundraiser, school hall quiz night, Ireland fundraising, UK fundraising, junior sports clubs"
         type="event"
@@ -129,7 +129,7 @@ const ClubsLeaguePage: React.FC = () => {
             <div className="flex items-center gap-3">
               <Star className="h-6 w-6 text-amber-500 flex-shrink-0" />
               <div>
-                <p className="font-bold text-amber-900 text-lg">Sponsorship Opportunity — Naming Rights Available</p>
+                <p className="font-bold text-amber-900 text-lg">Sponsorship Opportunity - Naming Rights Available</p>
                 <p className="text-amber-800/80 text-sm leading-relaxed">
                   We are currently partnering with a title sponsor for the Junior Sports Clubs Quiz League. The sponsor will receive full naming rights across all league communications, prizes, and coverage.
                 </p>
@@ -148,7 +148,7 @@ const ClubsLeaguePage: React.FC = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm">
-              <h3 className="text-indigo-900 mb-4 text-xl font-bold">🤝 Pledge to Join — Get the Full League Pack</h3>
+              <h3 className="text-indigo-900 mb-4 text-xl font-bold">🤝 Pledge to Join - Get the Full League Pack</h3>
               <p className="text-indigo-900/80 mb-6 leading-relaxed">
                 Designed for busy coaches and committees. We keep it simple: you run one great digital quiz night, raise funds for your club, we provide the quiz app and we
                 handle the league structure and final.
@@ -191,7 +191,7 @@ const ClubsLeaguePage: React.FC = () => {
             </div>
 
             <div className="rounded-2xl border border-indigo-200 bg-white p-8 shadow-lg">
-              <ClubLeaguePledgeForm compactTitle="Pledge Now — Reserve Your Club Spot" />
+              <ClubLeaguePledgeForm compactTitle="Pledge Now - Reserve Your Club Spot" />
               <p className="mt-4 text-xs text-indigo-900/60">
                 Pledging is quick. We'll email you the registration link and a full instructions on how to run your quiz night on FundRaisely.
               </p>
@@ -238,7 +238,7 @@ const ClubsLeaguePage: React.FC = () => {
                   The Junior Sports Clubs Quiz League will inject <strong className="text-white">€18,000+ directly into grassroots sports clubs</strong>, support equipment, facility costs and youth development, and create a coordinated national moment across communities nationwide.
                 </p>
                 <p className="text-white/80 leading-relaxed">
-                  This is not a one-off event. It is the <strong className="text-white">launch year of a model designed to grow</strong> — showcasing how structured, shared fundraising can scale nationally and deliver real, lasting impact for junior sport.
+                  This is not a one-off event. It is the <strong className="text-white">launch year of a model designed to grow</strong> - showcasing how structured, shared fundraising can scale nationally and deliver real, lasting impact for junior sport.
                 </p>
               </div>
             </div>
@@ -253,7 +253,7 @@ const ClubsLeaguePage: React.FC = () => {
             <div className="flex items-center gap-3">
               <Star className="h-6 w-6 text-amber-500 flex-shrink-0" />
               <div>
-                <p className="font-bold text-amber-900 text-lg">Sponsorship Opportunity — Naming Rights Available</p>
+                <p className="font-bold text-amber-900 text-lg">Sponsorship Opportunity - Naming Rights Available</p>
                 <p className="text-amber-800/80 text-sm leading-relaxed">
                   We are currently partnering with a title sponsor for the Junior Sports Clubs Quiz League. The sponsor will receive full naming rights across all league communications, prizes, and coverage.
                 </p>
@@ -277,7 +277,7 @@ const ClubsLeaguePage: React.FC = () => {
             </p>
             <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-100 border border-amber-300 px-4 py-2 text-amber-800 text-sm font-medium">
               <Star className="h-4 w-4 text-amber-500" />
-              Prize values to be confirmed with title sponsor — announcement to follow
+              Prize values to be confirmed with title sponsor - announcement to follow
             </div>
           </div>
 
@@ -303,7 +303,7 @@ const ClubsLeaguePage: React.FC = () => {
               </div>
               <h3 className="mb-2 text-indigo-900 text-lg font-bold">Top 3 Families</h3>
               <p className="text-sm text-indigo-900/80 leading-relaxed mb-3">
-                Restaurant vouchers for the Grand Final winners — simple, exciting, and family-friendly.
+                Restaurant vouchers for the Grand Final winners - simple, exciting, and family-friendly.
               </p>
               <span className="inline-block rounded-lg bg-amber-50 border border-amber-200 px-3 py-1 text-xs text-amber-700 font-medium">
                 Details to be confirmed with sponsor
@@ -395,7 +395,7 @@ const ClubsLeaguePage: React.FC = () => {
           <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-12 shadow-lg text-center text-white">
             <h2 className="mb-4 text-3xl md:text-4xl font-bold">Ready to run your best fundraiser of the year?</h2>
             <p className="mb-8 text-lg opacity-90 max-w-3xl mx-auto leading-relaxed">
-              Reserve your spot now — we'll help you run one brilliant family quiz night.
+              Reserve your spot now - we'll help you run one brilliant family quiz night.
             </p>
             <a
               href="#pledge"

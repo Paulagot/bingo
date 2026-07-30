@@ -17,7 +17,7 @@ function getSocket(): Socket {
   if (_socketInstance) return _socketInstance;
 
   const base = resolveSocketBase();
-  // NOTE: no namespace here — this hook uses the default namespace
+  // NOTE: no namespace here - this hook uses the default namespace
   _socketInstance = io(base, {
     path: '/socket.io',
     transports: ['websocket', 'polling'],

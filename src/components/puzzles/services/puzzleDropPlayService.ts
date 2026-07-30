@@ -2,12 +2,12 @@
 //
 // Mirrors puzzleService.ts's load/submit/save shape, but every call needs
 // an entitlementId + access_token instead of relying on a logged-in
-// supporter session — Drop entitlements are standalone links, not a
+// supporter session - Drop entitlements are standalone links, not a
 // persistent session (see puzzleDropRoutes.js's requireDropAccess).
 //
 // ⚠️ saveProgressOnUnload's keepalive approach is this file's own
 // inference (fetch with `keepalive: true`), not copied from
-// puzzleService.ts's actual implementation, which hasn't been reviewed —
+// puzzleService.ts's actual implementation, which hasn't been reviewed -
 // sendBeacon would be the more common browser API for this exact
 // situation but can't easily carry a custom Authorization header, hence
 // the choice below. Worth checking puzzleService.ts's real approach if
@@ -34,7 +34,7 @@ interface LoadDropPuzzleResult {
 
 // ── Leaderboard types ─────────────────────────────────────────────────────
 // Field names (weekNumber/weeks/challenge) are kept exactly as the backend
-// sends them, even though these represent items/a drop — see
+// sends them, even though these represent items/a drop - see
 // puzzleDropService.js's comments on this. Structurally identical to
 // publicLeaderboardService.ts's WeekLeaderboard/LeaderboardSummary types.
 
@@ -153,20 +153,20 @@ export const puzzleDropPlayService = {
     instanceId: string,
     progressData: Record<string, unknown>,
   ): void {
-    // keepalive lets this request survive the page actually unloading —
+    // keepalive lets this request survive the page actually unloading -
     // a normal fetch is frequently cancelled mid-flight at that moment.
     fetch(`${API_BASE}/entitlements/${entitlementId}/save`, {
       method: 'POST',
       headers: authHeaders(token),
       body: JSON.stringify({ instanceId, progressData }),
       keepalive: true,
-    }).catch(() => { /* best-effort — nothing to do if this fails */ });
+    }).catch(() => { /* best-effort - nothing to do if this fails */ });
   },
 
-  // ── Leaderboards — public routes, no token needed ────────────────────────
+  // ── Leaderboards - public routes, no token needed ────────────────────────
   // Hit the routes puzzleDropRoutes.js already exposes (built alongside
   // the rest of Drop's backend, before the buyer-facing UI existed to
-  // link to them). No auth headers here — same "never send a token to a
+  // link to them). No auth headers here - same "never send a token to a
   // public endpoint" convention as publicLeaderboardService.ts.
 
   async getItemLeaderboard(dropRoomId: string, itemNumber: number): Promise<DropItemLeaderboard> {

@@ -1,13 +1,13 @@
 /**
  * public/embed/donate.js
  *
- * Served at /embed/donate.js — this is the script clubs paste on their
+ * Served at /embed/donate.js - this is the script clubs paste on their
  * own websites alongside the <button data-fundraisely-donate ...> tag.
  *
  * What it does:
  *   1. Finds any <button data-fundraisely-donate> on the page
  *   2. Checks with the backend that this page's hostname is registered
- *      for the button's club id — if not, the button is left disabled
+ *      for the button's club id - if not, the button is left disabled
  *      with a clear inline notice instead of silently working anywhere
  *   3. On click, injects a full-screen modal overlay into the club's page
  *   4. Loads the FundRaisely donation form inside an <iframe> in that modal
@@ -24,18 +24,18 @@
  * Domain check: each club registers the hostname(s) their button is
  * allowed to render on (see ManageDonationButtonModal.tsx's domain
  * field). This is checked client-side here AND re-checked server-side
- * on the actual checkout call — this client-side check is about not
+ * on the actual checkout call - this client-side check is about not
  * rendering a working button on an unauthorized page at all, not the
  * only line of defense.
  *
  * FIXED: this listener previously called closeModal() the instant it
- * received FUNDRAISELY_DONATION_SUCCESS — tearing down the iframe (and
+ * received FUNDRAISELY_DONATION_SUCCESS - tearing down the iframe (and
  * the "Thank you for your donation" screen DonateEmbedPage.tsx renders
  * at that exact moment) before the supporter ever saw it. Exactly the
  * same bug found and fixed in tickets.js's equivalent listener. Now
  * only FUNDRAISELY_DONATION_CLOSE (an explicit cancel) auto-closes;
  * success leaves the confirmation visible until the supporter closes
- * it themselves (X button, Esc, or clicking outside — all unchanged).
+ * it themselves (X button, Esc, or clicking outside - all unchanged).
  */
 
 (function () {
@@ -125,7 +125,7 @@
       'overflow:hidden',
     ].join(';');
 
-    // Close button — lives on the container, above the iframe
+    // Close button - lives on the container, above the iframe
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.setAttribute('aria-label', 'Close donation form');
@@ -195,17 +195,17 @@
   // ── postMessage listener ─────────────────────────────────────────────
   // UI-courtesy fast path only. DonateEmbedPage's own polling (against
   // the backend's verified ledger) is the actual source of truth for
-  // whether a donation succeeded — this listener does not decide
+  // whether a donation succeeded - this listener does not decide
   // anything itself.
   //
   // IMPORTANT: on FUNDRAISELY_DONATION_SUCCESS, we deliberately do NOT
   // close the modal. The success view (thank-you message) is already
   // rendered inside the iframe at the exact moment this message fires
-  // — auto-closing here would tear that down before the supporter ever
+  // - auto-closing here would tear that down before the supporter ever
   // sees it, for every payment method alike. Same behavior the inline
   // (no-button, no-modal) embed already has: nothing closes it
   // automatically, the supporter reads their confirmation and closes
-  // it themselves (X button, Esc, or clicking outside — all still
+  // it themselves (X button, Esc, or clicking outside - all still
   // work below).
 
   window.addEventListener('message', function (event) {

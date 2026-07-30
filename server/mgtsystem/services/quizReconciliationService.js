@@ -163,9 +163,9 @@ export async function getReconciliationsByClubId(clubId, options = {}) {
  *
  * v2: explicit select-then-update-or-insert. The old
  * INSERT … ON DUPLICATE KEY UPDATE only updates in place if room_id has
- * a UNIQUE index — it doesn't (and can't: subscriptions/drops need many
+ * a UNIQUE index - it doesn't (and can't: subscriptions/drops need many
  * rows per room), so a re-approval inserted a duplicate header row (the
- * same bug the ticketed-event approve had — ghost drafts 81/83/85/87/90
+ * same bug the ticketed-event approve had - ghost drafts 81/83/85/87/90
  * and the D153E66F 73/76/77 triple). Now: the newest row for the room
  * wins and is updated in place; insert only when none exists.
  */
@@ -372,7 +372,7 @@ export async function replaceAdjustments(roomId, clubId, adjustments, reconcilia
  *   - reconciled_by_name  → approver display name
  *
  * Only rows with status = 'confirmed' are stamped.
- * Safe to call multiple times — re-approval overwrites the stamp.
+ * Safe to call multiple times - re-approval overwrites the stamp.
  *
  * @param {string} roomId
  * @param {string} reconciliationId  - numeric ID as string from upsertReconciliation
@@ -424,7 +424,7 @@ export async function saveCompleteReconciliation(reconciliationData) {
     startingEntryFees, startingExtras, startingTotal,
     adjustmentsNet, finalTotal,
     approvedBy, approvedAt, notes,
-    approvedById     = null,   // member ID of the approver — used for ledger stamp
+    approvedById     = null,   // member ID of the approver - used for ledger stamp
     adjustments      = [],
     finalLeaderboard = null,
     prizeAwards      = null,
@@ -492,7 +492,7 @@ export async function getReconciliationExportData(roomId) {
 // ─────────────────────────────────────────────────────────────────────────────
 // REPORT PAYLOAD RECONSTRUCTION
 // Rebuilds the { config, players } shape that deriveCore() expects,
-// entirely from the database — no live room needed.
+// entirely from the database - no live room needed.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -531,7 +531,7 @@ export async function getReportPayloadByRoomId(roomId) {
       approvedBy:       rec.approvedBy,
       approvedAt:       rec.approvedAt,
       notes:            rec.notes,
-      // Leaderboard and prizes — now read from DB columns
+      // Leaderboard and prizes - now read from DB columns
       finalLeaderboard: rec.finalLeaderboard || [],
       prizeAwards:      rec.prizeAwards      || [],
       // Remap adjustment rows back to the ledger shape deriveCore expects
@@ -558,7 +558,7 @@ export async function getReportPayloadByRoomId(roomId) {
   //    - paymentMethod taken from that confirmed entry_fee row
   //    - donationAmount from extra_metadata.donationAmount (donation-mode rooms)
   //    - extraPayments keyed by extra_id (falls back to ledger row id)
-  //    - disqualified is not in the ledger — defaults false (acceptable for reports)
+  //    - disqualified is not in the ledger - defaults false (acceptable for reports)
 
   const playerMap = new Map();
 
@@ -1442,7 +1442,7 @@ export async function getReconciliationAuditView(roomId) {
     prizeMetadata:  parseJson(row.prize_metadata),
   }));
 
-  // ── 3. On-the-night — confirmed at reconciliation time ────────────────────
+  // ── 3. On-the-night - confirmed at reconciliation time ────────────────────
   // Rows confirmed before or at approval, no ticket_id
   const [confirmedRows] = await connection.execute(
     `SELECT

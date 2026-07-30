@@ -1,7 +1,7 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/reconciliation/TicketedEventAdjustmentsLedger.tsx
 //
 // Manual adjustment ledger for ticketed events.
-// Pure HTTP — no sockets. Saves on blur (amount/note fields) or on change
+// Pure HTTP - no sockets. Saves on blur (amount/note fields) or on change
 // (selects). Each row is persisted individually to the DB.
 
 import React, { useMemo, useRef, useState } from 'react';

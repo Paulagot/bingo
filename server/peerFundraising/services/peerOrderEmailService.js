@@ -1,11 +1,11 @@
 // server/peerFundraising/services/peerOrderEmailService.js
 //
 // Sends a single order-confirmation email to the supporter once their order
-// exists — one per ORDER, not per ticket (that's peerTicketBridgeService's
+// exists - one per ORDER, not per ticket (that's peerTicketBridgeService's
 // job, fired once expansion runs). Mirrors campaignOrderEmailService.js,
 // which peer had no equivalent of at all.
 //
-// Non-fatal everywhere it's called — if the send fails the order is already
+// Non-fatal everywhere it's called - if the send fails the order is already
 // committed, we just log and move on.
 
 import { sendEmailSafe } from '../../utils/mailer.js';
@@ -25,7 +25,7 @@ function fmt(amount, symbol = '€') {
   return `${symbol}${parseFloat(amount || 0).toFixed(2)}`;
 }
 
-// Peer's payment_method_category ENUM differs slightly from campaign's —
+// Peer's payment_method_category ENUM differs slightly from campaign's -
 // 'cash_to_participant' instead of 'cash_to_player', plus card_tap/pay_admin.
 function nextStepsHtml(paymentMethodCategory, paymentReference, symbol) {
   const cat = String(paymentMethodCategory || '').toLowerCase();
@@ -74,7 +74,7 @@ function nextStepsHtml(paymentMethodCategory, paymentReference, symbol) {
       </div>`;
   }
 
-  // Stripe / card — auto-confirmed, tickets are ready
+  // Stripe / card - auto-confirmed, tickets are ready
   return `
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 20px;margin:24px 0;">
       <p style="margin:0 0 10px;font-weight:700;color:#14532d;font-size:15px;">✅ What happens next</p>
@@ -116,7 +116,7 @@ function buildItemsTableHtml(items, currency) {
 
 /**
  * Send the order confirmation email to the supporter.
- * @param {string} orderId — the peer_orders.id
+ * @param {string} orderId - the peer_orders.id
  */
 export async function sendPeerOrderConfirmationEmail(orderId) {
   const [orderRows] = await connection.execute(
@@ -125,11 +125,11 @@ export async function sendPeerOrderConfirmationEmail(orderId) {
   );
   const order = orderRows[0];
   if (!order) {
-    console.warn(`[PeerOrderEmail] ⚠️ Order ${orderId} not found — skipping email`);
+    console.warn(`[PeerOrderEmail] ⚠️ Order ${orderId} not found - skipping email`);
     return;
   }
   if (!order.supporter_email) {
-    console.warn(`[PeerOrderEmail] ⚠️ Order ${orderId} has no supporter_email — skipping email`);
+    console.warn(`[PeerOrderEmail] ⚠️ Order ${orderId} has no supporter_email - skipping email`);
     return;
   }
 
@@ -204,7 +204,7 @@ export async function sendPeerOrderConfirmationEmail(orderId) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Order confirmed — FundRaisely</title>
+  <title>Order confirmed - FundRaisely</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
   <div style="max-width:580px;margin:36px auto 24px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
@@ -249,7 +249,7 @@ export async function sendPeerOrderConfirmationEmail(orderId) {
         <span style="font-size:22px;line-height:1;">💌</span>
         <p style="margin:0;color:#64748b;font-size:13px;line-height:1.6;">
           This confirmation was sent to <strong style="color:#1e293b;">${order.supporter_email}</strong>.
-          If you have any questions, contact the club directly — they manage all orders through FundRaisely.
+          If you have any questions, contact the club directly - they manage all orders through FundRaisely.
         </p>
       </div>
 
@@ -266,7 +266,7 @@ export async function sendPeerOrderConfirmationEmail(orderId) {
 </html>`;
 
   const subjectEmoji = isCash || isInstant ? '⏳' : '✅';
-  const subject = `${subjectEmoji} Your order for ${fundraiser} — ${clubDisplayName}`;
+  const subject = `${subjectEmoji} Your order for ${fundraiser} - ${clubDisplayName}`;
 
   await sendEmailSafe({
     to: order.supporter_email,

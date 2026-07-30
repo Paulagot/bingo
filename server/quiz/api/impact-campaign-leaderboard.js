@@ -59,7 +59,7 @@ router.get('/hosts', async (req, res) => {
       params = [dateRange.start, dateRange.end];
     }
 
-    // Query to get all events with date filtering — using EUR fields
+    // Query to get all events with date filtering - using EUR fields
     const query = `
       SELECT 
         host_wallet,
@@ -155,7 +155,7 @@ router.get('/networks', async (req, res) => {
       params = [dateRange.start, dateRange.end];
     }
 
-    // Query to get all events with date filtering — using EUR fields
+    // Query to get all events with date filtering - using EUR fields
     const query = `
       SELECT 
         network,

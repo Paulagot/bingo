@@ -33,13 +33,13 @@ export default function PuzzleJoinPage() {
   // Which of the two equally-weighted paths is showing: joining fresh, or
   // signing back in. A returning PAID subscriber landing here (e.g. their
   // 90-day token expired, or they're on a new device) must never have
-  // "Pay & join" be the only obvious action — that reads as "pay again."
+  // "Pay & join" be the only obvious action - that reads as "pay again."
   // Both paths get equal visual weight via the tab control below, rather
   // than one being a loud button and the other a buried text link.
   //
   // Defaults to 'join' for a normal share link, but a link built with
   // ?mode=signin (e.g. from a "manage your subscription" billing email)
-  // lands directly on the sign-in tab instead — the lazy initializer
+  // lands directly on the sign-in tab instead - the lazy initializer
   // reads this once, on mount; the tabs remain freely clickable
   // afterward regardless of how the page was entered.
   const [mode, setMode] = useState<'join' | 'signin'>(() =>
@@ -56,7 +56,7 @@ export default function PuzzleJoinPage() {
   const [signInSubmitting, setSignInSubmitting] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
 
-  // Club branding — falls back to the default FundRaisely look whenever
+  // Club branding - falls back to the default FundRaisely look whenever
   // the challenge hasn't loaded yet, or the club hasn't set any brand
   // colors/logo of their own. See puzzleTheme.ts for the fallback rules.
   const theme = useMemo(() => resolvePuzzleTheme(challenge), [challenge]);
@@ -134,7 +134,7 @@ navigate('/puzzle-check-email', {
         return;
       }
 
-      // Paid challenge — go straight to Stripe Checkout rather than the
+      // Paid challenge - go straight to Stripe Checkout rather than the
       // magic-link form. The backend creates the supporter record and a
       // pending subscription row as part of this call; the player is
       // redirected to Stripe's hosted checkout page, which is outside
@@ -257,7 +257,7 @@ navigate('/puzzle-check-email', {
 
           <p className="mt-4 max-w-xl text-base leading-relaxed text-[#5F5A54]">
             {challengeIsFree
-              ? "Enter your details and we'll send you a secure magic link. No password needed — just open the email and start playing."
+              ? "Enter your details and we'll send you a secure magic link. No password needed - just open the email and start playing."
               : "Enter your details to subscribe and start playing. You'll be taken to a secure checkout to set up your weekly payment."}
           </p>
 
@@ -331,7 +331,7 @@ navigate('/puzzle-check-email', {
         </section>
 
         <section className="rounded-[36px] border border-[#E8E0D3] bg-white p-6 shadow-sm sm:p-8">
-          {/* Equal-weight tab toggle — the whole point is that a returning
+          {/* Equal-weight tab toggle - the whole point is that a returning
               subscriber sees "sign in" as a first-class option, not a
               buried afterthought below a payment button. */}
           <div className="mb-6 flex rounded-full border border-[#D8D1C4] bg-[#FBF8F3] p-1">
@@ -463,7 +463,7 @@ navigate('/puzzle-check-email', {
                 >
                   {challengeIsFree
                     ? (submitting ? 'Sending link…' : 'Send my access link →')
-                    : (submitting ? 'Redirecting to checkout…' : `Pay & join${weeklyAmount ? ` — ${weeklyAmount}` : ''} →`)}
+                    : (submitting ? 'Redirecting to checkout…' : `Pay & join${weeklyAmount ? ` - ${weeklyAmount}` : ''} →`)}
                 </PuzzlePrimaryButton>
               </form>
             </>
@@ -479,7 +479,7 @@ navigate('/puzzle-check-email', {
                 </h2>
 
                 <p className="mt-2 text-sm text-[#6E6A63]">
-                  No payment needed — enter your email and we&apos;ll send a
+                  No payment needed - enter your email and we&apos;ll send a
                   fresh access link.
                 </p>
               </div>
@@ -504,7 +504,7 @@ navigate('/puzzle-check-email', {
                   />
 
                   <p className="mt-2 text-xs leading-relaxed text-[#8A847B]">
-                    We&apos;ll email a link to the address you used to join —
+                    We&apos;ll email a link to the address you used to join -
                     it works for any challenge you&apos;ve already joined at
                     this club.
                   </p>

@@ -219,7 +219,7 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
   const [disconnectConfirm, setDisconnectConfirm] = useState(false);
   const [disableConfirm, setDisableConfirm] = useState(false);
 
-  // History — most recent stripe row including disconnected ones, for display only
+  // History - most recent stripe row including disconnected ones, for display only
   const [stripeHistory, setStripeHistory] = useState<StripeHistory | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
@@ -286,7 +286,7 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
         setStripeStatusMsg(
           ready
             ? 'Stripe connected ✅'
-            : 'Stripe setup incomplete — charges, payouts or details not yet confirmed by Stripe'
+            : 'Stripe setup incomplete - charges, payouts or details not yet confirmed by Stripe'
         );
 
         params.delete('stripe');
@@ -333,18 +333,18 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
     return config?.connect || null;
   }, [stripeMethod]);
 
-  // All three Stripe flags must be true — mirrors backend getReadyStripeForClub
+  // All three Stripe flags must be true - mirrors backend getReadyStripeForClub
   const stripeReady = !!(
     stripeConnect?.detailsSubmitted &&
     stripeConnect?.chargesEnabled &&
     stripeConnect?.payoutsEnabled
   );
 
-  // Admin's manual enable/disable toggle — only meaningful when stripeReady
+  // Admin's manual enable/disable toggle - only meaningful when stripeReady
   const stripeEnabled = !!stripeMethod?.isEnabled;
 
   // True when the stripe row has been disconnected.
-  // Check disconnectedAt directly on stripeConnect — we cannot rely on stripeMethod
+  // Check disconnectedAt directly on stripeConnect - we cannot rely on stripeMethod
   // being null because getAllForManagement returns disabled rows too, so stripeMethod
   // is never null even after disconnect.
   const wasDisconnected = !!(stripeConnect?.disconnectedAt) || (!stripeMethod && !loadingHistory && !!stripeHistory?.disconnectedAt);
@@ -371,7 +371,7 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
     }
   };
 
- // ManagePaymentMethodsModal.tsx — update the handler
+ // ManagePaymentMethodsModal.tsx - update the handler
 const handleStripeReconnect = async () => {
   try {
     setStripeBusy(true);
@@ -385,7 +385,7 @@ const handleStripeReconnect = async () => {
     }
 
     if (response.ready) {
-      // Account still fully set up — just reload, no Stripe visit needed
+      // Account still fully set up - just reload, no Stripe visit needed
       await Promise.all([loadMethods(), loadStripeHistory()]);
       setStripeStatusMsg('Stripe reconnected ✅');
       window.setTimeout(() => setStripeStatusMsg(null), 4000);
@@ -451,7 +451,7 @@ const handleStripeReconnect = async () => {
         return;
       }
       setDisconnectConfirm(false);
-      // Reload both — active methods list and history panel
+      // Reload both - active methods list and history panel
       await Promise.all([loadMethods(), loadStripeHistory()]);
     } catch (err: any) {
       setError(err?.message || 'Failed to disconnect Stripe');
@@ -575,8 +575,8 @@ const handleStripeReconnect = async () => {
   /**
    * Shown when the active Stripe row is gone (filtered out by disconnectedAt)
    * but history shows a previous account. Gives the admin two options:
-   *   1. Reconnect the same account — reactivates the archived row
-   *   2. Connect a new account — inserts a fresh row
+   *   1. Reconnect the same account - reactivates the archived row
+   *   2. Connect a new account - inserts a fresh row
    */
   function DisconnectedHistoryPanel() {
     if (!wasDisconnected) return null;
@@ -714,7 +714,7 @@ const handleStripeReconnect = async () => {
                   <div className={`p-4 rounded-lg border ${stripeMethod && !stripeEnabled ? 'border-gray-200 bg-gray-50 opacity-70' : 'border-indigo-200 bg-indigo-50'}`}>
                     <div className="flex items-start justify-between gap-4">
 
-                      {/* Left — info */}
+                      {/* Left - info */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-gray-900">Card payments via Stripe</h3>
@@ -725,7 +725,7 @@ const handleStripeReconnect = async () => {
                           Let players pay by card. Payments are verified through Stripe and funds go directly to the club's connected Stripe account.
                         </p>
 
-                        {/* History panel — shown after disconnect */}
+                        {/* History panel - shown after disconnect */}
                         <DisconnectedHistoryPanel />
 
                         {/* Which flags are still pending */}
@@ -747,7 +747,7 @@ const handleStripeReconnect = async () => {
                         )}
                       </div>
 
-                      {/* Right — action buttons (hidden when showing history panel) */}
+                      {/* Right - action buttons (hidden when showing history panel) */}
                       {!wasDisconnected && (
                         <div className="flex flex-col gap-2 flex-shrink-0 min-w-[164px]">
 
@@ -759,7 +759,7 @@ const handleStripeReconnect = async () => {
                             </button>
                           )}
 
-                          {/* Refresh — only when fully ready */}
+                          {/* Refresh - only when fully ready */}
                           {stripeMethod && stripeReady && (
                             <button type="button" onClick={refreshStripeStatus} disabled={stripeBusy}
                               className="px-4 py-2 bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold rounded-lg hover:bg-indigo-100 disabled:opacity-50">
@@ -767,7 +767,7 @@ const handleStripeReconnect = async () => {
                             </button>
                           )}
 
-                          {/* Enable / Disable — only when fully ready */}
+                          {/* Enable / Disable - only when fully ready */}
                           {stripeMethod && stripeReady && (
                             stripeEnabled ? (
                               disableConfirm ? (
@@ -798,7 +798,7 @@ const handleStripeReconnect = async () => {
                             )
                           )}
 
-                          {/* Disconnect — only when an active row exists */}
+                          {/* Disconnect - only when an active row exists */}
                           {stripeMethod && (
                             disconnectConfirm ? (
                               <div className="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-2">

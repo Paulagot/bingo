@@ -17,7 +17,7 @@ const FALLBACK_FREE_PLAN = {
   concurrent_rooms: 1,
   game_credits_remaining: 0,
   // Raw caps passthrough for scope-specific keys not in the v1 shape
-  // (e.g. puzzle_sub's maxWeeks). Empty here — the restrictive fallback
+  // (e.g. puzzle_sub's maxWeeks). Empty here - the restrictive fallback
   // path has no plan to read caps from, so callers reading
   // ents.game_caps?.maxWeeks get undefined and should apply their own
   // conservative default, same as if the key were simply absent.
@@ -28,22 +28,22 @@ const FALLBACK_FREE_PLAN = {
  * Credit key logic by plan code:
  *
  *   FREE  → siloed per game type  (credit_key = scope, e.g. 'quiz' | 'elimination')
- *           Lifetime — reset_at is NULL, never resets.
+ *           Lifetime - reset_at is NULL, never resets.
  *
  *   GROWTH / PRO → single pooled bucket (credit_key = 'games')
- *           Monthly — reset_at is set; lazy reset applied on consume.
+ *           Monthly - reset_at is set; lazy reset applied on consume.
  *
  *   DEV   → pooled 'games' bucket, balance=999999, reset_at NULL (never resets)
  *
  * TODO: when adding a new game type, seed a new credit_key row for FREE clubs
  *       (migration + grantCredits call). GROWTH/PRO/DEV use the shared 'games'
- *       bucket automatically — no migration needed for those.
+ *       bucket automatically - no migration needed for those.
  */
 const POOLED_PLANS = new Set(['GROWTH', 'PRO', 'DEV']);
 
 /**
  * Default monthly credit allowance per plan (used on lazy reset).
- * FREE is not here — it never resets.
+ * FREE is not here - it never resets.
  */
 const MONTHLY_CREDITS = {
   GROWTH: 8,
@@ -118,7 +118,7 @@ function buildEntitlementsFromRows(rows, scope) {
   const extras     = gameAllowed.extras     ?? ['*'];
 
   return {
-    // Core caps — v1 field names preserved
+    // Core caps - v1 field names preserved
     max_players_per_game: Number(gameCaps.maxPlayers     ?? FALLBACK_FREE_PLAN.max_players_per_game),
     max_rounds:           Number(gameCaps.maxRounds      ?? FALLBACK_FREE_PLAN.max_rounds),
     concurrent_rooms:     Number(gameCaps.concurrentRooms ?? FALLBACK_FREE_PLAN.concurrent_rooms),
@@ -151,7 +151,7 @@ function buildEntitlementsFromRows(rows, scope) {
  * e.g. a Game Pass row might override max_players_per_game for 'elimination'.
  *
  * NOTE: the old club_plan.overrides JSON blob is intentionally no longer
- * applied here — use the proper overrides table going forward.
+ * applied here - use the proper overrides table going forward.
  */
 async function applyOverrides(entitlements, clubId, scope) {
   try {
@@ -174,7 +174,7 @@ async function applyOverrides(entitlements, clubId, scope) {
     console.log(`[Entitlements] 🔧 Applied ${rows.length} override(s) for club "${clubId}" scope "${scope}"`);
     return merged;
   } catch (err) {
-    // Overrides are non-critical — log and continue with base entitlements
+    // Overrides are non-critical - log and continue with base entitlements
     console.error(`[Entitlements] ⚠️ Failed to load overrides for club "${clubId}":`, err);
     return entitlements;
   }
@@ -236,7 +236,7 @@ export async function resolveEntitlements({ userId: clubId, scope = 'quiz' }) {
       return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK', scope, credit_key: scope };
     }
 
-    // 2) Load plan_entitlements rows (all scopes — we filter in buildEntitlementsFromRows)
+    // 2) Load plan_entitlements rows (all scopes - we filter in buildEntitlementsFromRows)
     const [entRows] = await connection.execute(`
       SELECT scope, \`key\`, value_json
       FROM fundraisely_plan_entitlements
@@ -250,7 +250,7 @@ export async function resolveEntitlements({ userId: clubId, scope = 'quiz' }) {
       console.log(`[Entitlements] ✅ Resolved plan_entitlements for plan_id=${club.plan_id} (${club.plan_code}) scope="${scope}"`);
     } else {
       // Fallback to legacy fundraisely_plans columns if no entitlement rows exist
-      console.warn(`[Entitlements] ⚠️ No plan_entitlements rows for plan_id=${club.plan_id} — falling back to plans table`);
+      console.warn(`[Entitlements] ⚠️ No plan_entitlements rows for plan_id=${club.plan_id} - falling back to plans table`);
       const [planRows] = await connection.execute(`
         SELECT max_players_per_game, max_rounds, concurrent_rooms,
                round_types_allowed, extras_allowed
@@ -265,7 +265,7 @@ export async function resolveEntitlements({ userId: clubId, scope = 'quiz' }) {
         round_types_allowed:  parseSafe(p?.round_types_allowed, FALLBACK_FREE_PLAN.round_types_allowed),
         extras_allowed:       parseSafe(p?.extras_allowed,      FALLBACK_FREE_PLAN.extras_allowed),
         // This legacy columns-only shape predates per-scope caps JSON
-        // entirely, so there's nothing scope-specific to read here —
+        // entirely, so there's nothing scope-specific to read here -
         // same empty-object contract as the other two branches.
         game_caps:            {},
         quiz_features:        {},
@@ -309,7 +309,7 @@ export async function resolveEntitlements({ userId: clubId, scope = 'quiz' }) {
 
 /**
  * Validate requested game config against resolved entitlements.
- * Works for any scope — round type checking only applies when ents has
+ * Works for any scope - round type checking only applies when ents has
  * a non-wildcard round_types_allowed (currently quiz only).
  *
  * @param {object} ents              - result of resolveEntitlements()
@@ -338,7 +338,7 @@ export function checkCaps(ents, { requestedPlayers, requestedRounds, roundTypes 
     };
   }
 
-  // Round type check — only meaningful for quiz; elimination has no roundTypes
+  // Round type check - only meaningful for quiz; elimination has no roundTypes
   if (roundTypes && roundTypes.length > 0) {
     const allowed = new Set(ents.round_types_allowed ?? []);
     if (!allowed.has('*')) {
@@ -362,7 +362,7 @@ export function checkCaps(ents, { requestedPlayers, requestedRounds, roundTypes 
 
 /**
  * Read the current credit balance for a club + credit key.
- * Does NOT perform a lazy reset — call consumeCredit for that.
+ * Does NOT perform a lazy reset - call consumeCredit for that.
  *
  * @param {string} clubId
  * @param {string} creditKey - 'quiz' | 'elimination' | 'games'
@@ -419,7 +419,7 @@ export async function consumeCredit(clubId, scope, planCode) {
     `, [clubId, creditKey]);
 
     if (!Array.isArray(rows) || rows.length === 0) {
-      console.warn(`[Credits] ⚠️ No credit row for club "${clubId}" key "${creditKey}" — blocking`);
+      console.warn(`[Credits] ⚠️ No credit row for club "${clubId}" key "${creditKey}" - blocking`);
       return {
         ok: false,
         reason: 'no_credits',
@@ -433,7 +433,7 @@ export async function consumeCredit(clubId, scope, planCode) {
     const resetAt = row.reset_at ? new Date(row.reset_at) : null;
     const now = new Date();
 
-    // 2) Lazy monthly reset — applies to GROWTH/PRO/DEV only (reset_at is NOT NULL)
+    // 2) Lazy monthly reset - applies to GROWTH/PRO/DEV only (reset_at is NOT NULL)
     if (resetAt !== null && resetAt <= now) {
       const monthlyAllowance = MONTHLY_CREDITS[planCode] ?? 0;
       const nextResetAt = firstDayOfNextMonth();
@@ -479,7 +479,7 @@ export async function consumeCredit(clubId, scope, planCode) {
     `, [clubId, creditKey]);
 
     if (result.affectedRows === 0) {
-      // Race condition — another request consumed the last credit
+      // Race condition - another request consumed the last credit
       console.warn(`[Credits] ⚠️ Race condition on consume for club "${clubId}" key="${creditKey}"`);
       return {
         ok: false,
@@ -515,7 +515,7 @@ export async function consumeCredit(clubId, scope, planCode) {
  */
 export async function grantCredits(clubId, creditKey, amount) {
   try {
-    // Upsert — if the row doesn't exist yet (e.g. new game type on FREE plan),
+    // Upsert - if the row doesn't exist yet (e.g. new game type on FREE plan),
     // create it. If it does exist, add to the balance.
     const [result] = await connection.execute(`
       INSERT INTO fundraisely_club_credit_balances (club_id, credit_key, balance, reset_at, updated_at)
@@ -541,7 +541,7 @@ export async function grantCredits(clubId, creditKey, amount) {
 
 /**
  * Check whether an entitlements object includes a specific feature flag.
- * Works for any scope — checks game_features first, then quiz_features for
+ * Works for any scope - checks game_features first, then quiz_features for
  * backwards compatibility.
  *
  * @param {object} entitlements - result of resolveEntitlements()
@@ -559,7 +559,7 @@ export function hasGameFeature(entitlements, featureKey) {
 }
 
 /**
- * Backwards-compatible alias — existing callers use hasQuizFeature.
+ * Backwards-compatible alias - existing callers use hasQuizFeature.
  * Points to hasGameFeature so both work.
  */
 export const hasQuizFeature = hasGameFeature;

@@ -3,7 +3,7 @@
 // Nonce management, signature verification (EVM + Solana), and session tokens.
 //
 // Nonces are stored in a simple in-memory Map with expiry.
-// For a multi-instance deployment these would move to Redis — noted below.
+// For a multi-instance deployment these would move to Redis - noted below.
 //
 // Session tokens are short-lived JWTs signed with WEB3_SESSION_SECRET.
 // Add WEB3_SESSION_SECRET to your .env file.
@@ -16,12 +16,12 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const NONCE_TTL_MS = 5 * 60 * 1000;      // 5 minutes
 
 // ── Address normalisation ─────────────────────────────────────────────────────
-// EVM addresses are case-insensitive — normalise to lowercase for comparison.
-// Solana addresses are base58 and CASE-SENSITIVE — never lowercase them.
+// EVM addresses are case-insensitive - normalise to lowercase for comparison.
+// Solana addresses are base58 and CASE-SENSITIVE - never lowercase them.
 
 function normaliseAddress(address, chainFamily) {
   if (chainFamily === 'evm') return address.toLowerCase();
-  return address; // solana, and any future chains — preserve original casing
+  return address; // solana, and any future chains - preserve original casing
 }
 
 // ── Nonce store ───────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 // ── Invalidated sessions store ────────────────────────────────────────────────
-// Lightweight blocklist — JWT handles expiry, this handles explicit logout.
+// Lightweight blocklist - JWT handles expiry, this handles explicit logout.
 // Same note: move to Redis for multi-instance.
 
 const invalidatedTokens = new Set();
@@ -50,7 +50,7 @@ export async function createChallenge(walletAddress, chainFamily) {
   const nonce = crypto.randomBytes(16).toString('hex');
   const challenge = buildChallengeMessage(walletAddress, nonce);
 
-  // Store the normalised address — EVM lowercased, Solana preserved
+  // Store the normalised address - EVM lowercased, Solana preserved
   const normalisedAddress = normaliseAddress(walletAddress, chainFamily);
 
   nonceStore.set(nonce, {

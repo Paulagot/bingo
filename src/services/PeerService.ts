@@ -6,8 +6,8 @@ export type PeerFundraiserStatus =
   | 'closed';
 
 export type PeerFundraiserFormat =
-  | 'door_to_door_pack'
-  | 'sponsored_activity'
+  | 'door_to_door'
+  | 'sponsored'
   | 'personal_fundraising'
   | 'team_fundraising'
   | 'custom';
@@ -77,13 +77,55 @@ export interface UpdatePeerFundraiserPayload {
   settings?: Record<string, unknown>;
 }
 
+export type PeerSellableOptionType =
+  | 'quiz_entry'
+  | 'elimination_entry'
+  | 'event_ticket'
+  | 'puzzle_entry';
+
+export interface PeerSellableOption {
+  optionId: string;
+  roomId: string;
+  gameType: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_drop';
+  itemType: PeerSellableOptionType;
+  label: string;
+  description?: string | null;
+  configuredPrice: number;
+  currency: string;
+  quantity: number;
+  metadata: {
+    optionKind: 'room_entry' | 'ticket_type' | 'puzzle_tier';
+    ticketTypeId?: string;
+    ticketTypeName?: string;
+    ticketTypeQuantity?: number | null;
+    ticketTypeSaleEndsAt?: string | null;
+    entryFee?: number;
+    includedExtras?: Array<{
+      extraId: string;
+      label?: string;
+      price: number;
+    }>;
+    extrasTotal?: number;
+    pricingTierId?: string;
+    pricingTierLabel?: string | null;
+    puzzleQuantity?: number;
+    puzzleItemIds?: string[];
+    puzzleItems?: Array<{
+      id: string;
+      itemNumber: number;
+      puzzleType: string;
+      difficulty: string;
+    }>;
+    referencePrice: number;
+  };
+}
+
 export interface AvailableRoom {
   room_id: string;
   game_type:
     | 'quiz'
     | 'elimination'
     | 'ticketed_event'
-    | 'puzzle_sub'
     | 'puzzle_drop';
   status: RoomStatus;
   scheduled_at: string | null;
@@ -93,6 +135,7 @@ export interface AvailableRoom {
   prize_description?: string | null;
   prize_value?: number | null;
   config?: Record<string, unknown>;
+  sellable_options: PeerSellableOption[];
 }
 
 export interface PeerParticipant {
@@ -184,7 +227,33 @@ export interface SavePeerPackPayload {
     targetRoomId: string;
     itemType: string;
     quantity: number;
-    metadata?: Record<string, unknown> | null;
+    metadata?: {
+      optionId?: string;
+      optionKind?: 'room_entry' | 'ticket_type' | 'puzzle_tier';
+      configuredPrice?: number;
+      referencePrice?: number;
+      ticketTypeId?: string;
+      ticketTypeName?: string;
+      ticketTypeQuantity?: number | null;
+      ticketTypeSaleEndsAt?: string | null;
+      entryFee?: number;
+      includedExtras?: Array<{
+        extraId: string;
+        label?: string;
+        price: number;
+      }>;
+      extrasTotal?: number;
+      pricingTierId?: string;
+      pricingTierLabel?: string | null;
+      puzzleQuantity?: number;
+      puzzleItemIds?: string[];
+      puzzleItems?: Array<{
+        id: string;
+        itemNumber: number;
+        puzzleType: string;
+        difficulty: string;
+      }>;
+    } | null;
   }>;
 }
 
@@ -453,10 +522,16 @@ class PeerService extends BaseService {
     );
   }
 
-  applyTemplate(id: string, templateKey: 'door_to_door' | 'quiz_only' | 'puzzle_campaign') {
+  applyTemplate(
+    id: string,
+    templateKey: 'door_to_door' | 'quiz_only' | 'puzzle_campaign',
+  ) {
     return this.request<{ packs: PeerPack[] }>(
       `/peer-fundraisers/${encodeURIComponent(id)}/packs/apply-template`,
-      { method: 'POST', body: JSON.stringify({ templateKey }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({ templateKey }),
+      },
     );
   }
 

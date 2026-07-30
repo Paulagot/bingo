@@ -11,8 +11,8 @@
 //   donations      → fundraisely_donations (separate table by design)
 //
 // Status filter: ledger status = 'confirmed' ONLY. Nothing in this
-// codebase ever writes status='reconciled' — the reconciliation stamp is
-// reconciliation_id/reconciled_at with status left at 'confirmed' — so
+// codebase ever writes status='reconciled' - the reconciliation stamp is
+// reconciliation_id/reconciled_at with status left at 'confirmed' - so
 // 'confirmed' is both correct and consistent with the recon queries.
 // (The IN ('confirmed','reconciled') in quizStatsService is dead weight.)
 //
@@ -22,7 +22,7 @@
 // whichever table happened to be queried.
 //
 // Adjustments: classified via the shared classifier (single source of
-// truth). Approved vs pending split via join to quiz_reconciliation —
+// truth). Approved vs pending split via join to quiz_reconciliation -
 // approved figures go in the main report, pending shown separately.
 // Elimination adjustments never get reconciliation_id stamped, so the
 // join falls back to room_id for NULL reconciliation_id rows (safe:
@@ -43,7 +43,7 @@ const EVENTS_TABLE = `${TABLE_PREFIX}events`;
 // ─── 1. Ledger income, categorized + by method ───────────────────────────────
 
 async function fetchLedgerIncome(clubId) {
-  // \_ escapes the underscore — plain 'sub_%' would match 'subX…' too,
+  // \_ escapes the underscore - plain 'sub_%' would match 'subX…' too,
   // since _ is a single-char wildcard in LIKE.
   const [rows] = await connection.execute(
     `SELECT
@@ -283,7 +283,7 @@ async function fetchTarget(clubId) {
   // status='draft', but in practice events sit in draft while very much
   // live for fundraising (verified against real club data: all events
   // were drafts, target came back 0). If a publish workflow starts being
-  // used, revisit — add AND status != 'draft' back or filter on
+  // used, revisit - add AND status != 'draft' back or filter on
   // is_published = 1.
   const [[row]] = await connection.execute(
     `SELECT COALESCE(SUM(goal_amount), 0) AS target
@@ -323,7 +323,7 @@ export async function buildClubIncomeReport(clubId) {
   const netIncome = grossIncome - expensesTotal;
 
   // Variance: ledger vs quiz_tickets. Non-zero means the two tables are
-  // out of sync for at least one payment — surfaced, not hidden.
+  // out of sync for at least one payment - surfaced, not hidden.
   const ticketsVariance = {
     ledgerTotal: ledger.tickets.total,
     ticketsTableTotal: ticketTypes.ticketsTableTotal,

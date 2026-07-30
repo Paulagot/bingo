@@ -92,7 +92,7 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
         <line x1="5" y1={lineY-3} x2="5" y2={lineY+3} stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
         <line x1="95" y1={lineY-3} x2="95" y2={lineY+3} stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
 
-        {/* Fixed weights — coloured */}
+        {/* Fixed weights - coloured */}
         {config.weights.map((w, i) => {
           const wx = 5 + w.position * 90;
           const r = 3.5 + (w.weight / maxW) * 5.5;
@@ -111,7 +111,7 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
           );
         })}
 
-        {/* Moveable weight — white, clearly different */}
+        {/* Moveable weight - white, clearly different */}
         {(() => {
           const mx = 5 + moveableX * 90;
           const mr = 5;

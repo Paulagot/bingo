@@ -1,7 +1,7 @@
 // server/campaigns/services/campaignSellerService.js
 //
 // CRUD for campaign sellers plus public stats endpoint.
-// Sellers have no accounts — their nanoid is the access key.
+// Sellers have no accounts - their nanoid is the access key.
 // club_id always from auth, never from client.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
@@ -155,7 +155,7 @@ export async function updateSeller(sellerId, campaignId, clubId, { sellerName, n
 }
 
 export async function deleteSeller(sellerId, campaignId, clubId) {
-  // Check for orders — if any exist, soft-delete only
+  // Check for orders - if any exist, soft-delete only
   const [orderRows] = await connection.execute(
     `SELECT COUNT(*) AS cnt FROM ${T_ORDERS}
      WHERE seller_id = ? AND payment_status NOT IN ('cancelled','refunded')`,
@@ -182,7 +182,7 @@ export async function deleteSeller(sellerId, campaignId, clubId) {
 // ─── Public (no auth) ─────────────────────────────────────────────────────────
 
 /**
- * Public seller stats page — no auth, seller ID is the key.
+ * Public seller stats page - no auth, seller ID is the key.
  * Returns only aggregate totals, no supporter personal data.
  */
 export async function getPublicSellerStats(campaignId, sellerId) {

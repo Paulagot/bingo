@@ -57,7 +57,7 @@ export const generateRoundConfig = ({ difficulty = 1, lastShape = null, totalRou
   const cx = randomBetween(margin + width / 2, 1 - margin - width / 2);
   const cy = randomBetween(margin + height / 2, 1 - margin - height / 2);
 
-  // Rotation also scales with difficulty — easier rounds have less rotation
+  // Rotation also scales with difficulty - easier rounds have less rotation
   const maxRotation = Math.round(lerp(45, 180, t));
   const rotation = shapeType === 'circle' ? 0 : Math.round(randomBetween(0, maxRotation));
 

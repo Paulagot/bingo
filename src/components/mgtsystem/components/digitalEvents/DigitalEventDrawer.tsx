@@ -142,14 +142,14 @@ export default function DigitalEventDrawer({
   const isCancelled     = room?.status === "cancelled";
   const isTicketedEvent = (room as any)?.game_type === 'ticketed_event';
   const isSubscription  = (room as any)?.game_type === 'puzzle_sub';
-  // Drop flag — same pattern as isSubscription/isTicketedEvent above.
+  // Drop flag - same pattern as isSubscription/isTicketedEvent above.
   const isDrop          = (room as any)?.game_type === 'puzzle_drop';
   const isSponsored     = (room as any)?.game_type === 'sponsored_activity';
   const canUseTicketing = featureAccess?.ticketing === true;
   const canUsePayments  = featureAccess?.quizPayments === true;
 
   // ── Subscription challenge data ─────────────────────────────────────────────
-  // The drawer only ever has a room (room_id, game_type, status) — the
+  // The drawer only ever has a room (room_id, game_type, status) - the
   // actual challenge (title, schedule, price, player_count) lives in
   // fundraisely_puzzle_challenges and is fetched once here, the same way
   // auditView is fetched once and passed down to Report/Approval tabs.
@@ -177,7 +177,7 @@ export default function DigitalEventDrawer({
         const board = await challengeService.getLeaderboard(data.id);
         setLeaderboard(board);
       } catch {
-        setLeaderboard([]); // non-critical — Impact/Leaderboard tabs degrade gracefully
+        setLeaderboard([]); // non-critical - Impact/Leaderboard tabs degrade gracefully
       } finally {
         setLeaderboardLoading(false);
       }
@@ -235,8 +235,8 @@ export default function DigitalEventDrawer({
 
   useEffect(() => {
     if (!open || !room?.room_id) return;
-    // Drop never uses the quiz auditView system — it has its own
-    // reconciliation backend/tab entirely — so skip this fetch for Drop,
+    // Drop never uses the quiz auditView system - it has its own
+    // reconciliation backend/tab entirely - so skip this fetch for Drop,
     // same as the isSubscription skip already does.
     if (!isCompleted || isSubscription || isDrop || isSponsored) {
       setAuditView(null);
@@ -254,7 +254,7 @@ export default function DigitalEventDrawer({
       if (isSponsored) {
         setActiveTab(room?.status === 'scheduled' ? 'overview' : 'impact');
       } else if (isDrop) {
-        // Drop has no completed/live reshuffle — Overview first always.
+        // Drop has no completed/live reshuffle - Overview first always.
         // Purchases stays relevant the whole time this is on sale rather
         // than being a "wind-down" tab like Impact is for the others, so
         // there's no equivalent of Subscription's isSubscriptionLive jump.
@@ -292,7 +292,7 @@ export default function DigitalEventDrawer({
       lastFetchedChallengeRoomId.current = null;
       await fetchChallenge(room.room_id);
     }
-    // Drop has no extra fetch here — each Drop tab (Overview, Setup,
+    // Drop has no extra fetch here - each Drop tab (Overview, Setup,
     // Purchases, Leaderboard, Impact, Reconciliation, Launch) owns and
     // re-fetches its own data internally when needed.
   }, [onRefreshRoom, room?.room_id, isCompleted, isSubscription, isDrop, isSponsored, fetchAuditView, fetchChallenge, isTicketedEvent]);
@@ -347,8 +347,8 @@ export default function DigitalEventDrawer({
   // ── Drop tabs ────────────────────────────────────────────────────────────
   // Purchases/Leaderboard/Impact/Reconciliation/Launch all reuse existing
   // TabId values ("tickets", "leaderboard", "impact", "reconciliation",
-  // "launch") — label/icon swap only, same trick launchTab already does
-  // for ticketed events' "Check-in" label — so TabId doesn't need
+  // "launch") - label/icon swap only, same trick launchTab already does
+  // for ticketed events' "Check-in" label - so TabId doesn't need
   // widening, and the content render section below just branches on
   // isDrop first within each existing activeTab === "..." block.
   const dropOverviewTab       = { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> };

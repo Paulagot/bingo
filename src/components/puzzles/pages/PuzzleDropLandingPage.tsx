@@ -2,19 +2,19 @@
 //
 // Buyer-facing landing page for a Puzzle Drop. Modeled on PuzzleJoinPage.tsx
 // for the shell/theme/branding pattern, but the purchase flow itself reuses
-// components built for the Quiz ticket flow — PaymentMethodSelector and
-// PaymentInstructions (src/components/Quiz/shared/*) — since Drop's manual
+// components built for the Quiz ticket flow - PaymentMethodSelector and
+// PaymentInstructions (src/components/Quiz/shared/*) - since Drop's manual
 // (instant/cash) payment flow is functionally identical to a ticket
 // purchase: pick a method, get a reference + instructions, confirm paid.
 //
 // CURRENT SCOPE: instant-payment (cash/Revolut/bank) and Stripe. Crypto
-// isn't wired yet — if a club's linked payment methods include it, this
+// isn't wired yet - if a club's linked payment methods include it, this
 // page filters it out of the selector rather than offering a button that
 // would fail. Selecting a Stripe method redirects the browser straight to
 // Stripe Checkout (handleSelectMethod); everything else goes through the
 // PaymentInstructions flow below.
 //
-// NO EMAIL SENDING EXISTS YET (flagged repeatedly in the backend work) —
+// NO EMAIL SENDING EXISTS YET (flagged repeatedly in the backend work) -
 // so the success screen shows each purchased item's access link directly,
 // rather than claiming one was emailed. This applies to the instant-
 // payment success screen on THIS page; the Stripe path redirects to a
@@ -22,7 +22,7 @@
 // Stripe's own success_url takes the browser away and back.
 //
 // Route: expected to be registered as something like
-// /puzzle-drop/:dropRoomId — this file assumes that param name.
+// /puzzle-drop/:dropRoomId - this file assumes that param name.
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -91,7 +91,7 @@ export default function PuzzleDropLandingPage() {
 
   const [purchaseResult, setPurchaseResult] = useState<PurchaseDropResult | null>(null);
 
-  // "Already bought this?" recovery — see publicPuzzleDropService.ts's
+  // "Already bought this?" recovery - see publicPuzzleDropService.ts's
   // recoverAccess comment for why this is a convenience lookup, not
   // strong auth. Kept separate from the main purchase flow's step state
   // since it's a small collapsible section, not a full-page transition.
@@ -145,7 +145,7 @@ export default function PuzzleDropLandingPage() {
     setSelectedTierId(tierId);
     const tier = info?.pricingTiers.find(t => t.id === tierId);
     // If the tier covers every item in the Drop, auto-select all of
-    // them — nothing left for the buyer to choose. Otherwise clear the
+    // them - nothing left for the buyer to choose. Otherwise clear the
     // selection so they pick exactly `quantity` items themselves.
     if (tier && info && tier.quantity >= info.items.length) {
       setSelectedItemIds(info.items.map(i => i.id));
@@ -182,7 +182,7 @@ export default function PuzzleDropLandingPage() {
       const methods = await publicPuzzleDropService.getPaymentMethods(dropRoomId);
       // instant_payment (cash/Revolut/bank etc.) goes through
       // PaymentInstructions below. stripe goes straight to Stripe
-      // Checkout, crypto goes to CryptoFixedFeeStep — see
+      // Checkout, crypto goes to CryptoFixedFeeStep - see
       // handleSelectMethod's branches for both.
       setPaymentMethods(
         methods.filter(m => {
@@ -223,10 +223,10 @@ export default function PuzzleDropLandingPage() {
     if (category === 'crypto') {
       // useAppKit()/useDisconnect() inside CryptoFixedFeeStep throw
       // synchronously on mount if createAppKit() hasn't resolved yet
-      // (src/web3Init.ts defers this globally for performance — it's
+      // (src/web3Init.ts defers this globally for performance - it's
       // only initialized on pages that actually need wallet access,
       // exactly matching this situation). Must AWAIT it, not just call
-      // it — it's async (dynamic imports under the hood), so firing it
+      // it - it's async (dynamic imports under the hood), so firing it
       // without waiting would let the component mount before AppKit is
       // actually ready.
       setSelectedMethod(method); // set BEFORE the await, so the spinner below can tell this is a crypto wait, not a stale Stripe one
@@ -393,7 +393,7 @@ export default function PuzzleDropLandingPage() {
             {info.title}
           </h1>
           <p className="mt-4 text-base text-[#5F5A54]">
-            {info.clubName ?? 'This club'} is selling one-off puzzles — pick your puzzles, choose how
+            {info.clubName ?? 'This club'} is selling one-off puzzles - pick your puzzles, choose how
             you'd like to pay, and start playing right away.
           </p>
         </section>
@@ -515,7 +515,7 @@ export default function PuzzleDropLandingPage() {
                         />
                         <span>
                           <span className="block font-semibold text-[#071A44]">
-                            Puzzle {item.itemNumber} — {PUZZLE_TYPE_LABELS[item.puzzleType] ?? item.puzzleType}
+                            Puzzle {item.itemNumber} - {PUZZLE_TYPE_LABELS[item.puzzleType] ?? item.puzzleType}
                           </span>
                           <span className="block text-xs capitalize text-[#8A847B]">{item.difficulty} difficulty</span>
                         </span>
@@ -637,12 +637,12 @@ export default function PuzzleDropLandingPage() {
               roomId={dropRoomId}
               selectedMethod={selectedMethod}
               totalFiatAmount={Number(selectedTier.price)}
-              // Drop has no entry-fee/extras split — the whole tier price
+              // Drop has no entry-fee/extras split - the whole tier price
               // is one lump sum, so entryFeeAmount carries all of it and
               // extrasAmount is 0. The component's own internal fraction
               // math (entryFeeAmount / totalFiatAmount) then works out to
               // 1, meaning entryFeeRaw ends up carrying the full raw
-              // on-chain amount — see the backend route's comment on why
+              // on-chain amount - see the backend route's comment on why
               // it reads entryFeeRaw, not a generic "rawAmount" field.
               entryFeeAmount={Number(selectedTier.price)}
               extrasAmount={0}
@@ -653,7 +653,7 @@ export default function PuzzleDropLandingPage() {
               purchaserEmail={buyerEmail.trim()}
               playerName={buyerName.trim()}
               // itemIds has no home in this component's own POST body (it
-              // only knows generic quiz fee fields) — threaded through
+              // only knows generic quiz fee fields) - threaded through
               // the confirmEndpoint URL's query string instead, which the
               // backend route reads via req.query.itemIds.
               confirmEndpoint={`/api/puzzle-drop/${dropRoomId}/crypto/confirm?itemIds=${encodeURIComponent(JSON.stringify(selectedItemIds))}`}
@@ -661,7 +661,7 @@ export default function PuzzleDropLandingPage() {
               onSuccess={async (result) => {
                 // The component's own onSuccess only carries its narrow
                 // FixedFeeConfirmResult shape (txHash, ledgerAmount,
-                // ledgerCurrency, etc.) — no room for Drop's entitlements/
+                // ledgerCurrency, etc.) - no room for Drop's entitlements/
                 // access tokens. Re-fetch them the same way the Stripe
                 // success page does, reusing that exact route: it's a
                 // generic payment_reference lookup under the hood, so
@@ -692,7 +692,7 @@ export default function PuzzleDropLandingPage() {
           <section className="rounded-[36px] border border-[#D8E8D8] bg-[#F3FAF4] p-6 shadow-sm sm:p-8">
             <h2 className="mb-2 font-serif text-3xl text-[#071A44]">Purchase recorded 🎉</h2>
             <p className="mb-6 text-sm text-[#5F7D6A]">
-              {info.clubName ?? 'The organiser'} will confirm your payment shortly. Save these links now —
+              {info.clubName ?? 'The organiser'} will confirm your payment shortly. Save these links now -
               each one unlocks a puzzle once payment is confirmed:
             </p>
             <div className="space-y-3">

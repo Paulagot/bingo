@@ -127,7 +127,7 @@ const MiniAppLandingInner: React.FC = () => {
           ))}
         </div>
 
-        {/* ── Split — % breakdown ── */}
+        {/* ── Split - % breakdown ── */}
         <div className="mb-8 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
           <div className="text-center">
             <p className="text-xl font-black text-emerald-400">≥40%</p>
@@ -221,7 +221,7 @@ const MiniAppLandingInner: React.FC = () => {
   );
 };
 
-// ─── Exported page — wrapped with mini app providers ─────────────────────────
+// ─── Exported page - wrapped with mini app providers ─────────────────────────
 // This is the default export used at /web3/impact-campaign/baseapp
 // It wraps itself so it can be used as a standalone route.
 

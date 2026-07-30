@@ -1,16 +1,16 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/LaunchTabSubscription.tsx
 //
-// The "club UI for the challenge" — Launch tab equivalent for subscriptions.
+// The "club UI for the challenge" - Launch tab equivalent for subscriptions.
 //
 // Mark Complete was removed: every subscriber already has their own
 // Stripe cancel_at set at checkout (starts_at + total_weeks from when
-// THEY joined — see applyCancelAtForSubscription), so Stripe naturally
+// THEY joined - see applyCancelAtForSubscription), so Stripe naturally
 // stops billing each person on schedule with zero action needed. A
 // "completed" status added nothing a status label didn't already cover.
 //
 // Cancel is real, not just a label change: it immediately cancels every
-// active/past_due subscriber's Stripe subscription — no more charges,
-// ever, for this challenge — while leaving access to already-paid weeks
+// active/past_due subscriber's Stripe subscription - no more charges,
+// ever, for this challenge - while leaving access to already-paid weeks
 // untouched and issuing no refunds. That's irreversible and affects
 // other people's money, so it requires an explicit two-step confirm
 // with the consequences spelled out, not a single click.
@@ -127,7 +127,7 @@ export default function LaunchTabSubscription({ challenge, challengeLoading, onS
         <div className="rounded-xl border p-5" style={{ borderColor: '#dce1df', background: '#ffffff' }}>
           <p className="text-sm font-bold text-[#102532]">Challenge is live</p>
           <p className="mt-1 text-xs text-[#52636f]">
-            No action needed to let this run its course — each subscriber's billing already stops
+            No action needed to let this run its course - each subscriber's billing already stops
             automatically once they've paid for their full {challenge.total_weeks}-week run.
           </p>
           <button type="button" disabled={updating} onClick={() => setConfirmingCancel(true)}
@@ -144,9 +144,9 @@ export default function LaunchTabSubscription({ challenge, challengeLoading, onS
           <div className="flex items-start gap-2">
             <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-600" />
             <div>
-              <p className="text-sm font-bold text-rose-900">This will stop billing immediately — are you sure?</p>
+              <p className="text-sm font-bold text-rose-900">This will stop billing immediately - are you sure?</p>
               <ul className="mt-2 space-y-1.5 text-xs text-rose-800">
-                <li>• Every active subscriber's Stripe subscription will be cancelled <strong>right now</strong> — no more weekly charges, for anyone.</li>
+                <li>• Every active subscriber's Stripe subscription will be cancelled <strong>right now</strong> - no more weekly charges, for anyone.</li>
                 <li>• Subscribers keep access to whatever weeks they've already paid for. Nothing already unlocked is taken away.</li>
                 <li>• <strong>No refunds</strong> are issued for the current period.</li>
                 <li>• This cannot be undone. New sign-ups also stop.</li>

@@ -3,12 +3,12 @@
  *
  * ## What changed (new contract)
  *
- * - deriveGlobalConfigPDA  — REMOVED (no GlobalConfig in new contract)
- * - deriveTokenRegistryPDA — REMOVED (no TokenRegistry in new contract)
- * - deriveRoomPDA, deriveRoomVaultPDA, derivePlayerEntryPDA — UNCHANGED
- * - derivePrizeVaultPDA    — REMOVED (asset rooms are gone)
- * - deriveRoomPDAs batch   — updated to remove removed fields
- * - quiz_admin program ID  — REMOVED entirely
+ * - deriveGlobalConfigPDA  - REMOVED (no GlobalConfig in new contract)
+ * - deriveTokenRegistryPDA - REMOVED (no TokenRegistry in new contract)
+ * - deriveRoomPDA, deriveRoomVaultPDA, derivePlayerEntryPDA - UNCHANGED
+ * - derivePrizeVaultPDA    - REMOVED (asset rooms are gone)
+ * - deriveRoomPDAs batch   - updated to remove removed fields
+ * - quiz_admin program ID  - REMOVED entirely
  *
  * Seeds (unchanged from old contract):
  *   Room:        ["room",       host.toBuffer(), Buffer.from(roomId)]
@@ -84,7 +84,7 @@ export function derivePlayerEntryPDA(room: PublicKey, player: PublicKey): [Publi
 }
 
 // ---------------------------------------------------------------------------
-// Batch helper — derives all PDAs needed for a room in one call
+// Batch helper - derives all PDAs needed for a room in one call
 // ---------------------------------------------------------------------------
 
 export function deriveRoomPDAs(params: {

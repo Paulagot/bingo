@@ -53,7 +53,7 @@ const FreeTrial: React.FC = () => {
   const softwareJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'FundRaisely — Fundraising Quiz',
+    name: 'FundRaisely - Fundraising Quiz',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     offers: {
@@ -131,7 +131,7 @@ const FreeTrial: React.FC = () => {
             
             <div className="flex flex-wrap justify-center gap-4 mb-6">
               <a
-                href="/signup?source=free-trial&returnTo=/quiz/eventdashboard"
+                href="/signup?source=free-trial&returnTo=/eventdashboard"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-700 font-bold shadow-lg hover:bg-indigo-50 hover:scale-105 transition-all duration-300 text-lg"
               >
                 Start Free Trial Now
@@ -259,7 +259,7 @@ const FreeTrial: React.FC = () => {
 
           <div className="text-center mt-12">
             <a
-              href="/signup?source=free-trial&returnTo=/quiz/eventdashboard"
+              href="/signup?source=free-trial&returnTo=/eventdashboard"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-900 font-bold shadow-xl hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
             >
               Start Your Free Trial
@@ -344,7 +344,7 @@ const FreeTrial: React.FC = () => {
             <h3 className="text-indigo-900 mb-3 text-2xl font-bold">What could you raise with the free trial?</h3>
             <p className="text-indigo-900/70 mb-6">
               Two simple scenarios using {DEVICE_LIMIT} devices and a {Math.round(EXTRAS_UPTAKE * 100)}% uptake on extras at {currencySymbol}{EXTRAS_PRICE}.
-              Actuals vary — this is a planning guide.
+              Actuals vary - this is a planning guide.
             </p>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -388,7 +388,7 @@ const FreeTrial: React.FC = () => {
                 <div className="mt-3 text-indigo-900 font-extrabold">≈ {fmt(bTotal)}</div>
 
                 <p className="mt-3 text-xs text-indigo-900/60">
-                  Tip: Keep the extras simple — one price, one click — so team captains don't hesitate at the table.
+                  Tip: Keep the extras simple - one price, one click - so team captains don't hesitate at the table.
                 </p>
               </div>
             </div>
@@ -405,7 +405,7 @@ const FreeTrial: React.FC = () => {
       <section id="faq" className="px-4 pb-16">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 text-center">
-            <h2 className="text-indigo-900 mb-4 text-3xl font-bold">Fundraising Quiz Free trial — FAQs</h2>
+            <h2 className="text-indigo-900 mb-4 text-3xl font-bold">Fundraising Quiz Free trial - FAQs</h2>
             <p className="text-indigo-900/70 mx-auto max-w-2xl">Quick answers so you can get started fast.</p>
           </div>
 
@@ -436,7 +436,7 @@ const FreeTrial: React.FC = () => {
             <h3 className="text-2xl font-bold mb-4">Ready to start your free trial?</h3>
             <p className="mb-6 text-white/90">Run a full, real fundraiser with transparent reconciliation, and a bit of sparkle and lots of FUN.</p>
             <a
-              href="/signup?source=free-trial&returnTo=/quiz/eventdashboard"
+              href="/signup?source=free-trial&returnTo=/eventdashboard"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-700 font-bold shadow-lg hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
             >
               Create Free Account Now

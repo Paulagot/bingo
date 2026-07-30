@@ -3,18 +3,18 @@
 // Mirrors stripeWalkinCheckout.js's createWalkinStripeSession pattern
 // (same Stripe Connect session shape, same getReadyStripeForClub call),
 // but with one structural difference: walk-in payments write NOTHING to
-// the DB until the webhook fires — everything the webhook needs is
+// the DB until the webhook fires - everything the webhook needs is
 // carried in Stripe's metadata. Drop can't do that: itemIds is a variable-
 // length array of UUIDs that can exceed what's safe to round-trip through
 // Stripe metadata's small string-only fields.
 //
-// So Drop follows the OTHER established pattern instead — the one
+// So Drop follows the OTHER established pattern instead - the one
 // quizTicketService.createTicketStripeCheckout uses for ticket_purchase:
 // create the entitlements + ledger row FIRST (at 'expected' status),
 // THEN create the Stripe session, THEN patch the session id onto the
 // ledger row. Metadata only needs to carry a small reference id
 // (entitlementId), not the purchase payload. The webhook just flips
-// status via confirmDropPurchase — the exact same function the admin
+// status via confirmDropPurchase - the exact same function the admin
 // manual-confirm route already uses, so there's no new confirmation
 // logic anywhere in this file.
 
@@ -37,7 +37,7 @@ export async function createDropStripeCheckout({
   buyerEmail,
   appOrigin,
 }) {
-  // 1) Room + status gate — same rule the manual-payment purchase route
+  // 1) Room + status gate - same rule the manual-payment purchase route
   // enforces (see puzzleDropRoutes.js): only accept purchases once the
   // Drop is actually on sale.
   const room = await getDropRoomConfig(dropRoomId);
@@ -48,7 +48,7 @@ export async function createDropStripeCheckout({
   const stripeConn = await getReadyStripeForClub(room.clubId);
   if (!stripeConn) throw new Error('stripe_not_ready_or_disabled');
 
-  // 3) Create entitlements + ledger row NOW, at 'expected' — see file
+  // 3) Create entitlements + ledger row NOW, at 'expected' - see file
   // header note for why this can't be deferred to the webhook the way
   // walk-in payments are.
   const result = await createDropEntitlements({
@@ -81,7 +81,7 @@ export async function createDropStripeCheckout({
             currency: result.currency.toLowerCase(),
             unit_amount: totalAmountCents,
             product_data: {
-              name: `Puzzle Drop — ${room.config?.dropTitle || dropRoomId}`,
+              name: `Puzzle Drop - ${room.config?.dropTitle || dropRoomId}`,
             },
           },
         },
@@ -97,7 +97,7 @@ export async function createDropStripeCheckout({
     { stripeAccount: stripeConn.accountId }
   );
 
-  // 5) Patch the session id onto the ledger row — see attachStripeSessionToLedger's
+  // 5) Patch the session id onto the ledger row - see attachStripeSessionToLedger's
   // comment for why this is a necessary second step rather than known up front.
   await attachStripeSessionToLedger({ ledgerId: result.ledgerId, sessionId: session.id });
 

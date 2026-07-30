@@ -1,7 +1,7 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/ApprovalTotalsTab.tsx
 //
 // Read-only reconciliation audit view for a completed quiz room.
-// Receives auditView from DigitalEventDrawer — no internal fetch.
+// Receives auditView from DigitalEventDrawer - no internal fetch.
 // Shows confirmed payments by confirmer, late payments, manual adjustments,
 // outstanding/written-off, and method breakdown.
 // Leaderboard and prize awards are shown in the Impact tab instead.
@@ -328,7 +328,7 @@ export default function ApprovalTotalsTab({
     )
       .map((n) => n.outerHTML)
       .join("\n");
-    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Approval Totals — ${room.room_id}</title>${styles}<style>body{margin:0;padding:24px;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pc{break-inside:avoid;page-break-inside:avoid}@media print{@page{size:A4;margin:14mm}}</style></head><body>${el.innerHTML}</body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Approval Totals - ${room.room_id}</title>${styles}<style>body{margin:0;padding:24px;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pc{break-inside:avoid;page-break-inside:avoid}@media print{@page{size:A4;margin:14mm}}</style></head><body>${el.innerHTML}</body></html>`;
     const w = window.open("", "_blank", "width=1100,height=850");
     if (!w) return;
     w.document.open();
@@ -458,7 +458,7 @@ export default function ApprovalTotalsTab({
               {reconciliation.approvedAt && (
                 <p className="mt-2 text-xs text-[#52636f]">
                   Approved by{" "}
-                  <strong>{reconciliation.approvedBy || "—"}</strong> on{" "}
+                  <strong>{reconciliation.approvedBy || "-"}</strong> on{" "}
                   {new Date(reconciliation.approvedAt).toLocaleString()}
                 </p>
               )}
@@ -590,7 +590,7 @@ export default function ApprovalTotalsTab({
                 }
               >
 
-                        {/* Ticket type summary cards — only shown when >1 type */}
+                        {/* Ticket type summary cards - only shown when >1 type */}
                 {(() => {
                   const typeMap = new Map<string, { name: string; count: number; revenue: number; redeemed: number }>();
                   for (const t of tickets as TicketRow[]) {
@@ -696,7 +696,7 @@ export default function ApprovalTotalsTab({
         <div className="pc rounded-2xl border border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)] p-4">
           <SectionHead
             icon={<UserCheck className="h-5 w-5 text-[#157f85]" />}
-            title="On the Night — Confirmed Payments"
+            title="On the Night - Confirmed Payments"
             subtitle="Grouped by who collected and confirmed each payment"
           />
           {confirmedGroups.length > 0 ? (
@@ -866,7 +866,7 @@ export default function ApprovalTotalsTab({
                 <SectionHead
                   icon={<AlertTriangle className="h-5 w-5 text-[#8a6d2f]" />}
                   title="Outstanding"
-                  subtitle="Not resolved — excluded from totals"
+                  subtitle="Not resolved - excluded from totals"
                 />
                 <div className="space-y-3">
                   {Object.entries(outstandingByStatus).map(
@@ -920,7 +920,7 @@ export default function ApprovalTotalsTab({
                 <SectionHead
                   icon={<AlertCircle className="h-5 w-5 text-[#c8423b]" />}
                   title="Written Off"
-                  subtitle="Closed as not collected — excluded from totals"
+                  subtitle="Closed as not collected - excluded from totals"
                 />
                 <div className="rounded-xl border border-[rgba(233,87,79,0.2)] bg-white overflow-hidden">
                   {writtenOff.map((p: WrittenOffPlayer) => (

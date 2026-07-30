@@ -18,7 +18,7 @@ const AUTH_TOKEN_KEY = 'auth_token';
 type GameScope = 'quiz' | 'elimination';
 
 /**
- * Entitlements map — one entry per game scope.
+ * Entitlements map - one entry per game scope.
  * Using a map means adding a new game type in future is a one-liner.
  */
 export type EntitlementsMap = Partial<Record<GameScope, Entitlements>>;
@@ -31,7 +31,7 @@ const GAME_SCOPES: GameScope[] = ['quiz', 'elimination'];
 
 /**
  * Fetch entitlements for all game scopes in parallel.
- * Non-fatal — if one scope fails, the others still succeed.
+ * Non-fatal - if one scope fails, the others still succeed.
  */
 async function fetchAllEntitlements(): Promise<EntitlementsMap> {
   const results = await Promise.allSettled(
@@ -55,7 +55,7 @@ results.forEach((result, i) => {
 }
 
 /**
- * Check if any scope has zero credits — used to show the no-credit warning.
+ * Check if any scope has zero credits - used to show the no-credit warning.
  * Only warns for scopes that the club actually has (i.e. not missing from the map).
  */
 function hasAnyZeroCredits(entitlements: EntitlementsMap): boolean {
@@ -137,7 +137,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       // Fetch all scopes in parallel after successful login.
-      // Non-fatal — login succeeds even if entitlements fetch fails.
+      // Non-fatal - login succeeds even if entitlements fetch fails.
       try {
         const entitlementsMap = await fetchAllEntitlements();
 
@@ -145,7 +145,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         // Existing callers reading `state.entitlements` will get the map object.
         // Use getEntitlementsForScope() for typed per-scope access.
         set({
-          entitlements: entitlementsMap as any, // cast — AuthStore type will need updating
+          entitlements: entitlementsMap as any, // cast - AuthStore type will need updating
           showNoCreditWarning: hasAnyZeroCredits(entitlementsMap),
         });
       } catch (entError) {
@@ -241,7 +241,7 @@ export function getEntitlementsForScope(scope: GameScope) {
 
 /**
  * Hook: get entitlements for a specific scope from the auth store.
- * Prefer useEntitlements() hook for component-level use — it handles
+ * Prefer useEntitlements() hook for component-level use - it handles
  * loading state and cache. Use this only when you need entitlements
  * from Zustand state without triggering a fetch.
  *

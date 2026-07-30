@@ -1,33 +1,33 @@
 // src/components/mgtsystem/shared/PaymentMethodSelector.tsx
 //
 // Shared payment-method picker used by every "Schedule <Activity>" modal
-// (Elimination, Quiz, Ticketed Event, and — once built — Puzzle Drop).
+// (Elimination, Quiz, Ticketed Event, and - once built - Puzzle Drop).
 //
 // This used to live inline in CreateEventForm.tsx and wrote straight onto
 // the EVENT. It has been moved here because payment methods are now an
 // ACTIVITY-level concern: the event form no longer asks the question at
 // all, since at that point in the flow the activity type isn't known yet
-// (see CreateEventForm.tsx — the Payment Methods section has been removed).
+// (see CreateEventForm.tsx - the Payment Methods section has been removed).
 //
 // Each Schedule*Modal now decides, via the `mode` prop, what this component
 // should actually show and collect:
 //
 //   mode="split"    → full picker, two columns (Tickets / On the Night).
-//                      Used by Elimination, Quiz, Ticketed Event — anything
+//                      Used by Elimination, Quiz, Ticketed Event - anything
 //                      with a genuine "buy in advance vs pay at the door"
 //                      distinction.
 //
 //   mode="single"   → same picker, ONE column, no advance/on-the-night
-//                      split. Used by Puzzle Drop — there's no "event
+//                      split. Used by Puzzle Drop - there's no "event
 //                      night" to be in advance of, just one purchase moment.
 //
 //   mode="locked"   → no picker at all. Renders a fixed notice instead.
-//                      Used by Puzzle Subscription Challenges — recurring
+//                      Used by Puzzle Subscription Challenges - recurring
 //                      billing only works with Stripe, full stop, so there
 //                      is no club choice to make here.
 //
 // The modal is responsible for sending whatever this component reports
-// (via onChange) directly to its own schedule/update service call — e.g.
+// (via onChange) directly to its own schedule/update service call - e.g.
 // eliminationMgmtService.scheduleRoom({ ..., ticketMethodIds, onnightMethodIds }).
 // This component does NOT call any API to save anything itself; it only
 // fetches the club's available methods and reports selection state up.
@@ -70,7 +70,7 @@ function getMethodSubtitle(method: PaymentMethod): string {
   return method.provider_name || '';
 }
 
-// ── Section wrapper — matches the existing modal/form Section style ───────
+// ── Section wrapper - matches the existing modal/form Section style ───────
 
 const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; subtitle?: string }> = ({ icon, title, subtitle }) => (
   <div className="flex items-start gap-3 mb-4">
@@ -98,7 +98,7 @@ export default function PaymentMethodSelector({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // "locked" mode never needs the club's methods at all — skip the fetch.
+  // "locked" mode never needs the club's methods at all - skip the fetch.
   useEffect(() => {
     if (mode === 'locked') return;
 
@@ -129,7 +129,7 @@ export default function PaymentMethodSelector({
     onChange({ ...value, onnightMethodIds: next });
   };
 
-  // In "single" mode we still store selections in onnightMethodIds — it's
+  // In "single" mode we still store selections in onnightMethodIds - it's
   // the one list that already means "available at the point of payment"
   // for every existing activity type. Keeping the same field avoids a third
   // shape downstream; the modal just never sends ticketMethodIds for a
@@ -137,7 +137,7 @@ export default function PaymentMethodSelector({
   // a separate name purely so call sites read clearly in single mode.
   const toggleSingle = toggleOnnight;
 
-  // ── Locked mode — no picker, just a fixed notice ──────────────────────────
+  // ── Locked mode - no picker, just a fixed notice ──────────────────────────
   if (mode === 'locked') {
     return (
       <div className="rounded-xl p-5" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>

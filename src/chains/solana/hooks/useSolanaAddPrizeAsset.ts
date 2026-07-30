@@ -1,5 +1,5 @@
 /**
- * useSolanaAddPrizeAsset — STUB
+ * useSolanaAddPrizeAsset - STUB
  *
  * Asset-based rooms (init_asset_room, add_prize_asset) were removed from
  * the new contract. This file is kept to avoid breaking any imports that

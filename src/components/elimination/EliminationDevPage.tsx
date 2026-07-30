@@ -298,7 +298,7 @@ export const EliminationDevPage: React.FC = () => {
             letterSpacing: '0.03em',
             borderBottom: `1px solid ${rc.primary}22`,
           }}>
-            {hasSubmitted ? '✓ Locked in — waiting for round to end' : ROUND_INSTRUCTIONS[state.activeRound.roundType]}
+            {hasSubmitted ? '✓ Locked in - waiting for round to end' : ROUND_INSTRUCTIONS[state.activeRound.roundType]}
           </div>
 
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', overflowY: 'auto', minHeight: 0 }}>

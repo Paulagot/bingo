@@ -28,7 +28,7 @@ const OrganiserSpectatorView: React.FC<OrganiserSpectatorViewProps> = ({
     ...controller,
 
     // Mark as operator so HostPostgamePanel hides "Return to Dashboard" /
-    // "End Game" buttons and shows "Thanks for hosting" instead —
+    // "End Game" buttons and shows "Thanks for hosting" instead -
     // which we also override to just go back to dashboard.
     isOperator: true,
 
@@ -50,7 +50,7 @@ const OrganiserSpectatorView: React.FC<OrganiserSpectatorViewProps> = ({
           <Eye className="h-4 w-4 text-white" />
           <span className="text-sm font-bold text-white">Live View</span>
           <span className="hidden rounded-full bg-white/20 px-2.5 py-0.5 text-xs text-white sm:inline">
-            Read only — the operator controls the game
+            Read only - the operator controls the game
           </span>
         </div>
         <button
@@ -63,7 +63,7 @@ const OrganiserSpectatorView: React.FC<OrganiserSpectatorViewProps> = ({
         </button>
       </div>
 
-      {/* Game view — controls are no-ops */}
+      {/* Game view - controls are no-ops */}
       <HostControlsView roomId={roomId} controller={spectatorController} />
 
     </div>

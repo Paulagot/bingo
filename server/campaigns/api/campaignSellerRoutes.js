@@ -6,7 +6,7 @@
 //   PATCH  /api/campaigns/:campaignId/sellers/:sellerId
 //   DELETE /api/campaigns/:campaignId/sellers/:sellerId
 //
-// Public route (no auth — seller ID is the access key):
+// Public route (no auth - seller ID is the access key):
 //   GET    /api/campaign-support/:campaignId/sellers/:sellerId
 //
 // Mount in index.js:

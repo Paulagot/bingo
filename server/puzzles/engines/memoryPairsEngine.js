@@ -10,7 +10,7 @@ import { createSeededRandom, shuffleArray, calcTimeBonus } from '../utils/puzzle
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 
 // ---------------------------------------------------------------------------
-// Emoji pool — 36 distinct symbols, plenty for any difficulty
+// Emoji pool - 36 distinct symbols, plenty for any difficulty
 // ---------------------------------------------------------------------------
 
 const EMOJI_POOL = [
@@ -27,7 +27,7 @@ const PAIR_COUNTS = {
   [Difficulty.HARD]:   18,  // 6×6 grid
 };
 
-// Scoring settings scale with pair count / difficulty — previously this
+// Scoring settings scale with pair count / difficulty - previously this
 // engine paid a flat baseScore regardless of difficulty, so 8-pair easy and
 // 18-pair hard scored identically.
 const DIFFICULTY_SETTINGS = {
@@ -38,8 +38,8 @@ const DIFFICULTY_SETTINGS = {
 
 // Soft, capped bonus for finishing close to the theoretical minimum number
 // of attempts (= pairCount, i.e. never flipping a wrong pair). `attempts`
-// comes from the client the same way timeTakenSeconds does, so — like the
-// time bonus — this is a minor, gameable-but-low-stakes signal, not an
+// comes from the client the same way timeTakenSeconds does, so - like the
+// time bonus - this is a minor, gameable-but-low-stakes signal, not an
 // authoritative one. It rewards genuinely careful play without letting
 // anyone inflate the *base* (correctness) score.
 function attemptsEfficiencyBonus(attempts, pairCount) {
@@ -75,13 +75,13 @@ export function generate(config) {
     seed,
     puzzleData: {
       cards: cards.map(c => ({ id: c.id })), // IDs only, to keep card *order* separate from the emoji lookup
-      // NOTE: cardEmojis IS sent to the client as-is — the renderer needs
+      // NOTE: cardEmojis IS sent to the client as-is - the renderer needs
       // the full mapping up front to reveal a card's face the instant it's
       // flipped, without a round-trip per flip. That means a player who
       // opens devtools can technically read every pair before playing.
       // This is a known, accepted trade-off for a casual/family game (it's
       // how virtually every client-rendered memory-match game works) rather
-      // than a bug — but if this puzzle type ever needs to be cheat-proof,
+      // than a bug - but if this puzzle type ever needs to be cheat-proof,
       // the real fix is a per-flip "reveal" endpoint rather than trying to
       // hide this array, and that's a larger change than a comment.
       cardEmojis: cards.map(c => c.emoji),
