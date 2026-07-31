@@ -1,6 +1,9 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';
-import { createTicketForPeerEntry } from './peerTicketBridgeService.js';
+import {
+  createTicketForPeerEntry,
+  sendPeerEntryTicketEmail,
+} from './peerTicketBridgeService.js';
 import { createPuzzleAccessForPeerEntry } from './peerPuzzleAccessService.js';
 
 const O=`${TABLE_PREFIX}peer_orders`, OI=`${TABLE_PREFIX}peer_order_items`, PI=`${TABLE_PREFIX}peer_pack_items`;
@@ -199,7 +202,20 @@ export async function expandPeerOrder(orderId) {
       ){
         const [entryRows]=await connection.execute(`SELECT linked_ticket_id FROM ${E} WHERE id=? LIMIT 1`,[x.entryId]);
         if(entryRows[0]?.linked_ticket_id){
-          await connection.execute(`UPDATE ${E} SET status='confirmed',confirmed_at=COALESCE(confirmed_at,UTC_TIMESTAMP()) WHERE id=?`,[x.entryId]);
+          await connection.execute(
+            `UPDATE ${E}
+             SET status='confirmed',
+                 confirmed_at=COALESCE(
+                   confirmed_at,
+                   UTC_TIMESTAMP()
+                 )
+             WHERE id=?`,
+            [x.entryId],
+          );
+
+          // Capacity reservations already have a ticket, so ticket creation
+          // is skipped. Email delivery must still happen here.
+          await sendPeerEntryTicketEmail(x.entryId);
         } else {
           await createTicketForPeerEntry(
           x.entryId,
