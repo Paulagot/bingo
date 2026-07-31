@@ -10,7 +10,7 @@
 // still work. No API calls or service imports have changed.
 
 import { useEffect, useState } from 'react';
-import { X, Globe, Check, AlertCircle, QrCode, Loader2 } from 'lucide-react';
+import { X, Globe, AlertCircle, Loader2 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import svc from '../../services/PeerService';
 import type { PeerFundraiserFormat } from '../../services/PeerService';
@@ -19,7 +19,7 @@ import PeerPaymentsTab from './PeerPaymentsTab';
 import PeerPaymentReportTab from './PeerPaymentReportTab';
 import { brand } from '../dashboard/branding';
 
-type Tab = 'overview' | 'participants' | 'packs' | 'orders' | 'payments' | 'report';
+type Tab = 'overview' | 'participants' | 'packs' | 'orders' | 'donations' | 'payments' | 'report';
 
 const FORMAT_OPTIONS: { value: PeerFundraiserFormat; label: string }[] = [
   { value: 'door_to_door', label: 'Sell activities' },
@@ -237,7 +237,7 @@ export default function PeerFundraiserDrawer({
     { key: 'participants', label: 'Participants' },
     { key: 'packs',        label: f?.format_type === 'sponsored' ? 'Sponsorship Setup' : 'Sales Options' },
     { key: 'orders',       label: f?.format_type === 'sponsored' ? 'Sponsorships' : 'Orders' },
-    ...(f?.format_type === 'sponsored' ? [] : [{ key: 'donations' as TabKey, label: 'Donations' }]),
+    ...(f?.format_type === 'sponsored' ? [] : [{ key: 'donations' as Tab, label: 'Donations' }]),
     { key: 'payments',     label: 'Payments' },
     { key: 'report',       label: 'Report' },
   ];
@@ -913,6 +913,22 @@ export default function PeerFundraiserDrawer({
                                       order {Number(o.allocation_check.orderTotal || o.total_amount || 0).toFixed(2)}
                                     </p>
                                   )}
+                                  {Number(o.ticket_entry_count || 0) > 0 && (
+                                    <p
+                                      className={
+                                        Number(o.ticket_email_sent_count || 0) >=
+                                        Number(o.ticket_entry_count || 0)
+                                          ? 'font-semibold text-green-700'
+                                          : Number(o.ticket_email_failed_count || 0) > 0
+                                            ? 'font-semibold text-red-700'
+                                            : 'font-semibold text-amber-700'
+                                      }
+                                    >
+                                      Ticket emails:{' '}
+                                      {Number(o.ticket_email_sent_count || 0)}/
+                                      {Number(o.ticket_entry_count || 0)} sent
+                                    </p>
+                                  )}
                                   {o.fulfilment_error && (
                                     <p className="font-semibold text-red-700">
                                       {o.fulfilment_error}
@@ -975,12 +991,14 @@ export default function PeerFundraiserDrawer({
                               </>
                             )}
 
-                            {o.payment_status === 'confirmed' && (
-                              o.fulfilment_status === 'failed' ||
-                              o.fulfilment_status === 'attention_required' ||
-                              o.allocation_status === 'out_of_balance' ||
-                              Number(o.pending_entry_count || 0) > 0
-                            ) && (
+                            {o.payment_status === 'confirmed' &&
+                              Number(o.entry_count || 0) > 0 &&
+                              (
+                                Number(o.pending_entry_count || 0) > 0 ||
+                                Number(o.failed_entry_count || 0) > 0 ||
+                                Number(o.confirmed_entry_count || 0) <
+                                  Number(o.entry_count || 0)
+                              ) && (
                               <button
                                 onClick={async () => {
                                   await svc.retryFulfilment(id, o.id);
@@ -991,6 +1009,25 @@ export default function PeerFundraiserDrawer({
                                 style={{ background: '#d97706' }}
                               >
                                 Retry fulfilment
+                              </button>
+                            )}
+
+                            {o.payment_status === 'confirmed' &&
+                              Number(o.ticket_entry_count || 0) > 0 &&
+                              Number(o.ticket_email_sent_count || 0) <
+                                Number(o.ticket_entry_count || 0) && (
+                              <button
+                                onClick={async () => {
+                                  await svc.retryFulfilment(id, o.id);
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#0284c7' }}
+                              >
+                                {Number(o.ticket_email_failed_count || 0) > 0
+                                  ? 'Retry ticket email'
+                                  : 'Send ticket email'}
                               </button>
                             )}
 

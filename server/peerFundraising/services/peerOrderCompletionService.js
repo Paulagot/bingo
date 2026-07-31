@@ -91,15 +91,24 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   // first. Keeping it outside the status-update transaction above avoids
   // holding that transaction open for the duration of ticket/ledger writes.
   try {
-    await confirmPeerOrderReservations({orderId,paymentReference:order.payment_reference,externalTransactionId:order.external_transaction_id});
+    await confirmPeerOrderReservations({
+      orderId,
+      paymentReference: order.payment_reference,
+      externalTransactionId: order.external_transaction_id,
+    });
     await expandPeerOrder(orderId);
+    const ticketEmails = await retryMissingPeerTicketEmails(orderId);
     const allocation=await completeFulfilmentState(orderId);
 
     const [updated] = await connection.execute(
       `SELECT * FROM ${O} WHERE id=? LIMIT 1`,
       [orderId],
     );
-    return { order:updated[0],allocation };
+    return {
+      order: updated[0],
+      ticketEmails,
+      allocation,
+    };
   } catch(error) {
     await connection.execute(
       `UPDATE ${O}
@@ -195,9 +204,17 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
   // itself was already correctly set.
   if(order.payment_status==='confirmed'){
     try {
-      await confirmPeerOrderReservations({orderId:order.id,paymentReference,externalTransactionId:externalTransactionId||stripePaymentIntentId});
-      await expandPeerOrder(order.id);
-      await completeFulfilmentState(order.id);
+      console.log('[PeerOrderCompletion] Reprocessing already-confirmed order:',{orderId:order.id});
+      const reservationResult=await confirmPeerOrderReservations({
+        orderId: order.id,
+        paymentReference,
+        externalTransactionId:
+          externalTransactionId || stripePaymentIntentId,
+      });
+      const expansionResult=await expandPeerOrder(order.id);
+      const ticketEmailResult=await retryMissingPeerTicketEmails(order.id);
+      const allocationResult=await completeFulfilmentState(order.id);
+      console.log('[PeerOrderCompletion] Reprocessing complete:',{orderId:order.id,reservationResult,expansionResult,ticketEmailResult,allocationStatus:allocationResult?.status});
     } catch(expandErr) {
       console.error(
         '[PeerOrderCompletion] Re-expansion failed:',
@@ -229,9 +246,20 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
     [stripePaymentIntentId,externalTransactionId,paymentReference,order.id]);
 
   try {
-    await confirmPeerOrderReservations({orderId:order.id,paymentReference,externalTransactionId:externalTransactionId||stripePaymentIntentId});
-    await expandPeerOrder(order.id);
-    await completeFulfilmentState(order.id);
+    console.log('[PeerOrderCompletion] Starting confirmed-order fulfilment:',{orderId:order.id,paymentStatusBefore:order.payment_status,stripePaymentIntentId});
+    const reservationResult=await confirmPeerOrderReservations({
+      orderId: order.id,
+      paymentReference,
+      externalTransactionId:
+        externalTransactionId || stripePaymentIntentId,
+    });
+    console.log('[PeerOrderCompletion] Reservations confirmed:',{orderId:order.id,reservationResult});
+    const expansionResult=await expandPeerOrder(order.id);
+    console.log('[PeerOrderCompletion] Entry expansion complete:',{orderId:order.id,expansionResult});
+    const ticketEmailResult=await retryMissingPeerTicketEmails(order.id);
+    console.log('[PeerOrderCompletion] Ticket email stage complete:',{orderId:order.id,ticketEmailResult});
+    const allocationResult=await completeFulfilmentState(order.id);
+    console.log('[PeerOrderCompletion] Fulfilment complete:',{orderId:order.id,allocationStatus:allocationResult?.status});
   } catch (expandErr) {
     console.error(
       '[PeerOrderCompletion] Expansion failed:',

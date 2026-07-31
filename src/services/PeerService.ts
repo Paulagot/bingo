@@ -407,6 +407,9 @@ export interface PeerOrder {
   confirmed_entry_count?: number;
   pending_entry_count?: number;
   failed_entry_count?: number;
+  ticket_entry_count?: number;
+  ticket_email_sent_count?: number;
+  ticket_email_failed_count?: number;
 }
 
 export interface ClubPaymentMethod {
