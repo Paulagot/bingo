@@ -38,6 +38,9 @@ import {
   confirmPeerOrder,
   cancelExpiredPeerOrder,
 } from '../peerFundraising/services/peerOrderCompletionService.js';
+import {
+  confirmPeerDonationAutomatic,
+} from '../peerFundraising/services/peerDonationService.js';
 import { confirmDropPurchase } from '../puzzles/services/puzzleDropService.js';
 import {
   confirmSponsoredContributionAutomatic,
