@@ -5,7 +5,9 @@
 // The activity-sale portion remains in peer_orders and expands into the
 // payment ledger/tickets only after the order itself is confirmed.
 
+import Stripe from 'stripe';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
+import { getReadyStripeForClub } from '../../stripe/stripeTicketCheckoutService.js';
 
 const D = `${TABLE_PREFIX}donations`;
 const O = `${TABLE_PREFIX}peer_orders`;
@@ -13,6 +15,7 @@ const F = `${TABLE_PREFIX}peer_fundraisers`;
 const P = `${TABLE_PREFIX}peer_participants`;
 const M = `${TABLE_PREFIX}club_payment_methods`;
 const B = `${TABLE_PREFIX}club_donation_buttons`;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
 const fail = (message, status = 400) => {
   throw Object.assign(new Error(message), { status });
@@ -253,4 +256,268 @@ export async function rejectPeerDonationForClub(
   );
   if (!result.affectedRows) fail('donation_not_rejectable', 409);
   return { donationId, status: 'failed' };
+}
+
+
+async function getPublicDonationContext(fundraiserId, participantId = null) {
+  const [rows] = await connection.execute(
+    `SELECT f.*,c.name AS club_name,c.slug AS club_slug
+     FROM ${F} f
+     JOIN ${TABLE_PREFIX}clubs c ON c.id=f.club_id
+     WHERE f.id=?
+       AND f.status='published'
+       AND f.format_type<>'sponsored'
+     LIMIT 1`,
+    [fundraiserId]
+  );
+  const fundraiser = rows[0];
+  if (!fundraiser) fail('peer_fundraiser_not_available', 404);
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (fundraiser.start_date && String(fundraiser.start_date).slice(0, 10) > today) {
+    fail('peer_fundraiser_not_started', 409);
+  }
+  if (fundraiser.end_date && String(fundraiser.end_date).slice(0, 10) < today) {
+    fail('peer_fundraiser_closed', 409);
+  }
+
+  let participant = null;
+  if (participantId) {
+    const [participantRows] = await connection.execute(
+      `SELECT id,participant_name
+       FROM ${P}
+       WHERE id=?
+         AND peer_fundraiser_id=?
+         AND club_id=?
+         AND is_active=1
+       LIMIT 1`,
+      [participantId, fundraiserId, fundraiser.club_id]
+    );
+    participant = participantRows[0];
+    if (!participant) fail('participant_not_available', 404);
+  }
+
+  return { fundraiser, participant };
+}
+
+function validatePublicDonor(body) {
+  const donorName = String(body?.donorName || '').trim();
+  const donorEmail = String(body?.donorEmail || '').trim().toLowerCase();
+  const amount = Number(body?.amount || 0);
+
+  if (!donorName) fail('donor_name_required');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donorEmail)) {
+    fail('valid_donor_email_required');
+  }
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) {
+    fail('invalid_donation_amount');
+  }
+
+  return {
+    donorName: donorName.slice(0, 128),
+    donorEmail,
+    amount,
+  };
+}
+
+export async function createPublicPeerManualDonation({
+  fundraiserId,
+  participantId = null,
+  clubPaymentMethodId,
+  donorName,
+  donorEmail,
+  amount,
+  paymentReference = null,
+}) {
+  const { fundraiser, participant } = await getPublicDonationContext(
+    fundraiserId,
+    participantId
+  );
+  const donor = validatePublicDonor({ donorName, donorEmail, amount });
+  const method = await getMethodSnapshot(
+    fundraiser.club_id,
+    clubPaymentMethodId
+  );
+
+  if (['stripe', 'card', 'crypto'].includes(String(method.method_category).toLowerCase())) {
+    fail('manual_payment_method_required');
+  }
+
+  const [result] = await connection.execute(
+    `INSERT INTO ${D}
+      (club_id,peer_fundraiser_id,peer_participant_id,peer_order_id,
+       club_donation_button_id,club_payment_method_id,
+       payment_method_category_snapshot,payment_provider_snapshot,
+       payment_method_label_snapshot,amount,currency,status,
+       external_transaction_id,donor_name,donor_email,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())`,
+    [
+      fundraiser.club_id,
+      fundraiser.id,
+      participant?.id || null,
+      null,
+      null,
+      method.id,
+      method.method_category,
+      method.provider_name || null,
+      method.method_label || null,
+      donor.amount,
+      fundraiser.currency || 'EUR',
+      'claimed',
+      paymentReference || null,
+      donor.donorName,
+      donor.donorEmail,
+    ]
+  );
+
+  return {
+    donationId: String(result.insertId),
+    status: 'claimed',
+    amount: donor.amount,
+    currency: fundraiser.currency || 'EUR',
+  };
+}
+
+export async function createPublicPeerStripeDonation({
+  fundraiserId,
+  participantId = null,
+  clubPaymentMethodId,
+  donorName,
+  donorEmail,
+  amount,
+  appOrigin,
+  returnPath,
+}) {
+  const { fundraiser, participant } = await getPublicDonationContext(
+    fundraiserId,
+    participantId
+  );
+  const donor = validatePublicDonor({ donorName, donorEmail, amount });
+  const method = await getMethodSnapshot(
+    fundraiser.club_id,
+    clubPaymentMethodId
+  );
+  if (!['stripe', 'card'].includes(String(method.method_category).toLowerCase())) {
+    fail('stripe_payment_method_required');
+  }
+
+  const stripeConnection = await getReadyStripeForClub(fundraiser.club_id);
+  if (!stripeConnection) fail('stripe_not_ready_or_disabled', 422);
+
+  const [insert] = await connection.execute(
+    `INSERT INTO ${D}
+      (club_id,peer_fundraiser_id,peer_participant_id,peer_order_id,
+       club_donation_button_id,club_payment_method_id,
+       payment_method_category_snapshot,payment_provider_snapshot,
+       payment_method_label_snapshot,amount,currency,status,
+       donor_name,donor_email,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())`,
+    [
+      fundraiser.club_id,
+      fundraiser.id,
+      participant?.id || null,
+      null,
+      null,
+      method.id,
+      method.method_category,
+      method.provider_name || null,
+      method.method_label || null,
+      donor.amount,
+      fundraiser.currency || 'EUR',
+      'pending',
+      donor.donorName,
+      donor.donorEmail,
+    ]
+  );
+  const donationId = String(insert.insertId);
+
+  const origin = String(appOrigin || process.env.APP_ORIGIN || process.env.BASE_URL || '').replace(/\/$/, '');
+  if (!origin) fail('app_origin_missing', 500);
+  const safeReturnPath = String(returnPath || '').startsWith('/fundraise/')
+    ? String(returnPath)
+    : `/fundraise/${fundraiser.club_slug}/${fundraiser.public_slug}`;
+
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: 'payment',
+      payment_method_types: ['card'],
+      customer_email: donor.donorEmail,
+      line_items: [{
+        price_data: {
+          currency: String(fundraiser.currency || 'EUR').toLowerCase(),
+          product_data: {
+            name: `Donation to ${fundraiser.club_name}`,
+            description: participant
+              ? `Via ${participant.participant_name}'s fundraising page`
+              : `Via ${fundraiser.name}`,
+          },
+          unit_amount: Math.round(donor.amount * 100),
+        },
+        quantity: 1,
+      }],
+      success_url: `${origin}${safeReturnPath}?donation=thanks&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${safeReturnPath}?donation=cancelled`,
+      metadata: {
+        type: 'peer_direct_donation',
+        donationId,
+        peerFundraiserId: fundraiser.id,
+        participantId: participant?.id || '',
+        clubId: fundraiser.club_id,
+      },
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+    },
+    { stripeAccount: stripeConnection.accountId }
+  );
+
+  await connection.execute(
+    `UPDATE ${D}
+     SET external_checkout_id=?,updated_at=UTC_TIMESTAMP()
+     WHERE id=?`,
+    [session.id, donationId]
+  );
+
+  return {
+    donationId,
+    redirectUrl: session.url,
+    sessionId: session.id,
+  };
+}
+
+
+export async function getPublicPeerDonationStatus({
+  sessionId = null,
+}) {
+  const safeSessionId = String(sessionId || '').trim();
+  if (!safeSessionId) {
+    fail('donation_session_required');
+  }
+
+  const [rows] = await connection.execute(
+    `SELECT
+       id,
+       status,
+       amount,
+       currency,
+       peer_fundraiser_id,
+       peer_participant_id
+     FROM ${D}
+     WHERE external_checkout_id=?
+       AND peer_fundraiser_id IS NOT NULL
+     LIMIT 1`,
+    [safeSessionId]
+  );
+
+  const donation = rows[0];
+  if (!donation) {
+    fail('donation_not_found', 404);
+  }
+
+  return {
+    donationId: String(donation.id),
+    status: donation.status,
+    amount: Number(donation.amount),
+    currency: donation.currency,
+    peerFundraiserId: donation.peer_fundraiser_id,
+    peerParticipantId: donation.peer_participant_id || null,
+  };
 }

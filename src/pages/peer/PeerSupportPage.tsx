@@ -28,7 +28,6 @@ import {
   Mail,
   MapPin,
   Minus,
-  Phone,
   Plus,
   Puzzle,
   ShieldCheck,
@@ -52,7 +51,8 @@ import {
   PaymentInstructionsFooter,
 } from '../../components/Quiz/shared/PaymentInstructions';
 
-type Step = 'packs' | 'details' | 'payment' | 'payment-instructions' | 'confirm';
+type Step = 'packs' | 'details' | 'payment' | 'payment-instructions' | 'confirm' | 'donation-confirm';
+type CheckoutMode = 'order' | 'donation';
 
 type ThemeInput = {
   primary?: string | null;
@@ -96,6 +96,10 @@ const DEFAULT_THEME = {
 function asNumber(value: unknown, fallback = 0): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function asBool(value: unknown): boolean {
@@ -397,8 +401,10 @@ export default function PeerSupportPage() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('order');
   const [donationAmount, setDonationAmount] = useState('');
+  const [donationResult, setDonationResult] = useState<any>(null);
+  const [donationReturnLoading, setDonationReturnLoading] = useState(false);
 
   const [methods, setMethods] = useState<PublicPeerPaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
@@ -416,6 +422,8 @@ export default function PeerSupportPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const cancelled = searchParams.get('cancelled') === '1';
+  const donationReturn = searchParams.get('donation');
+  const donationSessionId = searchParams.get('session_id');
 
   useEffect(() => {
     setLoading(true);
@@ -429,6 +437,70 @@ export default function PeerSupportPage() {
       .catch(err => setLoadError(err?.message || 'Could not load this fundraiser.'))
       .finally(() => setLoading(false));
   }, [clubSlug, fundraiserSlug, participantSlug]);
+
+  useEffect(() => {
+    if (donationReturn !== 'thanks' || !donationSessionId) return;
+
+    let cancelledEffect = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
+    setCheckoutMode('donation');
+    setDonationReturnLoading(true);
+    setFormError(null);
+
+    const checkDonation = async () => {
+      try {
+        const result = await publicPeerRequest(
+          `/peer-support/donations/status?sessionId=${encodeURIComponent(
+            donationSessionId,
+          )}`,
+        );
+
+        if (cancelledEffect) return;
+
+        if (result.status === 'confirmed') {
+          setDonationResult(result);
+          setStep('donation-confirm');
+          setDonationReturnLoading(false);
+          return;
+        }
+
+        // Stripe can redirect slightly before the webhook finishes.
+        if (result.status === 'pending' && attempts < 10) {
+          attempts += 1;
+          timer = setTimeout(checkDonation, 1000);
+          return;
+        }
+
+        setDonationResult(result);
+        setStep('donation-confirm');
+        setDonationReturnLoading(false);
+      } catch (err: any) {
+        if (cancelledEffect) return;
+
+        // Give the webhook/database insert a short grace period.
+        if (attempts < 5) {
+          attempts += 1;
+          timer = setTimeout(checkDonation, 1000);
+          return;
+        }
+
+        setDonationReturnLoading(false);
+        setFormError(
+          err?.message ||
+            'Your payment returned successfully, but we could not verify the donation yet.',
+        );
+      }
+    };
+
+    checkDonation();
+
+    return () => {
+      cancelledEffect = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [donationReturn, donationSessionId]);
 
   useEffect(() => {
     if (step !== 'payment' || !data?.fundraiser?.id) return;
@@ -458,7 +530,7 @@ export default function PeerSupportPage() {
   );
   const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems]);
   const donationValue = Math.max(0, asNumber(donationAmount));
-  const payableTotal = total + donationValue;
+  const payableTotal = checkoutMode === 'donation' ? donationValue : total;
   const currency = data?.fundraiser?.currency || data?.packs?.[0]?.currency || 'EUR';
 
   const theme = useMemo(() => getTheme(data), [data]);
@@ -511,13 +583,36 @@ export default function PeerSupportPage() {
       setFormError('Please choose at least one pack first.');
       return;
     }
+    setCheckoutMode('order');
+    setDonationAmount('');
+    setFormError(null);
+    setStep('details');
+  };
+
+  const startDonation = () => {
+    setCheckoutMode('donation');
+    setDonationAmount('');
+    setDonationResult(null);
+    setSelectedMethod(null);
     setFormError(null);
     setStep('details');
   };
 
   const goToPayment = () => {
-    if (!name.trim() || !email.trim()) {
-      setFormError('Please enter your name and email.');
+    if (!name.trim()) {
+      setFormError('Please enter your name.');
+      return;
+    }
+    if (!email.trim()) {
+      setFormError('Please enter your email address.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setFormError('Please enter a valid email address.');
+      return;
+    }
+    if (checkoutMode === 'donation' && donationValue <= 0) {
+      setFormError('Please enter a donation amount greater than zero.');
       return;
     }
     setFormError(null);
@@ -529,6 +624,107 @@ export default function PeerSupportPage() {
     setOrderSummary(summary.order);
     setEntries(summary.entries ?? []);
     setStep('confirm');
+  }
+
+  async function publicPeerRequest(
+    path: string,
+    options: RequestInit = {},
+  ) {
+    const configuredBase = String(
+      import.meta.env.VITE_API_BASE_URL ||
+      import.meta.env.VITE_API_URL ||
+      '',
+    ).replace(/\/$/, '');
+
+    const apiBase = configuredBase
+      ? configuredBase.endsWith('/api')
+        ? configuredBase
+        : `${configuredBase}/api`
+      : window.location.hostname === 'localhost'
+        ? 'http://localhost:3001/api'
+        : '/api';
+
+    const response = await fetch(`${apiBase}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      throw new Error(payload.error || 'request_failed');
+    }
+    return payload;
+  }
+
+  async function createDonationAndProceed() {
+    if (!selectedMethod) {
+      setFormError('Please select a payment method.');
+      return;
+    }
+
+    setSubmitting(true);
+    setFormError(null);
+
+    try {
+      const body = {
+        participantId: data.participant?.id || null,
+        clubPaymentMethodId: selectedMethod.id,
+        donorName: name.trim(),
+        donorEmail: email.trim(),
+        amount: donationValue,
+        paymentReference: reference,
+      };
+
+      if (isStripeMethod(selectedMethod)) {
+        const result = await publicPeerRequest(
+          `/peer-support/${encodeURIComponent(
+            data.fundraiser.id,
+          )}/donations/stripe-checkout`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              ...body,
+              appOrigin: window.location.origin,
+              returnPath: window.location.pathname,
+            }),
+          },
+        );
+
+        if (!result.redirectUrl) {
+          throw new Error('Could not start card checkout.');
+        }
+        window.location.href = result.redirectUrl;
+        return;
+      }
+
+      if (isCashMethod(selectedMethod)) {
+        const result = await publicPeerRequest(
+          `/peer-support/${encodeURIComponent(
+            data.fundraiser.id,
+          )}/donations/manual`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              ...body,
+              paymentReference: null,
+            }),
+          },
+        );
+        setDonationResult(result);
+        setStep('donation-confirm');
+        return;
+      }
+
+      setHasCopiedReference(false);
+      setHasOpenedProviderLink(false);
+      setStep('payment-instructions');
+    } catch (err: any) {
+      setFormError(err?.message || 'Could not create the donation.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function createOrderAndProceed() {
@@ -545,12 +741,11 @@ export default function PeerSupportPage() {
         participantId: data.participant?.id || null,
         supporterName: name.trim(),
         supporterEmail: email.trim(),
-        supporterPhone: phone.trim() || null,
         paymentMethodCategory: selectedMethod.methodCategory,
         clubPaymentMethodId: selectedMethod.id,
         paymentProvider: selectedMethod.providerName || null,
         paymentReference: reference,
-        donationAmount: donationValue,
+        donationAmount: 0,
         items: cartItems.map(item => ({ packId: item.pack.id, quantity: item.quantity })),
       } as any);
 
@@ -584,6 +779,41 @@ export default function PeerSupportPage() {
   }
 
   async function confirmManualPayment() {
+    if (checkoutMode === 'donation') {
+      if (!selectedMethod) {
+        setFormError('Please choose a payment method.');
+        return;
+      }
+
+      setSubmitting(true);
+      setFormError(null);
+      try {
+        const result = await publicPeerRequest(
+          `/peer-support/${encodeURIComponent(
+            data.fundraiser.id,
+          )}/donations/manual`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              participantId: data.participant?.id || null,
+              clubPaymentMethodId: selectedMethod.id,
+              donorName: name.trim(),
+              donorEmail: email.trim(),
+              amount: donationValue,
+              paymentReference: reference,
+            }),
+          },
+        );
+        setDonationResult(result);
+        setStep('donation-confirm');
+      } catch (err: any) {
+        setFormError(err?.message || 'Could not record your donation.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     if (!orderId || !selectedMethod) {
       setFormError('Could not find the order to confirm. Please go back and try again.');
       return;
@@ -605,6 +835,24 @@ export default function PeerSupportPage() {
     }
   }
 
+
+  if (donationReturnLoading) {
+    return (
+      <AppShell style={appStyle}>
+        <div className="mx-auto grid min-h-[60vh] max-w-xl place-items-center px-5 text-center">
+          <div>
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-[var(--fr-primary)]" />
+            <h1 className="mt-5 text-2xl font-black text-slate-950">
+              Confirming your donation
+            </h1>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+              Your payment was successful. We are waiting for Stripe to confirm it.
+            </p>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   if (loading) {
     return <AppShell style={appStyle}><LoadingState message="Loading support page…" /></AppShell>;
@@ -700,6 +948,25 @@ export default function PeerSupportPage() {
               </section>
             )}
 
+            <button
+              type="button"
+              onClick={startDonation}
+              className="mt-5 flex w-full items-center gap-4 rounded-3xl border border-orange-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[var(--fr-primary)]">
+                <Heart className="h-7 w-7" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-lg font-black text-slate-950">
+                  I just want to make a donation
+                </span>
+                <span className="mt-1 block text-sm font-semibold leading-6 text-slate-500">
+                  Support {data.club?.name || 'the club'} without buying an activity.
+                </span>
+              </span>
+              <ChevronRight className="h-6 w-6 shrink-0 text-slate-300" />
+            </button>
+
             <PrizeStrip packs={data.packs ?? []} currency={currency} onOpenPack={setActivePack} />
 
             <a href="/" className="mt-8 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-[var(--fr-primary)]">
@@ -722,7 +989,13 @@ export default function PeerSupportPage() {
       )}
 
       {step === 'details' && (
-        <StepPanel title="Your details" subtitle="We’ll use this to send your confirmation and entry links." onBack={() => setStep('packs')}>
+        <StepPanel
+          title={checkoutMode === 'donation' ? 'Make a donation' : 'Your details'}
+          subtitle={checkoutMode === 'donation'
+            ? `Choose the amount you would like to donate to ${data.club?.name || 'the club'}.`
+            : 'We’ll use this to send your confirmation and entry links.'}
+          onBack={() => setStep('packs')}
+        >
           <div className="space-y-3">
             <InputShell icon={<User className="h-5 w-5" />}>
               <input value={name} onChange={event => setName(event.target.value)} placeholder="Your name" className="w-full bg-transparent text-base font-semibold outline-none placeholder:text-slate-400" />
@@ -730,51 +1003,44 @@ export default function PeerSupportPage() {
             <InputShell icon={<Mail className="h-5 w-5" />}>
               <input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="Email for confirmation and links" className="w-full bg-transparent text-base font-semibold outline-none placeholder:text-slate-400" />
             </InputShell>
-            <InputShell icon={<Phone className="h-5 w-5" />}>
-              <input type="tel" value={phone} onChange={event => setPhone(event.target.value)} placeholder="Phone number (optional)" className="w-full bg-transparent text-base font-semibold outline-none placeholder:text-slate-400" />
-            </InputShell>
           </div>
 
-          <OrderMiniSummary cartItems={cartItems} currency={currency} />
-
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start gap-3">
-              <Gift className="mt-0.5 h-5 w-5 shrink-0 text-[var(--fr-primary)]" />
-              <div className="min-w-0 flex-1">
-                <p className="font-black text-slate-950">Add a donation to the club</p>
-                <p className="mt-1 text-sm font-medium leading-6 text-slate-500">
-                  Optional. This is recorded separately from your activity purchase.
-                </p>
-                <div className="mt-3 flex items-center rounded-2xl border border-slate-200 px-4 py-3">
-                  <span className="font-black text-slate-500">{currencySymbol(currency)}</span>
-                  <input
-                    value={donationAmount}
-                    onChange={event => setDonationAmount(event.target.value)}
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    className="min-w-0 flex-1 border-0 bg-transparent px-3 text-lg font-black outline-none"
-                  />
-                </div>
-                {donationValue > 0 && (
-                  <div className="mt-3 space-y-1 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-600">
-                    <div className="flex justify-between"><span>Activities</span><span>{fmt(total, currency)}</span></div>
-                    <div className="flex justify-between"><span>Donation</span><span>{fmt(donationValue, currency)}</span></div>
-                    <div className="flex justify-between border-t border-slate-200 pt-2 font-black text-slate-950"><span>Total</span><span>{fmt(payableTotal, currency)}</span></div>
-                  </div>
-                )}
+          {checkoutMode === 'order' ? (
+            <OrderMiniSummary cartItems={cartItems} currency={currency} />
+          ) : (
+            <div className="mt-5 rounded-2xl border border-orange-200 bg-white p-4">
+              <label className="text-sm font-black text-slate-700">
+                Donation amount
+              </label>
+              <div className="mt-3 flex items-center rounded-2xl border border-slate-200 px-4 py-3">
+                <span className="font-black text-slate-500">
+                  {currencySymbol(currency)}
+                </span>
+                <input
+                  value={donationAmount}
+                  onChange={event => setDonationAmount(event.target.value)}
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  autoFocus
+                  className="min-w-0 flex-1 border-0 bg-transparent px-3 text-xl font-black outline-none"
+                />
               </div>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
+                This is recorded as a direct donation, separate from activity sales.
+              </p>
             </div>
-          </div>
+          )}
+
           {formError && <FormError>{formError}</FormError>}
 
-          <button onClick={goToPayment} disabled={!name.trim() || !email.trim()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--fr-primary)] px-5 py-4 text-lg font-black text-white shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50">
+          <button onClick={goToPayment} disabled={!name.trim() || !isValidEmail(email) || (checkoutMode === 'donation' && donationValue <= 0)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--fr-primary)] px-5 py-4 text-lg font-black text-white shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50">
             Continue <ArrowRight className="h-5 w-5" />
           </button>
         </StepPanel>
       )}
 
       {step === 'payment' && (
-        <StepPanel title="How would you like to pay?" subtitle={`Total to pay: ${fmt(payableTotal, currency)}`} onBack={() => setStep('details')}>
+        <StepPanel title="How would you like to pay?" subtitle={`${checkoutMode === 'donation' ? 'Donation' : 'Total to pay'}: ${fmt(payableTotal, currency)}`} onBack={() => setStep('details')}>
           {methodsLoading && <LoadingState message="Loading payment options…" compact />}
 
           {!methodsLoading && methodsError && (
@@ -828,7 +1094,7 @@ export default function PeerSupportPage() {
 
           {formError && !methodsError && <FormError>{formError}</FormError>}
 
-          <button onClick={createOrderAndProceed} disabled={!selectedMethod || submitting || methodsLoading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--fr-primary)] px-5 py-4 text-lg font-black text-white shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50">
+          <button onClick={checkoutMode === 'donation' ? createDonationAndProceed : createOrderAndProceed} disabled={!selectedMethod || submitting || methodsLoading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--fr-primary)] px-5 py-4 text-lg font-black text-white shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50">
             {submitting ? (
               <><Loader2 className="h-5 w-5 animate-spin" /> Processing…</>
             ) : selectedMethod && isCashMethod(selectedMethod) ? (
@@ -846,7 +1112,7 @@ export default function PeerSupportPage() {
         </StepPanel>
       )}
 
-      {step === 'payment-instructions' && selectedMethod && orderId && (
+      {step === 'payment-instructions' && selectedMethod && (checkoutMode === 'donation' || orderId) && (
         <StepPanel title="Complete your payment" subtitle={methodDisplay(selectedMethod).label} onBack={() => setStep('payment')} wide>
           <PaymentInstructionsContent
             method={{
@@ -884,6 +1150,39 @@ export default function PeerSupportPage() {
               onBack={() => setStep('payment')}
             />
           </div>
+        </StepPanel>
+      )}
+
+      {step === 'donation-confirm' && donationResult && (
+        <StepPanel title="Thank you" subtitle="Your donation has been recorded.">
+          <div className="rounded-3xl bg-green-50 p-6 text-center ring-1 ring-green-100">
+            <Check className="mx-auto h-12 w-12 text-green-600" />
+            <h2 className="mt-4 text-2xl font-black text-slate-950">
+              {donationResult.status === 'confirmed'
+                ? 'Thank you for your donation'
+                : 'Donation submitted'}
+            </h2>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+              {donationResult.status === 'claimed'
+                ? 'The club will confirm the manual payment before it is included in the amount raised.'
+                : donationResult.status === 'confirmed'
+                  ? 'Your payment has been confirmed and your donation is now included in the amount raised.'
+                  : 'Your payment was received and is still being confirmed. You do not need to pay again.'}
+            </p>
+            <p className="mt-4 text-xl font-black text-slate-950">
+              {fmt(
+                Number(donationResult.amount || donationValue),
+                donationResult.currency || currency,
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStep('packs')}
+            className="mt-5 w-full rounded-2xl bg-[var(--fr-primary)] px-5 py-4 text-lg font-black text-white"
+          >
+            Back to fundraiser
+          </button>
         </StepPanel>
       )}
 
