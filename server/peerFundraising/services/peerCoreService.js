@@ -1601,7 +1601,24 @@ export async function listOrders(fid,clubId) {
          JSON_EXTRACT(
            e.metadata_json,'$.expansionError'
          ) IS NOT NULL
-       ) AS failed_entry_count
+       ) AS failed_entry_count,
+       SUM(
+         e.linked_ticket_id IS NOT NULL
+       ) AS ticket_entry_count,
+       SUM(
+         e.linked_ticket_id IS NOT NULL
+         AND JSON_EXTRACT(
+           e.metadata_json,
+           '$.ticketEmailSentAt'
+         ) IS NOT NULL
+       ) AS ticket_email_sent_count,
+       SUM(
+         e.linked_ticket_id IS NOT NULL
+         AND JSON_EXTRACT(
+           e.metadata_json,
+           '$.ticketEmailError'
+         ) IS NOT NULL
+       ) AS ticket_email_failed_count
      FROM ${O} o
      LEFT JOIN ${TABLE_PREFIX}peer_entries e
        ON e.order_id=o.id
@@ -1629,6 +1646,12 @@ export async function listOrders(fid,clubId) {
           metadata.allocationStatus || 'pending',
         allocation_check:
           metadata.allocationCheck || null,
+        ticket_entry_count:
+          Number(order.ticket_entry_count || 0),
+        ticket_email_sent_count:
+          Number(order.ticket_email_sent_count || 0),
+        ticket_email_failed_count:
+          Number(order.ticket_email_failed_count || 0),
       };
     }),
   };

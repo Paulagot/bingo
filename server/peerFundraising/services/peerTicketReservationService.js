@@ -73,13 +73,16 @@ export async function confirmPeerOrderReservations({orderId,paymentReference=nul
  const conn=await connection.getConnection();
  try{
   await conn.beginTransaction();
-  const [rows]=await conn.execute(`SELECT id,linked_ticket_id FROM ${E} WHERE order_id=? AND status='pending_payment' AND linked_ticket_id IS NOT NULL FOR UPDATE`,[orderId]);
+  const [allRows]=await conn.execute(`SELECT id,status,entry_type,linked_ticket_id,room_id,metadata_json FROM ${E} WHERE order_id=? ORDER BY created_at FOR UPDATE`,[orderId]);
+  console.log('[PeerTicketReservation] Confirming reservations:',{orderId,totalEntries:allRows.length,entries:allRows.map(row=>({entryId:row.id,status:row.status,entryType:row.entry_type,linkedTicketId:row.linked_ticket_id,roomId:row.room_id}))});
+  const rows=allRows.filter(row=>row.status==='pending_payment'&&row.linked_ticket_id);
+  console.log('[PeerTicketReservation] Eligible reservations:',{orderId,eligibleCount:rows.length,ticketIds:rows.map(row=>row.linked_ticket_id)});
   for(const row of rows){
    await conn.execute(`UPDATE ${T} SET payment_status='payment_confirmed',redemption_status='ready',expires_at=NULL,payment_reference=COALESCE(?,payment_reference),confirmed_at=UTC_TIMESTAMP(),confirmed_by='system',confirmed_by_name='Peer Fundraising',confirmed_by_role='system',updated_at=UTC_TIMESTAMP() WHERE ticket_id=? AND payment_status='payment_claimed'`,[paymentReference,row.linked_ticket_id]);
    await conn.execute(`UPDATE ${L} SET status='confirmed',payment_reference=COALESCE(?,payment_reference),external_transaction_id=COALESCE(?,external_transaction_id),confirmed_at=UTC_TIMESTAMP(),confirmed_by='system',confirmed_by_name='Peer Fundraising',confirmed_by_role='system',updated_at=UTC_TIMESTAMP() WHERE ticket_id=? AND status IN ('expected','claimed')`,[paymentReference,externalTransactionId,row.linked_ticket_id]);
    await conn.execute(`UPDATE ${E} SET status='confirmed',confirmed_at=UTC_TIMESTAMP() WHERE id=?`,[row.id]);
   }
-  await conn.commit();return {confirmedCount:rows.length};
+  await conn.commit();console.log('[PeerTicketReservation] Reservation confirmation complete:',{orderId,confirmedCount:rows.length});return {confirmedCount:rows.length};
  }catch(e){await conn.rollback();throw e}finally{conn.release()}
 }
 

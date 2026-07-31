@@ -28,6 +28,7 @@ export async function sendPeerEntryTicketEmail(
   entryId,
   { forceRetry = false } = {},
 ) {
+  console.log('[PeerTicketBridge] Ticket email requested:',{entryId,forceRetry});
   const conn = await connection.getConnection();
   let entry;
   try {
@@ -252,17 +253,34 @@ export async function sendPeerEntryTicketEmail(
  * Used by the existing Retry fulfilment management action.
  */
 export async function retryMissingPeerTicketEmails(orderId) {
-  const [rows] = await connection.execute(
-    `SELECT
-       id,
-       metadata_json
+  const [allRows] = await connection.execute(
+    `SELECT id,status,entry_type,linked_ticket_id,room_id,metadata_json
      FROM ${E}
      WHERE order_id=?
-       AND status='confirmed'
-       AND linked_ticket_id IS NOT NULL
      ORDER BY created_at`,
     [orderId],
   );
+
+  console.log('[PeerTicketBridge] Ticket email scan:',{
+    orderId,
+    totalEntries:allRows.length,
+    entries:allRows.map(row=>{
+      const metadata=parseJson(row.metadata_json,{});
+      return {
+        entryId:row.id,
+        status:row.status,
+        entryType:row.entry_type,
+        linkedTicketId:row.linked_ticket_id,
+        roomId:row.room_id,
+        ticketEmailSentAt:metadata.ticketEmailSentAt||null,
+        ticketEmailSendingAt:metadata.ticketEmailSendingAt||null,
+        ticketEmailError:metadata.ticketEmailError||null,
+      };
+    }),
+  });
+
+  const rows=allRows.filter(row=>row.status==='confirmed'&&row.linked_ticket_id);
+  console.log('[PeerTicketBridge] Eligible ticket email entries:',{orderId,eligibleCount:rows.length,entryIds:rows.map(row=>row.id),ticketIds:rows.map(row=>row.linked_ticket_id)});
 
   const results = [];
   for (const row of rows) {
@@ -285,7 +303,7 @@ export async function retryMissingPeerTicketEmails(orderId) {
     );
   }
 
-  return {
+  const summary={
     attempted: results.filter(result => !result.skipped).length,
     sent: results.filter(result => result.sent).length,
     failed: results.filter(
@@ -294,6 +312,8 @@ export async function retryMissingPeerTicketEmails(orderId) {
     skipped: results.filter(result => result.skipped).length,
     results,
   };
+  console.log('[PeerTicketBridge] Ticket email scan complete:',{orderId,...summary});
+  return summary;
 }
 
 export async function createTicketForPeerEntry(entryId, context) {
