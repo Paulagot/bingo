@@ -475,9 +475,22 @@ export async function stripeWebhookHandler(req, res) {
       const sessionId       = session?.id;
       const paymentIntentId = session?.payment_intent || null;
 
+      // ── Direct donation from a peer Sell Activities page ───────────────────
+
+      if (type === 'peer_direct_donation') {
+        const donationId = session?.metadata?.donationId || null;
+        if (donationId) {
+          await confirmPeerDonationAutomatic({
+            donationId,
+            externalCheckoutId: sessionId,
+            externalTransactionId: paymentIntentId ?? sessionId,
+          });
+        }
+      }
+
       // ── Peer-to-peer fundraiser order ──────────────────────────────────────
 
-      if (type === 'peer_fundraiser_order') {
+      else if (type === 'peer_fundraiser_order') {
         const orderId = session?.metadata?.orderId;
 
         if (!orderId) {
@@ -1075,6 +1088,20 @@ export async function stripeWebhookHandler(req, res) {
               expired,
             });
           }
+        }
+      }
+
+      // ── Direct donation from a peer Sell Activities page ───────────────────
+
+      else if (type === 'peer_direct_donation') {
+        const donationId = session?.metadata?.donationId || null;
+        if (donationId) {
+          await connection.execute(
+            `UPDATE ${TABLE_PREFIX}donations
+             SET status='expired',updated_at=UTC_TIMESTAMP()
+             WHERE id=? AND status='pending'`,
+            [donationId]
+          );
         }
       }
 

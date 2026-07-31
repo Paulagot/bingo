@@ -51,10 +51,13 @@ router.post('/peer-fundraisers/:id/orders/:orderId/retry-fulfilment',authenticat
 
 router.get('/peer-support/fundraiser/:id/payment-methods',limiter,async(req,res)=>{try{send(res,await getPublicMethods(req.params.id));}catch(e){fail(res,e);}});
 router.get('/peer-support/orders/:orderId/summary',limiter,async(req,res)=>{try{send(res,await svc.getPublicOrderSummary(req.params.orderId));}catch(e){fail(res,e);}});
+router.get('/peer-support/donations/status',limiter,async(req,res)=>{try{send(res,await donations.getPublicPeerDonationStatus({sessionId:req.query.sessionId}));}catch(e){fail(res,e);}});
 
 router.get('/peer-support/:clubSlug/:fundraiserSlug',limiter,async(req,res)=>{try{send(res,await svc.publicPayload(req.params.clubSlug,req.params.fundraiserSlug));}catch(e){fail(res,e);}});
 router.get('/peer-support/:clubSlug/:fundraiserSlug/:participantSlug',limiter,async(req,res)=>{try{send(res,await svc.publicPayload(req.params.clubSlug,req.params.fundraiserSlug,req.params.participantSlug));}catch(e){fail(res,e);}});
 router.post('/peer-support/:fundraiserId/orders',limiter,async(req,res)=>{try{res.status(201).json({ok:true,...await svc.createOrder(req.params.fundraiserId,req.body)});}catch(e){fail(res,e);}});
 router.post('/peer-support/orders/:orderId/claim',limiter,async(req,res)=>{try{send(res,await svc.claimOrder(req.params.orderId,req.body));}catch(e){fail(res,e);}});
+router.post('/peer-support/:fundraiserId/donations/manual',limiter,async(req,res)=>{try{res.status(201).json({ok:true,...await donations.createPublicPeerManualDonation({fundraiserId:req.params.fundraiserId,...req.body})});}catch(e){fail(res,e);}});
+router.post('/peer-support/:fundraiserId/donations/stripe-checkout',limiter,async(req,res)=>{try{res.status(201).json({ok:true,...await donations.createPublicPeerStripeDonation({fundraiserId:req.params.fundraiserId,...req.body})});}catch(e){fail(res,e);}});
 
 export default router;
