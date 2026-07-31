@@ -46,6 +46,7 @@ import type {
   PeerGeneratedEntry,
 } from '../../services/PeerSupportService';
 import PeerOrderThankYou from '../../components/peer/PeerOrderThankYou';
+import PeerSponsorshipExperience from '../../components/peer/PeerSponsorshipExperience';
 import {
   PaymentInstructionsContent,
   PaymentInstructionsFooter,
@@ -397,6 +398,7 @@ export default function PeerSupportPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [donationAmount, setDonationAmount] = useState('');
 
   const [methods, setMethods] = useState<PublicPeerPaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
@@ -455,6 +457,8 @@ export default function PeerSupportPage() {
     [cartItems]
   );
   const cartCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems]);
+  const donationValue = Math.max(0, asNumber(donationAmount));
+  const payableTotal = total + donationValue;
   const currency = data?.fundraiser?.currency || data?.packs?.[0]?.currency || 'EUR';
 
   const theme = useMemo(() => getTheme(data), [data]);
@@ -546,6 +550,7 @@ export default function PeerSupportPage() {
         clubPaymentMethodId: selectedMethod.id,
         paymentProvider: selectedMethod.providerName || null,
         paymentReference: reference,
+        donationAmount: donationValue,
         items: cartItems.map(item => ({ packId: item.pack.id, quantity: item.quantity })),
       } as any);
 
@@ -600,6 +605,7 @@ export default function PeerSupportPage() {
     }
   }
 
+
   if (loading) {
     return <AppShell style={appStyle}><LoadingState message="Loading support page…" /></AppShell>;
   }
@@ -610,6 +616,17 @@ export default function PeerSupportPage() {
 
   if (!data?.fundraiser) {
     return <AppShell style={appStyle}><EmptyState title="Fundraiser not found" message="This peer fundraiser could not be loaded." /></AppShell>;
+  }
+
+  if (data.supporterExperience === 'sponsorship') {
+    return (
+      <PeerSponsorshipExperience
+        data={data}
+        clubSlug={clubSlug}
+        fundraiserSlug={fundraiserSlug}
+        participantSlug={participantSlug}
+      />
+    );
   }
 
   return (
@@ -719,6 +736,35 @@ export default function PeerSupportPage() {
           </div>
 
           <OrderMiniSummary cartItems={cartItems} currency={currency} />
+
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex items-start gap-3">
+              <Gift className="mt-0.5 h-5 w-5 shrink-0 text-[var(--fr-primary)]" />
+              <div className="min-w-0 flex-1">
+                <p className="font-black text-slate-950">Add a donation to the club</p>
+                <p className="mt-1 text-sm font-medium leading-6 text-slate-500">
+                  Optional. This is recorded separately from your activity purchase.
+                </p>
+                <div className="mt-3 flex items-center rounded-2xl border border-slate-200 px-4 py-3">
+                  <span className="font-black text-slate-500">{currencySymbol(currency)}</span>
+                  <input
+                    value={donationAmount}
+                    onChange={event => setDonationAmount(event.target.value)}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="min-w-0 flex-1 border-0 bg-transparent px-3 text-lg font-black outline-none"
+                  />
+                </div>
+                {donationValue > 0 && (
+                  <div className="mt-3 space-y-1 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-600">
+                    <div className="flex justify-between"><span>Activities</span><span>{fmt(total, currency)}</span></div>
+                    <div className="flex justify-between"><span>Donation</span><span>{fmt(donationValue, currency)}</span></div>
+                    <div className="flex justify-between border-t border-slate-200 pt-2 font-black text-slate-950"><span>Total</span><span>{fmt(payableTotal, currency)}</span></div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
           {formError && <FormError>{formError}</FormError>}
 
           <button onClick={goToPayment} disabled={!name.trim() || !email.trim()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--fr-primary)] px-5 py-4 text-lg font-black text-white shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50">
@@ -728,7 +774,7 @@ export default function PeerSupportPage() {
       )}
 
       {step === 'payment' && (
-        <StepPanel title="How would you like to pay?" subtitle={`Total to pay: ${fmt(total, currency)}`} onBack={() => setStep('details')}>
+        <StepPanel title="How would you like to pay?" subtitle={`Total to pay: ${fmt(payableTotal, currency)}`} onBack={() => setStep('details')}>
           {methodsLoading && <LoadingState message="Loading payment options…" compact />}
 
           {!methodsLoading && methodsError && (
@@ -812,7 +858,7 @@ export default function PeerSupportPage() {
               methodConfig: ((selectedMethod as any).methodConfig ?? {}) as any,
             }}
             paymentReference={reference}
-            totalAmount={total}
+            totalAmount={payableTotal}
             currencySymbol={currencySymbol(currency)}
             revolutLink={
               String(selectedMethod.providerName || '').toLowerCase() === 'revolut' &&

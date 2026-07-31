@@ -197,7 +197,11 @@ export async function expandPeerOrder(orderId) {
         itemType==='elimination_entry' ||
         itemType==='event_ticket'
       ){
-        await createTicketForPeerEntry(
+        const [entryRows]=await connection.execute(`SELECT linked_ticket_id FROM ${E} WHERE id=? LIMIT 1`,[x.entryId]);
+        if(entryRows[0]?.linked_ticket_id){
+          await connection.execute(`UPDATE ${E} SET status='confirmed',confirmed_at=COALESCE(confirmed_at,UTC_TIMESTAMP()) WHERE id=?`,[x.entryId]);
+        } else {
+          await createTicketForPeerEntry(
           x.entryId,
           {
             order,
@@ -208,6 +212,7 @@ export async function expandPeerOrder(orderId) {
               order.club_payment_method_id,
           },
         );
+        }
       } else if(itemType==='puzzle_entry'){
         await createPuzzleAccessForPeerEntry(
           x.entryId,

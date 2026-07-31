@@ -1,6 +1,7 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { expandPeerOrder } from './peerEntryExpansionService.js';
 import { blockTicketForPeerEntry } from './peerTicketBridgeService.js';
+import { reservePeerOrderTickets, confirmPeerOrderReservations, cancelPeerOrderReservations } from './peerTicketReservationService.js';
 import {
   checkPeerOrderAllocation,
 } from './peerOrderIntegrityService.js';
@@ -54,9 +55,16 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   );
   const order = rows[0];
   if (!order) fail('peer_order_not_found', 404);
-  if (!['pending', 'claimed'].includes(order.payment_status)) {
+  if (order.payment_status !== 'claimed') {
     fail('order_not_confirmable', 400);
   }
+
+  await reservePeerOrderTickets({
+    orderId,
+    paymentCategory:order.payment_method_category,
+    paymentReference:order.payment_reference,
+    clubPaymentMethodId:order.club_payment_method_id,
+  });
 
   const conn = await connection.getConnection();
   try {
@@ -80,6 +88,7 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   // first. Keeping it outside the status-update transaction above avoids
   // holding that transaction open for the duration of ticket/ledger writes.
   try {
+    await confirmPeerOrderReservations({orderId,paymentReference:order.payment_reference,externalTransactionId:order.external_transaction_id});
     await expandPeerOrder(orderId);
     const allocation=await completeFulfilmentState(orderId);
 
@@ -119,9 +128,11 @@ export async function rejectPeerOrder(orderId, fundraiserId, clubId, reason = nu
   );
   const order = rows[0];
   if (!order) fail('peer_order_not_found', 404);
-  if (!['pending', 'claimed', 'confirmed'].includes(order.payment_status)) {
+  if (!['claimed', 'confirmed'].includes(order.payment_status)) {
     fail('order_not_rejectable', 400);
   }
+
+  if (order.payment_status === 'claimed') await cancelPeerOrderReservations(orderId);
 
   if (order.payment_status === 'confirmed') {
     const [confirmedEntries] = await connection.execute(
@@ -181,6 +192,7 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
   // itself was already correctly set.
   if(order.payment_status==='confirmed'){
     try {
+      await confirmPeerOrderReservations({orderId:order.id,paymentReference,externalTransactionId:externalTransactionId||stripePaymentIntentId});
       await expandPeerOrder(order.id);
       await completeFulfilmentState(order.id);
     } catch(expandErr) {
@@ -214,6 +226,7 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
     [stripePaymentIntentId,externalTransactionId,paymentReference,order.id]);
 
   try {
+    await confirmPeerOrderReservations({orderId:order.id,paymentReference,externalTransactionId:externalTransactionId||stripePaymentIntentId});
     await expandPeerOrder(order.id);
     await completeFulfilmentState(order.id);
   } catch (expandErr) {
@@ -317,5 +330,6 @@ export async function cancelExpiredPeerOrder(orderId,sessionId){
   const [result]=await connection.execute(
     `UPDATE ${O} SET payment_status='cancelled',metadata_json=JSON_SET(COALESCE(metadata_json,'{}'),'$.cancelReason','stripe_session_expired','$.expiredSessionId',?)
      WHERE id=? AND payment_status='pending'`,[sessionId,orderId]);
+  if(result.affectedRows>0) await cancelPeerOrderReservations(orderId);
   return {cancelled:result.affectedRows>0};
 }

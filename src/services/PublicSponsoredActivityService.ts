@@ -51,7 +51,7 @@ class PublicSponsoredActivityService extends BaseService {
     );
   }
 
-  createStripeCheckout(roomId: string, payload: SponsorDetails & { appOrigin: string; activityLabel: string }) {
+  createStripeCheckout(roomId: string, payload: SponsorDetails & { appOrigin: string; activityLabel: string; returnPath?: string }) {
     return this.request<{ ok: true; contributionId: string; redirectUrl: string }>(
       `/sponsored-activity-public/${roomId}/stripe/checkout`,
       { method: 'POST', body: JSON.stringify(payload) }

@@ -68,6 +68,10 @@ function countdown(target: string | null) {
 export default function SponsorPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const peerFundraiserId =
+    searchParams.get('peerFundraiserId') || undefined;
+  const peerParticipantId =
+    searchParams.get('peerParticipantId') || undefined;
 
   const [activity, setActivity] = useState<PublicSponsoredActivity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,6 +194,11 @@ export default function SponsorPage() {
       message: message.trim() || undefined,
       amount,
       clubPaymentMethodId: method.id,
+      peerFundraiserId,
+      peerParticipantId,
+    } as SponsorDetails & {
+      peerFundraiserId?: string;
+      peerParticipantId?: string;
     };
   }
 
@@ -218,6 +227,7 @@ export default function SponsorPage() {
         const result = await publicSponsoredActivityService.createStripeCheckout(roomId, {
           ...contributionPayload(method),
           appOrigin: window.location.origin,
+          returnPath: window.location.pathname,
           activityLabel: activity.activityLabel,
         });
         window.location.href = result.redirectUrl;

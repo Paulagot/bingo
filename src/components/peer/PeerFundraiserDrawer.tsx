@@ -16,7 +16,7 @@ import svc from '../../services/PeerService';
 import type { PeerFundraiserFormat } from '../../services/PeerService';
 import PeerPackEditor from './PeerPackEditor';
 import PeerPaymentsTab from './PeerPaymentsTab';
-import PeerReportsTab from './PeerReportsTab';
+import PeerPaymentReportTab from './PeerPaymentReportTab';
 import { brand } from '../dashboard/branding';
 
 type Tab = 'overview' | 'participants' | 'packs' | 'orders' | 'payments' | 'report';
@@ -59,6 +59,11 @@ export default function PeerFundraiserDrawer({
   const [packs,        setPacks]        = useState<any[]>([]);
   const [orders,       setOrders]       = useState<any[]>([]);
   const [rooms,        setRooms]        = useState<any[]>([]);
+  const [sponsoredRooms, setSponsoredRooms] = useState<any[]>([]);
+  const [sponsorshipSummary, setSponsorshipSummary] = useState<any>(null);
+  const [sponsorships, setSponsorships] = useState<any[]>([]);
+  const [directDonations, setDirectDonations] = useState<any[]>([]);
+  const [savingSponsoredRoom, setSavingSponsoredRoom] = useState(false);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
 
@@ -83,19 +88,48 @@ export default function PeerFundraiserDrawer({
 
   const load = async () => {
     try {
-      setLoading(true); setError(null);
-      const [fr, ps, pks, os, rs] = await Promise.all([
-        svc.get(id),
+      setLoading(true);
+      setError(null);
+
+      const fr = await svc.get(id);
+      const fundraiser = fr.fundraiser;
+      setF(fundraiser);
+
+      const [ps, rs] = await Promise.all([
         svc.participants(id),
-        svc.packs(id),
-        svc.orders(id),
         svc.rooms(id),
       ]);
-      setF(fr.fundraiser);
       setParticipants(ps.participants);
-      setPacks(pks.packs);
-      setOrders(os.orders);
       setRooms(rs.rooms);
+
+      if (fundraiser.format_type === 'sponsored') {
+        const [sponsored, totals, contributionRows] =
+          await Promise.all([
+            svc.availableSponsoredRooms(id),
+            svc.sponsorshipSummary(id),
+            svc.sponsorships(id),
+          ]);
+
+        setSponsoredRooms(sponsored.rooms);
+        setSponsorshipSummary(totals);
+        setSponsorships(contributionRows.contributions);
+        setDirectDonations([]);
+        setOrders([]);
+        setPacks([]);
+      } else {
+        const [pks, os, ds] = await Promise.all([
+          svc.packs(id),
+          svc.orders(id),
+          svc.donations(id),
+        ]);
+
+        setPacks(pks.packs);
+        setOrders(os.orders);
+        setDirectDonations(ds.donations);
+        setSponsoredRooms([]);
+        setSponsorshipSummary(null);
+        setSponsorships([]);
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to load');
     } finally {
@@ -201,8 +235,9 @@ export default function PeerFundraiserDrawer({
   const TABS: { key: Tab; label: string }[] = [
     { key: 'overview',     label: 'Overview' },
     { key: 'participants', label: 'Participants' },
-    { key: 'packs',        label: 'Sales Options' },
-    { key: 'orders',       label: 'Orders' },
+    { key: 'packs',        label: f?.format_type === 'sponsored' ? 'Sponsorship Setup' : 'Sales Options' },
+    { key: 'orders',       label: f?.format_type === 'sponsored' ? 'Sponsorships' : 'Orders' },
+    ...(f?.format_type === 'sponsored' ? [] : [{ key: 'donations' as TabKey, label: 'Donations' }]),
     { key: 'payments',     label: 'Payments' },
     { key: 'report',       label: 'Report' },
   ];
@@ -455,203 +490,619 @@ export default function PeerFundraiserDrawer({
                 </div>
               )}
 
-              {/* PACKS */}
+              {/* SALES OPTIONS / SPONSORSHIP SETUP */}
               {tab === 'packs' && (
-                <div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                f?.format_type === 'sponsored' ? (
+                  <div className="space-y-5">
                     <div>
                       <h2 className="text-base font-bold" style={{ color: brand.navy }}>
-                        Sales Options
+                        Sponsorship Setup
                       </h2>
-                      <p className="text-xs mt-0.5" style={{ color: brand.slate }}>
-                        Choose the activities, entries or ticket types supporters can buy.
-                        Combine options when you want to sell a bundle.
+                      <p className="mt-1 text-xs" style={{ color: brand.slate }}>
+                        Link this fundraiser to the Sponsored Activity room that
+                        receives sponsorship payments.
                       </p>
                     </div>
-                    <button
-                      onClick={() => { setEditingPack(null); setEditorOpen(true); }}
-                      className="rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                      style={{ background: brand.teal }}
-                    >
-                      + Create sales option
-                    </button>
-                  </div>
 
-                  {packs.filter((p: any) => p.is_active !== 0).length === 0 && (
-                    <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>
-                      No sales options yet — create the first option supporters can buy.
-                    </p>
-                  )}
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {packs.filter((p: any) => p.is_active !== 0).map((p: any) => (
-                      <div
-                        key={p.id}
-                        className="rounded-xl p-4"
-                        style={{ border: `1px solid ${brand.border}` }}
-                      >
-                        <div className="flex justify-between">
-                          <p className="font-bold text-sm" style={{ color: brand.navy }}>{p.name}</p>
-                          <p className="font-bold text-sm" style={{ color: brand.navy }}>€{Number(p.price).toFixed(2)}</p>
+                    {sponsorshipSummary && (
+                      <div className="space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>
+                              Confirmed sponsorship
+                            </p>
+                            <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
+                              {f.currency || 'EUR'} {Number(
+                                sponsorshipSummary.summary.confirmedTotal || 0,
+                              ).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>
+                              Sponsors
+                            </p>
+                            <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
+                              {Number(sponsorshipSummary.summary.confirmedCount || 0)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>
+                              Manual awaiting confirmation
+                            </p>
+                            <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
+                              {f.currency || 'EUR'} {Number(
+                                sponsorshipSummary.summary.claimedTotal || 0,
+                              ).toFixed(2)}
+                            </p>
+                          </div>
                         </div>
-                        {p.is_featured && (
-                          <span
-                            className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
-                            style={{ background: 'rgba(210,181,130,0.25)', color: '#8a6d2f' }}
-                          >
-                            {p.badge_label || 'Featured'}
-                          </span>
+
+                        {sponsorshipSummary.participants?.length > 0 && (
+                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                            <p className="mb-3 text-sm font-bold" style={{ color: brand.navy }}>
+                              Sponsorship by participant
+                            </p>
+                            <div className="space-y-2">
+                              {sponsorshipSummary.participants.map((person: any) => (
+                                <div
+                                  key={person.id}
+                                  className="flex items-center justify-between gap-4 text-sm"
+                                >
+                                  <span style={{ color: brand.slate }}>{person.name}</span>
+                                  <span className="font-bold" style={{ color: brand.navy }}>
+                                    {f.currency || 'EUR'} {Number(person.confirmedTotal || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
-                        <ul className="mt-3 space-y-1">
-                          {p.items.map((i: any) => {
-                            const room = rooms.find((r: any) => r.room_id === i.target_room_id);
-                            return (
-                              <li key={i.id} className="text-xs" style={{ color: brand.slate }}>
-                                {i.quantity} × {ITEM_TYPE_LABELS[i.item_type] || i.item_type}
-                                {room ? ` · ${room.name}` : ''}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <div className="mt-3 flex gap-2">
-                          <button onClick={() => { setEditingPack(p); setEditorOpen(true); }} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: brand.border, color: brand.navy }}>Edit</button>
-                          <button onClick={() => duplicatePack(p)} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: brand.border, color: brand.navy }}>Duplicate</button>
-                          <button onClick={() => hidePack(p)} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: '#f2c5c2', color: '#b42318' }}>Hide</button>
-                        </div>
                       </div>
-                    ))}
+                    )}
+
+                    {sponsoredRooms.length === 0 ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        No active Sponsored Activity rooms are available. Create
+                        the activity in Event Manager, then return here.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {sponsoredRooms.map((room: any) => {
+                          const settings =
+                            typeof f.settings_json === 'string'
+                              ? (() => {
+                                  try { return JSON.parse(f.settings_json); }
+                                  catch { return {}; }
+                                })()
+                              : (f.settings_json || {});
+                          const selected = settings.sponsoredRoomId === room.room_id;
+
+                          return (
+                            <button
+                              key={room.room_id}
+                              type="button"
+                              disabled={savingSponsoredRoom}
+                              onClick={async () => {
+                                setSavingSponsoredRoom(true);
+                                try {
+                                  const result = await svc.update(id, {
+                                    settings: {
+                                      ...settings,
+                                      sponsoredRoomId: room.room_id,
+                                    },
+                                  });
+                                  setF(result.fundraiser);
+                                  onChanged?.();
+                                } finally {
+                                  setSavingSponsoredRoom(false);
+                                }
+                              }}
+                              className="w-full rounded-2xl border p-4 text-left"
+                              style={{
+                                borderColor: selected ? brand.teal : '#dce1df',
+                                background: selected ? '#ecfdf5' : '#ffffff',
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <p className="font-bold" style={{ color: brand.navy }}>
+                                    {room.name}
+                                  </p>
+                                  <p className="mt-1 text-xs capitalize" style={{ color: brand.slate }}>
+                                    {String(room.activity_kind).replace(/_/g, ' ')}
+                                    {' · '}{room.status}
+                                  </p>
+                                  {room.suggested_amounts?.length > 0 && (
+                                    <p className="mt-2 text-xs" style={{ color: brand.slate }}>
+                                      Suggested amounts: {room.suggested_amounts
+                                        .map((amount: number) => `${room.currency} ${amount}`)
+                                        .join(', ')}
+                                    </p>
+                                  )}
+                                </div>
+                                <span
+                                  className="rounded-full px-3 py-1 text-xs font-bold"
+                                  style={{
+                                    background: selected ? brand.teal : brand.bg,
+                                    color: selected ? '#ffffff' : brand.slate,
+                                  }}
+                                >
+                                  {selected ? 'Linked' : 'Link'}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                      <div>
+                        <h2 className="text-base font-bold" style={{ color: brand.navy }}>
+                          Sales Options
+                        </h2>
+                        <p className="text-xs mt-0.5" style={{ color: brand.slate }}>
+                          Choose the activities, entries or ticket types supporters can buy.
+                          Combine options when you want to sell a bundle.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => { setEditingPack(null); setEditorOpen(true); }}
+                        className="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                        style={{ background: brand.teal }}
+                      >
+                        + Create sales option
+                      </button>
+                    </div>
+
+                    {packs.filter((p: any) => p.is_active !== 0).length === 0 && (
+                      <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>
+                        No sales options yet — create the first option supporters can buy.
+                      </p>
+                    )}
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {packs.filter((p: any) => p.is_active !== 0).map((p: any) => (
+                        <div
+                          key={p.id}
+                          className="rounded-xl p-4"
+                          style={{ border: `1px solid ${brand.border}` }}
+                        >
+                          <div className="flex justify-between">
+                            <p className="font-bold text-sm" style={{ color: brand.navy }}>{p.name}</p>
+                            <p className="font-bold text-sm" style={{ color: brand.navy }}>€{Number(p.price).toFixed(2)}</p>
+                          </div>
+                          {p.is_featured && (
+                            <span
+                              className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                              style={{ background: 'rgba(210,181,130,0.25)', color: '#8a6d2f' }}
+                            >
+                              {p.badge_label || 'Featured'}
+                            </span>
+                          )}
+                          <ul className="mt-3 space-y-1">
+                            {p.items.map((i: any) => {
+                              const room = rooms.find((r: any) => r.room_id === i.target_room_id);
+                              return (
+                                <li key={i.id} className="text-xs" style={{ color: brand.slate }}>
+                                  {i.quantity} × {ITEM_TYPE_LABELS[i.item_type] || i.item_type}
+                                  {room ? ` · ${room.name}` : ''}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          <div className="mt-3 flex gap-2">
+                            <button onClick={() => { setEditingPack(p); setEditorOpen(true); }} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: brand.border, color: brand.navy }}>Edit</button>
+                            <button onClick={() => duplicatePack(p)} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: brand.border, color: brand.navy }}>Duplicate</button>
+                            <button onClick={() => hidePack(p)} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: '#f2c5c2', color: '#b42318' }}>Hide</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {editorOpen && (
+                      <PeerPackEditor
+                        pack={editingPack}
+                        rooms={rooms}
+                        defaultCurrency={f?.currency || 'EUR'}
+                        saving={packSaving}
+                        onSave={savePack}
+                        onClose={() => { setEditorOpen(false); setEditingPack(null); }}
+                      />
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* ORDERS / SPONSORSHIPS */}
+              {tab === 'orders' && f.format_type === 'sponsored' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>
+                      Sponsorships
+                    </h3>
+                    <p className="mt-1 text-sm" style={{ color: brand.slate }}>
+                      Confirmed sponsorships and manual payments awaiting confirmation.
+                      Unfinished Stripe and crypto attempts are not shown.
+                    </p>
                   </div>
 
-                  {editorOpen && (
-                    <PeerPackEditor
-                      pack={editingPack}
-                      rooms={rooms}
-                      defaultCurrency={f?.currency || 'EUR'}
-                      saving={packSaving}
-                      onSave={savePack}
-                      onClose={() => { setEditorOpen(false); setEditingPack(null); }}
-                    />
+                  {!sponsorships.length ? (
+                    <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
+                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>
+                        No confirmed or claimed sponsorships yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sponsorships.map((contribution: any) => (
+                        <div
+                          key={contribution.id}
+                          className="rounded-xl border bg-white p-4"
+                          style={{ borderColor: brand.border }}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-bold" style={{ color: brand.navy }}>
+                                {contribution.isAnonymous
+                                  ? 'Anonymous'
+                                  : contribution.displayName ||
+                                    contribution.sponsorName ||
+                                    'Sponsor'}
+                              </p>
+                              <p className="mt-1 text-xs" style={{ color: brand.slate }}>
+                                {contribution.participantName
+                                  ? `For ${contribution.participantName}`
+                                  : 'General fundraiser'}
+                                {' · '}
+                                {contribution.paymentMethodLabel ||
+                                  contribution.paymentMethodCategory}
+                              </p>
+                              {contribution.paymentReference && (
+                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>
+                                  Ref: {contribution.paymentReference}
+                                </p>
+                              )}
+                              {contribution.message && (
+                                <p className="mt-2 text-sm italic" style={{ color: brand.slate }}>
+                                  “{contribution.message}”
+                                </p>
+                              )}
+                              {contribution.disputeReason && (
+                                <p className="mt-2 text-xs font-semibold text-red-700">
+                                  Dispute: {contribution.disputeReason}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="text-right">
+                              <p className="font-black" style={{ color: brand.navy }}>
+                                {contribution.currency} {Number(contribution.amount || 0).toFixed(2)}
+                              </p>
+                              <span
+                                className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase"
+                                style={{
+                                  background:
+                                    contribution.status === 'confirmed'
+                                      ? '#dcfce7'
+                                      : contribution.status === 'claimed'
+                                        ? '#fef3c7'
+                                        : '#fee2e2',
+                                  color:
+                                    contribution.status === 'confirmed'
+                                      ? '#166534'
+                                      : contribution.status === 'claimed'
+                                        ? '#92400e'
+                                        : '#991b1b',
+                                }}
+                              >
+                                {contribution.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {contribution.status === 'claimed' && (
+                            <div className="mt-4 flex flex-wrap gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
+                              <button
+                                onClick={async () => {
+                                  await svc.confirmSponsorship(id, contribution.id);
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#16a34a' }}
+                              >
+                                Confirm payment
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const reason = window.prompt(
+                                    'Why is this payment being disputed?',
+                                  );
+                                  if (!reason?.trim()) return;
+                                  await svc.disputeSponsorship(
+                                    id,
+                                    contribution.id,
+                                    reason.trim(),
+                                  );
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#dc2626' }}
+                              >
+                                Dispute
+                              </button>
+                            </div>
+                          )}
+
+                          {contribution.status === 'disputed' && (
+                            <div className="mt-4 border-t pt-3" style={{ borderColor: brand.border }}>
+                              <button
+                                onClick={async () => {
+                                  await svc.confirmSponsorship(id, contribution.id);
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#16a34a' }}
+                              >
+                                Resolve and confirm
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* ORDERS */}
-              {tab === 'orders' && (
-                <div className="space-y-3">
-                  {orders.length === 0 && (
-                    <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>No orders yet.</p>
-                  )}
-                  {orders.map((o: any) => (
-                    <div
-                      key={o.id}
-                      className="flex items-center gap-4 rounded-xl p-4"
-                      style={{ border: `1px solid ${brand.border}` }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate" style={{ color: brand.navy }}>{o.supporter_name}</p>
-                        <p className="text-xs" style={{ color: brand.slate }}>{o.participant_name || 'General link'}</p>
-                        {o.payment_status === 'confirmed' && (
-                          <div className="mt-1 space-y-0.5 text-[11px]" style={{ color: brand.slate }}>
-                            <p>
-                              Entries: {Number(o.confirmed_entry_count || 0)}/{Number(o.entry_count || 0)} fulfilled
-                            </p>
-                            {o.allocation_check && (
-                              <p>
-                                Ledger {Number(o.allocation_check.ledgerTotal || 0).toFixed(2)}
-                                {' / '}
-                                order {Number(o.allocation_check.orderTotal || o.total_amount || 0).toFixed(2)}
+              {tab === 'orders' && f.format_type !== 'sponsored' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>
+                      Orders
+                    </h3>
+                    <p className="mt-1 text-sm" style={{ color: brand.slate }}>
+                      Confirmed orders and claimed manual payments awaiting confirmation.
+                      Unfinished Stripe and crypto attempts are not shown.
+                    </p>
+                  </div>
+
+                  {!orders.length ? (
+                    <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
+                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>
+                        No confirmed or claimed orders yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {orders.map((o: any) => (
+                        <div
+                          key={o.id}
+                          className="rounded-xl border bg-white p-4"
+                          style={{ borderColor: brand.border }}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="font-bold" style={{ color: brand.navy }}>
+                                {o.supporter_name}
                               </p>
+                              <p className="mt-1 text-xs" style={{ color: brand.slate }}>
+                                {o.participant_name || 'General link'}
+                                {' · '}
+                                {o.payment_provider || o.payment_method_category}
+                              </p>
+                              {o.payment_reference && (
+                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>
+                                  Ref: {o.payment_reference}
+                                </p>
+                              )}
+                              {o.payment_status === 'confirmed' && (
+                                <div className="mt-2 space-y-1 text-xs" style={{ color: brand.slate }}>
+                                  <p>
+                                    Entries: {Number(o.confirmed_entry_count || 0)}/{Number(o.entry_count || 0)} fulfilled
+                                  </p>
+                                  {o.allocation_check && (
+                                    <p>
+                                      Ledger {Number(o.allocation_check.ledgerTotal || 0).toFixed(2)}
+                                      {' / '}
+                                      order {Number(o.allocation_check.orderTotal || o.total_amount || 0).toFixed(2)}
+                                    </p>
+                                  )}
+                                  {o.fulfilment_error && (
+                                    <p className="font-semibold text-red-700">
+                                      {o.fulfilment_error}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="text-right">
+                              <p className="font-black" style={{ color: brand.navy }}>
+                                {o.currency || 'EUR'} {Number(o.total_amount || 0).toFixed(2)}
+                              </p>
+                              <span
+                                className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase"
+                                style={{
+                                  background:
+                                    o.payment_status === 'confirmed'
+                                      ? '#dcfce7'
+                                      : '#fef3c7',
+                                  color:
+                                    o.payment_status === 'confirmed'
+                                      ? '#166534'
+                                      : '#92400e',
+                                }}
+                              >
+                                {o.payment_status}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
+                            {o.payment_status === 'claimed' && (
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    await svc.confirm(id, o.id);
+                                    await load();
+                                    onChanged?.();
+                                  }}
+                                  className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                  style={{ background: '#16a34a' }}
+                                >
+                                  Confirm payment
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    const reason = window.prompt(
+                                      'Why is this payment being rejected?',
+                                    ) || undefined;
+                                    await svc.rejectOrder(id, o.id, reason);
+                                    await load();
+                                    onChanged?.();
+                                  }}
+                                  className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                  style={{ background: '#dc2626' }}
+                                >
+                                  Reject
+                                </button>
+                              </>
                             )}
-                            {o.fulfilment_error && (
-                              <p className="font-semibold" style={{ color: '#b42318' }}>
-                                {o.fulfilment_error}
-                              </p>
+
+                            {o.payment_status === 'confirmed' && (
+                              o.fulfilment_status === 'failed' ||
+                              o.fulfilment_status === 'attention_required' ||
+                              o.allocation_status === 'out_of_balance' ||
+                              Number(o.pending_entry_count || 0) > 0
+                            ) && (
+                              <button
+                                onClick={async () => {
+                                  await svc.retryFulfilment(id, o.id);
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#d97706' }}
+                              >
+                                Retry fulfilment
+                              </button>
+                            )}
+
+                            {o.payment_status === 'confirmed' && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(
+                                    'This order is confirmed and may have active tickets or entitlements. Undo confirmation?',
+                                  )) return;
+                                  const reason = window.prompt(
+                                    'Reason for undoing confirmation (optional):',
+                                  ) || undefined;
+                                  await svc.rejectOrder(id, o.id, reason);
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#dc2626' }}
+                              >
+                                Undo confirmation
+                              </button>
                             )}
                           </div>
-                        )}
-                      </div>
-                      <p className="font-bold text-sm flex-shrink-0" style={{ color: brand.navy }}>
-                        €{Number(o.total_amount).toFixed(2)}
-                      </p>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span
-                          className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5"
-                          style={{ background: brand.bg, color: brand.slate }}
-                        >
-                          {o.payment_status}
-                        </span>
-                        {o.payment_status === 'confirmed' && (
-                          <span
-                            className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5"
-                            style={{
-                              background:
-                                o.fulfilment_status === 'complete' &&
-                                o.allocation_status === 'balanced'
-                                  ? '#dcfce7'
-                                  : o.fulfilment_status === 'failed' ||
-                                      o.allocation_status === 'out_of_balance'
-                                    ? '#fee2e2'
-                                    : '#fef3c7',
-                              color:
-                                o.fulfilment_status === 'complete' &&
-                                o.allocation_status === 'balanced'
-                                  ? '#166534'
-                                  : o.fulfilment_status === 'failed' ||
-                                      o.allocation_status === 'out_of_balance'
-                                    ? '#991b1b'
-                                    : '#92400e',
-                            }}
-                          >
-                            {o.fulfilment_status || 'pending'} · {o.allocation_status || 'pending'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        {['pending', 'claimed'].includes(o.payment_status) && (
-                          <button
-                            onClick={async () => { await svc.confirm(id, o.id); load(); onChanged?.(); }}
-                            className="rounded-lg px-3 py-1.5 text-xs font-bold text-white"
-                            style={{ background: '#16a34a' }}
-                          >
-                            Confirm
-                          </button>
-                        )}
-                        {o.payment_status === 'confirmed' && (
-                          o.fulfilment_status === 'failed' ||
-                          o.fulfilment_status === 'attention_required' ||
-                          o.allocation_status === 'out_of_balance' ||
-                          Number(o.pending_entry_count || 0) > 0
-                        ) && (
-                          <button
-                            onClick={async () => {
-                              await svc.retryFulfilment(id, o.id);
-                              load();
-                              onChanged?.();
-                            }}
-                            className="rounded-lg px-3 py-1.5 text-xs font-bold text-white"
-                            style={{ background: '#d97706' }}
-                          >
-                            Retry fulfilment
-                          </button>
-                        )}
-                        {['pending', 'claimed', 'confirmed'].includes(o.payment_status) && (
-                          <button
-                            onClick={async () => {
-                              const verb = o.payment_status === 'confirmed' ? 'Undo confirmation of' : 'Reject';
-                              const reason = window.prompt(`Reason for ${verb.toLowerCase()} this order (optional):`) || undefined;
-                              if (o.payment_status === 'confirmed' && !confirm('This order was already confirmed — real tickets exist for it. Cancelling will block those tickets. Continue?')) return;
-                              await svc.rejectOrder(id, o.id, reason);
-                              load(); onChanged?.();
-                            }}
-                            className="rounded-lg px-3 py-1.5 text-xs font-bold text-white"
-                            style={{ background: '#dc2626' }}
-                          >
-                            {o.payment_status === 'confirmed' ? 'Undo' : 'Reject'}
-                          </button>
-                        )}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </div>
+              )}
+
+              {/* DIRECT DONATIONS — SELL ACTIVITIES ONLY */}
+              {tab === 'donations' && f.format_type !== 'sponsored' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>
+                      Direct donations
+                    </h3>
+                    <p className="mt-1 text-sm" style={{ color: brand.slate }}>
+                      Donations are separate from activity-sale income. Confirmed donations count in the combined report; claimed manual donations wait for club confirmation.
+                    </p>
+                  </div>
+
+                  {!directDonations.length ? (
+                    <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
+                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>
+                        No confirmed or claimed direct donations yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {directDonations.map((donation: any) => (
+                        <div key={donation.id} className="rounded-xl border bg-white p-4" style={{ borderColor: brand.border }}>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="font-bold" style={{ color: brand.navy }}>
+                                {donation.donor_name || 'Donor'}
+                              </p>
+                              <p className="mt-1 text-xs" style={{ color: brand.slate }}>
+                                {donation.participant_name ? `Attributed to ${donation.participant_name}` : 'General fundraiser'}
+                                {' · '}
+                                {donation.payment_method_label_snapshot || donation.payment_method_category_snapshot}
+                              </p>
+                              {donation.peer_order_id && (
+                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>
+                                  Added to order {String(donation.peer_order_id).slice(0, 8)}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="font-black" style={{ color: brand.navy }}>
+                                {donation.currency} {Number(donation.amount || 0).toFixed(2)}
+                              </p>
+                              <span className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase" style={{
+                                background: donation.status === 'confirmed' ? '#dcfce7' : donation.status === 'claimed' ? '#fef3c7' : '#fee2e2',
+                                color: donation.status === 'confirmed' ? '#166534' : donation.status === 'claimed' ? '#92400e' : '#991b1b',
+                              }}>
+                                {donation.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {donation.status === 'claimed' && (
+                            <div className="mt-4 flex gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
+                              <button
+                                onClick={async () => {
+                                  await svc.confirmDonation(id, donation.id);
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#16a34a' }}
+                              >
+                                Confirm donation
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm('Reject this claimed donation?')) return;
+                                  await svc.rejectDonation(id, donation.id);
+                                  await load();
+                                  onChanged?.();
+                                }}
+                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                style={{ background: '#dc2626' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -659,7 +1110,7 @@ export default function PeerFundraiserDrawer({
               {tab === 'payments' && <PeerPaymentsTab fundraiserId={id} />}
 
               {/* REPORT */}
-              {tab === 'report' && <PeerReportsTab fundraiserId={id} />}
+              {tab === 'report' && <PeerPaymentReportTab fundraiserId={id} />}
             </>
           )}
         </div>

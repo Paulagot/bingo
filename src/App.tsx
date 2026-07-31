@@ -910,6 +910,11 @@ export default function App() {
         />
 
         <Route
+  path="/sponsor/:clubSlug/:roomId"
+  element={<SponsorPage />}
+/>
+
+        <Route
           path="/puzzle-drop/:dropRoomId"
           element={
             <Suspense fallback={<LoadingSpinner message="Loading..." />}>
