@@ -502,6 +502,15 @@ export async function stripeWebhookHandler(req, res) {
                 orderId
               );
             }
+
+            const donationId = session?.metadata?.donationId || null;
+            if (donationId) {
+              await confirmPeerDonationAutomatic({
+                donationId,
+                externalCheckoutId: sessionId,
+                externalTransactionId: paymentIntentId ?? sessionId,
+              });
+            }
           } catch (peerErr) {
             console.error(
               '[StripeWebhook] Peer order confirmation failed (non-fatal):',
@@ -1084,6 +1093,11 @@ export async function stripeWebhookHandler(req, res) {
             orderId,
             sessionId
           );
+
+          await expirePeerDonation({
+            orderId,
+            externalCheckoutId: sessionId,
+          });
 
           if (DEBUG) {
             console.log(

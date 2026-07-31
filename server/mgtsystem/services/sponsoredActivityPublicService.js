@@ -10,6 +10,8 @@ const CLUBS_TABLE = `${TABLE_PREFIX}clubs`;
 const METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
 const CONTRIBUTIONS_TABLE = `${TABLE_PREFIX}sponsored_contributions`;
 const LEDGER_TABLE = `${TABLE_PREFIX}quiz_payment_ledger`;
+const PEER_FUNDRAISERS_TABLE = `${TABLE_PREFIX}peer_fundraisers`;
+const PEER_PARTICIPANTS_TABLE = `${TABLE_PREFIX}peer_participants`;
 
 const ALLOWED_APP_ORIGINS = new Set([
   'http://localhost:5173',
@@ -175,10 +177,77 @@ async function validatePublicContributionInput({ room, clubPaymentMethodId, amou
   return { numericAmount, method };
 }
 
+
+async function validatePeerAttribution({
+  room,
+  peerFundraiserId = null,
+  participantId = null,
+  executor = connection,
+}) {
+  const fundraiserId = String(peerFundraiserId || '').trim() || null;
+  const resolvedParticipantId = String(participantId || '').trim() || null;
+
+  if (!fundraiserId && !resolvedParticipantId) {
+    return {
+      peerFundraiserId: null,
+      participantId: null,
+    };
+  }
+
+  if (!fundraiserId && resolvedParticipantId) {
+    throw asStatusError('peer_fundraiser_required_for_participant', 400);
+  }
+
+  const [fundraiserRows] = await executor.execute(
+    `SELECT id, club_id, format_type, settings_json
+     FROM ${PEER_FUNDRAISERS_TABLE}
+     WHERE id = ?
+       AND club_id = ?
+       AND format_type = 'sponsored'
+       AND status = 'published'
+     LIMIT 1`,
+    [fundraiserId, room.club_id],
+  );
+
+  const fundraiser = fundraiserRows?.[0];
+  if (!fundraiser) {
+    throw asStatusError('peer_fundraiser_not_available', 409);
+  }
+
+  const settings = parseJson(fundraiser.settings_json, {});
+  if (String(settings.sponsoredRoomId || '') !== String(room.room_id)) {
+    throw asStatusError('peer_fundraiser_room_mismatch', 409);
+  }
+
+  if (resolvedParticipantId) {
+    const [participantRows] = await executor.execute(
+      `SELECT id
+       FROM ${PEER_PARTICIPANTS_TABLE}
+       WHERE id = ?
+         AND peer_fundraiser_id = ?
+         AND club_id = ?
+         AND is_active = 1
+       LIMIT 1`,
+      [resolvedParticipantId, fundraiserId, room.club_id],
+    );
+
+    if (!participantRows?.[0]) {
+      throw asStatusError('peer_participant_not_available', 409);
+    }
+  }
+
+  return {
+    peerFundraiserId: fundraiserId,
+    participantId: resolvedParticipantId,
+  };
+}
+
 async function insertContributionAndLedger({
   executor, room, method, amount, sponsorName, sponsorEmail, displayName,
   isAnonymous, message, paymentReference, contributionStatus, ledgerStatus,
   paymentSource,
+  peerFundraiserId = null,
+  participantId = null,
 }) {
   const config = parseJson(room.config_json, {});
   const currency = String(config.currency || 'EUR').toUpperCase();
@@ -188,12 +257,14 @@ async function insertContributionAndLedger({
 
   const [contributionInsert] = await executor.execute(
     `INSERT INTO ${CONTRIBUTIONS_TABLE}
-     (room_id, club_id, sponsor_name, sponsor_email, display_name,
+     (room_id, club_id, peer_fundraiser_id, participant_id,
+      sponsor_name, sponsor_email, display_name,
       is_anonymous, message, amount, currency, club_payment_method_id,
       payment_method_category_snapshot, payment_provider_snapshot,
       payment_method_label_snapshot, payment_reference, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [room.room_id, room.club_id, String(sponsorName).trim(), sponsorEmail ? String(sponsorEmail).trim() : null,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [room.room_id, room.club_id, peerFundraiserId, participantId,
+     String(sponsorName).trim(), sponsorEmail ? String(sponsorEmail).trim() : null,
      resolvedDisplay, isAnonymous ? 1 : 0, message ? String(message).trim().slice(0, 500) : null,
      amount, currency, method.id, method.method_category, method.provider_name,
      method.method_label, paymentReference || null, contributionStatus],
@@ -212,7 +283,14 @@ async function insertContributionAndLedger({
     [room.room_id, room.club_id, playerId, resolvedDisplay, amount, currency,
      ledgerStatus, normaliseLedgerMethod(method.method_category, method.provider_name),
      paymentSource, method.id, paymentReference || null, contributionId,
-     JSON.stringify({ activityType: 'sponsored_activity', contributionId, isAnonymous: !!isAnonymous, message: message || null }),
+     JSON.stringify({
+       activityType: 'sponsored_activity',
+       contributionId,
+       isAnonymous: !!isAnonymous,
+       message: message || null,
+       peerFundraiserId,
+       participantId,
+     }),
      ledgerStatus, ledgerStatus, playerId],
   );
 
@@ -231,6 +309,12 @@ export async function createPublicManualContribution(payload) {
     const room = await getRoom(payload.roomId, tx, true);
     if (!room) throw asStatusError('not_found', 404);
     const { numericAmount, method } = await validatePublicContributionInput({ ...payload, room }, tx);
+    const attribution = await validatePeerAttribution({
+      room,
+      peerFundraiserId: payload.peerFundraiserId,
+      participantId: payload.peerParticipantId || payload.participantId,
+      executor: tx,
+    });
     const category = String(method.method_category || '').toLowerCase();
     if (!['instant_payment', 'other', 'card'].includes(category)) {
       throw asStatusError('manual_claim_not_allowed_for_method', 400);
@@ -241,6 +325,7 @@ export async function createPublicManualContribution(payload) {
       displayName: payload.displayName, isAnonymous: payload.isAnonymous,
       message: payload.message, paymentReference: payload.paymentReference,
       contributionStatus: 'claimed', ledgerStatus: 'claimed', paymentSource: 'player_claimed',
+      ...attribution,
     });
     await tx.commit();
     return { ok: true, status: 'claimed', ...result };
@@ -266,6 +351,12 @@ export async function createSponsoredStripeCheckout(payload) {
     const room = await getRoom(payload.roomId, tx, true);
     if (!room) throw asStatusError('not_found', 404);
     const { numericAmount, method } = await validatePublicContributionInput({ ...payload, room }, tx);
+    const attribution = await validatePeerAttribution({
+      room,
+      peerFundraiserId: payload.peerFundraiserId,
+      participantId: payload.peerParticipantId || payload.participantId,
+      executor: tx,
+    });
     if (String(method.method_category).toLowerCase() !== 'stripe') {
       throw asStatusError('stripe_method_required', 400);
     }
@@ -280,10 +371,30 @@ export async function createSponsoredStripeCheckout(payload) {
       displayName: payload.displayName, isAnonymous: payload.isAnonymous,
       message: payload.message, paymentReference: null,
       contributionStatus: 'pending', ledgerStatus: 'expected', paymentSource: 'webhook_auto',
+      ...attribution,
     });
     await tx.commit();
 
     const origin = validateOrigin(payload.appOrigin);
+    const requestedPath = String(payload.returnPath || '').trim();
+    const returnPath = (
+      requestedPath.startsWith('/sponsor/') ||
+      requestedPath.startsWith('/peer-support/')
+    )
+      ? requestedPath
+      : `/sponsor/${payload.roomId}`;
+
+    const returnQuery = new URLSearchParams();
+    if (attribution.peerFundraiserId) {
+      returnQuery.set('peerFundraiserId', attribution.peerFundraiserId);
+    }
+    if (attribution.participantId) {
+      returnQuery.set('peerParticipantId', attribution.participantId);
+    }
+    const queryPrefix = returnQuery.toString()
+      ? `${returnQuery.toString()}&`
+      : '';
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -296,13 +407,15 @@ export async function createSponsoredStripeCheckout(payload) {
         },
         quantity: 1,
       }],
-      success_url: `${origin}/sponsor/${payload.roomId}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/sponsor/${payload.roomId}?cancelled=1`,
+      success_url: `${origin}${returnPath}?${queryPrefix}session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${returnPath}?${queryPrefix}cancelled=1`,
       metadata: {
         type: 'sponsored_activity_contribution',
         contributionId: created.contributionId,
         roomId: payload.roomId,
         clubId: room.club_id,
+        peerFundraiserId: attribution.peerFundraiserId || '',
+        peerParticipantId: attribution.participantId || '',
       },
     }, { stripeAccount: accountId });
 
@@ -347,6 +460,12 @@ export async function createSponsoredCryptoContribution(payload) {
     const room = await getRoom(payload.roomId, tx, true);
     if (!room) throw asStatusError('not_found', 404);
     const { numericAmount, method } = await validatePublicContributionInput({ ...payload, room }, tx);
+    const attribution = await validatePeerAttribution({
+      room,
+      peerFundraiserId: payload.peerFundraiserId,
+      participantId: payload.peerParticipantId || payload.participantId,
+      executor: tx,
+    });
     if (String(method.method_category).toLowerCase() !== 'crypto') {
       throw asStatusError('crypto_method_required', 400);
     }
@@ -359,6 +478,7 @@ export async function createSponsoredCryptoContribution(payload) {
       displayName: payload.displayName, isAnonymous: payload.isAnonymous,
       message: payload.message, paymentReference: null,
       contributionStatus: 'pending', ledgerStatus: 'expected', paymentSource: 'player_selected',
+      ...attribution,
     });
     await tx.commit();
     return { ok: true, status: 'pending', walletAddress, ...result };

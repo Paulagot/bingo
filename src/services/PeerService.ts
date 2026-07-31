@@ -138,6 +138,116 @@ export interface AvailableRoom {
   sellable_options: PeerSellableOption[];
 }
 
+export interface PeerSponsorshipSummary {
+  roomId: string | null;
+  summary: {
+    confirmedCount: number;
+    confirmedTotal: number;
+    claimedCount: number;
+    claimedTotal: number;
+    confirmedAnonymousCount: number;
+    confirmedGeneralCount: number;
+    confirmedGeneralTotal: number;
+  };
+  participants: Array<{
+    id: string;
+    name: string;
+    publicSlug: string;
+    confirmedCount: number;
+    confirmedTotal: number;
+    claimedCount: number;
+    claimedTotal: number;
+  }>;
+}
+
+export interface PeerSponsorshipContribution {
+  id: string;
+  roomId: string;
+  participantId: string | null;
+  participantName: string | null;
+  sponsorName: string | null;
+  sponsorEmail: string | null;
+  displayName: string | null;
+  isAnonymous: boolean;
+  message: string | null;
+  amount: number;
+  currency: string;
+  paymentMethodCategory: string;
+  paymentProvider: string | null;
+  paymentMethodLabel: string | null;
+  paymentReference: string | null;
+  status: 'claimed' | 'confirmed' | 'disputed';
+  createdAt: string;
+  confirmedAt: string | null;
+  disputeReason: string | null;
+}
+
+export interface PeerPaymentReport {
+  type: 'sell_activities' | 'sponsored';
+  currency: string;
+  totals: {
+    confirmedCount: number;
+    confirmedTotal: number;
+    claimedCount: number;
+    claimedTotal: number;
+    anonymousConfirmedCount?: number;
+    namedConfirmedCount?: number;
+    donationConfirmedCount?: number;
+    donationConfirmedTotal?: number;
+    donationClaimedCount?: number;
+    donationClaimedTotal?: number;
+    combinedConfirmedTotal?: number;
+    combinedClaimedTotal?: number;
+  };
+  participants: Array<{
+    participantId: string | null;
+    participantName: string | null;
+    confirmedCount: number;
+    confirmedTotal: number;
+    claimedCount: number;
+    claimedTotal: number;
+  }>;
+  methods: Array<{
+    methodLabel: string;
+    methodCategory: string;
+    confirmedCount: number;
+    confirmedTotal: number;
+    claimedCount: number;
+    claimedTotal: number;
+  }>;
+}
+
+export interface PeerDirectDonation {
+  id: number | string;
+  peer_fundraiser_id: string;
+  peer_participant_id: string | null;
+  peer_order_id: string | null;
+  participant_name: string | null;
+  donor_name: string | null;
+  donor_email: string | null;
+  amount: number;
+  currency: string;
+  status: 'claimed' | 'confirmed' | 'failed';
+  payment_method_category_snapshot: string;
+  payment_provider_snapshot: string | null;
+  payment_method_label_snapshot: string | null;
+  created_at: string;
+  confirmed_at: string | null;
+}
+
+export interface AvailableSponsoredRoom {
+  room_id: string;
+  game_type: 'sponsored_activity';
+  status: RoomStatus;
+  scheduled_at: string | null;
+  time_zone?: string | null;
+  name: string;
+  description?: string | null;
+  activity_kind: 'walk' | 'run' | 'cycle' | 'swim' | 'readathon' | 'silence' | 'other';
+  suggested_amounts: number[];
+  currency: string;
+}
+
 export interface PeerParticipant {
   id: string;
   peer_fundraiser_id: string;
@@ -420,6 +530,85 @@ class PeerService extends BaseService {
       `/peer-fundraisers/${encodeURIComponent(
         id,
       )}/available-rooms`,
+    );
+  }
+
+  availableSponsoredRooms(id: string) {
+    return this.request<{ rooms: AvailableSponsoredRoom[] }>(
+      `/peer-fundraisers/${encodeURIComponent(id)}/available-sponsored-rooms`,
+    );
+  }
+
+  sponsorshipSummary(id: string) {
+    return this.request<PeerSponsorshipSummary>(
+      `/peer-fundraisers/${encodeURIComponent(id)}/sponsorship-summary`,
+    );
+  }
+
+  sponsorships(id: string) {
+    return this.request<{
+      roomId: string;
+      contributions: PeerSponsorshipContribution[];
+    }>(
+      `/peer-fundraisers/${encodeURIComponent(id)}/sponsorships`,
+    );
+  }
+
+  confirmSponsorship(
+    id: string,
+    contributionId: string,
+  ) {
+    return this.request<{ ok: true }>(
+      `/peer-fundraisers/${encodeURIComponent(
+        id,
+      )}/sponsorships/${encodeURIComponent(
+        contributionId,
+      )}/confirm`,
+      { method: 'PATCH' },
+    );
+  }
+
+  disputeSponsorship(
+    id: string,
+    contributionId: string,
+    reason: string,
+  ) {
+    return this.request<{ ok: true }>(
+      `/peer-fundraisers/${encodeURIComponent(
+        id,
+      )}/sponsorships/${encodeURIComponent(
+        contributionId,
+      )}/dispute`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ reason }),
+      },
+    );
+  }
+
+  paymentReport(id: string) {
+    return this.request<PeerPaymentReport>(
+      `/peer-fundraisers/${encodeURIComponent(id)}/payment-report`,
+    );
+  }
+
+  donations(id: string) {
+    return this.request<{ donations: PeerDirectDonation[] }>(
+      `/peer-fundraisers/${encodeURIComponent(id)}/donations`,
+    );
+  }
+
+  confirmDonation(id: string, donationId: string | number) {
+    return this.request<{ donationId: string; status: 'confirmed' }>(
+      `/peer-fundraisers/${encodeURIComponent(id)}/donations/${encodeURIComponent(String(donationId))}/confirm`,
+      { method: 'PATCH' },
+    );
+  }
+
+  rejectDonation(id: string, donationId: string | number) {
+    return this.request<{ donationId: string; status: 'failed' }>(
+      `/peer-fundraisers/${encodeURIComponent(id)}/donations/${encodeURIComponent(String(donationId))}/reject`,
+      { method: 'PATCH' },
     );
   }
 

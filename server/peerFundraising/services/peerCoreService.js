@@ -1,6 +1,12 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';
 import { updateMethods as updatePeerPaymentMethods } from './peerPaymentMethodsService.js';
+import {
+  listSponsoredContributions,
+  confirmSponsoredContribution,
+  disputeSponsoredContribution,
+} from '../../mgtsystem/services/sponsoredActivityContributionService.js';
+import { createPeerDonationForOrder } from './peerDonationService.js';
 
 const F = `${TABLE_PREFIX}peer_fundraisers`;
 const P = `${TABLE_PREFIX}peer_participants`;
@@ -368,17 +374,531 @@ export async function availableRooms(fid,clubId) {
     }).filter(room=>room.sellable_options.length>0),
   };
 }
-export async function listParticipants(fid,clubId) {
-  await assertFundraiser(fid,clubId);
+
+export async function availableSponsoredRooms(fid,clubId) {
+  const fundraiser=await assertFundraiser(fid,clubId);
+  if(fundraiser.format_type!=='sponsored'){
+    fail('fundraiser_is_not_sponsored',400);
+  }
+
   const [rows]=await connection.execute(
-    `SELECT p.*,COUNT(DISTINCT o.id) order_count,
-      COALESCE(SUM(CASE WHEN o.payment_status='confirmed' THEN o.total_amount ELSE 0 END),0) confirmed_total,
-      COALESCE(SUM(CASE WHEN o.payment_status='claimed' THEN o.total_amount ELSE 0 END),0) claimed_total
-     FROM ${P} p LEFT JOIN ${O} o ON o.participant_id=p.id
-     WHERE p.peer_fundraiser_id=? AND p.club_id=? GROUP BY p.id
-     ORDER BY confirmed_total DESC,p.participant_name`,[fid,clubId]);
-  return { participants:rows };
+    `SELECT r.room_id,r.status,r.scheduled_at,r.time_zone,r.config_json,
+            e.title AS event_title,e.summary AS event_summary,e.description AS event_description
+     FROM ${R} r
+     LEFT JOIN ${TABLE_PREFIX}event_integrations ei
+       ON ei.external_ref=r.room_id
+      AND ei.club_id=r.club_id
+      AND ei.integration_type='sponsored_activity'
+     LEFT JOIN ${TABLE_PREFIX}events e
+       ON e.id=ei.event_id AND e.club_id=r.club_id
+     WHERE r.club_id=?
+       AND r.game_type='sponsored_activity'
+       AND r.status NOT IN ('completed','cancelled')
+     ORDER BY r.created_at DESC`,
+    [clubId]
+  );
+
+  const seen=new Set();
+  return {
+    rooms:rows.filter(row=>{
+      if(seen.has(row.room_id)) return false;
+      seen.add(row.room_id);
+      return true;
+    }).map(row=>{
+      const config=parseJson(row.config_json,{});
+      return {
+        room_id:row.room_id,
+        game_type:'sponsored_activity',
+        status:row.status,
+        scheduled_at:row.scheduled_at,
+        time_zone:row.time_zone,
+        name:row.event_title||config.eventTitle||config.eventName||
+             config.customActivityLabel||config.activityKind||'Sponsored Activity',
+        description:row.event_description||row.event_summary||null,
+        activity_kind:config.activityKind||'other',
+        suggested_amounts:Array.isArray(config.suggestedAmounts)
+          ? config.suggestedAmounts.map(Number).filter(Number.isFinite)
+          : [],
+        currency:config.currency||fundraiser.currency||'EUR',
+      };
+    }),
+  };
 }
+
+
+export async function getPeerSponsorshipSummary(fid,clubId) {
+  const fundraiser=await assertFundraiser(fid,clubId);
+
+  if(fundraiser.format_type!=='sponsored'){
+    fail('fundraiser_is_not_sponsored',400);
+  }
+
+  const settings=parseJson(fundraiser.settings_json,{});
+  const roomId=String(settings.sponsoredRoomId||'').trim()||null;
+
+  const [[totals]]=await connection.execute(
+    `SELECT
+       SUM(status='confirmed') AS confirmed_count,
+       COALESCE(SUM(
+         CASE WHEN status='confirmed' THEN amount ELSE 0 END
+       ),0) AS confirmed_total,
+       SUM(status='claimed') AS claimed_count,
+       COALESCE(SUM(
+         CASE WHEN status='claimed' THEN amount ELSE 0 END
+       ),0) AS claimed_total,
+       SUM(
+         status='confirmed' AND is_anonymous=1
+       ) AS confirmed_anonymous_count,
+       SUM(
+         status='confirmed' AND participant_id IS NULL
+       ) AS confirmed_general_count,
+       COALESCE(SUM(
+         CASE
+           WHEN status='confirmed' AND participant_id IS NULL
+           THEN amount ELSE 0
+         END
+       ),0) AS confirmed_general_total
+     FROM ${TABLE_PREFIX}sponsored_contributions
+     WHERE club_id=?
+       AND peer_fundraiser_id=?`,
+    [clubId,fid]
+  );
+
+  const [participants]=await connection.execute(
+    `SELECT
+       p.id,
+       p.participant_name,
+       p.participant_slug,
+       SUM(c.status='confirmed') AS confirmed_count,
+       COALESCE(SUM(
+         CASE WHEN c.status='confirmed' THEN c.amount ELSE 0 END
+       ),0) AS confirmed_total,
+       SUM(c.status='claimed') AS claimed_count,
+       COALESCE(SUM(
+         CASE WHEN c.status='claimed' THEN c.amount ELSE 0 END
+       ),0) AS claimed_total
+     FROM ${P} p
+     LEFT JOIN ${TABLE_PREFIX}sponsored_contributions c
+       ON c.participant_id=p.id
+      AND c.peer_fundraiser_id=p.peer_fundraiser_id
+     WHERE p.peer_fundraiser_id=?
+       AND p.club_id=?
+     GROUP BY
+       p.id,
+       p.participant_name,
+       p.participant_slug
+     ORDER BY confirmed_total DESC,p.participant_name`,
+    [fid,clubId]
+  );
+
+  return {
+    roomId,
+    summary:{
+      confirmedCount:Number(totals?.confirmed_count||0),
+      confirmedTotal:Number(totals?.confirmed_total||0),
+      claimedCount:Number(totals?.claimed_count||0),
+      claimedTotal:Number(totals?.claimed_total||0),
+      confirmedAnonymousCount:Number(
+        totals?.confirmed_anonymous_count||0
+      ),
+      confirmedGeneralCount:Number(
+        totals?.confirmed_general_count||0
+      ),
+      confirmedGeneralTotal:Number(
+        totals?.confirmed_general_total||0
+      ),
+    },
+    participants:participants.map(row=>({
+      id:row.id,
+      name:row.participant_name,
+      publicSlug:row.participant_slug,
+      confirmedCount:Number(row.confirmed_count||0),
+      confirmedTotal:Number(row.confirmed_total||0),
+      claimedCount:Number(row.claimed_count||0),
+      claimedTotal:Number(row.claimed_total||0),
+    })),
+  };
+}
+
+export async function listPeerSponsorships(fid,clubId) {
+  const fundraiser=await assertFundraiser(fid,clubId);
+  if(fundraiser.format_type!=='sponsored'){
+    fail('fundraiser_is_not_sponsored',400);
+  }
+
+  const settings=parseJson(fundraiser.settings_json,{});
+  const roomId=String(settings.sponsoredRoomId||'').trim();
+  if(!roomId) fail('sponsored_room_not_linked',409);
+
+  const result=await listSponsoredContributions({
+    roomId,
+    clubId,
+    status:'all',
+    search:'',
+  });
+
+  // Automatic payment attempts are deliberately hidden. Peer management
+  // surfaces confirmed income and claimed manual payments needing action.
+  const visible=result.contributions.filter(contribution =>
+    ['confirmed','claimed','disputed'].includes(contribution.status)
+  );
+
+  const participantIds=[
+    ...new Set(
+      visible
+        .map(item=>item.participantId)
+        .filter(Boolean)
+    ),
+  ];
+
+  let participantNames={};
+  if(participantIds.length){
+    const placeholders=participantIds.map(()=>'?').join(',');
+    const [rows]=await connection.execute(
+      `SELECT id,participant_name
+       FROM ${P}
+       WHERE id IN (${placeholders})
+         AND peer_fundraiser_id=?
+         AND club_id=?`,
+      [...participantIds,fid,clubId]
+    );
+    participantNames=Object.fromEntries(
+      rows.map(row=>[row.id,row.participant_name])
+    );
+  }
+
+  return {
+    roomId,
+    contributions:visible.map(item=>({
+      ...item,
+      participantName:item.participantId
+        ? participantNames[item.participantId]||null
+        : null,
+    })),
+  };
+}
+
+async function peerSponsoredContext(fid,clubId) {
+  const fundraiser=await assertFundraiser(fid,clubId);
+  if(fundraiser.format_type!=='sponsored'){
+    fail('fundraiser_is_not_sponsored',400);
+  }
+  const settings=parseJson(fundraiser.settings_json,{});
+  const roomId=String(settings.sponsoredRoomId||'').trim();
+  if(!roomId) fail('sponsored_room_not_linked',409);
+  return {fundraiser,roomId};
+}
+
+export async function confirmPeerSponsorship(
+  fid,
+  clubId,
+  contributionId,
+  confirmer
+) {
+  const {roomId}=await peerSponsoredContext(fid,clubId);
+  return confirmSponsoredContribution({
+    roomId,
+    clubId,
+    contributionId,
+    confirmer,
+  });
+}
+
+export async function disputePeerSponsorship(
+  fid,
+  clubId,
+  contributionId,
+  reason,
+  disputedBy
+) {
+  const {roomId}=await peerSponsoredContext(fid,clubId);
+  return disputeSponsoredContribution({
+    roomId,
+    clubId,
+    contributionId,
+    disputeReason:reason,
+    disputedBy,
+  });
+}
+
+export async function getPeerPaymentReport(fid,clubId) {
+  const fundraiser=await assertFundraiser(fid,clubId);
+
+  if(fundraiser.format_type==='sponsored'){
+    const [[totals]]=await connection.execute(
+      `SELECT
+         SUM(status='confirmed') AS confirmed_count,
+         COALESCE(SUM(
+           CASE WHEN status='confirmed' THEN amount ELSE 0 END
+         ),0) AS confirmed_total,
+         SUM(status='claimed') AS claimed_count,
+         COALESCE(SUM(
+           CASE WHEN status='claimed' THEN amount ELSE 0 END
+         ),0) AS claimed_total,
+         SUM(
+           status='confirmed' AND is_anonymous=1
+         ) AS anonymous_confirmed_count,
+         SUM(
+           status='confirmed' AND is_anonymous=0
+         ) AS named_confirmed_count
+       FROM ${TABLE_PREFIX}sponsored_contributions
+       WHERE club_id=?
+         AND peer_fundraiser_id=?`,
+      [clubId,fid]
+    );
+
+    const [participants]=await connection.execute(
+      `SELECT
+         c.participant_id,
+         COALESCE(p.participant_name,'General fundraiser')
+           AS participant_name,
+         SUM(c.status='confirmed') AS confirmed_count,
+         COALESCE(SUM(
+           CASE WHEN c.status='confirmed' THEN c.amount ELSE 0 END
+         ),0) AS confirmed_total,
+         SUM(c.status='claimed') AS claimed_count,
+         COALESCE(SUM(
+           CASE WHEN c.status='claimed' THEN c.amount ELSE 0 END
+         ),0) AS claimed_total
+       FROM ${TABLE_PREFIX}sponsored_contributions c
+       LEFT JOIN ${P} p
+         ON p.id=c.participant_id
+        AND p.peer_fundraiser_id=c.peer_fundraiser_id
+       WHERE c.club_id=?
+         AND c.peer_fundraiser_id=?
+         AND c.status IN ('confirmed','claimed')
+       GROUP BY c.participant_id,p.participant_name
+       ORDER BY confirmed_total DESC`,
+      [clubId,fid]
+    );
+
+    const [methods]=await connection.execute(
+      `SELECT
+         payment_method_label_snapshot AS method_label,
+         payment_method_category_snapshot AS method_category,
+         SUM(status='confirmed') AS confirmed_count,
+         COALESCE(SUM(
+           CASE WHEN status='confirmed' THEN amount ELSE 0 END
+         ),0) AS confirmed_total,
+         SUM(status='claimed') AS claimed_count,
+         COALESCE(SUM(
+           CASE WHEN status='claimed' THEN amount ELSE 0 END
+         ),0) AS claimed_total
+       FROM ${TABLE_PREFIX}sponsored_contributions
+       WHERE club_id=?
+         AND peer_fundraiser_id=?
+         AND status IN ('confirmed','claimed')
+       GROUP BY
+         payment_method_label_snapshot,
+         payment_method_category_snapshot
+       ORDER BY confirmed_total DESC`,
+      [clubId,fid]
+    );
+
+    return {
+      type:'sponsored',
+      currency:fundraiser.currency||'EUR',
+      totals:{
+        confirmedCount:Number(totals?.confirmed_count||0),
+        confirmedTotal:Number(totals?.confirmed_total||0),
+        claimedCount:Number(totals?.claimed_count||0),
+        claimedTotal:Number(totals?.claimed_total||0),
+        anonymousConfirmedCount:Number(
+          totals?.anonymous_confirmed_count||0
+        ),
+        namedConfirmedCount:Number(
+          totals?.named_confirmed_count||0
+        ),
+      },
+      participants:participants.map(row=>({
+        participantId:row.participant_id,
+        participantName:row.participant_name,
+        confirmedCount:Number(row.confirmed_count||0),
+        confirmedTotal:Number(row.confirmed_total||0),
+        claimedCount:Number(row.claimed_count||0),
+        claimedTotal:Number(row.claimed_total||0),
+      })),
+      methods:methods.map(row=>({
+        methodLabel:row.method_label||row.method_category||'Payment',
+        methodCategory:row.method_category,
+        confirmedCount:Number(row.confirmed_count||0),
+        confirmedTotal:Number(row.confirmed_total||0),
+        claimedCount:Number(row.claimed_count||0),
+        claimedTotal:Number(row.claimed_total||0),
+      })),
+    };
+  }
+
+  const [[totals]]=await connection.execute(
+    `SELECT
+       SUM(payment_status='confirmed') AS confirmed_count,
+       COALESCE(SUM(
+         CASE WHEN payment_status='confirmed'
+           THEN total_amount ELSE 0 END
+       ),0) AS confirmed_total,
+       SUM(payment_status='claimed') AS claimed_count,
+       COALESCE(SUM(
+         CASE WHEN payment_status='claimed'
+           THEN total_amount ELSE 0 END
+       ),0) AS claimed_total
+     FROM ${O}
+     WHERE club_id=?
+       AND peer_fundraiser_id=?`,
+    [clubId,fid]
+  );
+
+  const [participants]=await connection.execute(
+    `SELECT
+       o.participant_id,
+       COALESCE(o.participant_name,'General fundraiser')
+         AS participant_name,
+       SUM(o.payment_status='confirmed') AS confirmed_count,
+       COALESCE(SUM(
+         CASE WHEN o.payment_status='confirmed'
+           THEN o.total_amount ELSE 0 END
+       ),0) AS confirmed_total,
+       SUM(o.payment_status='claimed') AS claimed_count,
+       COALESCE(SUM(
+         CASE WHEN o.payment_status='claimed'
+           THEN o.total_amount ELSE 0 END
+       ),0) AS claimed_total
+     FROM ${O} o
+     WHERE o.club_id=?
+       AND o.peer_fundraiser_id=?
+       AND o.payment_status IN ('confirmed','claimed')
+     GROUP BY o.participant_id,o.participant_name
+     ORDER BY confirmed_total DESC`,
+    [clubId,fid]
+  );
+
+  const [methods]=await connection.execute(
+    `SELECT
+       COALESCE(payment_provider,payment_method_category,'Payment')
+         AS method_label,
+       payment_method_category AS method_category,
+       SUM(payment_status='confirmed') AS confirmed_count,
+       COALESCE(SUM(
+         CASE WHEN payment_status='confirmed'
+           THEN total_amount ELSE 0 END
+       ),0) AS confirmed_total,
+       SUM(payment_status='claimed') AS claimed_count,
+       COALESCE(SUM(
+         CASE WHEN payment_status='claimed'
+           THEN total_amount ELSE 0 END
+       ),0) AS claimed_total
+     FROM ${O}
+     WHERE club_id=?
+       AND peer_fundraiser_id=?
+       AND payment_status IN ('confirmed','claimed')
+     GROUP BY payment_provider,payment_method_category
+     ORDER BY confirmed_total DESC`,
+    [clubId,fid]
+  );
+
+  const [[donationTotals]]=await connection.execute(
+    `SELECT
+       SUM(status='confirmed') AS confirmed_count,
+       COALESCE(SUM(
+         CASE WHEN status='confirmed' THEN amount ELSE 0 END
+       ),0) AS confirmed_total,
+       SUM(status='claimed') AS claimed_count,
+       COALESCE(SUM(
+         CASE WHEN status='claimed' THEN amount ELSE 0 END
+       ),0) AS claimed_total
+     FROM ${TABLE_PREFIX}donations
+     WHERE club_id=?
+       AND peer_fundraiser_id=?`,
+    [clubId,fid]
+  );
+
+  return {
+    type:'sell_activities',
+    currency:fundraiser.currency||'EUR',
+    totals:{
+      confirmedCount:Number(totals?.confirmed_count||0),
+      confirmedTotal:Number(totals?.confirmed_total||0),
+      claimedCount:Number(totals?.claimed_count||0),
+      claimedTotal:Number(totals?.claimed_total||0),
+      donationConfirmedCount:Number(donationTotals?.confirmed_count||0),
+      donationConfirmedTotal:Number(donationTotals?.confirmed_total||0),
+      donationClaimedCount:Number(donationTotals?.claimed_count||0),
+      donationClaimedTotal:Number(donationTotals?.claimed_total||0),
+      combinedConfirmedTotal:Number(totals?.confirmed_total||0)+Number(donationTotals?.confirmed_total||0),
+      combinedClaimedTotal:Number(totals?.claimed_total||0)+Number(donationTotals?.claimed_total||0),
+    },
+    participants:participants.map(row=>({
+      participantId:row.participant_id,
+      participantName:row.participant_name,
+      confirmedCount:Number(row.confirmed_count||0),
+      confirmedTotal:Number(row.confirmed_total||0),
+      claimedCount:Number(row.claimed_count||0),
+      claimedTotal:Number(row.claimed_total||0),
+    })),
+    methods:methods.map(row=>({
+      methodLabel:row.method_label,
+      methodCategory:row.method_category,
+      confirmedCount:Number(row.confirmed_count||0),
+      confirmedTotal:Number(row.confirmed_total||0),
+      claimedCount:Number(row.claimed_count||0),
+      claimedTotal:Number(row.claimed_total||0),
+    })),
+  };
+}
+
+export async function listParticipants(fid,clubId) {
+  const fundraiser=await assertFundraiser(fid,clubId);
+
+  if(fundraiser.format_type==='sponsored'){
+    const [rows]=await connection.execute(
+      `SELECT
+         p.*,
+         SUM(c.status='confirmed') AS confirmed_count,
+         COALESCE(SUM(
+           CASE WHEN c.status='confirmed' THEN c.amount ELSE 0 END
+         ),0) AS confirmed_total,
+         SUM(c.status='claimed') AS claimed_count,
+         COALESCE(SUM(
+           CASE WHEN c.status='claimed' THEN c.amount ELSE 0 END
+         ),0) AS claimed_total
+       FROM ${P} p
+       LEFT JOIN ${TABLE_PREFIX}sponsored_contributions c
+         ON c.participant_id=p.id
+        AND c.peer_fundraiser_id=p.peer_fundraiser_id
+       WHERE p.peer_fundraiser_id=?
+         AND p.club_id=?
+       GROUP BY p.id
+       ORDER BY confirmed_total DESC,p.participant_name`,
+      [fid,clubId]
+    );
+    return {participants:rows};
+  }
+
+  const [rows]=await connection.execute(
+    `SELECT
+       p.*,
+       SUM(o.payment_status='confirmed') AS confirmed_count,
+       COALESCE(SUM(
+         CASE WHEN o.payment_status='confirmed'
+           THEN o.total_amount ELSE 0 END
+       ),0) AS confirmed_total,
+       SUM(o.payment_status='claimed') AS claimed_count,
+       COALESCE(SUM(
+         CASE WHEN o.payment_status='claimed'
+           THEN o.total_amount ELSE 0 END
+       ),0) AS claimed_total
+     FROM ${P} p
+     LEFT JOIN ${O} o
+       ON o.participant_id=p.id
+      AND o.peer_fundraiser_id=p.peer_fundraiser_id
+     WHERE p.peer_fundraiser_id=?
+       AND p.club_id=?
+     GROUP BY p.id
+     ORDER BY confirmed_total DESC,p.participant_name`,
+    [fid,clubId]
+  );
+  return {participants:rows};
+}
+
 export async function createParticipant(fid,clubId,b) {
   await assertFundraiser(fid,clubId);
   if (!b?.participantName?.trim()) fail('participant_name_required');
@@ -785,7 +1305,83 @@ export async function publicPayload(clubSlug,fundraiserSlug,participantSlug=null
       return true;
     });
   }
-  return { club,fundraiser,participant,packs:packs.map(p=>({...p,items:items.filter(i=>i.pack_id===p.id).map(i=>{
+  const fundraiserSettings=parseJson(fundraiser.settings_json,{});
+  const sponsoredRoomId=fundraiser.format_type==='sponsored'
+    ? String(fundraiserSettings.sponsoredRoomId||'').trim()||null
+    : null;
+  let sponsoredRoom=null;
+
+  if(sponsoredRoomId){
+    const [sRows]=await connection.execute(
+      `SELECT room_id,status,config_json
+       FROM ${R}
+       WHERE room_id=? AND club_id=? AND game_type='sponsored_activity'
+       LIMIT 1`,
+      [sponsoredRoomId,club.id]
+    );
+    if(sRows[0]){
+      const config=parseJson(sRows[0].config_json,{});
+      sponsoredRoom={
+        roomId:sRows[0].room_id,
+        status:sRows[0].status,
+        activityKind:config.activityKind||'other',
+        customActivityLabel:config.customActivityLabel||null,
+        suggestedAmounts:config.suggestedAmounts||[],
+        currency:config.currency||fundraiser.currency||'EUR',
+      };
+    }
+  }
+
+  let sponsorshipSummary={
+    confirmedTotal:0,
+    confirmedCount:0,
+  };
+
+  if(fundraiser.format_type==='sponsored'){
+    const [[summaryRow]]=await connection.execute(
+      `SELECT
+         COALESCE(SUM(
+           CASE WHEN status='confirmed' THEN amount ELSE 0 END
+         ),0) AS confirmed_total,
+         SUM(status='confirmed') AS confirmed_count
+       FROM ${TABLE_PREFIX}sponsored_contributions
+       WHERE club_id=?
+         AND peer_fundraiser_id=?
+         AND (? IS NULL OR participant_id=?)`,
+      [
+        club.id,
+        fundraiser.id,
+        participant?.id||null,
+        participant?.id||null,
+      ]
+    );
+
+    sponsorshipSummary={
+      confirmedTotal:Number(summaryRow?.confirmed_total||0),
+      confirmedCount:Number(summaryRow?.confirmed_count||0),
+    };
+  }
+
+  return {
+    club,
+    fundraiser:{
+      ...fundraiser,
+      settings:fundraiserSettings,
+      sponsorship_total:sponsorshipSummary.confirmedTotal,
+      sponsor_count:sponsorshipSummary.confirmedCount,
+    },
+    participant:participant
+      ? {
+          ...participant,
+          sponsorship_total:sponsorshipSummary.confirmedTotal,
+          sponsor_count:sponsorshipSummary.confirmedCount,
+        }
+      : null,
+    sponsoredRoom,
+    supporterExperience:fundraiser.format_type==='sponsored'
+      ? 'sponsorship'
+      : 'sell_activities',
+    packs:packs.map(p=>({...p,items:items.filter(i=>i.pack_id===p.id).map(i=>{
     const config = parseJson(i.config_json,{});
     const fallbackName = config.eventName||config.eventTitle||config.quizName||i.target_room_id;
     return {
@@ -814,6 +1410,8 @@ export async function createOrder(fid,b) {
   const [packs]=await connection.execute(`SELECT * FROM ${PK} WHERE id IN (${ph}) AND peer_fundraiser_id=? AND club_id=? AND is_active=1`,[...ids,fid,fund.club_id]);
   const map=Object.fromEntries(packs.map(p=>[p.id,p])); let total=0;
   const lines=b.items.map(i=>{const p=map[i.packId];if(!p)fail('pack_not_found',404);const q=Math.max(1,Number(i.quantity||1));const t=Number(p.price)*q;total+=t;return{p,q,t};});
+  const donationAmount=Math.max(0,Number(b.donationAmount||0));
+  if(!Number.isFinite(donationAmount) || donationAmount>10000) fail('invalid_donation_amount');
   const orderId=id(),conn=await connection.getConnection();
   try{
     await conn.beginTransaction();
@@ -852,32 +1450,48 @@ export async function createOrder(fid,b) {
       `INSERT INTO ${O}
        (id,peer_fundraiser_id,club_id,participant_id,participant_name,supporter_name,supporter_email,
         supporter_phone,club_payment_method_id,payment_method_category,payment_provider,payment_reference,
-        payment_status,subtotal_amount,total_amount,currency,source)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        payment_status,subtotal_amount,total_amount,donation_amount,currency,source)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [orderId,fid,fund.club_id,participant?.id||null,participant?.participant_name||null,b.supporterName.trim(),
        b.supporterEmail.trim().toLowerCase(),b.supporterPhone?.trim()||null,b.clubPaymentMethodId||null,
        normalisePaymentCategory(b.paymentMethodCategory,b.paymentProvider),b.paymentProvider||null,b.paymentReference||null,'pending',
-       total,total,fund.currency||'EUR',participant?'participant_link':'fundraiser_page']);
+       total,total,donationAmount,fund.currency||'EUR',participant?'participant_link':'fundraiser_page']);
     for(const l of lines) await conn.execute(
       `INSERT INTO ${OI}
        (id,order_id,peer_fundraiser_id,club_id,pack_id,pack_name_snapshot,pack_description_snapshot,unit_price,quantity,line_total)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
       [id(),orderId,fid,fund.club_id,l.p.id,l.p.name,l.p.description||null,Number(l.p.price),l.q,l.t]);
-    await conn.commit(); return { orderId,totalAmount:total,currency:fund.currency||'EUR' };
+    await conn.commit(); return { orderId,totalAmount:total,donationAmount,payableAmount:total+donationAmount,currency:fund.currency||'EUR' };
   }catch(e){await conn.rollback();throw e;}finally{conn.release();}
 }
 export async function claimOrder(orderId,b={}) {
-  const [r]=await connection.execute(
-    `UPDATE ${O} SET payment_status='claimed',payment_reference=COALESCE(?,payment_reference),
-     club_payment_method_id=COALESCE(?,club_payment_method_id)
-     WHERE id=? AND payment_status='pending'`,
-    [b.paymentReference||null,b.clubPaymentMethodId||null,orderId]);
-  if(!r.affectedRows) fail('order_not_claimable');
+  const conn=await connection.getConnection();
+  try{
+    await conn.beginTransaction();
+    const [r]=await conn.execute(
+      `UPDATE ${O}
+       SET payment_status='claimed',
+           payment_reference=COALESCE(?,payment_reference),
+           club_payment_method_id=COALESCE(?,club_payment_method_id)
+       WHERE id=? AND payment_status='pending'`,
+      [b.paymentReference||null,b.clubPaymentMethodId||null,orderId]
+    );
+    if(!r.affectedRows) fail('order_not_claimable');
 
-  // Fired here (server-side, right on claim) rather than depending on the
-  // frontend hitting a separate "send confirmation email" route after the
-  // fact — more robust if the supporter closes the tab before the thank-you
-  // screen finishes loading. Peer had no order-confirmation email at all.
+    await createPeerDonationForOrder({
+      orderId,
+      status:'claimed',
+      conn,
+    });
+
+    await conn.commit();
+  }catch(e){
+    await conn.rollback();
+    throw e;
+  }finally{
+    conn.release();
+  }
+
   try {
     const { sendPeerOrderConfirmationEmail } = await import('./peerOrderEmailService.js');
     await sendPeerOrderConfirmationEmail(orderId);
@@ -933,6 +1547,8 @@ export async function getPublicOrderSummary(orderId) {
       paymentMethodCategory: order.payment_method_category,
       paymentReference: order.payment_reference,
       totalAmount: Number(order.total_amount),
+      donationAmount: Number(order.donation_amount||0),
+      payableAmount: Number(order.total_amount)+Number(order.donation_amount||0),
       currency: order.currency,
       fulfilmentStatus:
         parseJson(order.metadata_json,{}).fulfilmentStatus ||
@@ -991,6 +1607,7 @@ export async function listOrders(fid,clubId) {
        ON e.order_id=o.id
      WHERE o.peer_fundraiser_id=?
        AND o.club_id=?
+       AND o.payment_status IN ('confirmed','claimed')
      GROUP BY o.id
      ORDER BY o.created_at DESC`,
     [fid,clubId],
