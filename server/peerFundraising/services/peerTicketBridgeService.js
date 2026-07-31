@@ -11,6 +11,291 @@ const gameTypeFromItemType = itemType => itemType === 'elimination_entry' ? 'eli
 const paymentMethod = cat => ({stripe:'stripe',crypto:'crypto',instant_payment:'instant_payment',bank_transfer:'instant_payment',cash_to_participant:'cash',cash:'cash',card:'card',card_tap:'card_tap'}[cat] || 'other');
 const paymentSource = cat => cat === 'stripe' ? 'webhook_auto' : cat === 'crypto' ? 'onchain_auto' : 'admin_assigned';
 
+
+/**
+ * Send the ticket email for an already-created peer entry.
+ *
+ * This is intentionally separate from ticket creation because Pass 6F
+ * pre-creates blocked/payment_claimed tickets to reserve capacity before
+ * Stripe Checkout opens. Once Stripe confirms, those tickets already exist,
+ * so createTicketForPeerEntry() is skipped and cannot be relied on to send
+ * the email.
+ *
+ * The metadata lock prevents duplicate delivery when Stripe sends both
+ * checkout.session.completed and payment_intent.succeeded.
+ */
+export async function sendPeerEntryTicketEmail(
+  entryId,
+  { forceRetry = false } = {},
+) {
+  const conn = await connection.getConnection();
+  let entry;
+  try {
+    await conn.beginTransaction();
+
+    const [rows] = await conn.execute(
+      `SELECT
+         id,
+         linked_ticket_id,
+         status,
+         metadata_json
+       FROM ${E}
+       WHERE id=?
+       LIMIT 1
+       FOR UPDATE`,
+      [entryId],
+    );
+
+    entry = rows[0];
+    if (!entry) {
+      await conn.rollback();
+      throw new Error('peer_entry_not_found');
+    }
+    if (!entry.linked_ticket_id) {
+      await conn.rollback();
+      return {
+        entryId,
+        sent: false,
+        skipped: true,
+        reason: 'no_linked_ticket',
+      };
+    }
+    if (entry.status !== 'confirmed') {
+      await conn.rollback();
+      return {
+        entryId,
+        sent: false,
+        skipped: true,
+        reason: 'entry_not_confirmed',
+      };
+    }
+
+    const metadata = parseJson(entry.metadata_json, {});
+    if (metadata.ticketEmailSentAt && !forceRetry) {
+      await conn.rollback();
+      return {
+        entryId,
+        ticketId: entry.linked_ticket_id,
+        sent: false,
+        skipped: true,
+        reason: 'already_sent',
+      };
+    }
+
+    // A second Stripe event can arrive while the first email is in flight.
+    // Treat a recent sending marker as an active lock. A retry action may
+    // override a stale/failed marker.
+    const sendingAt = metadata.ticketEmailSendingAt
+      ? new Date(metadata.ticketEmailSendingAt).getTime()
+      : 0;
+    const sendingRecently =
+      Number.isFinite(sendingAt) &&
+      sendingAt > Date.now() - (5 * 60 * 1000);
+
+    if (sendingRecently && !forceRetry) {
+      await conn.rollback();
+      return {
+        entryId,
+        ticketId: entry.linked_ticket_id,
+        sent: false,
+        skipped: true,
+        reason: 'send_in_progress',
+      };
+    }
+
+    await conn.execute(
+      `UPDATE ${E}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.ticketEmailSendingAt', UTC_TIMESTAMP(),
+         '$.ticketEmailError', NULL,
+         '$.ticketEmailFailedAt', NULL
+       )
+       WHERE id=?`,
+      [entryId],
+    );
+
+    await conn.commit();
+  } catch (error) {
+    try { await conn.rollback(); } catch {}
+    throw error;
+  } finally {
+    conn.release();
+  }
+
+  const ticketId = entry.linked_ticket_id;
+
+  try {
+    const {
+      getTicketWithRoomConfig,
+      sendTicketConfirmationEmail,
+    } = await import('../../utils/ticketEmail.js');
+
+    const ticketRow = await getTicketWithRoomConfig(ticketId);
+    if (!ticketRow) {
+      throw new Error('linked_ticket_not_found');
+    }
+
+    const roomConfigForEmail = parseJson(
+      ticketRow.config_json,
+      {},
+    );
+    const gameType = ticketRow.game_type || 'quiz';
+
+    const emailDetails = {
+      ticketId,
+      purchaserEmail: ticketRow.purchaser_email,
+      purchaserName: ticketRow.purchaser_name,
+      playerName: ticketRow.player_name,
+      entryFee: ticketRow.entry_fee,
+      extrasTotal: ticketRow.extras_total,
+      totalAmount: ticketRow.total_amount,
+      currency: ticketRow.currency,
+      currencySymbol:
+        roomConfigForEmail.currencySymbol || '€',
+      clubId: ticketRow.club_id,
+      clubName: ticketRow.club_name || null,
+      eventTitle:
+        roomConfigForEmail.eventTitle ||
+        roomConfigForEmail.eventName ||
+        null,
+      eventLocation:
+        roomConfigForEmail.eventLocation ||
+        roomConfigForEmail.venue ||
+        null,
+      eventDateTime:
+        roomConfigForEmail.eventDateTime ||
+        roomConfigForEmail.startsAt ||
+        null,
+      timeZone:
+        roomConfigForEmail.timeZone ||
+        ticketRow.time_zone ||
+        null,
+    };
+
+    if (gameType === 'ticketed_event') {
+      const {
+        sendTicketedEventConfirmationEmail,
+      } = await import('../../utils/ticketedEventEmail.js');
+
+      await sendTicketedEventConfirmationEmail(
+        emailDetails,
+      );
+    } else {
+      await sendTicketConfirmationEmail({
+        ...emailDetails,
+        extras: parseJson(ticketRow.extras, []),
+        hostName:
+          roomConfigForEmail.hostName || null,
+        gameType,
+      });
+    }
+
+    await connection.execute(
+      `UPDATE ${E}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.ticketEmailSentAt', UTC_TIMESTAMP(),
+         '$.ticketEmailSendingAt', NULL,
+         '$.ticketEmailError', NULL,
+         '$.ticketEmailFailedAt', NULL
+       )
+       WHERE id=?`,
+      [entryId],
+    );
+
+    console.log(
+      '[PeerTicketBridge] Ticket email sent:',
+      { entryId, ticketId, recipient: ticketRow.purchaser_email },
+    );
+
+    return {
+      entryId,
+      ticketId,
+      sent: true,
+      skipped: false,
+    };
+  } catch (emailError) {
+    await connection.execute(
+      `UPDATE ${E}
+       SET metadata_json=JSON_SET(
+         COALESCE(metadata_json,'{}'),
+         '$.ticketEmailSendingAt', NULL,
+         '$.ticketEmailError', ?,
+         '$.ticketEmailFailedAt', UTC_TIMESTAMP()
+       )
+       WHERE id=?`,
+      [String(emailError.message || emailError), entryId],
+    );
+
+    console.error(
+      '[PeerTicketBridge] Ticket email failed (non-fatal):',
+      {
+        entryId,
+        ticketId,
+        error: emailError.message,
+      },
+    );
+
+    return {
+      entryId,
+      ticketId,
+      sent: false,
+      skipped: false,
+      error: emailError.message,
+    };
+  }
+}
+
+/**
+ * Retry ticket emails for confirmed entries on one peer order.
+ * Used by the existing Retry fulfilment management action.
+ */
+export async function retryMissingPeerTicketEmails(orderId) {
+  const [rows] = await connection.execute(
+    `SELECT
+       id,
+       metadata_json
+     FROM ${E}
+     WHERE order_id=?
+       AND status='confirmed'
+       AND linked_ticket_id IS NOT NULL
+     ORDER BY created_at`,
+    [orderId],
+  );
+
+  const results = [];
+  for (const row of rows) {
+    const metadata = parseJson(row.metadata_json, {});
+    if (metadata.ticketEmailSentAt) {
+      results.push({
+        entryId: row.id,
+        sent: false,
+        skipped: true,
+        reason: 'already_sent',
+      });
+      continue;
+    }
+
+    results.push(
+      await sendPeerEntryTicketEmail(
+        row.id,
+        { forceRetry: true },
+      ),
+    );
+  }
+
+  return {
+    attempted: results.filter(result => !result.skipped).length,
+    sent: results.filter(result => result.sent).length,
+    failed: results.filter(
+      result => !result.sent && !result.skipped,
+    ).length,
+    skipped: results.filter(result => result.skipped).length,
+    results,
+  };
+}
+
 export async function createTicketForPeerEntry(entryId, context) {
   const {
     order,
@@ -396,95 +681,7 @@ export async function createTicketForPeerEntry(entryId, context) {
     });
   }
 
-  const entryMetadata = parseJson(
-    existingEntry?.metadata_json,
-    {},
-  );
-
-  if(!entryMetadata.ticketEmailSentAt){
-  try {
-    const {
-      getTicketWithRoomConfig,
-      sendTicketConfirmationEmail,
-    } = await import('../../utils/ticketEmail.js');
-
-    const ticketRow =
-      await getTicketWithRoomConfig(ticketId);
-
-    if (ticketRow) {
-      const roomConfigForEmail = parseJson(
-        ticketRow.config_json,
-        {},
-      );
-
-      const emailDetails = {
-        ticketId,
-        purchaserEmail: ticketRow.purchaser_email,
-        purchaserName: ticketRow.purchaser_name,
-        playerName: ticketRow.player_name,
-        entryFee: ticketRow.entry_fee,
-        extrasTotal: ticketRow.extras_total,
-        totalAmount: ticketRow.total_amount,
-        currency: ticketRow.currency,
-        currencySymbol:
-          roomConfigForEmail.currencySymbol || '€',
-        clubId: ticketRow.club_id,
-        clubName: ticketRow.club_name || null,
-        eventTitle:
-          roomConfigForEmail.eventTitle ||
-          roomConfigForEmail.eventName ||
-          null,
-        eventLocation:
-          roomConfigForEmail.eventLocation ||
-          roomConfigForEmail.venue ||
-          null,
-        eventDateTime:
-          roomConfigForEmail.eventDateTime ||
-          roomConfigForEmail.startsAt ||
-          null,
-        timeZone:
-          roomConfigForEmail.timeZone ||
-          ticketRow.time_zone ||
-          null,
-      };
-
-      if (gameType === 'ticketed_event') {
-        const {
-          sendTicketedEventConfirmationEmail,
-        } = await import(
-          '../../utils/ticketedEventEmail.js'
-        );
-
-        await sendTicketedEventConfirmationEmail(
-          emailDetails,
-        );
-      } else {
-        await sendTicketConfirmationEmail({
-          ...emailDetails,
-          extras: parseJson(ticketRow.extras, []),
-          hostName:
-            roomConfigForEmail.hostName || null,
-          gameType,
-        });
-      }
-    }
-    await connection.execute(
-      `UPDATE ${E}
-       SET metadata_json=JSON_SET(
-         COALESCE(metadata_json,'{}'),
-         '$.ticketEmailSentAt',
-         UTC_TIMESTAMP()
-       )
-       WHERE id=?`,
-      [entryId],
-    );
-  } catch (emailError) {
-    console.error(
-      '[PeerTicketBridge] Ticket email failed (non-fatal):',
-      emailError.message,
-    );
-  }
-  }
+  await sendPeerEntryTicketEmail(entryId);
 
   return {
     ticketId,

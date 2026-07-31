@@ -1,6 +1,9 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { expandPeerOrder } from './peerEntryExpansionService.js';
-import { blockTicketForPeerEntry } from './peerTicketBridgeService.js';
+import {
+  blockTicketForPeerEntry,
+  retryMissingPeerTicketEmails,
+} from './peerTicketBridgeService.js';
 import { reservePeerOrderTickets, confirmPeerOrderReservations, cancelPeerOrderReservations } from './peerTicketReservationService.js';
 import {
   checkPeerOrderAllocation,
@@ -298,6 +301,7 @@ export async function retryPeerOrderFulfilment(
 
   try {
     const expansion=await expandPeerOrder(orderId);
+    const ticketEmails=await retryMissingPeerTicketEmails(orderId);
     const allocation=await completeFulfilmentState(orderId);
 
     const [updated]=await connection.execute(
@@ -308,6 +312,7 @@ export async function retryPeerOrderFulfilment(
     return {
       order:updated[0],
       expansion,
+      ticketEmails,
       allocation,
     };
   } catch(error) {
