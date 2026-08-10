@@ -259,6 +259,7 @@ export interface PeerParticipant {
   personal_target: number | null;
   personal_message: string | null;
   profile_image_url: string | null;
+  video_url: string | null;
   is_active: boolean | number;
   notes: string | null;
   order_count?: number;
@@ -276,6 +277,7 @@ export interface CreatePeerParticipantPayload {
   personalTarget?: number | null;
   personalMessage?: string | null;
   profileImageUrl?: string | null;
+  videoUrl?: string | null;
   notes?: string | null;
 }
 
@@ -481,396 +483,100 @@ export interface StripeCheckoutResponse {
 
 class PeerService extends BaseService {
   list() {
-    return this.request<{
-      fundraisers: PeerFundraiser[];
-    }>('/peer-fundraisers');
+    return this.request<{ fundraisers: PeerFundraiser[]; }>('/peer-fundraisers');
   }
-
   create(body: CreatePeerFundraiserPayload) {
-    return this.request<{
-      fundraiser: PeerFundraiser;
-    }>('/peer-fundraisers', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
+    return this.request<{ fundraiser: PeerFundraiser; }>('/peer-fundraisers', { method: 'POST', body: JSON.stringify(body) });
   }
-
-  // Club-level — no fundraiser id needed. Used by the create form so
-  // payment methods can be picked before the fundraiser exists.
   getAvailablePaymentMethods() {
-    return this.request<PeerAvailablePaymentMethodsResponse>(
-      '/peer-fundraisers/available-payment-methods',
-    );
+    return this.request<PeerAvailablePaymentMethodsResponse>('/peer-fundraisers/available-payment-methods');
   }
-
   get(id: string) {
-    return this.request<{
-      fundraiser: PeerFundraiser;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}`,
-    );
+    return this.request<{ fundraiser: PeerFundraiser; }>(`/peer-fundraisers/${encodeURIComponent(id)}`);
   }
-
-  update(
-    id: string,
-    body: UpdatePeerFundraiserPayload,
-  ) {
-    return this.request<{
-      fundraiser: PeerFundraiser;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      },
-    );
+  update(id: string, body: UpdatePeerFundraiserPayload) {
+    return this.request<{ fundraiser: PeerFundraiser; }>(`/peer-fundraisers/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) });
   }
-
   rooms(id: string) {
-    return this.request<{
-      rooms: AvailableRoom[];
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/available-rooms`,
-    );
+    return this.request<{ rooms: AvailableRoom[]; }>(`/peer-fundraisers/${encodeURIComponent(id)}/available-rooms`);
   }
-
   availableSponsoredRooms(id: string) {
-    return this.request<{ rooms: AvailableSponsoredRoom[] }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/available-sponsored-rooms`,
-    );
+    return this.request<{ rooms: AvailableSponsoredRoom[] }>(`/peer-fundraisers/${encodeURIComponent(id)}/available-sponsored-rooms`);
   }
-
   sponsorshipSummary(id: string) {
-    return this.request<PeerSponsorshipSummary>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/sponsorship-summary`,
-    );
+    return this.request<PeerSponsorshipSummary>(`/peer-fundraisers/${encodeURIComponent(id)}/sponsorship-summary`);
   }
-
   sponsorships(id: string) {
-    return this.request<{
-      roomId: string;
-      contributions: PeerSponsorshipContribution[];
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/sponsorships`,
-    );
+    return this.request<{ roomId: string | null; linked?: boolean; contributions: PeerSponsorshipContribution[]; }>(`/peer-fundraisers/${encodeURIComponent(id)}/sponsorships`);
   }
-
-  confirmSponsorship(
-    id: string,
-    contributionId: string,
-  ) {
-    return this.request<{ ok: true }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/sponsorships/${encodeURIComponent(
-        contributionId,
-      )}/confirm`,
-      { method: 'PATCH' },
-    );
+  confirmSponsorship(id: string, contributionId: string) {
+    return this.request<{ ok: true }>(`/peer-fundraisers/${encodeURIComponent(id)}/sponsorships/${encodeURIComponent(contributionId)}/confirm`, { method: 'PATCH' });
   }
-
-  disputeSponsorship(
-    id: string,
-    contributionId: string,
-    reason: string,
-  ) {
-    return this.request<{ ok: true }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/sponsorships/${encodeURIComponent(
-        contributionId,
-      )}/dispute`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ reason }),
-      },
-    );
+  disputeSponsorship(id: string, contributionId: string, reason: string) {
+    return this.request<{ ok: true }>(`/peer-fundraisers/${encodeURIComponent(id)}/sponsorships/${encodeURIComponent(contributionId)}/dispute`, { method: 'PATCH', body: JSON.stringify({ reason }) });
   }
-
   paymentReport(id: string) {
-    return this.request<PeerPaymentReport>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/payment-report`,
-    );
+    return this.request<PeerPaymentReport>(`/peer-fundraisers/${encodeURIComponent(id)}/payment-report`);
   }
-
   donations(id: string) {
-    return this.request<{ donations: PeerDirectDonation[] }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/donations`,
-    );
+    return this.request<{ donations: PeerDirectDonation[] }>(`/peer-fundraisers/${encodeURIComponent(id)}/donations`);
   }
-
   confirmDonation(id: string, donationId: string | number) {
-    return this.request<{ donationId: string; status: 'confirmed' }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/donations/${encodeURIComponent(String(donationId))}/confirm`,
-      { method: 'PATCH' },
-    );
+    return this.request<{ donationId: string; status: 'confirmed' }>(`/peer-fundraisers/${encodeURIComponent(id)}/donations/${encodeURIComponent(String(donationId))}/confirm`, { method: 'PATCH' });
   }
-
   rejectDonation(id: string, donationId: string | number) {
-    return this.request<{ donationId: string; status: 'failed' }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/donations/${encodeURIComponent(String(donationId))}/reject`,
-      { method: 'PATCH' },
-    );
+    return this.request<{ donationId: string; status: 'failed' }>(`/peer-fundraisers/${encodeURIComponent(id)}/donations/${encodeURIComponent(String(donationId))}/reject`, { method: 'PATCH' });
   }
-
   participants(id: string) {
-    return this.request<{
-      participants: PeerParticipant[];
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/participants`,
-    );
+    return this.request<{ participants: PeerParticipant[]; }>(`/peer-fundraisers/${encodeURIComponent(id)}/participants`);
   }
-
-  addParticipant(
-    id: string,
-    body: CreatePeerParticipantPayload,
-  ) {
-    return this.request<{
-      participantId: string;
-      participantSlug: string;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/participants`,
-      {
-        method: 'POST',
-        body: JSON.stringify(body),
-      },
-    );
+  addParticipant(id: string, body: CreatePeerParticipantPayload) {
+    return this.request<{ participantId: string; participantSlug: string; }>(`/peer-fundraisers/${encodeURIComponent(id)}/participants`, { method: 'POST', body: JSON.stringify(body) });
   }
-
-  updateParticipant(
-    id: string,
-    participantId: string,
-    body: UpdatePeerParticipantPayload,
-  ) {
-    return this.request<{
-      participant?: PeerParticipant;
-      participantId?: string;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/participants/${encodeURIComponent(
-        participantId,
-      )}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      },
-    );
+  updateParticipant(id: string, participantId: string, body: UpdatePeerParticipantPayload) {
+    return this.request<{ participant?: PeerParticipant; participantId?: string; }>(`/peer-fundraisers/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantId)}`, { method: 'PATCH', body: JSON.stringify(body) });
   }
-
   deleteParticipant(id: string, participantId: string) {
-    return this.request<{ deleted: boolean; deactivated: boolean }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantId)}`,
-      { method: 'DELETE' },
-    );
+    return this.request<{ deleted: boolean; deactivated: boolean }>(`/peer-fundraisers/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantId)}`, { method: 'DELETE' });
   }
-
   packs(id: string) {
-    return this.request<{
-      packs: PeerPack[];
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/packs`,
-    );
+    return this.request<{ packs: PeerPack[]; }>(`/peer-fundraisers/${encodeURIComponent(id)}/packs`);
   }
-
-  addPack(
-    id: string,
-    body: SavePeerPackPayload,
-  ) {
-    return this.request<{
-      packId: string;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/packs`,
-      {
-        method: 'POST',
-        body: JSON.stringify(body),
-      },
-    );
+  addPack(id: string, body: SavePeerPackPayload) {
+    return this.request<{ packId: string; }>(`/peer-fundraisers/${encodeURIComponent(id)}/packs`, { method: 'POST', body: JSON.stringify(body) });
   }
-
-  updatePack(
-    id: string,
-    packId: string,
-    body: SavePeerPackPayload,
-  ) {
-    return this.request<{
-      packId: string;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/packs/${encodeURIComponent(packId)}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      },
-    );
+  updatePack(id: string, packId: string, body: SavePeerPackPayload) {
+    return this.request<{ packId: string; }>(`/peer-fundraisers/${encodeURIComponent(id)}/packs/${encodeURIComponent(packId)}`, { method: 'PATCH', body: JSON.stringify(body) });
   }
-
   hidePack(id: string, packId: string) {
-    return this.request<{ ok: boolean }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/packs/${encodeURIComponent(packId)}/hide`,
-      { method: 'POST' },
-    );
+    return this.request<{ ok: boolean }>(`/peer-fundraisers/${encodeURIComponent(id)}/packs/${encodeURIComponent(packId)}/hide`, { method: 'POST' });
   }
-
   duplicatePack(id: string, packId: string) {
-    return this.request<{ packId: string }>(
-      `/peer-fundraisers/${encodeURIComponent(id)}/packs/${encodeURIComponent(packId)}/duplicate`,
-      { method: 'POST' },
-    );
+    return this.request<{ packId: string }>(`/peer-fundraisers/${encodeURIComponent(id)}/packs/${encodeURIComponent(packId)}/duplicate`, { method: 'POST' });
   }
-
-
   orders(id: string) {
-    return this.request<{
-      orders: PeerOrder[];
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/orders`,
-    );
+    return this.request<{ orders: PeerOrder[]; }>(`/peer-fundraisers/${encodeURIComponent(id)}/orders`);
   }
-
-  /**
-   * Confirm a manual (cash / instant payment) order.
-   *
-   * Verifies the order belongs to this fundraiser + your club, flips it
-   * to confirmed, and fully expands it — creates peer_entries, quiz_tickets
-   * and join links. (Previously this endpoint only flipped the status and
-   * never expanded anything — fixed on the backend, method kept the same
-   * name since the route now does the right thing.)
-   */
-  confirm(
-    id: string,
-    orderId: string,
-  ) {
-    return this.request<{
-      order: PeerOrder;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/orders/${encodeURIComponent(
-        orderId,
-      )}/confirm`,
-      {
-        method: 'POST',
-      },
-    );
+  confirm(id: string, orderId: string) {
+    return this.request<{ order: PeerOrder; }>(`/peer-fundraisers/${encodeURIComponent(id)}/orders/${encodeURIComponent(orderId)}/confirm`, { method: 'POST' });
   }
-
-  /**
-   * Reject a manual order that shouldn't be confirmed (e.g. cash never
-   * arrived, duplicate order). Cancels the order and any pending entries
-   * already created for it.
-   */
-  rejectOrder(
-    id: string,
-    orderId: string,
-    reason?: string,
-  ) {
-    return this.request<{
-      order: PeerOrder;
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/orders/${encodeURIComponent(
-        orderId,
-      )}/reject`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ reason }),
-      },
-    );
+  rejectOrder(id: string, orderId: string, reason?: string) {
+    return this.request<{ order: PeerOrder; }>(`/peer-fundraisers/${encodeURIComponent(id)}/orders/${encodeURIComponent(orderId)}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
   }
-
-  retryFulfilment(
-    id: string,
-    orderId: string,
-  ) {
-    return this.request<{
-      order: PeerOrder;
-      expansion: {
-        createdCount?: number;
-        duplicate?: boolean;
-      };
-      allocation: {
-        status: 'balanced' | 'out_of_balance';
-        orderTotal: number;
-        ledgerTotal: number;
-        difference: number;
-      };
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/orders/${encodeURIComponent(
-        orderId,
-      )}/retry-fulfilment`,
-      {
-        method: 'POST',
-      },
-    );
+  retryFulfilment(id: string, orderId: string) {
+    return this.request<{ order: PeerOrder; expansion: { createdCount?: number; duplicate?: boolean; }; allocation: { status: 'balanced' | 'out_of_balance'; orderTotal: number; ledgerTotal: number; difference: number; }; }>(`/peer-fundraisers/${encodeURIComponent(id)}/orders/${encodeURIComponent(orderId)}/retry-fulfilment`, { method: 'POST' });
   }
-
   paymentMethods(id: string) {
-    return this.request<PeerPaymentMethodsResponse>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/payment-methods`,
-    );
+    return this.request<PeerPaymentMethodsResponse>(`/peer-fundraisers/${encodeURIComponent(id)}/payment-methods`);
   }
-
-  savePaymentMethods(
-    id: string,
-    paymentMethodIds: number[],
-  ) {
-    return this.request<{
-      selectedPaymentMethodIds: number[];
-    }>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/payment-methods`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          paymentMethodIds,
-        }),
-      },
-    );
+  savePaymentMethods(id: string, paymentMethodIds: number[]) {
+    return this.request<{ selectedPaymentMethodIds: number[]; }>(`/peer-fundraisers/${encodeURIComponent(id)}/payment-methods`, { method: 'POST', body: JSON.stringify({ paymentMethodIds }) });
   }
-
   report(id: string) {
-    return this.request<PeerReport>(
-      `/peer-fundraisers/${encodeURIComponent(
-        id,
-      )}/report`,
-    );
+    return this.request<PeerReport>(`/peer-fundraisers/${encodeURIComponent(id)}/report`);
   }
-
-  createStripeCheckout(
-    peerFundraiserId: string,
-    orderId: string,
-  ) {
-    return this.request<StripeCheckoutResponse>(
-      `/peer-support/orders/${encodeURIComponent(
-        orderId,
-      )}/stripe-checkout`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          peerFundraiserId,
-        }),
-      },
-    );
+  createStripeCheckout(peerFundraiserId: string, orderId: string) {
+    return this.request<StripeCheckoutResponse>(`/peer-support/orders/${encodeURIComponent(orderId)}/stripe-checkout`, { method: 'POST', body: JSON.stringify({ peerFundraiserId }) });
   }
 }
 

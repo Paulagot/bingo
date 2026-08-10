@@ -1,20 +1,11 @@
 // src/components/peer/PeerFundraiserDrawer.tsx
-//
-// All the content that used to live on /peer-dashboard/:id (PeerManagePage)
-// is now a right-side drawer that opens from the peer dashboard card.
-// The six tabs (Overview, Participants, Sales Options, Orders, Payments, Report)
-// are unchanged in logic — just relocated into the drawer chrome and
-// re-skinned to match the events dashboard palette.
-//
-// PeerManagePage is kept as a redirect shim so any existing bookmarks
-// still work. No API calls or service imports have changed.
-
 import { useEffect, useState } from 'react';
 import { X, Globe, AlertCircle, Loader2 } from 'lucide-react';
-import { QRCodeCanvas } from 'qrcode.react';
 import svc from '../../services/PeerService';
 import type { PeerFundraiserFormat } from '../../services/PeerService';
 import PeerPackEditor from './PeerPackEditor';
+import ParticipantForm from './ParticipantForm';
+import ParticipantList from './ParticipantList';
 import PeerPaymentsTab from './PeerPaymentsTab';
 import PeerPaymentReportTab from './PeerPaymentReportTab';
 import { brand } from '../dashboard/branding';
@@ -34,7 +25,6 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   custom: 'Custom',
 };
 
-// Shared input class so the drawer fields match the events dashboard style.
 const field = 'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#157f85] focus:border-transparent transition'
   + ' border-[#dce1df] bg-white hover:border-[#b8c6b0]';
 
@@ -42,7 +32,7 @@ interface Props {
   open:       boolean;
   fundraiserId: string;
   onClose:    () => void;
-  onChanged?: () => void; // called after any mutation so the dashboard list refreshes
+  onChanged?: () => void;
 }
 
 export default function PeerFundraiserDrawer({
@@ -53,7 +43,6 @@ export default function PeerFundraiserDrawer({
 }: Props) {
   const [tab, setTab] = useState<Tab>('overview');
 
-  // ── Core data (mirrors PeerManagePage.load) ──
   const [f,            setF]            = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [packs,        setPacks]        = useState<any[]>([]);
@@ -67,24 +56,19 @@ export default function PeerFundraiserDrawer({
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
 
-  // ── Participant form ──
-  const [person,          setPerson]          = useState('');
-  const [personTarget,    setPersonTarget]    = useState('');
-  const [personMessage,   setPersonMessage]   = useState('');
-  const [personPhoto,     setPersonPhoto]     = useState('');
   const [editingParticipant, setEditingParticipant] = useState<any>(null);
 
-  // ── Sales option editor (pack naming remains internal) ──
   const [editorOpen,   setEditorOpen]   = useState(false);
   const [editingPack,  setEditingPack]  = useState<any>(null);
   const [packSaving,   setPackSaving]   = useState(false);
-  
-  // ── Fundraiser edit ──
+
   const [editingF,      setEditingF]      = useState(false);
   const [editName,      setEditName]      = useState('');
   const [editDesc,      setEditDesc]      = useState('');
   const [editTarget,    setEditTarget]    = useState('');
   const [editFormat,    setEditFormat]    = useState<PeerFundraiserFormat>('door_to_door');
+  const [editCover,     setEditCover]     = useState('');
+  const [editVideo,     setEditVideo]     = useState('');
 
   const load = async () => {
     try {
@@ -103,16 +87,22 @@ export default function PeerFundraiserDrawer({
       setRooms(rs.rooms);
 
       if (fundraiser.format_type === 'sponsored') {
-        const [sponsored, totals, contributionRows] =
-          await Promise.all([
-            svc.availableSponsoredRooms(id),
-            svc.sponsorshipSummary(id),
-            svc.sponsorships(id),
-          ]);
+        const [sponsored, totals] = await Promise.all([
+          svc.availableSponsoredRooms(id),
+          svc.sponsorshipSummary(id),
+        ]);
+
+        let contributionRows: {
+          contributions: any[];
+        } = { contributions: [] };
+
+        if (totals.roomId) {
+          contributionRows = await svc.sponsorships(id);
+        }
 
         setSponsoredRooms(sponsored.rooms);
         setSponsorshipSummary(totals);
-        setSponsorships(contributionRows.contributions);
+        setSponsorships(contributionRows.contributions || []);
         setDirectDonations([]);
         setOrders([]);
         setPacks([]);
@@ -146,47 +136,22 @@ export default function PeerFundraiserDrawer({
   const clubSlug = f?.club_slug || localStorage.getItem('club_slug') || 'your-club';
   const base = f ? `${window.location.origin}/fundraise/${clubSlug}/${f.public_slug}` : '';
 
-  // ── Participant helpers ──
-  const resetPersonForm = () => {
-    setPerson(''); setPersonTarget(''); setPersonMessage('');
-    setPersonPhoto(''); setEditingParticipant(null);
-  };
-  const addPerson = async () => {
-    if (!person.trim()) return;
-    await svc.addParticipant(id, {
-      participantName:  person.trim(),
-      personalTarget:   personTarget ? Number(personTarget) : null,
-      personalMessage:  personMessage.trim() || null,
-      profileImageUrl:  personPhoto.trim() || null,
-    });
-    resetPersonForm(); load(); onChanged?.();
-  };
-  const startEditPerson = (p: any) => {
-    setEditingParticipant(p);
-    setPerson(p.participant_name);
-    setPersonTarget(p.personal_target != null ? String(p.personal_target) : '');
-    setPersonMessage(p.personal_message || '');
-    setPersonPhoto(p.profile_image_url || '');
-  };
-  const saveEditPerson = async () => {
-    if (!editingParticipant || !person.trim()) return;
-    await svc.updateParticipant(id, editingParticipant.id, {
-      participantName:  person.trim(),
-      personalTarget:   personTarget ? Number(personTarget) : null,
-      personalMessage:  personMessage.trim() || null,
-      profileImageUrl:  personPhoto.trim() || null,
-    });
-    resetPersonForm(); load(); onChanged?.();
+  const settingsOf = (fund: any): Record<string, any> => {
+    const raw = fund?.settings_json;
+    if (typeof raw === 'string') { try { return JSON.parse(raw) || {}; } catch { return {}; } }
+    return raw || {};
   };
   const removePerson = async (p: any) => {
     if (!confirm(`Remove ${p.participant_name}? If they already have orders, they'll be deactivated instead of deleted.`)) return;
     await svc.deleteParticipant(id, p.id); load(); onChanged?.();
   };
 
-  // ── Fundraiser edit helpers ──
   const startEditF = () => {
+    const s = settingsOf(f);
     setEditName(f.name); setEditDesc(f.description || '');
     setEditTarget(String(f.target_amount)); setEditFormat(f.format_type);
+    setEditCover(typeof s.coverImageUrl === 'string' ? s.coverImageUrl : '');
+    setEditVideo(typeof s.videoUrl === 'string' ? s.videoUrl : '');
     setEditingF(true);
   };
   const saveF = async () => {
@@ -196,11 +161,15 @@ export default function PeerFundraiserDrawer({
       description: editDesc.trim() || null,
       targetAmount: Number(editTarget || 0),
       formatType:  editFormat,
+      settings: {
+        ...settingsOf(f),
+        coverImageUrl: editCover.trim() || null,
+        videoUrl:      editVideo.trim() || null,
+      },
     });
     setF(r.fundraiser); setEditingF(false); onChanged?.();
   };
 
-  // ── Publish ──
   const handlePublish = async () => {
     try {
       const pm = await svc.paymentMethods(id);
@@ -212,7 +181,6 @@ export default function PeerFundraiserDrawer({
     setF(r.fundraiser); onChanged?.();
   };
 
-  // ── Sales option helpers (pack naming remains internal) ──
   const savePack = async (payload: any) => {
     setPackSaving(true);
     try {
@@ -244,13 +212,11 @@ export default function PeerFundraiserDrawer({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 z-[9990] bg-black/30 backdrop-blur-[1px]"
         onClick={onClose}
       />
 
-      {/* Drawer panel — right side, wider than ClubDrawer */}
       <aside
         role="dialog"
         aria-label="Peer fundraiser details"
@@ -258,7 +224,6 @@ export default function PeerFundraiserDrawer({
         style={{ background: brand.surface }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Drawer header ── */}
         <div
           className="flex-shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-4"
           style={{ background: brand.surface, borderBottom: `1px solid ${brand.border}` }}
@@ -309,7 +274,6 @@ export default function PeerFundraiserDrawer({
           </div>
         </div>
 
-        {/* ── Tabs ── */}
         <div
           className="flex-shrink-0 flex items-center gap-0 px-5 overflow-x-auto"
           style={{ borderBottom: `1px solid ${brand.border}` }}
@@ -328,7 +292,6 @@ export default function PeerFundraiserDrawer({
           ))}
         </div>
 
-        {/* ── Tab content ── */}
         <div className="flex-1 p-5 overflow-y-auto">
           {loading ? (
             <div className="flex items-center gap-3 py-8 justify-center" style={{ color: brand.slate }}>
@@ -343,7 +306,6 @@ export default function PeerFundraiserDrawer({
             </div>
           ) : (
             <>
-              {/* OVERVIEW */}
               {tab === 'overview' && (
                 editingF ? (
                   <div className="space-y-4 max-w-lg">
@@ -364,6 +326,14 @@ export default function PeerFundraiserDrawer({
                       <select className={field} value={editFormat} onChange={e => setEditFormat(e.target.value as PeerFundraiserFormat)}>
                         {FORMAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Cover image URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span></label>
+                      <input className={field} value={editCover} onChange={e => setEditCover(e.target.value)} placeholder="https://…" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Video URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span></label>
+                      <input className={field} value={editVideo} onChange={e => setEditVideo(e.target.value)} placeholder="YouTube link" />
                     </div>
                     <div className="flex gap-2">
                       <button onClick={saveF} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: brand.teal }}>
@@ -395,112 +365,30 @@ export default function PeerFundraiserDrawer({
                 )
               )}
 
-              {/* PARTICIPANTS */}
               {tab === 'participants' && (
                 <div>
-                  {/* Add / edit form */}
-                  <div className="rounded-xl p-4 mb-5" style={{ border: `1px solid ${brand.border}` }}>
-                    <h3 className="text-sm font-bold mb-3" style={{ color: brand.navy }}>
-                      {editingParticipant ? `Editing ${editingParticipant.participant_name}` : 'Add a participant'}
-                    </h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <input className={field} value={person} onChange={e => setPerson(e.target.value)} placeholder="Participant name" />
-                      <input className={field} type="number" value={personTarget} onChange={e => setPersonTarget(e.target.value)} placeholder="Personal target (optional)" />
-                      <input className={field} value={personPhoto} onChange={e => setPersonPhoto(e.target.value)} placeholder="Photo URL (optional)" />
-                      <textarea className={`${field} resize-none`} rows={2} value={personMessage} onChange={e => setPersonMessage(e.target.value)} placeholder="Personal message (optional)" />
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={editingParticipant ? saveEditPerson : addPerson}
-                        className="rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                        style={{ background: brand.teal }}
-                      >
-                        {editingParticipant ? 'Save changes' : 'Add'}
-                      </button>
-                      {editingParticipant && (
-                        <button onClick={resetPersonForm} className="rounded-lg border px-4 py-2 text-sm font-semibold" style={{ borderColor: brand.border, color: brand.slate }}>
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* List */}
-                  <div className="space-y-3">
-                    {participants.map(p => {
-                      const url = `${base}/${p.participant_slug}`;
-                      return (
-                        <div
-                          key={p.id}
-                          className={`flex items-center gap-4 rounded-xl p-4 ${p.is_active === 0 ? 'opacity-50' : ''}`}
-                          style={{ border: `1px solid ${brand.border}` }}
-                        >
-                          <QRCodeCanvas value={url} size={64} />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-sm" style={{ color: brand.navy }}>
-                              {p.participant_name}
-                              {p.is_active === 0 && (
-                                <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: brand.bg, color: brand.slate }}>
-                                  Inactive
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-xs truncate mt-0.5" style={{ color: brand.slate }}>{url}</p>
-                            {p.personal_target != null && (
-                              <p className="text-xs font-bold mt-0.5" style={{ color: brand.slate }}>
-                                Target: €{Number(p.personal_target).toFixed(2)}
-                              </p>
-                            )}
-                            <p className="text-sm font-bold mt-0.5" style={{ color: brand.teal }}>
-                              €{Number(p.confirmed_total || 0).toFixed(2)} confirmed
-                            </p>
-                          </div>
-                          <div className="flex flex-col gap-2 flex-shrink-0">
-                            <button
-                              onClick={() => navigator.clipboard.writeText(url)}
-                              className="rounded-lg border px-3 py-1.5 text-xs font-bold"
-                              style={{ borderColor: brand.border, color: brand.navy }}
-                            >
-                              Copy
-                            </button>
-                            <button
-                              onClick={() => startEditPerson(p)}
-                              className="rounded-lg border px-3 py-1.5 text-xs font-bold"
-                              style={{ borderColor: brand.border, color: brand.navy }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => removePerson(p)}
-                              className="rounded-lg border px-3 py-1.5 text-xs font-bold"
-                              style={{ borderColor: '#f2c5c2', color: '#b42318' }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {participants.length === 0 && (
-                      <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>
-                        No participants yet — add one above.
-                      </p>
-                    )}
-                  </div>
+                  <ParticipantForm
+                    fundraiserId={id}
+                    editing={editingParticipant}
+                    onSaved={() => { setEditingParticipant(null); load(); onChanged?.(); }}
+                    onCancel={() => setEditingParticipant(null)}
+                  />
+                  <ParticipantList
+                    participants={participants}
+                    base={base}
+                    onEdit={setEditingParticipant}
+                    onRemove={removePerson}
+                  />
                 </div>
               )}
 
-              {/* SALES OPTIONS / SPONSORSHIP SETUP */}
               {tab === 'packs' && (
                 f?.format_type === 'sponsored' ? (
                   <div className="space-y-5">
                     <div>
-                      <h2 className="text-base font-bold" style={{ color: brand.navy }}>
-                        Sponsorship Setup
-                      </h2>
+                      <h2 className="text-base font-bold" style={{ color: brand.navy }}>Sponsorship Setup</h2>
                       <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                        Link this fundraiser to the Sponsored Activity room that
-                        receives sponsorship payments.
+                        Link this fundraiser to the Sponsored Activity room that receives sponsorship payments.
                       </p>
                     </div>
 
@@ -508,46 +396,31 @@ export default function PeerFundraiserDrawer({
                       <div className="space-y-3">
                         <div className="grid gap-3 sm:grid-cols-3">
                           <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>
-                              Confirmed sponsorship
-                            </p>
+                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>Confirmed sponsorship</p>
                             <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
-                              {f.currency || 'EUR'} {Number(
-                                sponsorshipSummary.summary.confirmedTotal || 0,
-                              ).toFixed(2)}
+                              {f.currency || 'EUR'} {Number(sponsorshipSummary.summary.confirmedTotal || 0).toFixed(2)}
                             </p>
                           </div>
                           <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>
-                              Sponsors
-                            </p>
+                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>Sponsors</p>
                             <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
                               {Number(sponsorshipSummary.summary.confirmedCount || 0)}
                             </p>
                           </div>
                           <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>
-                              Manual awaiting confirmation
-                            </p>
+                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>Manual awaiting confirmation</p>
                             <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
-                              {f.currency || 'EUR'} {Number(
-                                sponsorshipSummary.summary.claimedTotal || 0,
-                              ).toFixed(2)}
+                              {f.currency || 'EUR'} {Number(sponsorshipSummary.summary.claimedTotal || 0).toFixed(2)}
                             </p>
                           </div>
                         </div>
 
                         {sponsorshipSummary.participants?.length > 0 && (
                           <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="mb-3 text-sm font-bold" style={{ color: brand.navy }}>
-                              Sponsorship by participant
-                            </p>
+                            <p className="mb-3 text-sm font-bold" style={{ color: brand.navy }}>Sponsorship by participant</p>
                             <div className="space-y-2">
                               {sponsorshipSummary.participants.map((person: any) => (
-                                <div
-                                  key={person.id}
-                                  className="flex items-center justify-between gap-4 text-sm"
-                                >
+                                <div key={person.id} className="flex items-center justify-between gap-4 text-sm">
                                   <span style={{ color: brand.slate }}>{person.name}</span>
                                   <span className="font-bold" style={{ color: brand.navy }}>
                                     {f.currency || 'EUR'} {Number(person.confirmedTotal || 0).toFixed(2)}
@@ -562,18 +435,14 @@ export default function PeerFundraiserDrawer({
 
                     {sponsoredRooms.length === 0 ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                        No active Sponsored Activity rooms are available. Create
-                        the activity in Event Manager, then return here.
+                        No active Sponsored Activity rooms are available. Create the activity in Event Manager, then return here.
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {sponsoredRooms.map((room: any) => {
                           const settings =
                             typeof f.settings_json === 'string'
-                              ? (() => {
-                                  try { return JSON.parse(f.settings_json); }
-                                  catch { return {}; }
-                                })()
+                              ? (() => { try { return JSON.parse(f.settings_json); } catch { return {}; } })()
                               : (f.settings_json || {});
                           const selected = settings.sponsoredRoomId === room.room_id;
 
@@ -586,46 +455,35 @@ export default function PeerFundraiserDrawer({
                                 setSavingSponsoredRoom(true);
                                 try {
                                   const result = await svc.update(id, {
-                                    settings: {
-                                      ...settings,
-                                      sponsoredRoomId: room.room_id,
-                                    },
+                                    settings: { ...settings, sponsoredRoomId: room.room_id },
                                   });
                                   setF(result.fundraiser);
+                                  await load();
                                   onChanged?.();
+                                } catch (error: any) {
+                                  alert(`Unable to link sponsored activity: ${error?.message || 'unknown_error'}`);
                                 } finally {
                                   setSavingSponsoredRoom(false);
                                 }
                               }}
                               className="w-full rounded-2xl border p-4 text-left"
-                              style={{
-                                borderColor: selected ? brand.teal : '#dce1df',
-                                background: selected ? '#ecfdf5' : '#ffffff',
-                              }}
+                              style={{ borderColor: selected ? brand.teal : '#dce1df', background: selected ? '#ecfdf5' : '#ffffff' }}
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div>
-                                  <p className="font-bold" style={{ color: brand.navy }}>
-                                    {room.name}
-                                  </p>
+                                  <p className="font-bold" style={{ color: brand.navy }}>{room.name}</p>
                                   <p className="mt-1 text-xs capitalize" style={{ color: brand.slate }}>
-                                    {String(room.activity_kind).replace(/_/g, ' ')}
-                                    {' · '}{room.status}
+                                    {String(room.activity_kind).replace(/_/g, ' ')}{' · '}{room.status}
                                   </p>
                                   {room.suggested_amounts?.length > 0 && (
                                     <p className="mt-2 text-xs" style={{ color: brand.slate }}>
-                                      Suggested amounts: {room.suggested_amounts
-                                        .map((amount: number) => `${room.currency} ${amount}`)
-                                        .join(', ')}
+                                      Suggested amounts: {room.suggested_amounts.map((amount: number) => `${room.currency} ${amount}`).join(', ')}
                                     </p>
                                   )}
                                 </div>
                                 <span
                                   className="rounded-full px-3 py-1 text-xs font-bold"
-                                  style={{
-                                    background: selected ? brand.teal : brand.bg,
-                                    color: selected ? '#ffffff' : brand.slate,
-                                  }}
+                                  style={{ background: selected ? brand.teal : brand.bg, color: selected ? '#ffffff' : brand.slate }}
                                 >
                                   {selected ? 'Linked' : 'Link'}
                                 </span>
@@ -640,12 +498,9 @@ export default function PeerFundraiserDrawer({
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                       <div>
-                        <h2 className="text-base font-bold" style={{ color: brand.navy }}>
-                          Sales Options
-                        </h2>
+                        <h2 className="text-base font-bold" style={{ color: brand.navy }}>Sales Options</h2>
                         <p className="text-xs mt-0.5" style={{ color: brand.slate }}>
-                          Choose the activities, entries or ticket types supporters can buy.
-                          Combine options when you want to sell a bundle.
+                          Choose the activities, entries or ticket types supporters can buy. Combine options when you want to sell a bundle.
                         </p>
                       </div>
                       <button
@@ -665,20 +520,13 @@ export default function PeerFundraiserDrawer({
 
                     <div className="grid gap-4 md:grid-cols-2">
                       {packs.filter((p: any) => p.is_active !== 0).map((p: any) => (
-                        <div
-                          key={p.id}
-                          className="rounded-xl p-4"
-                          style={{ border: `1px solid ${brand.border}` }}
-                        >
+                        <div key={p.id} className="rounded-xl p-4" style={{ border: `1px solid ${brand.border}` }}>
                           <div className="flex justify-between">
                             <p className="font-bold text-sm" style={{ color: brand.navy }}>{p.name}</p>
                             <p className="font-bold text-sm" style={{ color: brand.navy }}>€{Number(p.price).toFixed(2)}</p>
                           </div>
                           {p.is_featured && (
-                            <span
-                              className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
-                              style={{ background: 'rgba(210,181,130,0.25)', color: '#8a6d2f' }}
-                            >
+                            <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: 'rgba(210,181,130,0.25)', color: '#8a6d2f' }}>
                               {p.badge_label || 'Featured'}
                             </span>
                           )}
@@ -716,64 +564,41 @@ export default function PeerFundraiserDrawer({
                 )
               )}
 
-              {/* ORDERS / SPONSORSHIPS */}
               {tab === 'orders' && f.format_type === 'sponsored' && (
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>
-                      Sponsorships
-                    </h3>
+                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>Sponsorships</h3>
                     <p className="mt-1 text-sm" style={{ color: brand.slate }}>
-                      Confirmed sponsorships and manual payments awaiting confirmation.
-                      Unfinished Stripe and crypto attempts are not shown.
+                      Confirmed sponsorships and manual payments awaiting confirmation. Unfinished Stripe and crypto attempts are not shown.
                     </p>
                   </div>
 
                   {!sponsorships.length ? (
                     <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
-                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>
-                        No confirmed or claimed sponsorships yet.
-                      </p>
+                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>No confirmed or claimed sponsorships yet.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {sponsorships.map((contribution: any) => (
-                        <div
-                          key={contribution.id}
-                          className="rounded-xl border bg-white p-4"
-                          style={{ borderColor: brand.border }}
-                        >
+                        <div key={contribution.id} className="rounded-xl border bg-white p-4" style={{ borderColor: brand.border }}>
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="font-bold" style={{ color: brand.navy }}>
-                                {contribution.isAnonymous
-                                  ? 'Anonymous'
-                                  : contribution.displayName ||
-                                    contribution.sponsorName ||
-                                    'Sponsor'}
+                                {contribution.isAnonymous ? 'Anonymous' : contribution.displayName || contribution.sponsorName || 'Sponsor'}
                               </p>
                               <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                {contribution.participantName
-                                  ? `For ${contribution.participantName}`
-                                  : 'General fundraiser'}
+                                {contribution.participantName ? `For ${contribution.participantName}` : 'General fundraiser'}
                                 {' · '}
-                                {contribution.paymentMethodLabel ||
-                                  contribution.paymentMethodCategory}
+                                {contribution.paymentMethodLabel || contribution.paymentMethodCategory}
                               </p>
                               {contribution.paymentReference && (
-                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                  Ref: {contribution.paymentReference}
-                                </p>
+                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>Ref: {contribution.paymentReference}</p>
                               )}
                               {contribution.message && (
-                                <p className="mt-2 text-sm italic" style={{ color: brand.slate }}>
-                                  “{contribution.message}”
-                                </p>
+                                <p className="mt-2 text-sm italic" style={{ color: brand.slate }}>“{contribution.message}”</p>
                               )}
                               {contribution.disputeReason && (
-                                <p className="mt-2 text-xs font-semibold text-red-700">
-                                  Dispute: {contribution.disputeReason}
-                                </p>
+                                <p className="mt-2 text-xs font-semibold text-red-700">Dispute: {contribution.disputeReason}</p>
                               )}
                             </div>
 
@@ -784,18 +609,8 @@ export default function PeerFundraiserDrawer({
                               <span
                                 className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase"
                                 style={{
-                                  background:
-                                    contribution.status === 'confirmed'
-                                      ? '#dcfce7'
-                                      : contribution.status === 'claimed'
-                                        ? '#fef3c7'
-                                        : '#fee2e2',
-                                  color:
-                                    contribution.status === 'confirmed'
-                                      ? '#166534'
-                                      : contribution.status === 'claimed'
-                                        ? '#92400e'
-                                        : '#991b1b',
+                                  background: contribution.status === 'confirmed' ? '#dcfce7' : contribution.status === 'claimed' ? '#fef3c7' : '#fee2e2',
+                                  color: contribution.status === 'confirmed' ? '#166534' : contribution.status === 'claimed' ? '#92400e' : '#991b1b',
                                 }}
                               >
                                 {contribution.status}
@@ -806,11 +621,7 @@ export default function PeerFundraiserDrawer({
                           {contribution.status === 'claimed' && (
                             <div className="mt-4 flex flex-wrap gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
                               <button
-                                onClick={async () => {
-                                  await svc.confirmSponsorship(id, contribution.id);
-                                  await load();
-                                  onChanged?.();
-                                }}
+                                onClick={async () => { await svc.confirmSponsorship(id, contribution.id); await load(); onChanged?.(); }}
                                 className="rounded-lg px-3 py-2 text-xs font-bold text-white"
                                 style={{ background: '#16a34a' }}
                               >
@@ -818,15 +629,9 @@ export default function PeerFundraiserDrawer({
                               </button>
                               <button
                                 onClick={async () => {
-                                  const reason = window.prompt(
-                                    'Why is this payment being disputed?',
-                                  );
+                                  const reason = window.prompt('Why is this payment being disputed?');
                                   if (!reason?.trim()) return;
-                                  await svc.disputeSponsorship(
-                                    id,
-                                    contribution.id,
-                                    reason.trim(),
-                                  );
+                                  await svc.disputeSponsorship(id, contribution.id, reason.trim());
                                   await load();
                                   onChanged?.();
                                 }}
@@ -841,11 +646,7 @@ export default function PeerFundraiserDrawer({
                           {contribution.status === 'disputed' && (
                             <div className="mt-4 border-t pt-3" style={{ borderColor: brand.border }}>
                               <button
-                                onClick={async () => {
-                                  await svc.confirmSponsorship(id, contribution.id);
-                                  await load();
-                                  onChanged?.();
-                                }}
+                                onClick={async () => { await svc.confirmSponsorship(id, contribution.id); await load(); onChanged?.(); }}
                                 className="rounded-lg px-3 py-2 text-xs font-bold text-white"
                                 style={{ background: '#16a34a' }}
                               >
@@ -863,76 +664,42 @@ export default function PeerFundraiserDrawer({
               {tab === 'orders' && f.format_type !== 'sponsored' && (
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>
-                      Orders
-                    </h3>
+                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>Orders</h3>
                     <p className="mt-1 text-sm" style={{ color: brand.slate }}>
-                      Confirmed orders and claimed manual payments awaiting confirmation.
-                      Unfinished Stripe and crypto attempts are not shown.
+                      Confirmed orders and claimed manual payments awaiting confirmation. Unfinished Stripe and crypto attempts are not shown.
                     </p>
                   </div>
 
                   {!orders.length ? (
                     <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
-                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>
-                        No confirmed or claimed orders yet.
-                      </p>
+                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>No confirmed or claimed orders yet.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {orders.map((o: any) => (
-                        <div
-                          key={o.id}
-                          className="rounded-xl border bg-white p-4"
-                          style={{ borderColor: brand.border }}
-                        >
+                        <div key={o.id} className="rounded-xl border bg-white p-4" style={{ borderColor: brand.border }}>
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="font-bold" style={{ color: brand.navy }}>
-                                {o.supporter_name}
-                              </p>
+                              <p className="font-bold" style={{ color: brand.navy }}>{o.supporter_name}</p>
                               <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                {o.participant_name || 'General link'}
-                                {' · '}
-                                {o.payment_provider || o.payment_method_category}
+                                {o.participant_name || 'General link'}{' · '}{o.payment_provider || o.payment_method_category}
                               </p>
                               {o.payment_reference && (
-                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                  Ref: {o.payment_reference}
-                                </p>
+                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>Ref: {o.payment_reference}</p>
                               )}
                               {o.payment_status === 'confirmed' && (
                                 <div className="mt-2 space-y-1 text-xs" style={{ color: brand.slate }}>
-                                  <p>
-                                    Entries: {Number(o.confirmed_entry_count || 0)}/{Number(o.entry_count || 0)} fulfilled
-                                  </p>
+                                  <p>Entries: {Number(o.confirmed_entry_count || 0)}/{Number(o.entry_count || 0)} fulfilled</p>
                                   {o.allocation_check && (
-                                    <p>
-                                      Ledger {Number(o.allocation_check.ledgerTotal || 0).toFixed(2)}
-                                      {' / '}
-                                      order {Number(o.allocation_check.orderTotal || o.total_amount || 0).toFixed(2)}
-                                    </p>
+                                    <p>Ledger {Number(o.allocation_check.ledgerTotal || 0).toFixed(2)}{' / '}order {Number(o.allocation_check.orderTotal || o.total_amount || 0).toFixed(2)}</p>
                                   )}
                                   {Number(o.ticket_entry_count || 0) > 0 && (
-                                    <p
-                                      className={
-                                        Number(o.ticket_email_sent_count || 0) >=
-                                        Number(o.ticket_entry_count || 0)
-                                          ? 'font-semibold text-green-700'
-                                          : Number(o.ticket_email_failed_count || 0) > 0
-                                            ? 'font-semibold text-red-700'
-                                            : 'font-semibold text-amber-700'
-                                      }
-                                    >
-                                      Ticket emails:{' '}
-                                      {Number(o.ticket_email_sent_count || 0)}/
-                                      {Number(o.ticket_entry_count || 0)} sent
+                                    <p className={Number(o.ticket_email_sent_count || 0) >= Number(o.ticket_entry_count || 0) ? 'font-semibold text-green-700' : Number(o.ticket_email_failed_count || 0) > 0 ? 'font-semibold text-red-700' : 'font-semibold text-amber-700'}>
+                                      Ticket emails: {Number(o.ticket_email_sent_count || 0)}/{Number(o.ticket_entry_count || 0)} sent
                                     </p>
                                   )}
                                   {o.fulfilment_error && (
-                                    <p className="font-semibold text-red-700">
-                                      {o.fulfilment_error}
-                                    </p>
+                                    <p className="font-semibold text-red-700">{o.fulfilment_error}</p>
                                   )}
                                 </div>
                               )}
@@ -945,14 +712,8 @@ export default function PeerFundraiserDrawer({
                               <span
                                 className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase"
                                 style={{
-                                  background:
-                                    o.payment_status === 'confirmed'
-                                      ? '#dcfce7'
-                                      : '#fef3c7',
-                                  color:
-                                    o.payment_status === 'confirmed'
-                                      ? '#166534'
-                                      : '#92400e',
+                                  background: o.payment_status === 'confirmed' ? '#dcfce7' : '#fef3c7',
+                                  color: o.payment_status === 'confirmed' ? '#166534' : '#92400e',
                                 }}
                               >
                                 {o.payment_status}
@@ -964,11 +725,7 @@ export default function PeerFundraiserDrawer({
                             {o.payment_status === 'claimed' && (
                               <>
                                 <button
-                                  onClick={async () => {
-                                    await svc.confirm(id, o.id);
-                                    await load();
-                                    onChanged?.();
-                                  }}
+                                  onClick={async () => { await svc.confirm(id, o.id); await load(); onChanged?.(); }}
                                   className="rounded-lg px-3 py-2 text-xs font-bold text-white"
                                   style={{ background: '#16a34a' }}
                                 >
@@ -976,9 +733,7 @@ export default function PeerFundraiserDrawer({
                                 </button>
                                 <button
                                   onClick={async () => {
-                                    const reason = window.prompt(
-                                      'Why is this payment being rejected?',
-                                    ) || undefined;
+                                    const reason = window.prompt('Why is this payment being rejected?') || undefined;
                                     await svc.rejectOrder(id, o.id, reason);
                                     await load();
                                     onChanged?.();
@@ -993,18 +748,9 @@ export default function PeerFundraiserDrawer({
 
                             {o.payment_status === 'confirmed' &&
                               Number(o.entry_count || 0) > 0 &&
-                              (
-                                Number(o.pending_entry_count || 0) > 0 ||
-                                Number(o.failed_entry_count || 0) > 0 ||
-                                Number(o.confirmed_entry_count || 0) <
-                                  Number(o.entry_count || 0)
-                              ) && (
+                              (Number(o.pending_entry_count || 0) > 0 || Number(o.failed_entry_count || 0) > 0 || Number(o.confirmed_entry_count || 0) < Number(o.entry_count || 0)) && (
                               <button
-                                onClick={async () => {
-                                  await svc.retryFulfilment(id, o.id);
-                                  await load();
-                                  onChanged?.();
-                                }}
+                                onClick={async () => { await svc.retryFulfilment(id, o.id); await load(); onChanged?.(); }}
                                 className="rounded-lg px-3 py-2 text-xs font-bold text-white"
                                 style={{ background: '#d97706' }}
                               >
@@ -1014,32 +760,21 @@ export default function PeerFundraiserDrawer({
 
                             {o.payment_status === 'confirmed' &&
                               Number(o.ticket_entry_count || 0) > 0 &&
-                              Number(o.ticket_email_sent_count || 0) <
-                                Number(o.ticket_entry_count || 0) && (
+                              Number(o.ticket_email_sent_count || 0) < Number(o.ticket_entry_count || 0) && (
                               <button
-                                onClick={async () => {
-                                  await svc.retryFulfilment(id, o.id);
-                                  await load();
-                                  onChanged?.();
-                                }}
+                                onClick={async () => { await svc.retryFulfilment(id, o.id); await load(); onChanged?.(); }}
                                 className="rounded-lg px-3 py-2 text-xs font-bold text-white"
                                 style={{ background: '#0284c7' }}
                               >
-                                {Number(o.ticket_email_failed_count || 0) > 0
-                                  ? 'Retry ticket email'
-                                  : 'Send ticket email'}
+                                {Number(o.ticket_email_failed_count || 0) > 0 ? 'Retry ticket email' : 'Send ticket email'}
                               </button>
                             )}
 
                             {o.payment_status === 'confirmed' && (
                               <button
                                 onClick={async () => {
-                                  if (!confirm(
-                                    'This order is confirmed and may have active tickets or entitlements. Undo confirmation?',
-                                  )) return;
-                                  const reason = window.prompt(
-                                    'Reason for undoing confirmation (optional):',
-                                  ) || undefined;
+                                  if (!confirm('This order is confirmed and may have active tickets or entitlements. Undo confirmation?')) return;
+                                  const reason = window.prompt('Reason for undoing confirmation (optional):') || undefined;
                                   await svc.rejectOrder(id, o.id, reason);
                                   await load();
                                   onChanged?.();
@@ -1058,13 +793,10 @@ export default function PeerFundraiserDrawer({
                 </div>
               )}
 
-              {/* DIRECT DONATIONS — SELL ACTIVITIES ONLY */}
               {tab === 'donations' && f.format_type !== 'sponsored' && (
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>
-                      Direct donations
-                    </h3>
+                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>Direct donations</h3>
                     <p className="mt-1 text-sm" style={{ color: brand.slate }}>
                       Donations are separate from activity-sale income. Confirmed donations count in the combined report; claimed manual donations wait for club confirmation.
                     </p>
@@ -1072,9 +804,7 @@ export default function PeerFundraiserDrawer({
 
                   {!directDonations.length ? (
                     <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
-                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>
-                        No confirmed or claimed direct donations yet.
-                      </p>
+                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>No confirmed or claimed direct donations yet.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1082,18 +812,14 @@ export default function PeerFundraiserDrawer({
                         <div key={donation.id} className="rounded-xl border bg-white p-4" style={{ borderColor: brand.border }}>
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="font-bold" style={{ color: brand.navy }}>
-                                {donation.donor_name || 'Donor'}
-                              </p>
+                              <p className="font-bold" style={{ color: brand.navy }}>{donation.donor_name || 'Donor'}</p>
                               <p className="mt-1 text-xs" style={{ color: brand.slate }}>
                                 {donation.participant_name ? `Attributed to ${donation.participant_name}` : 'General fundraiser'}
                                 {' · '}
                                 {donation.payment_method_label_snapshot || donation.payment_method_category_snapshot}
                               </p>
                               {donation.peer_order_id && (
-                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                  Added to order {String(donation.peer_order_id).slice(0, 8)}
-                                </p>
+                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>Added to order {String(donation.peer_order_id).slice(0, 8)}</p>
                               )}
                             </div>
                             <div className="text-right">
@@ -1112,11 +838,7 @@ export default function PeerFundraiserDrawer({
                           {donation.status === 'claimed' && (
                             <div className="mt-4 flex gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
                               <button
-                                onClick={async () => {
-                                  await svc.confirmDonation(id, donation.id);
-                                  await load();
-                                  onChanged?.();
-                                }}
+                                onClick={async () => { await svc.confirmDonation(id, donation.id); await load(); onChanged?.(); }}
                                 className="rounded-lg px-3 py-2 text-xs font-bold text-white"
                                 style={{ background: '#16a34a' }}
                               >
@@ -1143,10 +865,8 @@ export default function PeerFundraiserDrawer({
                 </div>
               )}
 
-              {/* PAYMENTS */}
               {tab === 'payments' && <PeerPaymentsTab fundraiserId={id} />}
 
-              {/* REPORT */}
               {tab === 'report' && <PeerPaymentReportTab fundraiserId={id} />}
             </>
           )}
@@ -1155,8 +875,6 @@ export default function PeerFundraiserDrawer({
     </>
   );
 }
-
-// ── Small helpers ─────────────────────────────────────────────────────────────
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (

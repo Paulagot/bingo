@@ -1,15 +1,4 @@
 // src/components/peer/CreatePeerFundraiserModal.tsx
-//
-// Three-step wizard modal for creating a peer fundraiser.
-// Step 1 - fundraiser type
-// Step 2 - name, description, target and optional donations
-// Step 3 - payment methods
-//
-// Same logic as PeerFundraiserEditor (the old /peer-dashboard/new page),
-// but presented as an in-dashboard modal so the user never leaves the
-// peer dashboard. On success, calls onCreated(id) so the dashboard
-// can open the new fundraiser's drawer immediately.
-
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Loader2, X } from 'lucide-react';
 import svc from '../../services/PeerService';
@@ -28,18 +17,17 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
   const [formatType, setFormatType] = useState<'door_to_door' | 'sponsored'>('door_to_door');
   const [allowDonations, setAllowDonations] = useState(false);
 
-  // Step 1 fields
   const [name,        setName]        = useState('');
   const [description, setDescription] = useState('');
   const [target,      setTarget]      = useState('');
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [videoUrl,      setVideoUrl]      = useState('');
   const [formError,   setFormError]   = useState<string | null>(null);
 
-  // Step 2 - payment methods
   const [methods,          setMethods]          = useState<ClubPaymentMethod[]>([]);
   const [selectedMethodIds, setSelectedMethodIds] = useState<number[]>([]);
   const [methodsLoaded,    setMethodsLoaded]    = useState(false);
 
-  // Submission
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -68,7 +56,12 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
       const r = await svc.create({
         name:             name.trim(),
         formatType,
-        settings: { templateType: formatType, donationsEnabled: formatType === 'door_to_door' && allowDonations },
+        settings: {
+          templateType: formatType,
+          donationsEnabled: formatType === 'door_to_door' && allowDonations,
+          coverImageUrl: coverImageUrl.trim() || undefined,
+          videoUrl: videoUrl.trim() || undefined,
+        },
         description:      description.trim() || undefined,
         targetAmount:     Number(target || 0),
         status:           'draft',
@@ -92,7 +85,6 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
         style={{ background: brand.surface }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div
           className="flex items-center justify-between px-5 py-4"
           style={{ borderBottom: `1px solid ${brand.border}` }}
@@ -115,7 +107,6 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
           </button>
         </div>
 
-        {/* Step progress bar */}
         <div className="h-1 w-full" style={{ background: brand.bg }}>
           <div
             className="h-full transition-all duration-300"
@@ -123,7 +114,6 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
           />
         </div>
 
-        {/* Body */}
         <div className="p-5 space-y-4">
           {step === 1 && (
             <div className="space-y-3">
@@ -187,6 +177,29 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>
+                  Cover image URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span>
+                </label>
+                <input
+                  className={field}
+                  value={coverImageUrl}
+                  onChange={e => setCoverImageUrl(e.target.value)}
+                  placeholder="https://…"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>
+                  Video URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span>
+                </label>
+                <input
+                  className={field}
+                  value={videoUrl}
+                  onChange={e => setVideoUrl(e.target.value)}
+                  placeholder="YouTube link"
+                />
+              </div>
+
               {formatType === 'door_to_door' && (
                 <label className="flex items-start gap-3 rounded-lg border p-3" style={{ borderColor: brand.border }}>
                   <input type="checkbox" checked={allowDonations} onChange={e => setAllowDonations(e.target.checked)} className="mt-1" />
@@ -202,8 +215,7 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
           {step === 3 && (
             <>
               <p className="text-sm font-semibold" style={{ color: brand.slate }}>
-                Choose which of your club's payment methods supporters can use.
-                You can update this later from the fundraiser's Payments tab.
+                Choose which of your club's payment methods supporters can use. You can update this later from the fundraiser's Payments tab.
               </p>
 
               {!methodsLoaded ? (
@@ -216,8 +228,7 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
                   className="rounded-lg p-3 text-sm font-semibold"
                   style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
                 >
-                  No payment methods are set up for your club yet. You can add them
-                  from the Club menu and link them from the fundraiser's Payments tab.
+                  No payment methods are set up for your club yet. You can add them from the Club menu and link them from the fundraiser's Payments tab.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -256,7 +267,6 @@ export default function CreatePeerFundraiserModal({ onClose, onCreated }: Props)
           )}
         </div>
 
-        {/* Footer */}
         <div
           className="flex items-center justify-between gap-3 px-5 py-4"
           style={{ borderTop: `1px solid ${brand.border}` }}
