@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   Heart,
   Loader2,
-  MessageCircle,
   ShieldCheck,
   Target,
   UserRound,
@@ -32,6 +31,7 @@ import { PaymentInstructions } from '../Quiz/shared/PaymentInstructions';
 import {
   publicSponsoredActivityService,
 } from '../../services/PublicSponsoredActivityService';
+import YouTubeEmbed from '../../pages/peer/support/YouTubeEmbed';
 
 const Web3Provider = lazy(() =>
   import('../Web3Provider').then(module => ({
@@ -94,9 +94,6 @@ function readNumber(...values: unknown[]) {
 
 export default function PeerSponsorshipExperience({
   data,
-  clubSlug,
-  fundraiserSlug,
-  participantSlug,
 }: Props) {
   const fundraiser = data.fundraiser;
   const participant = data.participant;
@@ -133,8 +130,10 @@ export default function PeerSponsorshipExperience({
   const raised = readNumber(
     participant?.sponsorship_total,
     participant?.raised_amount,
+    participant?.raisedAmount,
     fundraiser?.sponsorship_total,
     fundraiser?.raised_amount,
+    fundraiser?.raisedAmount,
   );
 
   const progress =
@@ -151,6 +150,26 @@ export default function PeerSponsorshipExperience({
     fundraiser?.description ||
     `Help ${data.club?.name || 'the club'} reach its fundraising target.`;
 
+  const coverImageUrl = fundraiser?.settings?.coverImageUrl || null;
+  const causeVideoUrl = fundraiser?.settings?.videoUrl || null;
+  const participantVideoUrl =
+    participant?.video_url || participant?.videoUrl || null;
+  const causeStory = fundraiser?.description || null;
+
+  const overallTarget = readNumber(
+    fundraiser?.target_amount,
+    fundraiser?.targetAmount,
+  );
+  const overallRaised = readNumber(
+    fundraiser?.sponsorship_total,
+    fundraiser?.raised_amount,
+    fundraiser?.raisedAmount,
+  );
+  const overallProgress =
+    overallTarget > 0
+      ? Math.min(100, Math.round((overallRaised / overallTarget) * 100))
+      : 0;
+
   const [activity, setActivity] = useState<any>(null);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState<string | null>(null);
@@ -164,7 +183,6 @@ export default function PeerSponsorshipExperience({
   const [sponsorEmail, setSponsorEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [message, setMessage] = useState('');
   const [gdprConsent, setGdprConsent] = useState(false);
   const [selectedMethod, setSelectedMethod] =
     useState<ClubPaymentMethod | null>(null);
@@ -184,16 +202,23 @@ export default function PeerSponsorshipExperience({
   const primary =
     activity?.clubPrimaryColor ||
     data?.club?.brand_primary_color ||
+    data?.club?.brandPrimaryColor ||
     '#f97316';
 
   const background =
     activity?.clubBackgroundColor ||
     data?.club?.brand_background_color ||
+    data?.club?.brandBackgroundColor ||
     '#fff7ed';
 
   const textOnPrimary =
     activity?.clubTextOnPrimaryColor ||
     '#ffffff';
+  const lifecycle = data?.lifecycle || {
+    state: 'open',
+    canTransact: true,
+    message: null,
+  };
 
   useEffect(() => {
     if (!roomId) {
@@ -237,7 +262,7 @@ export default function PeerSponsorshipExperience({
         const result =
           await publicSponsoredActivityService.getStatus(
             roomId!,
-            { sessionId },
+            { sessionId: sessionId || undefined },
           );
 
         if (stopped) return;
@@ -335,7 +360,6 @@ export default function PeerSponsorshipExperience({
       sponsorEmail: sponsorEmail.trim() || undefined,
       displayName: displayName.trim() || undefined,
       isAnonymous,
-      message: message.trim() || undefined,
       amount,
       clubPaymentMethodId: method.id,
       peerFundraiserId: fundraiser.id,
@@ -508,9 +532,17 @@ export default function PeerSponsorshipExperience({
     >
       <header className="border-b border-black/5 bg-white/90 px-4 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-lg items-center gap-3">
-          {activity.clubLogoUrl ? (
+          {(
+            activity.clubLogoUrl ||
+            data?.club?.brand_logo_url ||
+            data?.club?.logo_url
+          ) ? (
             <img
-              src={activity.clubLogoUrl}
+              src={
+                activity.clubLogoUrl ||
+                data?.club?.brand_logo_url ||
+                data?.club?.logo_url
+              }
               alt=""
               className="h-12 w-12 rounded-2xl object-contain"
             />
@@ -539,13 +571,21 @@ export default function PeerSponsorshipExperience({
 
       <main className="mx-auto w-full max-w-lg px-4 py-5">
         <section className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-black/5">
-          <div
-            className="h-28"
-            style={{
-              background:
-                `linear-gradient(135deg, ${primary}, ${primary}bb)`,
-            }}
-          />
+          {coverImageUrl ? (
+            <img
+              src={coverImageUrl}
+              alt=""
+              className="h-40 w-full object-cover"
+            />
+          ) : (
+            <div
+              className="h-40"
+              style={{
+                background:
+                  `linear-gradient(135deg, ${primary}, ${primary}bb)`,
+              }}
+            />
+          )}
 
           <div className="-mt-14 px-5 pb-6">
             <div className="flex items-end gap-4">
@@ -576,9 +616,49 @@ export default function PeerSponsorshipExperience({
               {displayTitle}
             </h1>
 
-            <p className="mt-4 text-base font-semibold leading-7 text-slate-600">
-              {story}
-            </p>
+            {participantMessage ? (
+              <>
+                <p className="mt-4 text-base font-semibold leading-7 text-slate-600">
+                  {participantMessage}
+                </p>
+                {participantVideoUrl && (
+                  <div className="mt-4">
+                    <YouTubeEmbed
+                      url={participantVideoUrl}
+                      title={`${participantName || 'Participant'} video`}
+                    />
+                  </div>
+                )}
+                {(causeStory || causeVideoUrl) && (
+                  <div className="mt-5 border-t border-slate-100 pt-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                      About this cause
+                    </p>
+                    {causeStory && (
+                      <p className="mt-2 text-base font-semibold leading-7 text-slate-600">
+                        {causeStory}
+                      </p>
+                    )}
+                    {causeVideoUrl && (
+                      <div className="mt-4">
+                        <YouTubeEmbed url={causeVideoUrl} title="Cause video" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="mt-4 text-base font-semibold leading-7 text-slate-600">
+                  {story}
+                </p>
+                {causeVideoUrl && (
+                  <div className="mt-4">
+                    <YouTubeEmbed url={causeVideoUrl} title="Cause video" />
+                  </div>
+                )}
+              </>
+            )}
 
             <div className="mt-6 rounded-3xl bg-slate-50 p-5">
               <div className="flex items-end justify-between gap-4">
@@ -619,6 +699,26 @@ export default function PeerSponsorshipExperience({
                   </p>
                 </>
               )}
+
+              {participantName && overallTarget > 0 && (
+                <div className="mt-4 border-t border-slate-200 pt-3">
+                  <div className="flex items-center justify-between gap-3 text-xs font-bold text-slate-500">
+                    <span className="min-w-0 flex-1 truncate">
+                      Part of {fundraiser?.name || 'this fundraiser'}
+                    </span>
+                    <span className="shrink-0">
+                      {amountText(overallRaised, currency)} of{' '}
+                      {amountText(overallTarget, currency)} overall
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-slate-400"
+                      style={{ width: `${overallProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 flex items-start gap-3 rounded-3xl border border-slate-200 p-4">
@@ -643,6 +743,13 @@ export default function PeerSponsorshipExperience({
             </div>
           </div>
         </section>
+
+        {!lifecycle.canTransact && (
+          <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-center text-sm font-bold text-amber-900 ring-1 ring-amber-200">
+            {lifecycle.message ||
+              'This fundraiser is no longer accepting sponsorships.'}
+          </div>
+        )}
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3 shadow-2xl backdrop-blur">
@@ -650,7 +757,8 @@ export default function PeerSponsorshipExperience({
           <button
             type="button"
             onClick={openSheet}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-lg font-black shadow-lg"
+            disabled={!lifecycle.canTransact}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-lg font-black shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               background: primary,
               color: textOnPrimary,
@@ -782,7 +890,7 @@ export default function PeerSponsorshipExperience({
                   />
                 </div>
 
-                {!isAnonymous && (
+                {/* {!isAnonymous && (
                   <input
                     value={displayName}
                     onChange={event =>
@@ -791,7 +899,7 @@ export default function PeerSponsorshipExperience({
                     placeholder="Public display name (optional)"
                     className="w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none focus:border-[var(--peer-primary)]"
                   />
-                )}
+                )} */}
 
                 <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
                   <input
@@ -811,27 +919,6 @@ export default function PeerSponsorshipExperience({
                     </span>
                   </span>
                 </label>
-
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex items-center gap-2 text-sm font-black text-slate-700">
-                    <MessageCircle className="h-4 w-4" />
-                    Message of support
-                  </div>
-                  <textarea
-                    value={message}
-                    onChange={event =>
-                      setMessage(
-                        event.target.value.slice(0, 500),
-                      )
-                    }
-                    rows={3}
-                    placeholder="Good luck!"
-                    className="mt-2 w-full resize-none border-0 p-0 text-sm font-semibold outline-none"
-                  />
-                  <p className="text-right text-xs font-bold text-slate-400">
-                    {message.length}/500
-                  </p>
-                </div>
 
                 <label className="flex items-start gap-3 text-sm font-semibold text-slate-600">
                   <input

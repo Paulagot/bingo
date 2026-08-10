@@ -1,3 +1,5 @@
+import type { PeerSupportPayload } from '../pages/peer/support/peerSupporttypes';
+
 const BASE =
   import.meta.env.PROD
     ? '/api'
@@ -144,7 +146,7 @@ const PeerSupportService = {
           fundraiser,
         )}`;
 
-    return req<any>(path);
+    return req<PeerSupportPayload>(path);
   },
 
   paymentMethods(
