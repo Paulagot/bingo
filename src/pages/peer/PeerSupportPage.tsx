@@ -73,7 +73,6 @@ import type { PackRoomDetails } from './support/peerSupporthelpers';
 import SupporterHero from './support/SupporterHero';
 import ProgressBars from './support/ProgressBars';
 import SupportLayout from './support/SupportLayout';
-import SelectionSummary from './support/SelectionSummary';
 import ActivityDetailSheet from './support/ActivityDetailSheet';
 import SavingsBadge from './support/SavingsBadge';
 
@@ -604,36 +603,13 @@ export default function PeerSupportPage() {
     <AppShell style={appStyle}>
       {step === 'packs' && (
         <>
-          <SupportLayout
-            rail={
-              <SelectionSummary
-                cartItems={cartItems}
-                total={total}
-                count={cartCount}
-                currency={currency}
-                canTransact={lifecycle.canTransact}
-                onContinue={goToDetails}
-                onDonate={startDonation}
-              />
-            }
-          >
+          <SupportLayout>
             <header className="mb-3 flex items-center justify-between gap-3 rounded-b-[1.75rem] bg-white/95 px-4 py-3 shadow-sm ring-1 ring-black/5 backdrop-blur">
               <div className="min-w-0">
                 <p className="truncate text-lg font-black tracking-tight text-slate-950">{title}</p>
                 <p className="text-xs font-bold text-slate-400">Official Peer fundraiser</p>
               </div>
-              <a
-                href="/"
-                className="shrink-0 rounded-full px-3 py-2 text-xs font-black"
-                style={{
-                  background: 'var(--fr-primary)',
-                  color:
-                    data?.club?.brand_text_on_primary_color ||
-                    '#ffffff',
-                }}
-              >
-                FundRaisely
-              </a>
+             
             </header>
 
             <SupporterHero
@@ -714,9 +690,7 @@ export default function PeerSupportPage() {
             </div>
           )}
 
-          <div className="lg:hidden">
-            <SelectionBar total={total} count={cartCount} currency={currency} onContinue={goToDetails} onDonate={startDonation} canTransact={lifecycle.canTransact} />
-          </div>
+          <SelectionBar total={total} count={cartCount} currency={currency} onContinue={goToDetails} onDonate={startDonation} canTransact={lifecycle.canTransact} />
 
           {activePack && (
             <ActivityDetailSheet pack={activePack} currency={currency} onClose={() => setActivePack(null)} />
@@ -1099,7 +1073,7 @@ function PackArtwork({ pack, featured }: { pack: any; featured: boolean }) {
 function SelectionBar({ total, count, currency, onContinue, onDonate, canTransact }: { total: number; count: number; currency: string; onContinue: () => void; onDonate: () => void; canTransact: boolean }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-[10000] border-t border-slate-200 bg-white/95 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3 shadow-2xl backdrop-blur">
-      <div className="mx-auto flex max-w-md items-center gap-3 lg:max-w-5xl">
+      <div className="mx-auto flex max-w-md items-center gap-3 lg:max-w-2xl">
         {count > 0 ? (
           <>
             <div className="min-w-0 flex-1">

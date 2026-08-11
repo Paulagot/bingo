@@ -115,6 +115,12 @@ export default function PeerSponsorshipExperience({
     participant?.profileImageUrl ||
     null;
 
+  const logoUrl =
+    data?.club?.logoUrl ||
+    data?.club?.logo_url ||
+    data?.club?.brand_logo_url ||
+    null;
+
   const currency =
     sponsoredRoom?.currency ||
     fundraiser?.currency ||
@@ -181,9 +187,6 @@ export default function PeerSponsorshipExperience({
   const [customAmount, setCustomAmount] = useState('');
   const [sponsorName, setSponsorName] = useState('');
   const [sponsorEmail, setSponsorEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [gdprConsent, setGdprConsent] = useState(false);
   const [selectedMethod, setSelectedMethod] =
     useState<ClubPaymentMethod | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -344,13 +347,6 @@ export default function PeerSponsorshipExperience({
       return false;
     }
 
-    if (!gdprConsent) {
-      setFormError(
-        'Please agree to the privacy statement to continue.',
-      );
-      return false;
-    }
-
     return true;
   }
 
@@ -358,8 +354,6 @@ export default function PeerSponsorshipExperience({
     return {
       sponsorName: sponsorName.trim(),
       sponsorEmail: sponsorEmail.trim() || undefined,
-      displayName: displayName.trim() || undefined,
-      isAnonymous,
       amount,
       clubPaymentMethodId: method.id,
       peerFundraiserId: fundraiser.id,
@@ -595,6 +589,12 @@ export default function PeerSponsorshipExperience({
                   alt={participantName || ''}
                   className="h-28 w-28 rounded-[2rem] border-4 border-white object-cover shadow-lg"
                 />
+              ) : (logoUrl || activity?.clubLogoUrl) ? (
+                <img
+                  src={(logoUrl || activity?.clubLogoUrl)!}
+                  alt={data?.club?.name || 'Club logo'}
+                  className="h-28 w-28 rounded-[2rem] border-4 border-white bg-white object-contain p-2 shadow-lg"
+                />
               ) : (
                 <div
                   className="grid h-28 w-28 place-items-center rounded-[2rem] border-4 border-white bg-white shadow-lg"
@@ -731,14 +731,10 @@ export default function PeerSponsorshipExperience({
                   Your sponsorship supports{' '}
                   {data.club?.name || activity.clubName}
                 </p>
-                <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                  Sponsorship income is recorded against this
-                  sponsored activity and attributed to this peer
-                  fundraiser
-                  {participantName
-                    ? ` and ${participantName}.`
-                    : '.'}
-                </p>
+       
+            <a href="/" className="mt-8 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-[var(--fr-primary)]">
+              <ShieldCheck className="h-4 w-4" /> Created by FundRaisely
+            </a>
               </div>
             </div>
           </div>
@@ -889,52 +885,6 @@ export default function PeerSponsorshipExperience({
                     className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none focus:border-[var(--peer-primary)]"
                   />
                 </div>
-
-                {/* {!isAnonymous && (
-                  <input
-                    value={displayName}
-                    onChange={event =>
-                      setDisplayName(event.target.value)
-                    }
-                    placeholder="Public display name (optional)"
-                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none focus:border-[var(--peer-primary)]"
-                  />
-                )} */}
-
-                <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
-                  <input
-                    type="checkbox"
-                    checked={isAnonymous}
-                    onChange={event =>
-                      setIsAnonymous(event.target.checked)
-                    }
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="block text-sm font-black text-slate-800">
-                      Sponsor anonymously
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500">
-                      The club can still see the payment record.
-                    </span>
-                  </span>
-                </label>
-
-                <label className="flex items-start gap-3 text-sm font-semibold text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={gdprConsent}
-                    onChange={event =>
-                      setGdprConsent(event.target.checked)
-                    }
-                    className="mt-1"
-                  />
-                  <span>
-                    I agree that FundRaisely and the club may
-                    process these details to record and confirm
-                    this sponsorship.
-                  </span>
-                </label>
 
                 {formError && (
                   <div className="flex gap-2 rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">
