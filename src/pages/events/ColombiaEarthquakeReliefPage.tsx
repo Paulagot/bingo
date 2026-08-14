@@ -9,10 +9,10 @@
 // recorded on every donation row.
 //
 // ── CONFIG TO CHANGE PER ENVIRONMENT ────────────────────────────────────────
-// PEER_FUNDRAISER_ID — swap for the production peer fundraiser ID before launch
-// PACK_BOTH_ID / PACK_GAME_ONE_ID / PACK_GAME_TWO_ID — swap if packs are
+// PEER_FUNDRAISER_ID - swap for the production peer fundraiser ID before launch
+// PACK_BOTH_ID / PACK_GAME_ONE_ID / PACK_GAME_TWO_ID - swap if packs are
 // recreated in production
-// DONATION_CLUB_PAYMENT_METHOD_ID — the club's payment method ID for donations
+// DONATION_CLUB_PAYMENT_METHOD_ID - the club's payment method ID for donations
 // ────────────────────────────────────────────────────────────────────────────
 
 import React, { lazy, Suspense, useState, useCallback, useEffect, useMemo } from "react";
@@ -76,15 +76,15 @@ const Web3Provider = lazy(() =>
 );
 
 // -----------------------------------------------------------------------------
-// EVENT CONFIG — update these per environment
+// EVENT CONFIG - update these per environment
 // -----------------------------------------------------------------------------
 
 const PEER_FUNDRAISER_ID = "60AgXlG9-go1nEAvinmXh";
 
-// Pack IDs — from fundraisely_peer_packs for the above fundraiser
-const PACK_BOTH_ID     = "3n9bpfN_XcZ2blwoBZwl4"; // Both games — €16
-const PACK_GAME_ONE_ID = "VPnTbQo6aPtiEIADRRvoO"; // Game One — €10
-const PACK_GAME_TWO_ID = "0R38c9lye2XLChGVhrgY4"; // Game Two — €10
+// Pack IDs - from fundraisely_peer_packs for the above fundraiser
+const PACK_BOTH_ID     = "3n9bpfN_XcZ2blwoBZwl4"; // Both games - €16
+const PACK_GAME_ONE_ID = "VPnTbQo6aPtiEIADRRvoO"; // Game One - €10
+const PACK_GAME_TWO_ID = "0R38c9lye2XLChGVhrgY4"; // Game Two - €10
 
 const BUNDLE_PRICE   = "€16";
 const GAME_PRICE     = "€10";
@@ -107,15 +107,15 @@ const CASTLE_DAO_URL    = "https://castledao.ie/";
 const EVENT_PAGE_URL    = "https://fundraisely.ie/events/colombia-earthquake-relief";
 const EVENT_SOCIAL_IMAGE = "https://fundraisely.ie/social/colombia-earthquake-og.png";
 
-const SHARE_TITLE = "Play for Colombia — Earthquake Relief Fundraiser";
+const SHARE_TITLE = "Play for Colombia - Earthquake Relief Fundraiser";
 const SHARE_TEXT  =
   "Help us support families affected by the earthquake in western Colombia. Join our FundRaisely Elimination fundraiser at Slane Castle, play from anywhere, donate, or simply share.";
 
 const EARTHQUAKE_IMPACT = {
-  deaths:       "181+",
-  injured:      "2,500+",
-  missing:      "4,000+",
-  homesAffected:"5,000+",
+  deaths:       "250+",
+  injured:      "3,500+",
+  missing:      "400+",
+  homesAffected:"86,000+",
 };
 
 const SUPERTEAM_LOGO   = "/partner/superteam_ireland_logo.jpeg";
@@ -177,8 +177,38 @@ type EventImpactData = {
 };
 
 function useEventImpact() {
-  const [data] = useState<EventImpactData | null>(null);
-  return { data, loading: false };
+  const [data, setData] = useState<EventImpactData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const base = window.location.hostname === 'localhost'
+      ? 'http://localhost:3001/api' : '/api';
+    fetch(`${base}/peer-support/fundraiser/${PEER_FUNDRAISER_ID}/impact`)
+      .then(r => r.json())
+      .then(result => {
+        if (!result.ok) return;
+        // Map roomBreakdown to game-specific counts using known room IDs
+        const game1 = result.roomBreakdown?.find(
+          (r: any) => r.roomId === '361798C515F347BE'
+        )?.ticketsSold ?? null;
+        const game2 = result.roomBreakdown?.find(
+          (r: any) => r.roomId === 'BAF2ACC739D446E0'
+        )?.ticketsSold ?? null;
+        setData({
+          totalRaised:        result.totalRaised,
+          fundraisingTarget:  result.fundraisingTarget,
+          ticketRevenue:      result.ticketRevenue,
+          directDonations:    result.directDonations,
+          totalTicketsSold:   result.totalTicketsSold,
+          gameOneTicketsSold: game1,
+          gameTwoTicketsSold: game2,
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { data, loading };
 }
 
 // -----------------------------------------------------------------------------
@@ -196,7 +226,7 @@ type CheckoutStep =
 type PackOption = "both" | "game1" | "game2";
 
 const PACK_MAP: Record<PackOption, { id: string; name: string; price: number; label: string }> = {
-  both:  { id: PACK_BOTH_ID,     name: "Both Games",        price: 16, label: "€16 — save €4" },
+  both:  { id: PACK_BOTH_ID,     name: "Both Games",        price: 16, label: "€16 - save €4" },
   game1: { id: PACK_GAME_ONE_ID, name: "Game One",           price: 10, label: "€10" },
   game2: { id: PACK_GAME_TWO_ID, name: "Game Two",           price: 10, label: "€10" },
 };
@@ -249,7 +279,7 @@ export default function ColombiaEarthquakeReliefPage() {
           attempts += 1;
           timer = setTimeout(poll, 2000);
         } else {
-          // Timed out but payment likely went through — show generic confirm
+          // Timed out but payment likely went through - show generic confirm
           setDonateConfirmed({ amount: 0, currency: CURRENCY });
           setDonateStep('confirm');
         }
@@ -701,7 +731,7 @@ export default function ColombiaEarthquakeReliefPage() {
             </div>
           </section>
 
-          {/* PLAY / TICKETS — now with bundle option */}
+          {/* PLAY / TICKETS - now with bundle option */}
           <SectionCard eyebrow="Play for Colombia" title="Two games. Two chances. One great cause." intro="Buy a ticket for Game One, Game Two, or both in a single transaction at a saving.">
             <div className="grid gap-4 lg:grid-cols-3">
               {/* Bundle */}
@@ -720,7 +750,7 @@ export default function ColombiaEarthquakeReliefPage() {
                   <div className="flex items-start gap-2"><Check className="mt-1 h-4 w-4 shrink-0 text-[#006b43]" /><span>Single payment</span></div>
                 </div>
                 <button type="button" onClick={() => openTickets("both")} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#006b43] px-5 py-4 text-sm font-black text-white transition active:scale-[0.99]">
-                  <Ticket className="h-5 w-5" /> Buy both — {BUNDLE_PRICE}
+                  <Ticket className="h-5 w-5" /> Buy both - {BUNDLE_PRICE}
                 </button>
               </div>
 
@@ -737,7 +767,7 @@ export default function ColombiaEarthquakeReliefPage() {
                   <div className="flex items-start gap-2"><Check className="mt-1 h-4 w-4 shrink-0 text-[#006b43]" /><span>{formatNumber(data?.gameOneTicketsSold)} tickets sold</span></div>
                 </div>
                 <button type="button" onClick={() => openTickets("game1")} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#10251c] px-5 py-4 text-sm font-black text-white transition active:scale-[0.99]">
-                  <Ticket className="h-5 w-5" /> Buy Game One — {GAME_PRICE}
+                  <Ticket className="h-5 w-5" /> Buy Game One - {GAME_PRICE}
                 </button>
               </div>
 
@@ -754,7 +784,7 @@ export default function ColombiaEarthquakeReliefPage() {
                   <div className="flex items-start gap-2"><Check className="mt-1 h-4 w-4 shrink-0 text-[#006b43]" /><span>{formatNumber(data?.gameTwoTicketsSold)} tickets sold</span></div>
                 </div>
                 <button type="button" onClick={() => openTickets("game2")} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#10251c] px-5 py-4 text-sm font-black text-white transition active:scale-[0.99]">
-                  <Ticket className="h-5 w-5" /> Buy Game Two — {GAME_PRICE}
+                  <Ticket className="h-5 w-5" /> Buy Game Two - {GAME_PRICE}
                 </button>
               </div>
             </div>
@@ -853,7 +883,7 @@ export default function ColombiaEarthquakeReliefPage() {
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
               <div className="space-y-3">
                 <FaqItem question="What is FundRaisely Elimination?" answer="FundRaisely Elimination is a last-person-standing fundraising game. Players join on their phones, take part in quick challenge rounds and stay in the game until they are knocked out. The final remaining player wins." />
-                <FaqItem question="How does the game work?" answer="Everyone starts in the game. Each round gives players a challenge. Players who fail are eliminated, and the remaining players move forward. The game continues until one player is left standing." />
+                <FaqItem question="How does the game work?" answer="Everyone starts in the game. Each round gives players a challenge. Lowest scoring players are eliminated, and the remaining players move forward. The game continues until one player is left standing." />
                 <FaqItem question="How many rounds are in each game?" answer="Each Elimination game uses eight rounds, selected from a wider set of possible round types. This keeps the game simple to run while helping repeat games feel different." />
                 <FaqItem question="Will every game be the same?" answer="No. FundRaisely can vary the round mix, difficulty and skill level, so supporters can play again without feeling like they are repeating the exact same game." />
                 <FaqItem question="Can anyone run a fundraiser on FundRaisely?">
@@ -957,11 +987,11 @@ export default function ColombiaEarthquakeReliefPage() {
                     <div className="flex items-start gap-3">
                       <Trophy className="mt-0.5 h-5 w-5 shrink-0 text-[#806c00]" />
                       <div>
-                        <p className="font-black text-[#3f3500]">{pack.name} — {PACK_MAP[selectedPack].label}</p>
+                        <p className="font-black text-[#3f3500]">{pack.name} - {PACK_MAP[selectedPack].label}</p>
                         <p className="mt-1 text-sm leading-6 text-[#6e611c]">
                           {selectedPack === "both"
                             ? "Enter both Elimination games in one transaction. Two chances to win a Solana Seeker."
-                            : `Enter ${pack.name} — a separate live Elimination competition. Prize: Solana Seeker.`}
+                            : `Enter ${pack.name} - a separate live Elimination competition. Prize: Solana Seeker.`}
                         </p>
                       </div>
                     </div>
@@ -982,7 +1012,7 @@ export default function ColombiaEarthquakeReliefPage() {
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email for your entry links" className="w-full rounded-2xl border border-[#e6e0d6] bg-white px-4 py-3 text-base font-semibold outline-none focus:border-[#006b43]" />
                   </div>
                   <div className="rounded-2xl bg-[#f5f9f6] p-4 text-sm text-[#526158]">
-                    <strong className="text-[#10251c]">{pack.name}</strong> — {PACK_MAP[selectedPack].label}
+                    <strong className="text-[#10251c]">{pack.name}</strong> - {PACK_MAP[selectedPack].label}
                   </div>
                   {checkoutError && <div className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700 ring-1 ring-red-100">{checkoutError}</div>}
                   <div className="flex gap-3">
@@ -1137,9 +1167,31 @@ export default function ColombiaEarthquakeReliefPage() {
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-[#e6e0d6] bg-white p-4">
                     <label className="text-sm font-black text-[#10251c]">Donation amount</label>
-                    <div className="mt-3 flex items-center rounded-2xl border border-[#e6e0d6] px-4 py-3">
+                    <div className="mt-3 grid grid-cols-4 gap-2">
+                      {[5, 10, 20, 50].map(preset => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setDonateAmount(String(preset))}
+                          className={`rounded-2xl border py-3 text-sm font-black transition ${
+                            donateAmount === String(preset)
+                              ? 'border-[#006b43] bg-[#006b43] text-white'
+                              : 'border-[#e6e0d6] bg-[#f8f6ef] text-[#10251c] hover:border-[#006b43] hover:text-[#006b43]'
+                          }`}
+                        >
+                          €{preset}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center rounded-2xl border border-[#e6e0d6] px-4 py-3 focus-within:border-[#006b43]">
                       <span className="font-black text-[#657169]">€</span>
-                      <input value={donateAmount} onChange={e => setDonateAmount(e.target.value)} inputMode="decimal" placeholder="0.00" autoFocus className="min-w-0 flex-1 border-0 bg-transparent px-3 text-xl font-black outline-none" />
+                      <input
+                        value={donateAmount}
+                        onChange={e => setDonateAmount(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="Or enter your own amount"
+                        className="min-w-0 flex-1 border-0 bg-transparent px-3 text-xl font-black outline-none"
+                      />
                     </div>
                   </div>
                   <div className="rounded-2xl border border-[#e6e0d6] bg-white p-4">
@@ -1148,7 +1200,7 @@ export default function ColombiaEarthquakeReliefPage() {
                       <input value={donorName} onChange={e => setDonorName(e.target.value)} placeholder="Screen name or leave blank to donate anonymously" className="w-full rounded-2xl border border-[#e6e0d6] bg-[#f8f6ef] px-4 py-3 text-sm font-semibold outline-none focus:border-[#006b43]" />
                       <input type="email" value={donorEmail} onChange={e => setDonorEmail(e.target.value)} placeholder="Email for confirmation (optional)" className="w-full rounded-2xl border border-[#e6e0d6] bg-[#f8f6ef] px-4 py-3 text-sm font-semibold outline-none focus:border-[#006b43]" />
                     </div>
-                    <p className="mt-3 text-xs text-[#8a9990]">You can donate anonymously — no name or email required.</p>
+                    <p className="mt-3 text-xs text-[#8a9990]">You can donate anonymously - no name or email required.</p>
                   </div>
                   {donateError && <div className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{donateError}</div>}
                   <button type="button" onClick={proceedDonateToPayment} disabled={donateValue <= 0 || (!!donorEmail.trim() && !isValidEmail(donorEmail))}
@@ -1405,14 +1457,14 @@ function PartnerCard({ imgSrc, name, role, href }: { imgSrc: string; name: strin
 // -----------------------------------------------------------------------------
 
 function formatCurrency(value: number | null | undefined) {
-  if (value == null) return "—";
+  if (value == null) return "-";
   return new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
 }
 
 function formatNumber(value: number | null | undefined) {
-  if (value == null) return "—";
+  if (value == null) return "-";
   return new Intl.NumberFormat("en-IE", { maximumFractionDigits: 0 }).format(value);
 }
 
-// Needed for crypto steps — roomId anchor for quote endpoint
+// Needed for crypto steps - roomId anchor for quote endpoint
 const GAME_ONE_ROOM_ID = "361798C515F347BE";

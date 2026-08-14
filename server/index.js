@@ -186,12 +186,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.use((req, res, next) => {
-  if (req.path.includes('branding')) {
-    console.log('🔥 BRANDING REQUEST:', req.method, req.originalUrl);
-  }
-  next();
-});
+
 
 /*
 |--------------------------------------------------------------------------

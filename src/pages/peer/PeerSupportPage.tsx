@@ -773,14 +773,29 @@ export default function PeerSupportPage() {
             <div className="mt-5 space-y-3">
               <div className="rounded-2xl border border-orange-200 bg-white p-4">
                 <label className="text-sm font-black text-slate-700">Donation amount</label>
-                <div className="mt-3 flex items-center rounded-2xl border border-slate-200 px-4 py-3">
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {[5, 10, 20, 50].map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setDonationAmount(String(preset))}
+                      className={`rounded-2xl border py-3 text-sm font-black transition ${
+                        donationAmount === String(preset)
+                          ? 'border-[var(--fr-primary)] bg-[var(--fr-primary)] text-white'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-[var(--fr-primary)] hover:text-[var(--fr-primary)]'
+                      }`}
+                    >
+                      {currencySymbol(currency)}{preset}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center rounded-2xl border border-slate-200 px-4 py-3 focus-within:border-[var(--fr-primary)]">
                   <span className="font-black text-slate-500">{currencySymbol(currency)}</span>
                   <input
                     value={donationAmount}
                     onChange={e => setDonationAmount(e.target.value)}
                     inputMode="decimal"
-                    placeholder="0.00"
-                    autoFocus
+                    placeholder="Or enter your own amount"
                     className="min-w-0 flex-1 border-0 bg-transparent px-3 text-xl font-black outline-none"
                   />
                 </div>
