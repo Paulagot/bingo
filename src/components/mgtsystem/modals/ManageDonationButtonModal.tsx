@@ -54,6 +54,8 @@ import {
 
 import DonationButtonService from '../services/DonationButtonService';
 
+import ClubBrandingService from '../../../services/ClubBrandingService';
+
 import type {
   ClubDonationButtonWithPaymentMethod,
   EligibleDonationPaymentMethod,
@@ -63,6 +65,7 @@ import type {
   DroppedMethod,
   DonationBrandingConfig,
 } from '../../../shared/types/donationCheckout';
+import { brand } from '@/components/dashboard/branding';
 
 interface ManageDonationButtonModalProps {
   clubId: string;
@@ -220,15 +223,31 @@ export default function ManageDonationButtonModal({
     try {
       setLoadingList(true);
       setError(null);
+          // ← ADD THIS BLOCK
+    try {
+      const clubBranding = await ClubBrandingService.get(clubId);
+      if (clubBranding.brand_primary_color)
+        setPrimaryColor(clubBranding.brand_primary_color);
+      if (clubBranding.brand_background_color)
+        setBackgroundColor(clubBranding.brand_background_color);
+      if (clubBranding.brand_text_on_primary_color)
+        setTextOnPrimaryColor(clubBranding.brand_text_on_primary_color);
+    } catch {
+      // falls back to DEFAULT_BRANDING
+    }
+
       const res = await DonationButtonService.getForManagement(clubId);
       setDonationButton(res.donationButton);
       setEligibleManualMethods(res.eligibleManualMethods || []);
       setEligibleTrackableMethods(res.eligibleTrackableMethods || []);
       setAllowCustomAmount(res.amountConfig?.allowCustomAmount ?? true);
       setPresetAmounts(res.amountConfig?.presetAmounts ?? []);
-      setPrimaryColor(res.branding?.primaryColor ?? DEFAULT_BRANDING.primaryColor);
-      setBackgroundColor(res.branding?.backgroundColor ?? DEFAULT_BRANDING.backgroundColor);
-      setTextOnPrimaryColor(res.branding?.textOnPrimaryColor ?? DEFAULT_BRANDING.textOnPrimaryColor);
+if (res.branding?.primaryColor)
+  setPrimaryColor(res.branding.primaryColor);
+if (res.branding?.backgroundColor)
+  setBackgroundColor(res.branding.backgroundColor);
+if (res.branding?.textOnPrimaryColor)
+  setTextOnPrimaryColor(res.branding.textOnPrimaryColor);
       setAllowedDomains(res.allowedDomains || []);
 
       // linkedTrackableMethodIds is the authoritative "what's actually
@@ -396,9 +415,15 @@ export default function ManageDonationButtonModal({
         ...(isTrackableSelection ? { allowCustomAmount, presetAmounts } : {}),
       });
 
-      setDonationButton(res.donationButton);
-      setEligibleManualMethods(res.eligibleManualMethods || []);
-      setEligibleTrackableMethods(res.eligibleTrackableMethods || []);
+    setDonationButton(res.donationButton);
+// Only update eligible methods if the save response actually includes them
+// (avoids wiping the list if the save endpoint doesn't return them)
+if (res.eligibleManualMethods) {
+  setEligibleManualMethods(res.eligibleManualMethods);
+}
+if (res.eligibleTrackableMethods) {
+  setEligibleTrackableMethods(res.eligibleTrackableMethods);
+}
       if (res.branding) {
         setPrimaryColor(res.branding.primaryColor);
         setBackgroundColor(res.branding.backgroundColor);
@@ -681,6 +706,11 @@ export default function ManageDonationButtonModal({
                   shown to supporters - both the trackable amount-picker card and the manual-link
                   button use these colors.
                 </p>
+
+                <p className="text-xs" style={{ color: brand.teal }}>
+  Tip: colors are pre-filled from your club branding if you haven't customised them yet.
+  Update your club branding in Menu → Branding.
+</p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <ColorField

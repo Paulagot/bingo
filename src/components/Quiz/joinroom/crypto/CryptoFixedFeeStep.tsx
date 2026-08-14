@@ -48,23 +48,10 @@ interface BaseProps {
   solanaCluster?:        'mainnet' | 'devnet';
   onBack:                () => void;
   onSuccess?:            (result: FixedFeeConfirmResult) => void;
-  /**
-   * When true, skips the internal `join_quiz_room` socket emit.
-   * Use for non-quiz games (e.g. elimination) where the caller handles joining.
-   */
   skipInternalJoin?:     boolean;
-  /**
-   * When true, skips the internal navigate to /quiz/game/...
-   * Use for non-quiz games where the caller handles navigation via onSuccess.
-   */
   skipInternalNavigate?: boolean;
-  /**
-   * Override the backend confirm endpoint.
-   * Used by CampaignSupportPage so campaign orders go to the campaign-specific
-   * confirm route instead of /api/quiz/tickets/crypto-fixed-fee/confirm.
-   * When not provided, the default quiz ticket or walkin route is used.
-   */
   confirmEndpoint?: string;
+  quoteEndpoint?:   string;   // ← ADD THIS
 }
 
 interface WalkinProps extends BaseProps {
@@ -121,6 +108,7 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
     skipInternalJoin = false,
     skipInternalNavigate = false,
     confirmEndpoint,
+     quoteEndpoint, 
   } = props;
 
   const navigate   = useNavigate();
@@ -152,6 +140,7 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
       fiatAmount:  totalFiatAmount,
       tokenCode:   selectedToken,
       enabled:     !isBusy && totalFiatAmount > 0,
+      quoteEndpoint,
     });
 
   useEffect(() => {

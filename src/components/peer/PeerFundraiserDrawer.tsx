@@ -1,39 +1,448 @@
 // src/components/peer/PeerFundraiserDrawer.tsx
-import { useEffect, useState } from 'react';
-import { X, Globe, AlertCircle, Loader2 } from 'lucide-react';
+//
+// Peer fundraiser management drawer.
+// Changes from original:
+//   - Overview tab removed (name/status/link already in header)
+//   - Payments tab removed (payment methods now live in the create modal)
+//   - Format removed from edit form and display
+//   - Target shown as actual vs target progress bar in header area
+//   - Publish flow: shows confirmation modal with ordered sales options
+//   - Tabs: Participants | Sales Options | Orders | Donations | Report
+//   - All tab content extracted into dedicated components
+//   - Each tab component receives only the data it needs
+//   - load() is called at drawer open and after mutations that affect
+//     cross-tab data; tab-level mutations call onChanged() to refresh
+//     the dashboard card counts
+
+import { useEffect, useState, useCallback } from 'react';
+import { X, Globe, AlertCircle, Loader2, Check, ArrowRight } from 'lucide-react';
 import svc from '../../services/PeerService';
-import type { PeerFundraiserFormat } from '../../services/PeerService';
-import PeerPackEditor from './PeerPackEditor';
-import ParticipantForm from './ParticipantForm';
-import ParticipantList from './ParticipantList';
-import PeerPaymentsTab from './PeerPaymentsTab';
-import PeerPaymentReportTab from './PeerPaymentReportTab';
-import { brand } from '../dashboard/branding';
+import type {
+  PeerFundraiser,
+  PeerFundraiserFormat,
+  PeerPack,
+  PeerParticipant,
+  PeerOrder,
+  PeerDirectDonation,
+  AvailableRoom,
+  ClubPaymentMethod,
+} from '../../services/PeerService';
+import PeerSalesOptionsTab       from './PeerSalesOptionsTab';
+import PeerOrdersTab             from './PeerOrdersTab';
+import PeerDonationsTab          from './PeerDonationsTab';
+import PeerReportsTab            from './PeerReportsTab';
+import PeerSponsorshipSetupTab   from './PeerSponsorshipSetupTab';
+import PeerSponsorshipsTab       from './PeerSponsorshipsTab';
+import ParticipantForm           from './ParticipantForm';
+import ParticipantList           from './ParticipantList';
+import { brand }                 from '../dashboard/branding';
 
-type Tab = 'overview' | 'participants' | 'packs' | 'orders' | 'donations' | 'payments' | 'report';
+type Tab = 'overview' | 'participants' | 'packs' | 'orders' | 'donations' | 'report';
 
-const FORMAT_OPTIONS: { value: PeerFundraiserFormat; label: string }[] = [
-  { value: 'door_to_door', label: 'Sell activities' },
-  { value: 'sponsored', label: 'Sponsored fundraising' },
-];
+const field =
+  'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ' +
+  'focus:ring-[#157f85] focus:border-transparent transition ' +
+  'border-[#dce1df] bg-white hover:border-[#b8c6b0]';
 
-const ITEM_TYPE_LABELS: Record<string, string> = {
-  game_entry: 'Quiz Entry + All Extras',
-  elimination_entry: 'Elimination Entry',
-  puzzle_entry: 'Puzzle Drop',
-  event_ticket: 'Event Ticket',
-  custom: 'Custom',
+const FORMAT_LABEL: Record<PeerFundraiserFormat, string> = {
+  door_to_door:         'Sell activities',
+  sponsored:            'Sponsored fundraising',
+  personal_fundraising: 'Personal fundraising',
+  team_fundraising:     'Team fundraising',
+  custom:               'Custom',
 };
 
-const field = 'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#157f85] focus:border-transparent transition'
-  + ' border-[#dce1df] bg-white hover:border-[#b8c6b0]';
-
 interface Props {
-  open:       boolean;
+  open:         boolean;
   fundraiserId: string;
-  onClose:    () => void;
-  onChanged?: () => void;
+  onClose:      () => void;
+  onChanged?:   () => void;
 }
+
+// ── Publish confirmation modal ────────────────────────────────────────────────
+
+interface PublishModalProps {
+  packs:      PeerPack[];
+  currency:   string;
+  onConfirm:  () => void;
+  onCancel:   () => void;
+  publishing: boolean;
+}
+
+function PublishConfirmModal({
+  packs,
+  currency,
+  onConfirm,
+  onCancel,
+  publishing,
+}: PublishModalProps) {
+  const ordered = [...packs]
+    .filter(p => p.is_active !== 0 && p.is_active !== false)
+    .sort((a, b) => a.display_order - b.display_order);
+
+  return (
+    <div
+      className="fixed inset-0 z-[10100] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-6"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-2xl"
+        style={{ background: brand.surface }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="px-5 py-4"
+          style={{ borderBottom: `1px solid ${brand.border}` }}
+        >
+          <p
+            className="text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: brand.slate }}
+          >
+            Before you publish
+          </p>
+          <h2 className="text-lg font-bold mt-0.5" style={{ color: brand.navy }}>
+            Confirm your sales options
+          </h2>
+          <p className="text-sm mt-1" style={{ color: brand.slate }}>
+            Once published, sales options cannot be created, edited, duplicated or hidden.
+            Check the order below is exactly how you want supporters to see them.
+          </p>
+        </div>
+
+        {/* Sales options in their current display order */}
+        <div className="px-5 py-4 space-y-2 max-h-72 overflow-y-auto">
+          {ordered.length === 0 ? (
+            <div
+              className="rounded-lg p-3 text-sm font-semibold"
+              style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
+            >
+              ⚠️ You have no active sales options. Supporters won't be able to buy anything.
+            </div>
+          ) : (
+            ordered.map((p, i) => {
+              const badgeRaw  = p.badge_label;
+              const badge     = p.is_featured && badgeRaw && badgeRaw.trim() !== '' && badgeRaw.trim() !== '0'
+                ? badgeRaw.trim()
+                : p.is_featured ? 'Featured' : null;
+
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                  style={{ borderColor: brand.border, background: '#fff' }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className="flex-shrink-0 h-6 w-6 rounded-full grid place-items-center text-xs font-bold"
+                      style={{ background: brand.bg, color: brand.slate }}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate" style={{ color: brand.navy }}>
+                        {p.name}
+                      </p>
+                      {badge && (
+                        <span
+                          className="text-[10px] font-bold uppercase"
+                          style={{ color: '#8a6d2f' }}
+                        >
+                          {badge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm font-bold flex-shrink-0" style={{ color: brand.navy }}>
+                    {currency}{Number(p.price).toFixed(2)}
+                  </p>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between gap-3 px-5 py-4"
+          style={{ borderTop: `1px solid ${brand.border}` }}
+        >
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={publishing}
+            className="rounded-lg border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: brand.border, color: brand.slate }}
+          >
+            Go back
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={publishing}
+            className="inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: brand.teal }}
+          >
+            {publishing ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Publishing…</>
+            ) : (
+              <><Check className="h-4 w-4" /> Yes, publish now</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Target progress bar ───────────────────────────────────────────────────────
+
+function TargetProgress({
+  confirmed,
+  target,
+  currency,
+}: {
+  confirmed: number;
+  target:    number;
+  currency:  string;
+}) {
+  if (target <= 0) {
+    // No target: just show confirmed total
+    return (
+      <p className="text-xs font-semibold mt-1" style={{ color: brand.teal }}>
+        {currency}{Number(confirmed).toFixed(0)} confirmed
+      </p>
+    );
+  }
+
+  const pct = Math.min(100, Math.round((confirmed / target) * 100));
+
+  return (
+    <div className="mt-2">
+      <div className="flex justify-between text-xs font-semibold mb-1" style={{ color: brand.slate }}>
+        <span style={{ color: brand.teal }}>
+          {currency}{Number(confirmed).toFixed(0)} raised
+        </span>
+        <span>{pct}% of {currency}{Number(target).toFixed(0)}</span>
+      </div>
+      <div
+        className="h-1.5 w-full rounded-full overflow-hidden"
+        style={{ background: brand.bg }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: brand.teal }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Edit fundraiser form ──────────────────────────────────────────────────────
+
+interface EditFormProps {
+  f:        PeerFundraiser;
+  onSaved:  (updated: PeerFundraiser) => void;
+  onCancel: () => void;
+}
+
+function EditFundraiserForm({ f, onSaved, onCancel }: EditFormProps) {
+  const settingsOf = (fund: PeerFundraiser): Record<string, any> => {
+    const raw = fund.settings_json;
+    if (typeof raw === 'string') { try { return JSON.parse(raw) || {}; } catch { return {}; } }
+    return raw || {};
+  };
+
+  const s = settingsOf(f);
+  const [name,   setName]   = useState(f.name);
+  const [desc,   setDesc]   = useState(f.description || '');
+  const [target, setTarget] = useState(String(f.target_amount || ''));
+  const [cover,  setCover]  = useState(typeof s.coverImageUrl === 'string' ? s.coverImageUrl : '');
+  const [video,  setVideo]  = useState(typeof s.videoUrl === 'string' ? s.videoUrl : '');
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState<string | null>(null);
+
+  // Payment methods
+  const [allMethods,      setAllMethods]      = useState<ClubPaymentMethod[]>([]);
+  const [selectedIds,     setSelectedIds]     = useState<number[]>([]);
+  const [methodsLoading,  setMethodsLoading]  = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      svc.getAvailablePaymentMethods(),
+      svc.paymentMethods(f.id),
+    ]).then(([available, linked]) => {
+      setAllMethods(available.availableMethods);
+      setSelectedIds(linked.linkedMethodIds);
+    }).catch(() => {
+      // non-fatal — show empty list
+    }).finally(() => setMethodsLoading(false));
+  }, [f.id]);
+
+  const toggleMethod = (id: number) =>
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id],
+    );
+
+  const save = async () => {
+    if (!name.trim()) { setError('Name is required.'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const [r] = await Promise.all([
+        svc.update(f.id, {
+          name:         name.trim(),
+          description:  desc.trim() || null,
+          targetAmount: Number(target || 0),
+          settings: {
+            ...settingsOf(f),
+            coverImageUrl: cover.trim() || null,
+            videoUrl:      video.trim() || null,
+          },
+        }),
+        svc.savePaymentMethods(f.id, selectedIds),
+      ]);
+      onSaved(r.fundraiser);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to save.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="rounded-xl border p-4 mb-5"
+      style={{ borderColor: brand.border, background: '#fff' }}
+    >
+      <h3 className="text-sm font-bold mb-3" style={{ color: brand.navy }}>
+        Edit fundraiser details
+      </h3>
+      <div className="space-y-3 max-w-lg">
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: brand.navy }}>
+            Name <span style={{ color: '#e9574f' }}>*</span>
+          </label>
+          <input className={field} value={name} onChange={e => { setName(e.target.value); setError(null); }} />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: brand.navy }}>
+            Description <span className="font-normal" style={{ color: brand.slate }}>(optional)</span>
+          </label>
+          <textarea
+            className={`${field} resize-none`}
+            rows={3}
+            value={desc}
+            onChange={e => setDesc(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: brand.navy }}>
+            Overall target <span className="font-normal" style={{ color: brand.slate }}>(optional)</span>
+          </label>
+          <input
+            className={field}
+            type="number"
+            min="0"
+            step="1"
+            value={target}
+            onChange={e => setTarget(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: brand.navy }}>
+            Cover image URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span>
+          </label>
+          <input
+            className={field}
+            value={cover}
+            onChange={e => setCover(e.target.value)}
+            placeholder="https://…"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: brand.navy }}>
+            Video URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span>
+          </label>
+          <input
+            className={field}
+            value={video}
+            onChange={e => setVideo(e.target.value)}
+            placeholder="YouTube link"
+          />
+        </div>
+
+        {/* Payment methods */}
+        <div>
+          <label className="block text-xs font-semibold mb-2" style={{ color: brand.navy }}>
+            Payment methods supporters can use
+          </label>
+          {methodsLoading ? (
+            <div className="flex items-center gap-2 py-2" style={{ color: brand.slate }}>
+              <Loader2 className="h-4 w-4 animate-spin" style={{ color: brand.teal }} />
+              <span className="text-xs">Loading…</span>
+            </div>
+          ) : allMethods.length === 0 ? (
+            <p className="text-xs" style={{ color: brand.slate }}>
+              No payment methods set up for your club yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {allMethods.map(m => {
+                const isSelected = selectedIds.includes(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => toggleMethod(m.id)}
+                    className="flex w-full items-center justify-between rounded-xl border p-3 text-left transition"
+                    style={
+                      isSelected
+                        ? { borderColor: brand.teal, background: 'rgba(21,127,133,0.06)' }
+                        : { borderColor: brand.border, background: '#fff' }
+                    }
+                  >
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: brand.navy }}>{m.methodLabel}</p>
+                      <p className="text-xs mt-0.5" style={{ color: brand.slate }}>
+                        {m.providerName || m.methodCategory}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <Check className="h-4 w-4 flex-shrink-0" style={{ color: brand.teal }} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-xs font-semibold text-red-700">{error}</p>}
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: brand.teal }}
+          >
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+          <button
+            onClick={onCancel}
+            className="rounded-lg border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: brand.border, color: brand.slate }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main drawer ───────────────────────────────────────────────────────────────
 
 export default function PeerFundraiserDrawer({
   open,
@@ -43,34 +452,29 @@ export default function PeerFundraiserDrawer({
 }: Props) {
   const [tab, setTab] = useState<Tab>('overview');
 
-  const [f,            setF]            = useState<any>(null);
-  const [participants, setParticipants] = useState<any[]>([]);
-  const [packs,        setPacks]        = useState<any[]>([]);
-  const [orders,       setOrders]       = useState<any[]>([]);
-  const [rooms,        setRooms]        = useState<any[]>([]);
-  const [sponsoredRooms, setSponsoredRooms] = useState<any[]>([]);
+  const [f,               setF]               = useState<PeerFundraiser | null>(null);
+  const [participants,    setParticipants]    = useState<PeerParticipant[]>([]);
+  const [packs,           setPacks]           = useState<PeerPack[]>([]);
+  const [orders,          setOrders]          = useState<PeerOrder[]>([]);
+  const [rooms,           setRooms]           = useState<AvailableRoom[]>([]);
+  const [directDonations, setDirectDonations] = useState<PeerDirectDonation[]>([]);
+
+  // Sponsored-only
+  const [sponsoredRooms,     setSponsoredRooms]     = useState<any[]>([]);
   const [sponsorshipSummary, setSponsorshipSummary] = useState<any>(null);
-  const [sponsorships, setSponsorships] = useState<any[]>([]);
-  const [directDonations, setDirectDonations] = useState<any[]>([]);
-  const [savingSponsoredRoom, setSavingSponsoredRoom] = useState(false);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState<string | null>(null);
+  const [sponsorships,       setSponsorships]       = useState<any[]>([]);
 
-  const [editingParticipant, setEditingParticipant] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
 
-  const [editorOpen,   setEditorOpen]   = useState(false);
-  const [editingPack,  setEditingPack]  = useState<any>(null);
-  const [packSaving,   setPackSaving]   = useState(false);
+  const [editingParticipant, setEditingParticipant] = useState<PeerParticipant | null>(null);
+  const [editingF,           setEditingF]           = useState(false);
 
-  const [editingF,      setEditingF]      = useState(false);
-  const [editName,      setEditName]      = useState('');
-  const [editDesc,      setEditDesc]      = useState('');
-  const [editTarget,    setEditTarget]    = useState('');
-  const [editFormat,    setEditFormat]    = useState<PeerFundraiserFormat>('door_to_door');
-  const [editCover,     setEditCover]     = useState('');
-  const [editVideo,     setEditVideo]     = useState('');
+  // Publish flow
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishing,       setPublishing]       = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -92,10 +496,7 @@ export default function PeerFundraiserDrawer({
           svc.sponsorshipSummary(id),
         ]);
 
-        let contributionRows: {
-          contributions: any[];
-        } = { contributions: [] };
-
+        let contributionRows: { contributions: any[] } = { contributions: [] };
         if (totals.roomId) {
           contributionRows = await svc.sponsorships(id);
         }
@@ -112,7 +513,6 @@ export default function PeerFundraiserDrawer({
           svc.orders(id),
           svc.donations(id),
         ]);
-
         setPacks(pks.packs);
         setOrders(os.orders);
         setDirectDonations(ds.donations);
@@ -125,90 +525,84 @@ export default function PeerFundraiserDrawer({
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    if (open && id) { setTab('overview'); load(); }
-  }, [open, id]);
+    if (open && id) {
+      setTab('overview');
+      setEditingF(false);
+      setEditingParticipant(null);
+      load();
+    }
+  }, [open, id, load]);
 
   if (!open) return null;
 
   const clubSlug = f?.club_slug || localStorage.getItem('club_slug') || 'your-club';
-  const base = f ? `${window.location.origin}/fundraise/${clubSlug}/${f.public_slug}` : '';
+  const base     = f ? `${window.location.origin}/fundraise/${clubSlug}/${f.public_slug}` : '';
+  const isPublished = f?.status === 'published';
+  const currency    = f?.currency || 'EUR';
 
-  const settingsOf = (fund: any): Record<string, any> => {
-    const raw = fund?.settings_json;
-    if (typeof raw === 'string') { try { return JSON.parse(raw) || {}; } catch { return {}; } }
-    return raw || {};
-  };
-  const removePerson = async (p: any) => {
-    if (!confirm(`Remove ${p.participant_name}? If they already have orders, they'll be deactivated instead of deleted.`)) return;
-    await svc.deleteParticipant(id, p.id); load(); onChanged?.();
-  };
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-  const startEditF = () => {
-    const s = settingsOf(f);
-    setEditName(f.name); setEditDesc(f.description || '');
-    setEditTarget(String(f.target_amount)); setEditFormat(f.format_type);
-    setEditCover(typeof s.coverImageUrl === 'string' ? s.coverImageUrl : '');
-    setEditVideo(typeof s.videoUrl === 'string' ? s.videoUrl : '');
-    setEditingF(true);
-  };
-  const saveF = async () => {
-    if (!editName.trim()) return;
-    const r = await svc.update(id, {
-      name:        editName.trim(),
-      description: editDesc.trim() || null,
-      targetAmount: Number(editTarget || 0),
-      formatType:  editFormat,
-      settings: {
-        ...settingsOf(f),
-        coverImageUrl: editCover.trim() || null,
-        videoUrl:      editVideo.trim() || null,
-      },
-    });
-    setF(r.fundraiser); setEditingF(false); onChanged?.();
+  const removePerson = async (p: PeerParticipant) => {
+    if (!confirm(
+      `Remove ${p.participant_name}? If they already have orders, they'll be deactivated instead of deleted.`,
+    )) return;
+    await svc.deleteParticipant(id, p.id);
+    load();
+    onChanged?.();
   };
 
-  const handlePublish = async () => {
+  const handlePublishClick = () => setShowPublishModal(true);
+
+  const handlePublishConfirm = async () => {
+    setPublishing(true);
     try {
-      const pm = await svc.paymentMethods(id);
-      if (!pm.linkedMethodIds?.length) {
-        if (!confirm("No payment methods are linked yet — supporters won't be able to pay online. Publish anyway?")) return;
-      }
-    } catch { /* non-fatal */ }
-    const r = await svc.update(id, { status: 'published' });
-    setF(r.fundraiser); onChanged?.();
+      // Warn if no payment methods linked
+      try {
+        const pm = await svc.paymentMethods(id);
+        if (!pm.linkedMethodIds?.length) {
+          if (!confirm(
+            "No payment methods are linked yet — supporters won't be able to pay online. Publish anyway?",
+          )) {
+            setPublishing(false);
+            return;
+          }
+        }
+      } catch { /* non-fatal */ }
+
+      const r = await svc.update(id, { status: 'published' });
+      setF(r.fundraiser);
+      setShowPublishModal(false);
+      onChanged?.();
+    } catch (e: any) {
+      alert(`Failed to publish: ${e?.message || 'Please try again.'}`);
+    } finally {
+      setPublishing(false);
+    }
   };
 
-  const savePack = async (payload: any) => {
-    setPackSaving(true);
-    try {
-      if (editingPack) await svc.updatePack(id, editingPack.id, payload);
-      else             await svc.addPack(id, payload);
-      setEditorOpen(false); setEditingPack(null); load(); onChanged?.();
-    } catch (e: any) { alert(`Save failed: ${e.message}`); }
-    finally { setPackSaving(false); }
-  };
-  const hidePack = async (pack: any) => {
-    if (!confirm(`Hide "${pack.name}"?`)) return;
-    try { await svc.hidePack(id, pack.id); load(); onChanged?.(); }
-    catch (e: any) { alert(`Failed: ${e.message}`); }
-  };
-  const duplicatePack = async (pack: any) => {
-    try { await svc.duplicatePack(id, pack.id); load(); onChanged?.(); }
-    catch (e: any) { alert(`Failed: ${e.message}`); }
-  };
+  // ── Tab definitions (format-aware) ───────────────────────────────────────
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'overview',     label: 'Overview' },
     { key: 'participants', label: 'Participants' },
-    { key: 'packs',        label: f?.format_type === 'sponsored' ? 'Sponsorship Setup' : 'Sales Options' },
-    { key: 'orders',       label: f?.format_type === 'sponsored' ? 'Sponsorships' : 'Orders' },
-    ...(f?.format_type === 'sponsored' ? [] : [{ key: 'donations' as Tab, label: 'Donations' }]),
-    { key: 'payments',     label: 'Payments' },
-    { key: 'report',       label: 'Report' },
+    {
+      key:   'packs',
+      label: f?.format_type === 'sponsored' ? 'Sponsorship Setup' : 'Sales Options',
+    },
+    {
+      key:   'orders',
+      label: f?.format_type === 'sponsored' ? 'Sponsorships' : 'Orders',
+    },
+    ...(f?.format_type === 'sponsored'
+      ? []
+      : [{ key: 'donations' as Tab, label: 'Donations' }]),
+    { key: 'report', label: 'Report' },
   ];
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -224,56 +618,101 @@ export default function PeerFundraiserDrawer({
         style={{ background: brand.surface }}
         onClick={e => e.stopPropagation()}
       >
+        {/* ── Sticky header ── */}
         <div
-          className="flex-shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-4"
+          className="flex-shrink-0 sticky top-0 z-10 px-5 py-4"
           style={{ background: brand.surface, borderBottom: `1px solid ${brand.border}` }}
         >
           {loading || !f ? (
-            <div className="h-5 w-40 rounded animate-pulse" style={{ background: brand.bg }} />
-          ) : (
-            <div className="min-w-0 flex-1 pr-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand.slate }}>
-                Peer Fundraiser
-              </p>
-              <h2 className="text-lg font-bold leading-tight truncate" style={{ color: brand.navy }}>
-                {f.name}
-              </h2>
-              {base && (
-                <a
-                  href={base}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs mt-0.5 hover:underline"
-                  style={{ color: brand.teal }}
-                >
-                  <Globe className="h-3 w-3" /> {f.public_slug}
-                </a>
-              )}
+            <div className="flex items-center justify-between">
+              <div className="h-5 w-40 rounded animate-pulse" style={{ background: brand.bg }} />
+              <div className="h-9 w-9 rounded-full animate-pulse" style={{ background: brand.bg }} />
             </div>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-widest"
+                      style={{ color: brand.slate }}
+                    >
+                      Peer Fundraiser
+                    </p>
+                    {/* Status pill */}
+                    <span
+                      className="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                      style={
+                        isPublished
+                          ? { background: 'rgba(21,127,133,0.12)', color: '#157f85' }
+                          : f.status === 'closed'
+                          ? { background: '#f1f0ee', color: '#52636f' }
+                          : { background: 'rgba(210,181,130,0.25)', color: '#8a6d2f' }
+                      }
+                    >
+                      {f.status}
+                    </span>
+                    <span
+                      className="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={{ background: brand.bg, color: brand.slate }}
+                    >
+                      {FORMAT_LABEL[f.format_type] ?? f.format_type}
+                    </span>
+                  </div>
+
+                  <h2 className="text-lg font-bold leading-tight truncate mt-0.5" style={{ color: brand.navy }}>
+                    {f.name}
+                  </h2>
+
+                  {base && (
+                    <a
+                      href={base}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs mt-0.5 hover:underline"
+                      style={{ color: brand.teal }}
+                    >
+                      <Globe className="h-3 w-3" /> {f.public_slug}
+                    </a>
+                  )}
+
+                  {/* Target progress */}
+                  <TargetProgress
+                    confirmed={Number(f.confirmed_total || 0)}
+                    target={Number(f.target_amount || 0)}
+                    currency={currency}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {!isPublished && (
+                    <button
+                      type="button"
+                      onClick={handlePublishClick}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+                      style={{ background: brand.teal }}
+                    >
+                      Publish <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="grid h-9 w-9 place-items-center rounded-full"
+                    style={{ background: brand.bg, color: brand.slate }}
+                    aria-label="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+            </>
           )}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {f && f.status !== 'published' && (
-              <button
-                type="button"
-                onClick={handlePublish}
-                className="rounded-lg px-3 py-1.5 text-xs font-bold text-white"
-                style={{ background: brand.teal }}
-              >
-                Publish
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="grid h-9 w-9 place-items-center rounded-full"
-              style={{ background: brand.bg, color: brand.slate }}
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
         </div>
 
+        {/* ── Tab bar ── */}
         <div
           className="flex-shrink-0 flex items-center gap-0 px-5 overflow-x-auto"
           style={{ borderBottom: `1px solid ${brand.border}` }}
@@ -283,15 +722,18 @@ export default function PeerFundraiserDrawer({
               key={key}
               onClick={() => setTab(key)}
               className="flex-shrink-0 px-4 py-3 text-xs font-semibold transition-colors whitespace-nowrap"
-              style={tab === key
-                ? { color: brand.teal, borderBottom: `2px solid ${brand.teal}`, marginBottom: '-1px' }
-                : { color: brand.slate }}
+              style={
+                tab === key
+                  ? { color: brand.teal, borderBottom: `2px solid ${brand.teal}`, marginBottom: '-1px' }
+                  : { color: brand.slate }
+              }
             >
               {label}
             </button>
           ))}
         </div>
 
+        {/* ── Tab content ── */}
         <div className="flex-1 p-5 overflow-y-auto">
           {loading ? (
             <div className="flex items-center gap-3 py-8 justify-center" style={{ color: brand.slate }}>
@@ -299,72 +741,117 @@ export default function PeerFundraiserDrawer({
               Loading…
             </div>
           ) : error ? (
-            <div className="flex items-center gap-2 rounded-lg p-4" style={{ background: '#fef2f2', border: '1px solid #fca5a5' }}>
+            <div
+              className="flex items-center gap-2 rounded-lg p-4"
+              style={{ background: '#fef2f2', border: '1px solid #fca5a5' }}
+            >
               <AlertCircle className="h-4 w-4 text-red-500" />
               <p className="text-sm text-red-700">{error}</p>
-              <button onClick={load} className="ml-auto text-xs font-bold text-red-700 underline">Retry</button>
+              <button
+                onClick={load}
+                className="ml-auto text-xs font-bold text-red-700 underline"
+              >
+                Retry
+              </button>
             </div>
           ) : (
             <>
-              {tab === 'overview' && (
-                editingF ? (
-                  <div className="space-y-4 max-w-lg">
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Name</label>
-                      <input className={field} value={editName} onChange={e => setEditName(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Description</label>
-                      <textarea className={field} rows={3} value={editDesc} onChange={e => setEditDesc(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Overall target (€)</label>
-                      <input className={field} type="number" value={editTarget} onChange={e => setEditTarget(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Format</label>
-                      <select className={field} value={editFormat} onChange={e => setEditFormat(e.target.value as PeerFundraiserFormat)}>
-                        {FORMAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Cover image URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span></label>
-                      <input className={field} value={editCover} onChange={e => setEditCover(e.target.value)} placeholder="https://…" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5" style={{ color: brand.navy }}>Video URL <span className="font-normal" style={{ color: brand.slate }}>(optional)</span></label>
-                      <input className={field} value={editVideo} onChange={e => setEditVideo(e.target.value)} placeholder="YouTube link" />
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={saveF} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: brand.teal }}>
-                        Save changes
-                      </button>
-                      <button onClick={() => setEditingF(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold" style={{ borderColor: brand.border, color: brand.slate }}>
-                        Cancel
+              {/* ── Overview ── */}
+              {tab === 'overview' && f && (
+                <div className="space-y-4">
+                  {/* Edit button */}
+                  {!editingF && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setEditingF(true)}
+                        className="rounded-lg border px-4 py-2 text-sm font-semibold"
+                        style={{ borderColor: brand.border, color: brand.navy }}
+                      >
+                        Edit details
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <InfoCard label="Status"  value={f.status} />
-                      <InfoCard label="Target"  value={`€${Number(f.target_amount).toFixed(2)}`} />
-                      <InfoCard label="Format"  value={f.format_type?.replaceAll('_', ' ')} />
-                    </div>
-                    {f.description && (
-                      <p className="mt-4 text-sm font-semibold" style={{ color: brand.slate }}>{f.description}</p>
-                    )}
-                    <button
-                      onClick={startEditF}
-                      className="mt-4 rounded-lg border px-4 py-2 text-sm font-semibold transition"
-                      style={{ borderColor: brand.border, color: brand.navy }}
+                  )}
+
+                  {/* Description (read mode) */}
+                  {f.description && !editingF && (
+                    <div
+                      className="rounded-xl border p-4"
+                      style={{ borderColor: brand.border, background: '#fff' }}
                     >
-                      Edit details
-                    </button>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: brand.slate }}>
+                        Description
+                      </p>
+                      <p className="text-sm leading-relaxed" style={{ color: brand.navy }}>
+                        {f.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Edit form */}
+                  {editingF ? (
+                    <EditFundraiserForm
+                      f={f}
+                      onSaved={updated => { setF(updated); setEditingF(false); onChanged?.(); }}
+                      onCancel={() => setEditingF(false)}
+                    />
+                  ) : (
+                    !f.description && (
+                      <p className="text-sm" style={{ color: brand.slate }}>
+                        No description set. Click <strong>Edit</strong> to add one.
+                      </p>
+                    )
+                  )}
+
+                  {/* Quick stats */}
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Participants', value: f.participant_count ?? participants.length },
+                      { label: 'Sales options', value: f.pack_count ?? packs.length },
+                      { label: 'Status', value: f.status },
+                    ].map(({ label, value }) => (
+                      <div
+                        key={label}
+                        className="rounded-xl border p-3 text-center"
+                        style={{ borderColor: brand.border, background: '#fff' }}
+                      >
+                        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand.slate }}>
+                          {label}
+                        </p>
+                        <p className="mt-1 text-base font-black capitalize" style={{ color: brand.navy }}>
+                          {value}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                )
+
+                  {/* Public link */}
+                  {base && (
+                    <div
+                      className="rounded-xl border p-4"
+                      style={{ borderColor: brand.border, background: '#fff' }}
+                    >
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: brand.slate }}>
+                        Public fundraiser link
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm flex-1 truncate font-mono" style={{ color: brand.teal }}>
+                          {base}
+                        </p>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(base)}
+                          className="flex-shrink-0 rounded-lg border px-3 py-1.5 text-xs font-bold"
+                          style={{ borderColor: brand.border, color: brand.navy }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
+              {/* ── Participants ── */}
               {tab === 'participants' && (
                 <div>
                   <ParticipantForm
@@ -382,505 +869,82 @@ export default function PeerFundraiserDrawer({
                 </div>
               )}
 
-              {tab === 'packs' && (
-                f?.format_type === 'sponsored' ? (
-                  <div className="space-y-5">
-                    <div>
-                      <h2 className="text-base font-bold" style={{ color: brand.navy }}>Sponsorship Setup</h2>
-                      <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                        Link this fundraiser to the Sponsored Activity room that receives sponsorship payments.
-                      </p>
-                    </div>
-
-                    {sponsorshipSummary && (
-                      <div className="space-y-3">
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>Confirmed sponsorship</p>
-                            <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
-                              {f.currency || 'EUR'} {Number(sponsorshipSummary.summary.confirmedTotal || 0).toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>Sponsors</p>
-                            <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
-                              {Number(sponsorshipSummary.summary.confirmedCount || 0)}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="text-xs font-semibold" style={{ color: brand.slate }}>Manual awaiting confirmation</p>
-                            <p className="mt-1 text-xl font-black" style={{ color: brand.navy }}>
-                              {f.currency || 'EUR'} {Number(sponsorshipSummary.summary.claimedTotal || 0).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {sponsorshipSummary.participants?.length > 0 && (
-                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                            <p className="mb-3 text-sm font-bold" style={{ color: brand.navy }}>Sponsorship by participant</p>
-                            <div className="space-y-2">
-                              {sponsorshipSummary.participants.map((person: any) => (
-                                <div key={person.id} className="flex items-center justify-between gap-4 text-sm">
-                                  <span style={{ color: brand.slate }}>{person.name}</span>
-                                  <span className="font-bold" style={{ color: brand.navy }}>
-                                    {f.currency || 'EUR'} {Number(person.confirmedTotal || 0).toFixed(2)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {sponsoredRooms.length === 0 ? (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                        No active Sponsored Activity rooms are available. Create the activity in Event Manager, then return here.
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {sponsoredRooms.map((room: any) => {
-                          const settings =
-                            typeof f.settings_json === 'string'
-                              ? (() => { try { return JSON.parse(f.settings_json); } catch { return {}; } })()
-                              : (f.settings_json || {});
-                          const selected = settings.sponsoredRoomId === room.room_id;
-
-                          return (
-                            <button
-                              key={room.room_id}
-                              type="button"
-                              disabled={savingSponsoredRoom}
-                              onClick={async () => {
-                                setSavingSponsoredRoom(true);
-                                try {
-                                  const result = await svc.update(id, {
-                                    settings: { ...settings, sponsoredRoomId: room.room_id },
-                                  });
-                                  setF(result.fundraiser);
-                                  await load();
-                                  onChanged?.();
-                                } catch (error: any) {
-                                  alert(`Unable to link sponsored activity: ${error?.message || 'unknown_error'}`);
-                                } finally {
-                                  setSavingSponsoredRoom(false);
-                                }
-                              }}
-                              className="w-full rounded-2xl border p-4 text-left"
-                              style={{ borderColor: selected ? brand.teal : '#dce1df', background: selected ? '#ecfdf5' : '#ffffff' }}
-                            >
-                              <div className="flex items-start justify-between gap-4">
-                                <div>
-                                  <p className="font-bold" style={{ color: brand.navy }}>{room.name}</p>
-                                  <p className="mt-1 text-xs capitalize" style={{ color: brand.slate }}>
-                                    {String(room.activity_kind).replace(/_/g, ' ')}{' · '}{room.status}
-                                  </p>
-                                  {room.suggested_amounts?.length > 0 && (
-                                    <p className="mt-2 text-xs" style={{ color: brand.slate }}>
-                                      Suggested amounts: {room.suggested_amounts.map((amount: number) => `${room.currency} ${amount}`).join(', ')}
-                                    </p>
-                                  )}
-                                </div>
-                                <span
-                                  className="rounded-full px-3 py-1 text-xs font-bold"
-                                  style={{ background: selected ? brand.teal : brand.bg, color: selected ? '#ffffff' : brand.slate }}
-                                >
-                                  {selected ? 'Linked' : 'Link'}
-                                </span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-                      <div>
-                        <h2 className="text-base font-bold" style={{ color: brand.navy }}>Sales Options</h2>
-                        <p className="text-xs mt-0.5" style={{ color: brand.slate }}>
-                          Choose the activities, entries or ticket types supporters can buy. Combine options when you want to sell a bundle.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => { setEditingPack(null); setEditorOpen(true); }}
-                        className="rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                        style={{ background: brand.teal }}
-                      >
-                        + Create sales option
-                      </button>
-                    </div>
-
-                    {packs.filter((p: any) => p.is_active !== 0).length === 0 && (
-                      <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>
-                        No sales options yet — create the first option supporters can buy.
-                      </p>
-                    )}
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {packs.filter((p: any) => p.is_active !== 0).map((p: any) => (
-                        <div key={p.id} className="rounded-xl p-4" style={{ border: `1px solid ${brand.border}` }}>
-                          <div className="flex justify-between">
-                            <p className="font-bold text-sm" style={{ color: brand.navy }}>{p.name}</p>
-                            <p className="font-bold text-sm" style={{ color: brand.navy }}>€{Number(p.price).toFixed(2)}</p>
-                          </div>
-                          {p.is_featured && (
-                            <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: 'rgba(210,181,130,0.25)', color: '#8a6d2f' }}>
-                              {p.badge_label || 'Featured'}
-                            </span>
-                          )}
-                          <ul className="mt-3 space-y-1">
-                            {p.items.map((i: any) => {
-                              const room = rooms.find((r: any) => r.room_id === i.target_room_id);
-                              return (
-                                <li key={i.id} className="text-xs" style={{ color: brand.slate }}>
-                                  {i.quantity} × {ITEM_TYPE_LABELS[i.item_type] || i.item_type}
-                                  {room ? ` · ${room.name}` : ''}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                          <div className="mt-3 flex gap-2">
-                            <button onClick={() => { setEditingPack(p); setEditorOpen(true); }} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: brand.border, color: brand.navy }}>Edit</button>
-                            <button onClick={() => duplicatePack(p)} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: brand.border, color: brand.navy }}>Duplicate</button>
-                            <button onClick={() => hidePack(p)} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: '#f2c5c2', color: '#b42318' }}>Hide</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {editorOpen && (
-                      <PeerPackEditor
-                        pack={editingPack}
-                        rooms={rooms}
-                        defaultCurrency={f?.currency || 'EUR'}
-                        saving={packSaving}
-                        onSave={savePack}
-                        onClose={() => { setEditorOpen(false); setEditingPack(null); }}
-                      />
-                    )}
-                  </div>
-                )
+              {/* ── Sales Options (door_to_door) ── */}
+              {tab === 'packs' && f?.format_type !== 'sponsored' && (
+                <PeerSalesOptionsTab
+                  fundraiserId={id}
+                  packs={packs}
+                  rooms={rooms}
+                  currency={currency}
+                  isPublished={isPublished}
+                  onChanged={() => { load(); onChanged?.(); }}
+                />
               )}
 
-              {tab === 'orders' && f.format_type === 'sponsored' && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>Sponsorships</h3>
-                    <p className="mt-1 text-sm" style={{ color: brand.slate }}>
-                      Confirmed sponsorships and manual payments awaiting confirmation. Unfinished Stripe and crypto attempts are not shown.
-                    </p>
-                  </div>
-
-                  {!sponsorships.length ? (
-                    <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
-                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>No confirmed or claimed sponsorships yet.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {sponsorships.map((contribution: any) => (
-                        <div key={contribution.id} className="rounded-xl border bg-white p-4" style={{ borderColor: brand.border }}>
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="font-bold" style={{ color: brand.navy }}>
-                                {contribution.isAnonymous ? 'Anonymous' : contribution.displayName || contribution.sponsorName || 'Sponsor'}
-                              </p>
-                              <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                {contribution.participantName ? `For ${contribution.participantName}` : 'General fundraiser'}
-                                {' · '}
-                                {contribution.paymentMethodLabel || contribution.paymentMethodCategory}
-                              </p>
-                              {contribution.paymentReference && (
-                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>Ref: {contribution.paymentReference}</p>
-                              )}
-                              {contribution.message && (
-                                <p className="mt-2 text-sm italic" style={{ color: brand.slate }}>“{contribution.message}”</p>
-                              )}
-                              {contribution.disputeReason && (
-                                <p className="mt-2 text-xs font-semibold text-red-700">Dispute: {contribution.disputeReason}</p>
-                              )}
-                            </div>
-
-                            <div className="text-right">
-                              <p className="font-black" style={{ color: brand.navy }}>
-                                {contribution.currency} {Number(contribution.amount || 0).toFixed(2)}
-                              </p>
-                              <span
-                                className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase"
-                                style={{
-                                  background: contribution.status === 'confirmed' ? '#dcfce7' : contribution.status === 'claimed' ? '#fef3c7' : '#fee2e2',
-                                  color: contribution.status === 'confirmed' ? '#166534' : contribution.status === 'claimed' ? '#92400e' : '#991b1b',
-                                }}
-                              >
-                                {contribution.status}
-                              </span>
-                            </div>
-                          </div>
-
-                          {contribution.status === 'claimed' && (
-                            <div className="mt-4 flex flex-wrap gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
-                              <button
-                                onClick={async () => { await svc.confirmSponsorship(id, contribution.id); await load(); onChanged?.(); }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#16a34a' }}
-                              >
-                                Confirm payment
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  const reason = window.prompt('Why is this payment being disputed?');
-                                  if (!reason?.trim()) return;
-                                  await svc.disputeSponsorship(id, contribution.id, reason.trim());
-                                  await load();
-                                  onChanged?.();
-                                }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#dc2626' }}
-                              >
-                                Dispute
-                              </button>
-                            </div>
-                          )}
-
-                          {contribution.status === 'disputed' && (
-                            <div className="mt-4 border-t pt-3" style={{ borderColor: brand.border }}>
-                              <button
-                                onClick={async () => { await svc.confirmSponsorship(id, contribution.id); await load(); onChanged?.(); }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#16a34a' }}
-                              >
-                                Resolve and confirm
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {/* ── Sponsorship Setup (sponsored) ── */}
+              {tab === 'packs' && f?.format_type === 'sponsored' && (
+                <PeerSponsorshipSetupTab
+                  f={f}
+                  sponsoredRooms={sponsoredRooms}
+                  sponsorshipSummary={sponsorshipSummary}
+                  currency={currency}
+                  isPublished={isPublished}
+                  onChanged={() => { load(); onChanged?.(); }}
+                  onFundraiserUpdated={setF}
+                />
               )}
 
-              {tab === 'orders' && f.format_type !== 'sponsored' && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>Orders</h3>
-                    <p className="mt-1 text-sm" style={{ color: brand.slate }}>
-                      Confirmed orders and claimed manual payments awaiting confirmation. Unfinished Stripe and crypto attempts are not shown.
-                    </p>
-                  </div>
-
-                  {!orders.length ? (
-                    <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
-                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>No confirmed or claimed orders yet.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {orders.map((o: any) => (
-                        <div key={o.id} className="rounded-xl border bg-white p-4" style={{ borderColor: brand.border }}>
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <p className="font-bold" style={{ color: brand.navy }}>{o.supporter_name}</p>
-                              <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                {o.participant_name || 'General link'}{' · '}{o.payment_provider || o.payment_method_category}
-                              </p>
-                              {o.payment_reference && (
-                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>Ref: {o.payment_reference}</p>
-                              )}
-                              {o.payment_status === 'confirmed' && (
-                                <div className="mt-2 space-y-1 text-xs" style={{ color: brand.slate }}>
-                                  <p>Entries: {Number(o.confirmed_entry_count || 0)}/{Number(o.entry_count || 0)} fulfilled</p>
-                                  {o.allocation_check && (
-                                    <p>Ledger {Number(o.allocation_check.ledgerTotal || 0).toFixed(2)}{' / '}order {Number(o.allocation_check.orderTotal || o.total_amount || 0).toFixed(2)}</p>
-                                  )}
-                                  {Number(o.ticket_entry_count || 0) > 0 && (
-                                    <p className={Number(o.ticket_email_sent_count || 0) >= Number(o.ticket_entry_count || 0) ? 'font-semibold text-green-700' : Number(o.ticket_email_failed_count || 0) > 0 ? 'font-semibold text-red-700' : 'font-semibold text-amber-700'}>
-                                      Ticket emails: {Number(o.ticket_email_sent_count || 0)}/{Number(o.ticket_entry_count || 0)} sent
-                                    </p>
-                                  )}
-                                  {o.fulfilment_error && (
-                                    <p className="font-semibold text-red-700">{o.fulfilment_error}</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="text-right">
-                              <p className="font-black" style={{ color: brand.navy }}>
-                                {o.currency || 'EUR'} {Number(o.total_amount || 0).toFixed(2)}
-                              </p>
-                              <span
-                                className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase"
-                                style={{
-                                  background: o.payment_status === 'confirmed' ? '#dcfce7' : '#fef3c7',
-                                  color: o.payment_status === 'confirmed' ? '#166534' : '#92400e',
-                                }}
-                              >
-                                {o.payment_status}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
-                            {o.payment_status === 'claimed' && (
-                              <>
-                                <button
-                                  onClick={async () => { await svc.confirm(id, o.id); await load(); onChanged?.(); }}
-                                  className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                  style={{ background: '#16a34a' }}
-                                >
-                                  Confirm payment
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    const reason = window.prompt('Why is this payment being rejected?') || undefined;
-                                    await svc.rejectOrder(id, o.id, reason);
-                                    await load();
-                                    onChanged?.();
-                                  }}
-                                  className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                  style={{ background: '#dc2626' }}
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-
-                            {o.payment_status === 'confirmed' &&
-                              Number(o.entry_count || 0) > 0 &&
-                              (Number(o.pending_entry_count || 0) > 0 || Number(o.failed_entry_count || 0) > 0 || Number(o.confirmed_entry_count || 0) < Number(o.entry_count || 0)) && (
-                              <button
-                                onClick={async () => { await svc.retryFulfilment(id, o.id); await load(); onChanged?.(); }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#d97706' }}
-                              >
-                                Retry fulfilment
-                              </button>
-                            )}
-
-                            {o.payment_status === 'confirmed' &&
-                              Number(o.ticket_entry_count || 0) > 0 &&
-                              Number(o.ticket_email_sent_count || 0) < Number(o.ticket_entry_count || 0) && (
-                              <button
-                                onClick={async () => { await svc.retryFulfilment(id, o.id); await load(); onChanged?.(); }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#0284c7' }}
-                              >
-                                {Number(o.ticket_email_failed_count || 0) > 0 ? 'Retry ticket email' : 'Send ticket email'}
-                              </button>
-                            )}
-
-                            {o.payment_status === 'confirmed' && (
-                              <button
-                                onClick={async () => {
-                                  if (!confirm('This order is confirmed and may have active tickets or entitlements. Undo confirmation?')) return;
-                                  const reason = window.prompt('Reason for undoing confirmation (optional):') || undefined;
-                                  await svc.rejectOrder(id, o.id, reason);
-                                  await load();
-                                  onChanged?.();
-                                }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#dc2626' }}
-                              >
-                                Undo confirmation
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {/* ── Orders (door_to_door) ── */}
+              {tab === 'orders' && f?.format_type !== 'sponsored' && (
+                <PeerOrdersTab
+                  fundraiserId={id}
+                  orders={orders}
+                  onChanged={() => { load(); onChanged?.(); }}
+                />
               )}
 
-              {tab === 'donations' && f.format_type !== 'sponsored' && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-bold" style={{ color: brand.navy }}>Direct donations</h3>
-                    <p className="mt-1 text-sm" style={{ color: brand.slate }}>
-                      Donations are separate from activity-sale income. Confirmed donations count in the combined report; claimed manual donations wait for club confirmation.
-                    </p>
-                  </div>
-
-                  {!directDonations.length ? (
-                    <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: brand.border }}>
-                      <p className="text-sm font-semibold" style={{ color: brand.slate }}>No confirmed or claimed direct donations yet.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {directDonations.map((donation: any) => (
-                        <div key={donation.id} className="rounded-xl border bg-white p-4" style={{ borderColor: brand.border }}>
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <p className="font-bold" style={{ color: brand.navy }}>{donation.donor_name || 'Donor'}</p>
-                              <p className="mt-1 text-xs" style={{ color: brand.slate }}>
-                                {donation.participant_name ? `Attributed to ${donation.participant_name}` : 'General fundraiser'}
-                                {' · '}
-                                {donation.payment_method_label_snapshot || donation.payment_method_category_snapshot}
-                              </p>
-                              {donation.peer_order_id && (
-                                <p className="mt-1 text-xs" style={{ color: brand.slate }}>Added to order {String(donation.peer_order_id).slice(0, 8)}</p>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <p className="font-black" style={{ color: brand.navy }}>
-                                {donation.currency} {Number(donation.amount || 0).toFixed(2)}
-                              </p>
-                              <span className="mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase" style={{
-                                background: donation.status === 'confirmed' ? '#dcfce7' : donation.status === 'claimed' ? '#fef3c7' : '#fee2e2',
-                                color: donation.status === 'confirmed' ? '#166534' : donation.status === 'claimed' ? '#92400e' : '#991b1b',
-                              }}>
-                                {donation.status}
-                              </span>
-                            </div>
-                          </div>
-
-                          {donation.status === 'claimed' && (
-                            <div className="mt-4 flex gap-2 border-t pt-3" style={{ borderColor: brand.border }}>
-                              <button
-                                onClick={async () => { await svc.confirmDonation(id, donation.id); await load(); onChanged?.(); }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#16a34a' }}
-                              >
-                                Confirm donation
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (!confirm('Reject this claimed donation?')) return;
-                                  await svc.rejectDonation(id, donation.id);
-                                  await load();
-                                  onChanged?.();
-                                }}
-                                className="rounded-lg px-3 py-2 text-xs font-bold text-white"
-                                style={{ background: '#dc2626' }}
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {/* ── Sponsorships (sponsored) ── */}
+              {tab === 'orders' && f?.format_type === 'sponsored' && (
+                <PeerSponsorshipsTab
+                  fundraiserId={id}
+                  sponsorships={sponsorships}
+                  currency={currency}
+                  onChanged={() => { load(); onChanged?.(); }}
+                />
               )}
 
-              {tab === 'payments' && <PeerPaymentsTab fundraiserId={id} />}
+              {/* ── Donations ── */}
+              {tab === 'donations' && f?.format_type !== 'sponsored' && (
+                <PeerDonationsTab
+                  fundraiserId={id}
+                  donations={directDonations}
+                  onChanged={() => { load(); onChanged?.(); }}
+                />
+              )}
 
-              {tab === 'report' && <PeerPaymentReportTab fundraiserId={id} />}
+              {/* ── Report ── */}
+              {tab === 'report' && f && (
+                <PeerReportsTab
+                  fundraiserId={id}
+                  currency={currency}
+                  targetAmount={Number(f.target_amount || 0)}
+                />
+              )}
             </>
           )}
         </div>
       </aside>
-    </>
-  );
-}
 
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl p-4" style={{ background: brand.bg }}>
-      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand.slate }}>{label}</p>
-      <p className="mt-2 text-base font-bold capitalize" style={{ color: brand.navy }}>{value}</p>
-    </div>
+      {/* ── Publish confirmation modal ── */}
+      {showPublishModal && (
+        <PublishConfirmModal
+          packs={packs}
+          currency={currency}
+          onConfirm={handlePublishConfirm}
+          onCancel={() => setShowPublishModal(false)}
+          publishing={publishing}
+        />
+      )}
+    </>
   );
 }

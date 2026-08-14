@@ -83,6 +83,8 @@ const homeFaqs = [
         secondaryCta={{ label: 'Explore the platform', to: '/features' }}
         image={images.communityQuizNight}
         variant="home"
+        priority={true}
+        
       />
 
       <TrustBand

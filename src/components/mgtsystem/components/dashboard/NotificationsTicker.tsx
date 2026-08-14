@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Megaphone,
   Video,
-  Trophy,
   ExternalLink,
   ChevronRight,
-  DollarSign
+  DollarSign,
+  User,
 } from 'lucide-react';
 
 type NotificationItem = {
@@ -25,11 +25,11 @@ interface NotificationsTickerProps {
 
 const DEFAULT_ITEMS: NotificationItem[] = [
   {
-    id: 'weekly-zoom',
-    text: 'Join our weekly live zoom for fundraising chats and FundRaisely training',
+    id: 'New Feature',
+    text: 'Peer Fundraising is here! Invite your supporters to fundraise.',
     href: 'https://www.meetup.com/fundraisely/',
     kind: 'external',
-    icon: <Video className="h-4.5 w-4.5 text-red-700" />,
+    icon: <User className="h-4.5 w-4.5 text-red-700" />,
   },
 
   {
@@ -46,7 +46,6 @@ export default function NotificationsTicker({ items, className }: NotificationsT
 
   const srcItems = useMemo(() => {
     const base = items && items.length ? items : DEFAULT_ITEMS;
-    // Duplicate so the loop feels continuous
     return [...base, ...base];
   }, [items]);
 
@@ -67,9 +66,8 @@ export default function NotificationsTicker({ items, className }: NotificationsT
       ].join(' ')}
       aria-label="Notifications"
     >
-      {/* soft edge fades */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-white to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-white to-transparent z-10" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent z-10" />
 
       <div className="flex items-center gap-3 px-5 py-3">
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -79,9 +77,9 @@ export default function NotificationsTicker({ items, className }: NotificationsT
           <span className="text-sm font-semibold text-gray-900">Notifications</span>
         </div>
 
-        {/* marquee lane */}
-        <div className="relative flex-1 overflow-hidden">
-          <div className="ticker group flex w-max items-center gap-12 will-change-transform">
+        {/* marquee lane — group wrapper enables pause-on-hover */}
+        <div className="relative flex-1 overflow-hidden group">
+          <div className="ticker flex w-max items-center gap-12">
             {srcItems.map((item, idx) => (
               <button
                 key={`${item.id}-${idx}`}
@@ -100,7 +98,6 @@ export default function NotificationsTicker({ items, className }: NotificationsT
                     {item.text}
                   </span>
                 </span>
-
                 {item.kind === 'external' ? (
                   <ExternalLink className="h-4 w-4 opacity-70" />
                 ) : (
@@ -115,19 +112,19 @@ export default function NotificationsTicker({ items, className }: NotificationsT
       <style>{`
         .ticker {
           animation: ticker-marquee 60s linear infinite;
+          will-change: transform;
         }
         .group:hover .ticker {
           animation-play-state: paused;
         }
         @keyframes ticker-marquee {
-          0% { transform: translateX(0); }
+          0%   { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
         @media (prefers-reduced-motion: reduce) {
-          .ticker { animation: none; }
+          .ticker { animation: none; will-change: auto; }
         }
       `}</style>
     </div>
   );
 }
-

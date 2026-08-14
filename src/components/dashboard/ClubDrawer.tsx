@@ -1,33 +1,24 @@
 // src/components/dashboard/ClubDrawer.tsx
-//
-// Club-level slide-in panel (from the LEFT).
-//
-// All three modals follow the same pattern:
-//   1. Plain trigger button INSIDE the drawer.
-//   2. Click → onClose() drawer, then requestAnimationFrame → set flag.
-//   3. Modal renders OUTSIDE the drawer's stacking context.
-//
-// TotalIncomeReportButton now accepts `defaultOpen` and `onClose` props,
-// so we mount it outside the drawer with defaultOpen=true. It opens
-// immediately and calls onClose when dismissed, which unmounts it cleanly.
-
 import React, { useMemo, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BarChart3, Building2, CreditCard, Gift, LogOut, X } from 'lucide-react';
+import {
+  BarChart3, Building2, CreditCard, Gift,
+  LogOut, Palette, X,
+} from 'lucide-react';
 
-import { useAuthStore }              from '../../features/auth';
-import { quizApi }                   from '../../shared/api';
-import ManagePaymentMethodsModal     from '../mgtsystem/modals/ManagePaymentMethodsModal';
-import ManageDonationButtonModal     from '../mgtsystem/modals/ManageDonationButtonModal';
-import TotalIncomeReportButton       from '../mgtsystem/components/dashboard/TotalIncomeReportButton';
-import { brand }                     from './branding';
+import { useAuthStore }           from '../../features/auth';
+import { quizApi }                from '../../shared/api';
+import ManagePaymentMethodsModal  from '../mgtsystem/modals/ManagePaymentMethodsModal';
+import ManageDonationButtonModal  from '../mgtsystem/modals/ManageDonationButtonModal';
+import TotalIncomeReportButton    from '../mgtsystem/components/dashboard/TotalIncomeReportButton';
+import ClubBrandingModal          from './ClubBrandingModal';
+import { brand }                  from './branding';
+import type { ClubBranding }      from '../../services/ClubBrandingService';
 
 function getFeatureAccess(ents: any) {
   const f = ents?.quiz_features || ents?.quizFeatures || {};
   return {
-    eventLinking: f?.eventLinking === true,
     quizPayments: f?.quizPayments === true,
-    ticketing:    f?.ticketing    === true,
   };
 }
 
@@ -42,21 +33,28 @@ export default function ClubDrawer({ open, onClose }: Props) {
 
   const clubId   = useAuthStore((s: any) => s.club?.id || s.user?.club_id);
   const clubName = useAuthStore((s: any) =>
-    s.club?.name      || s.club?.club_name  ||
-    s.user?.club_name || s.user?.clubName   || 'Your Club'
+    s.club?.name || s.club?.club_name ||
+    s.user?.club_name || s.user?.clubName || 'Your Club'
+  );
+  const userName = useAuthStore((s: any) =>
+    s.user?.name || s.user?.full_name || s.user?.first_name || ''
   );
   const logout = useAuthStore((s: any) => s.logout);
 
-  const [ents, setEnts]           = useState<any>(null);
-  const featureAccess             = useMemo(() => getFeatureAccess(ents), [ents]);
+  const [ents, setEnts]             = useState<any>(null);
+  const featureAccess               = useMemo(() => getFeatureAccess(ents), [ents]);
+
   const [incomeOpen,   setIncomeOpen]   = useState(false);
   const [paymentsOpen, setPaymentsOpen] = useState(false);
   const [donationOpen, setDonationOpen] = useState(false);
+  const [brandingOpen, setBrandingOpen] = useState(false);
 
   useEffect(() => {
     if (!clubId) return;
     let alive = true;
-    quizApi.getEntitlements().then(e => { if (alive) setEnts(e); }).catch(() => {});
+    quizApi.getEntitlements()
+      .then(e => { if (alive) setEnts(e); })
+      .catch(() => {});
     return () => { alive = false; };
   }, [clubId]);
 
@@ -68,11 +66,15 @@ export default function ClubDrawer({ open, onClose }: Props) {
 
   const handleLogout = () => { logout(); navigate('/'); };
 
-  // Close drawer first, then open the relevant modal on the next frame
-  // so it renders outside the drawer's stacking context.
   const openIncome   = () => { onClose(); requestAnimationFrame(() => setIncomeOpen(true));   };
   const openPayments = () => { onClose(); requestAnimationFrame(() => setPaymentsOpen(true)); };
   const openDonation = () => { onClose(); requestAnimationFrame(() => setDonationOpen(true)); };
+  const openBranding = () => { onClose(); requestAnimationFrame(() => setBrandingOpen(true)); };
+
+  const handleBrandingSaved = (saved: ClubBranding) => {
+    // Optionally update auth store club object here in future
+    // For now the modal shows success feedback itself
+  };
 
   return (
     <>
@@ -82,74 +84,122 @@ export default function ClubDrawer({ open, onClose }: Props) {
         aria-hidden={!open}
       >
         <div
-          className={`absolute inset-0 bg-black/30 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute inset-0 bg-black/30 transition-opacity duration-200 ${
+            open ? 'opacity-100' : 'opacity-0'
+          }`}
           onClick={onClose}
         />
+
         <aside
           role="dialog"
-          aria-label="Club settings"
+          aria-label="Club menu"
           className={`absolute left-0 top-0 h-full w-full max-w-sm overflow-y-auto shadow-2xl transition-transform duration-200 ${
             open ? 'translate-x-0' : '-translate-x-full'
           }`}
-          style={{ background: brand.surface }}
+          style={{ background: '#ffffff' }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${brand.border}` }}>
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl" style={{ background: brand.teal }}>
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand.slate }}>Club Settings</p>
-                <h2 className="text-base font-bold leading-tight" style={{ color: brand.navy }}>{clubName}</h2>
-              </div>
+          {/* ── Header: club name + user, close button ── */}
+          <div
+            className="flex items-start justify-between px-5 py-5"
+            style={{ borderBottom: `1px solid ${brand.border}` }}
+          >
+            <div>
+              <h2 className="text-xl font-bold leading-tight" style={{ color: brand.navy }}>
+                {clubName}
+              </h2>
+              {userName && (
+                <p className="mt-0.5 text-sm" style={{ color: brand.slate }}>
+                  Signed in as {userName}
+                </p>
+              )}
             </div>
             <button
-              type="button" onClick={onClose}
-              className="grid h-9 w-9 place-items-center rounded-full"
-              style={{ background: brand.bg, color: brand.slate }}
+              type="button"
+              onClick={onClose}
+              className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-gray-100 flex-shrink-0 ml-3"
+              style={{ color: brand.slate }}
               aria-label="Close"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Menu */}
-          <div className="p-5 space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest pb-1" style={{ color: brand.slate }}>
+          {/* ── Menu items ── */}
+          <nav className="p-4 space-y-1">
+
+            {/* Reports section */}
+            <p
+              className="px-3 pt-2 pb-1 text-xs font-bold uppercase tracking-widest"
+              style={{ color: brand.slate }}
+            >
               Reports
             </p>
-            <MenuButton icon={<BarChart3 className="h-4 w-4" />}  label="Income Report"    onClick={openIncome}   />
+            <MenuItem
+              icon={<BarChart3 className="h-5 w-5" />}
+              label="Income Report"
+              onClick={openIncome}
+            />
 
+            {/* Branding section — always visible */}
+            <p
+              className="px-3 pt-4 pb-1 text-xs font-bold uppercase tracking-widest"
+              style={{ color: brand.slate }}
+            >
+              Club
+            </p>
+            <MenuItem
+              icon={<Palette className="h-5 w-5" />}
+              label="Branding"
+              onClick={openBranding}
+            />
+
+            {/* Money In — only if feature enabled */}
             {featureAccess.quizPayments && (
               <>
-                <p className="text-[10px] font-bold uppercase tracking-widest pt-4 pb-1" style={{ color: brand.slate }}>
+                <p
+                  className="px-3 pt-4 pb-1 text-xs font-bold uppercase tracking-widest"
+                  style={{ color: brand.slate }}
+                >
                   Money In
                 </p>
-                <MenuButton icon={<CreditCard className="h-4 w-4" />} label="Payment Methods" onClick={openPayments} />
-                <MenuButton icon={<Gift className="h-4 w-4" />}       label="Donation Button"  onClick={openDonation} />
+                <MenuItem
+                  icon={<CreditCard className="h-5 w-5" />}
+                  label="Payment Methods"
+                  onClick={openPayments}
+                />
+                <MenuItem
+                  icon={<Gift className="h-5 w-5" />}
+                  label="Donation Button"
+                  onClick={openDonation}
+                />
               </>
             )}
+          </nav>
 
-            <div className="pt-5" style={{ borderTop: `1px solid ${brand.borderSoft}` }}>
-              <button
-                type="button" onClick={handleLogout}
-                className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition"
-                style={{ background: brand.surface, borderColor: brand.dangerBorder, color: brand.danger }}
-                onMouseEnter={e => (e.currentTarget.style.background = brand.dangerHover)}
-                onMouseLeave={e => (e.currentTarget.style.background = brand.surface)}
-              >
-                <LogOut className="h-4 w-4" /> Log out
-              </button>
-            </div>
+          {/* ── Footer: logout ── */}
+          <div
+            className="absolute bottom-0 left-0 right-0 p-4"
+            style={{ borderTop: `1px solid ${brand.border}`, background: '#ffffff' }}
+          >
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition"
+              style={{ background: '#c0392b' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#a93226')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#c0392b')}
+            >
+              <LogOut className="h-4 w-4" /> Logout
+            </button>
           </div>
+
+          {/* Bottom padding so content isn't hidden behind the fixed logout button */}
+          <div className="h-20" />
         </aside>
       </div>
 
-      {/* ── Modals - outside the drawer's stacking context ── */}
+      {/* ── Modals outside drawer stacking context ── */}
 
-      {/* Income report: mounted with defaultOpen=true so the modal opens
-          immediately. onClose unmounts the whole component, resetting state. */}
       {incomeOpen && clubId && (
         <TotalIncomeReportButton
           clubId={clubId}
@@ -173,22 +223,48 @@ export default function ClubDrawer({ open, onClose }: Props) {
           onOpenPaymentMethods={() => { setDonationOpen(false); setPaymentsOpen(true); }}
         />
       )}
+
+      {brandingOpen && clubId && (
+        <ClubBrandingModal
+          clubId={clubId}
+          onClose={() => setBrandingOpen(false)}
+          onSaved={handleBrandingSaved}
+        />
+      )}
     </>
   );
 }
 
-// ── Shared menu button ────────────────────────────────────────────────────────
+// ── Menu item ────────────────────────────────────────────────────────────────
 
-function MenuButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function MenuItem({
+  icon, label, onClick, soon = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  soon?: boolean;
+}) {
   return (
     <button
-      type="button" onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition"
-      style={{ background: brand.tan, color: brand.navy }}
-      onMouseEnter={e => (e.currentTarget.style.background = brand.tanStrong)}
-      onMouseLeave={e => (e.currentTarget.style.background = brand.tan)}
+      type="button"
+      onClick={onClick}
+      disabled={soon}
+      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition text-left ${
+        soon ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+      }`}
+      style={{ color: brand.navy }}
     >
-      {icon} {label}
+      <span style={{ color: brand.slate }}>{icon}</span>
+      <span className="flex-1">{label}</span>
+      {soon && (
+        <span
+          className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+          style={{ background: brand.tan, color: brand.slate }}
+        >
+          Soon
+        </span>
+      )}
     </button>
   );
 }

@@ -156,24 +156,28 @@ for (const key of FREE_CREDIT_KEYS) {
 
       const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(club);
 
-      const [rows] = await database.execute(
-        `SELECT
-           u.id           AS user_id,
-           u.club_id,
-           u.name         AS user_name,
-           u.email        AS user_email,
-           u.role,
-           u.password_hash,
-           c.name         AS club_name,
-           c.email        AS club_email,
-           c.reporting_currency
-         FROM ${PREFIX}users u
-         JOIN ${PREFIX}clubs c ON c.id = u.club_id
-         WHERE u.email = ?
-           AND (${looksLikeUuid ? 'c.id = ? OR ' : ''}c.name = ?)
-         LIMIT 1`,
-        looksLikeUuid ? [email, club, club] : [email, club]
-      );
+    const [rows] = await database.execute(
+  `SELECT
+     u.id           AS user_id,
+     u.club_id,
+     u.name         AS user_name,
+     u.email        AS user_email,
+     u.role,
+     u.password_hash,
+     c.name                    AS club_name,
+     c.email                   AS club_email,
+     c.reporting_currency,
+     c.brand_logo_url,
+     c.brand_primary_color,
+     c.brand_background_color,
+     c.brand_text_on_primary_color
+   FROM ${PREFIX}users u
+   JOIN ${PREFIX}clubs c ON c.id = u.club_id
+   WHERE u.email = ?
+     AND (${looksLikeUuid ? 'c.id = ? OR ' : ''}c.name = ?)
+   LIMIT 1`,
+  looksLikeUuid ? [email, club, club] : [email, club]
+);
 
       if (!Array.isArray(rows) || rows.length === 0) {
         return res.status(401).json({ error: 'Invalid credentials' });
@@ -210,7 +214,11 @@ for (const key of FREE_CREDIT_KEYS) {
           id:                   data.club_id,
           name:                 data.club_name,
           email:                data.club_email,
-          reporting_currency:   data.reporting_currency
+          reporting_currency:   data.reporting_currency,
+           brand_logo_url:             data.brand_logo_url        || null,
+  brand_primary_color:        data.brand_primary_color   || null,
+  brand_background_color:     data.brand_background_color || null,
+  brand_text_on_primary_color: data.brand_text_on_primary_color || null,
         }
       });
     } catch (error) {
@@ -221,11 +229,17 @@ for (const key of FREE_CREDIT_KEYS) {
 
   async getProfile(req, res) {
     try {
-      const [clubRows] = await database.execute(
-        `SELECT id, name, email, reporting_currency
-         FROM ${PREFIX}clubs WHERE id = ?`,
-        [req.club_id]
-      );
+   const [clubRows] = await database.execute(
+  `SELECT
+     id, name, email, reporting_currency,
+     brand_logo_url,
+     brand_primary_color,
+     brand_background_color,
+     brand_text_on_primary_color
+   FROM ${PREFIX}clubs WHERE id = ?`,
+  [req.club_id]
+);
+// response stays the same - clubRows[0] now includes brand fields
 
       if (!Array.isArray(clubRows) || clubRows.length === 0) {
         return res.status(404).json({ error: 'Club not found' });

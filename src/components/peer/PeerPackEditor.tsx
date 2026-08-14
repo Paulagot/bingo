@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useCurrency } from '../mgtsystem/hooks/useCurrency';
 import { Plus, Trash2, X } from 'lucide-react';
 import type {
   AvailableRoom,
@@ -10,9 +11,9 @@ import type {
 type SalesOptionType = 'single_entry' | 'bundle';
 
 type ItemDraft = {
+  editorId: string;
   targetRoomId: string;
   optionId: string;
-  quantity: number;
 };
 
 const field =
@@ -46,25 +47,32 @@ function optionKey(roomId: string, optionId: string): string {
   return `${roomId}::${optionId}`;
 }
 
-function currencySymbol(currency: string): string {
-  if (currency === 'EUR') return '€';
-  if (currency === 'GBP') return '£';
-  if (currency === 'USD') return '$';
-  return `${currency} `;
+
+function newEditorId(): string {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `peer-pack-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
 }
 
 function emptyItem(): ItemDraft {
   return {
+    editorId: newEditorId(),
     targetRoomId: '',
     optionId: '',
-    quantity: 1,
   };
 }
 
 interface Props {
   pack: PeerPack | null;
   rooms: AvailableRoom[];
-  defaultCurrency: string;
+  defaultCurrency?: string;
   saving: boolean;
   onSave: (payload: SavePeerPackPayload) => Promise<void>;
   onClose: () => void;
@@ -73,11 +81,12 @@ interface Props {
 export default function PeerPackEditor({
   pack,
   rooms,
-  defaultCurrency,
   saving,
   onSave,
   onClose,
 }: Props) {
+  const { iso, fmt } = useCurrency();
+
   const optionsByKey = useMemo(() => {
     const map = new Map<string, PeerSellableOption>();
 
@@ -111,7 +120,6 @@ export default function PeerPackEditor({
     pack?.pack_type === 'bundle' ? 'bundle' : 'single_entry',
   );
   const [price, setPrice] = useState(String(pack?.price ?? ''));
-  const [currency, setCurrency] = useState(pack?.currency ?? defaultCurrency);
   const [isFeatured, setIsFeatured] = useState(Boolean(pack?.is_featured));
   const [badgeLabel, setBadgeLabel] = useState(pack?.badge_label ?? '');
   const [maxSales, setMaxSales] = useState(
@@ -138,9 +146,9 @@ export default function PeerPackEditor({
       const directKey = optionKey(targetRoomId, storedOptionId);
       if (storedOptionId && optionsByKey.has(directKey)) {
         return {
+          editorId: newEditorId(),
           targetRoomId,
           optionId: storedOptionId,
-          quantity: Number(item.quantity || 1),
         };
       }
 
@@ -152,9 +160,9 @@ export default function PeerPackEditor({
         );
 
       return {
+        editorId: newEditorId(),
         targetRoomId,
         optionId: fallback?.optionId ?? '',
-        quantity: Number(item.quantity || 1),
       };
     });
   });
@@ -166,11 +174,7 @@ export default function PeerPackEditor({
           optionKey(item.targetRoomId, item.optionId),
         );
 
-        return (
-          sum +
-          Number(option?.configuredPrice || 0) *
-            Math.max(1, Number(item.quantity || 1))
-        );
+        return sum + Number(option?.configuredPrice || 0);
       }, 0),
     [items, optionsByKey],
   );
@@ -225,7 +229,7 @@ export default function PeerPackEditor({
       payloadItems.push({
         targetRoomId: room.room_id,
         itemType: option.itemType,
-        quantity: Math.max(1, Number(item.quantity || 1)),
+        quantity: 1,
         metadata: {
           optionId: option.optionId,
           optionKind: option.metadata.optionKind,
@@ -249,7 +253,7 @@ export default function PeerPackEditor({
       description: description.trim() || null,
       packType: items.length > 1 ? 'bundle' : optionType,
       price: parsedPrice,
-      currency,
+      currency: iso,
       isFeatured,
       badgeLabel: badgeLabel.trim() || null,
       maxSales: maxSales ? Number(maxSales) : null,
@@ -322,7 +326,7 @@ export default function PeerPackEditor({
               />
             </label>
 
-            <label>
+            <label className="sm:col-span-2">
               <span className="mb-1 block text-sm font-bold text-slate-800">
                 Type
               </span>
@@ -339,20 +343,6 @@ export default function PeerPackEditor({
               </select>
             </label>
 
-            <label>
-              <span className="mb-1 block text-sm font-bold text-slate-800">
-                Currency
-              </span>
-              <select
-                className={field}
-                value={currency}
-                onChange={event => setCurrency(event.target.value)}
-              >
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-                <option value="USD">USD</option>
-              </select>
-            </label>
           </section>
 
           <section className="space-y-3">
@@ -362,15 +352,16 @@ export default function PeerPackEditor({
                   Included activities
                 </h3>
                 <p className="text-sm text-slate-500">
-                  Choose the activity first, then its exact entry, ticket type
-                  or Puzzle Drop tier.
+                  Choose the activity. Quiz and Elimination are selected
+                  automatically; Ticketed Events and Puzzle Drops let you
+                  choose the ticket type or pricing tier.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => {
-                  setItems(current => [...current, emptyItem()]);
+                  setItems(current => [emptyItem(), ...current]);
                   setOptionType('bundle');
                 }}
                 disabled={!rooms.length}
@@ -395,18 +386,32 @@ export default function PeerPackEditor({
 
               return (
                 <div
-                  key={index}
-                  className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_90px_40px]"
+                  key={item.editorId}
+                  className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_40px]"
                 >
                   <select
                     className={field}
                     value={item.targetRoomId}
-                    onChange={event =>
+                    onChange={event => {
+                      const targetRoomId = event.target.value;
+                      const selectedRoom = rooms.find(
+                        candidate =>
+                          candidate.room_id === targetRoomId,
+                      );
+
+                      const shouldAutoSelect =
+                        selectedRoom?.game_type === 'quiz' ||
+                        selectedRoom?.game_type ===
+                          'elimination';
+
                       updateItem(index, {
-                        targetRoomId: event.target.value,
-                        optionId: '',
-                      })
-                    }
+                        targetRoomId,
+                        optionId: shouldAutoSelect
+                          ? selectedRoom?.sellable_options?.[0]
+                              ?.optionId ?? ''
+                          : '',
+                      });
+                    }}
                   >
                     <option value="">Choose activity</option>
 
@@ -424,28 +429,66 @@ export default function PeerPackEditor({
                     ))}
                   </select>
 
-                  <select
-                    className={field}
-                    value={item.optionId}
-                    disabled={!room}
-                    onChange={event =>
-                      updateItem(index, {
-                        optionId: event.target.value,
-                      })
-                    }
-                  >
-                    <option value="">Choose selling option</option>
-
-                    {(room?.sellable_options ?? []).map(option => (
-                      <option
-                        key={option.optionId}
-                        value={option.optionId}
-                      >
-                        {option.label} — {currencySymbol(option.currency)}
-                        {Number(option.configuredPrice).toFixed(2)}
+                  {room &&
+                  (room.game_type === 'quiz' ||
+                    room.game_type === 'elimination') ? (
+                    <div className="flex min-h-[42px] items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700">
+                      {room.sellable_options?.[0] ? (
+                        <>
+                          <span className="min-w-0 flex-1 truncate">
+                            {room.sellable_options[0].label}
+                          </span>
+                          <span className="ml-3 shrink-0 font-black text-slate-950">
+                            {fmt(
+                              Number(
+                                room.sellable_options[0]
+                                  .configuredPrice || 0,
+                              ),
+                            )}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">
+                          No selling option available
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <select
+                      className={field}
+                      value={item.optionId}
+                      disabled={!room}
+                      onChange={event =>
+                        updateItem(index, {
+                          optionId: event.target.value,
+                        })
+                      }
+                    >
+                      <option value="">
+                        {room?.game_type === 'ticketed_event'
+                          ? 'Choose ticket type'
+                          : room?.game_type === 'puzzle_drop'
+                            ? 'Choose pricing option'
+                            : 'Choose selling option'}
                       </option>
-                    ))}
-                  </select>
+
+                      {(room?.sellable_options ?? []).map(
+                        option => (
+                          <option
+                            key={option.optionId}
+                            value={option.optionId}
+                          >
+                            {option.label} —{' '}
+                            {fmt(
+                              Number(
+                                option.configuredPrice || 0,
+                              ),
+                            )}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  )}
 
                   {(() => {
                     const selectedOption = room?.sellable_options?.find(
@@ -458,42 +501,32 @@ export default function PeerPackEditor({
                     if (room?.game_type !== 'quiz' || !selectedOption) return null;
 
                     return (
-                      <div className="sm:col-span-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                      <div className="sm:col-span-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
                         <p className="font-black">
                           All available quiz extras are included automatically.
                         </p>
                         <p className="mt-1">
-                          Entry {currencySymbol(selectedOption.currency)}{entryFee.toFixed(2)}
-                          {' '}+ extras {currencySymbol(selectedOption.currency)}{extrasTotal.toFixed(2)}
-                          {' '}= true configured value {currencySymbol(selectedOption.currency)}
-                          {Number(selectedOption.configuredPrice).toFixed(2)}.
+                          Entry {fmt(entryFee)}
+                          {' '}+ extras {fmt(extrasTotal)}
+                          {' '}= true configured value{' '}
+                          {fmt(
+                            Number(
+                              selectedOption.configuredPrice || 0,
+                            ),
+                          )}.
                         </p>
                         {extras.length > 0 && (
                           <p className="mt-1 text-amber-800">
                             Included: {extras.map((extra: any) =>
-                              `${extra.label || extra.extraId} (${currencySymbol(selectedOption.currency)}${Number(extra.price).toFixed(2)})`
+                              `${extra.label || extra.extraId} (${fmt(
+                                Number(extra.price),
+                              )})`
                             ).join(', ')}
                           </p>
                         )}
                       </div>
                     );
                   })()}
-
-                  <input
-                    className={field}
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={event =>
-                      updateItem(index, {
-                        quantity: Math.max(
-                          1,
-                          Number(event.target.value || 1),
-                        ),
-                      })
-                    }
-                    aria-label="Quantity"
-                  />
 
                   <button
                     type="button"
@@ -534,16 +567,16 @@ export default function PeerPackEditor({
               <div className="flex justify-between gap-3">
                 <span>Configured value</span>
                 <strong>
-                  {currencySymbol(currency)}
-                  {configuredValue.toFixed(2)}
+                  {fmt(configuredValue)}
                 </strong>
               </div>
 
               <div className="mt-1 flex justify-between gap-3">
                 <span>Difference</span>
                 <strong>
-                  {currencySymbol(currency)}
-                  {(Number(price || 0) - configuredValue).toFixed(2)}
+                  {fmt(
+                    Number(price || 0) - configuredValue,
+                  )}
                 </strong>
               </div>
             </div>
