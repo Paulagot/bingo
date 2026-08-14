@@ -49,8 +49,8 @@ export const startStripeConnect = async (req, res) => {
     const baseUrl   = getBaseUrl(req);
     const accountLink = await stripe.accountLinks.create({
       account:     accountId,
-      refresh_url: `${baseUrl}/eventdashboard?stripe=refresh`,
-      return_url:  `${baseUrl}/eventdashboard?stripe=return`,
+      refresh_url: `${baseUrl}/event-dashboard?stripe=refresh`,
+      return_url:  `${baseUrl}/event-dashboard?stripe=return`,
       type:        'account_onboarding',
     });
 
@@ -235,8 +235,8 @@ export const reconnectStripeConnect = async (req, res) => {
     const baseUrl     = getBaseUrl(req);
     const accountLink = await stripe.accountLinks.create({
       account:     accountId,
-      refresh_url: `${baseUrl}/eventdashboard?stripe=refresh`,
-      return_url:  `${baseUrl}/eventdashboard?stripe=return`,
+      refresh_url: `${baseUrl}/event-dashboard?stripe=refresh`,
+      return_url:  `${baseUrl}/event-dashboard?stripe=return`,
       type:        'account_onboarding',
     });
 

@@ -89,6 +89,7 @@ import SiteTermsPage from './pages/site/pages/legal/TermsPage';
 import SiteCookiesPage from './pages/site/pages/legal/CookiesPage';
 import CheckinPage from './pages/site/pages/CheckinPage';
 import SafeStreetsIrelandPadelPage from './pages/events/SafeStreetsIrelandPadelPage';
+import ColombiaEarthquakeReliefPage from "./pages/events/ColombiaEarthquakeReliefPage";
 import PuzzleNotifyPage from './components/puzzles/pages/PuzzleNotifyPage';
 import PublicWeekLeaderboardPage from './components/puzzles/pages/PublicWeekLeaderboardPage';
 import PublicWallOfFamePage from './components/puzzles/pages/PublicWallOfFamePage';
@@ -546,7 +547,7 @@ export default function App() {
         ──────────────────────────────────────────────────────────────── */}
         <Route element={<DashboardShell />}>
           <Route
-            path="/eventdashboard"
+            path="/event-dashboard"
             element={
               <Suspense fallback={<LoadingSpinner message="Loading Dashboard" />}>
                 <QuizEventDashboard />
@@ -583,11 +584,11 @@ export default function App() {
           }
         />
 
-        <Route path="/quiz" element={<Navigate to="/eventdashboard" replace />} />
+        <Route path="/quiz" element={<Navigate to="/event-dashboard" replace />} />
 
         <Route
           path="/quiz/create-fundraising-quiz"
-          element={<Navigate to="/eventdashboard" replace />}
+          element={<Navigate to="/event-dashboard" replace />}
         />
 
         {/* Event page */}
@@ -604,6 +605,11 @@ export default function App() {
           path="/events/safe-streets-ireland-padel"
           element={<SafeStreetsIrelandPadelPage />}
         />
+
+        <Route
+  path="/events/colombia-earthquake-relief"
+  element={<ColombiaEarthquakeReliefPage />}
+/>
 
         {/* Ticket routes */}
         <Route
@@ -1002,7 +1008,7 @@ export default function App() {
                     Return Home
                   </button>
                   <button
-                    onClick={() => navigate('/eventdashboard')}
+                    onClick={() => navigate('/event-dashboard')}
                     className="block w-full rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700"
                   >
                     Go to Quiz Dashboard

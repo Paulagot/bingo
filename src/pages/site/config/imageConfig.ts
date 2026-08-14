@@ -20,7 +20,7 @@ export type ImageKey =
   | "eventSetupOverviewPhotoshot"
   | "ticketingScreenshot"
   | "ticketingHeroScreenshot"
-   | "ticketEventHeroScreenshot"
+  | "ticketEventHeroScreenshot"
   | "ticketPurchaseFlowScreenshot"
   | "ticketingPublicPageScreenshot"
   | "ticketingPaymentMethodsScreenshot"
@@ -41,15 +41,15 @@ export type ImageKey =
   | "reportHeroScreenshot"
   | "reportsScreenshot"
   | "reportReconciliationScreenshot"
-   | "gamePlayScreenshot"
-   | "gameRecon"
+  | "gamePlayScreenshot"
+  | "gameRecon"
   | "reportOverviewScreenshot"
   | "reportReconciliationLockedScreenshot"
   | "reportOutstandingPaymentsScreenshot"
   | "reportImpactExportScreenshot"
   | "campaignPlanningScreenshot"
   | "sponsorFinderScreenshot"
-   | "sponsorHighlightScreenshot"
+  | "sponsorHighlightScreenshot"
   | "homePayment"
   | "homeFormats"
   | "complianceScreenshot"
@@ -68,12 +68,15 @@ export type ImageKey =
   | "paymentsDonations"
   | "puzzels"
   | "doorToDoorScreenshot";
-  
 
 export type SiteImage = {
   src: string;
   alt: string;
   caption?: string;
+  // ✅ NEW: optional fields for responsive images and layout shift prevention
+  srcSet?: string;  // WebP srcset string for <picture> source
+  width?: number;   // natural image width — prevents CLS
+  height?: number;  // natural image height — prevents CLS
 };
 
 const photo = (id: string, w = 1400, h = 1000) =>
@@ -83,6 +86,25 @@ const placeholder = (text: string, w = 1400, h = 900) =>
   `https://placehold.co/${w}x${h}/f7f1e8/12313f?text=${encodeURIComponent(text)}`;
 
 export const images: Record<ImageKey, SiteImage> = {
+  // ✅ HOME HERO — LCP image, fully optimised
+  // Action required: generate these WebP variants with sharp (see README note below)
+  //   npx tsx scripts/optimise-images.ts
+  // Or manually:
+  //   cwebp -q 80 -resize 490 276 homehero.png -o homehero-490w.webp
+  //   cwebp -q 80 -resize 980 551 homehero.png -o homehero-980w.webp
+  //   cwebp -q 80 homehero.png -o homehero.webp
+  communityQuizNight: {
+    src: "images/screenshots/homehero.png",       // PNG fallback (keep this)
+    srcSet: `
+      images/screenshots/homehero-490w.webp  490w,
+      images/screenshots/homehero-980w.webp  980w,
+      images/screenshots/homehero-1672w.webp 1672w
+    `,
+    alt: "A group of people enjoying a community quiz night around a table",
+    width: 1672,
+    height: 938,
+  },
+
   homePayment: {
     src: "images/homepayment.png",
     alt: "FundRaisely payment tracking image showing how clubs collect money across cash, card, instant payments, tickets and on-the-night payments.",
@@ -91,11 +113,6 @@ export const images: Record<ImageKey, SiteImage> = {
   homeFormats: {
     src: "images/homeformats.png",
     alt: "FundRaisely ready-to-run fundraising formats image showing repeatable event formats such as quiz nights, games and community challenges.",
-  },
-
-  communityQuizNight: {
-    src: "images/screenshots/homehero.png",
-    alt: "A group of people enjoying a community quiz night around a table",
   },
 
   sportsClubFundraiser: {
@@ -119,7 +136,7 @@ export const images: Record<ImageKey, SiteImage> = {
   },
 
   prizeTable: {
-  src: "/images/screenshots/quizextras.png",
+    src: "/images/screenshots/quizextras.png",
     alt: "FundRaisely dashboard flow showing an organiser opening an event, managing setup and launching the fundraiser.",
   },
 
@@ -163,7 +180,7 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "FundRaisely Event Manager overview showing event name, format, date, target, setup status and key actions.",
   },
 
-    eventSetupOverviewPhotoshot: {
+  eventSetupOverviewPhotoshot: {
     src: "/images/screenshots/eventmanagerphoto.png",
     alt: "FundRaisely Event Manager overview showing event name, format, date, target, setup status and key actions.",
   },
@@ -188,7 +205,7 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "FundRaisely Event Manager launch dashboard showing advance tickets, redeemed tickets, launch controls and admin helper access.",
   },
 
- eventaddadminScreenshot: {
+  eventaddadminScreenshot: {
     src: "/images/screenshots/addadmin.png",
     alt: "Each game has it own workspace where you can add admin helpers, help users join , and manage the game controls.",
   },
@@ -227,6 +244,7 @@ export const images: Record<ImageKey, SiteImage> = {
     src: "/images/screenshots/ticketcheckin.png",
     alt: "FundRaisely organiser ticketing view showing tickets sold, payment status, confirmed tickets, redeemed tickets and report actions.",
   },
+
   ticketingInstantPaymentScreenshot: {
     src: "/images/screenshots/instantpayment.png",
     alt: "FundRaisely ticketing view showing instant payment reference for a ticket purchase.",
@@ -236,10 +254,12 @@ export const images: Record<ImageKey, SiteImage> = {
     src: "/images/screenshots/ticketedeventhero.png",
     alt: "FundRaisely ticketed event hero image showing a family enjoying a ticketed community event together.",
   },
-    cashatdoorScreenshot: { 
-      src: "/images/screenshots/cashatdoor.png",
-      alt: "Admin simply marks cash at the door for cash they personally recieve and a full audit trail is generated.",
-    },
+
+  cashatdoorScreenshot: {
+    src: "/images/screenshots/cashatdoor.png",
+    alt: "Admin simply marks cash at the door for cash they personally recieve and a full audit trail is generated.",
+  },
+
   ticketreportingScreenshot: {
     src: "/images/screenshots/ticketreports.png",
     alt: "FundRaisely ticket reporting showing ticket sales, payment status, redeemed tickets and report export options.",
@@ -280,15 +300,6 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "Mobile view of FundRaisely payment tracking showing player payment status and organiser actions.",
   },
 
-  quizHero: {
-  src: "/images/screenshots/quizhero.png",
-  alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
-},
-  clubHero: {
-  src: "/images/screenshots/clubhero.png",
-  alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
-},
-
   quizGameplayScreenshot: {
     src: placeholder("Quiz gameplay screenshot"),
     alt: "Placeholder for a quiz gameplay screenshot",
@@ -314,7 +325,7 @@ export const images: Record<ImageKey, SiteImage> = {
     alt: "FundRaisely approved audit-ready reconciliation showing approved totals and locked report status.",
   },
 
-    reportReconciliationScreenshot: {
+  reportReconciliationScreenshot: {
     src: "/images/screenshots/reports-reconciliation.png",
     alt: "FundRaisely approved audit-ready reconciliation showing approved totals and locked report status.",
   },
@@ -363,56 +374,74 @@ export const images: Record<ImageKey, SiteImage> = {
     src: "/images/screenshots/commhero.jpg",
     alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
   },
-  
+
   schoolHero: {
     src: "/images/screenshots/schoolhero.png",
     alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
   },
+
   charitiesHero: {
     src: "/images/screenshots/charitieshero.png",
     alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
   },
+
+  quizHero: {
+    src: "/images/screenshots/quizhero.png",
+    alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+  },
+
+  clubHero: {
+    src: "/images/screenshots/clubhero.png",
+    alt: "FundRaisely digital quiz fundraising event with players, teams and host controls.",
+  },
+
   doorToDoorScreenshot: {
     src: "/images/screenshots/door-to-door.png",
     alt: "FundRaisely door-to-door fundraising screenshot showing a volunteer recording cash donations collected in person.",
   },
-  eliminationHero: {  
-        src: "/images/screenshots/eliminationHero.png",
+
+  eliminationHero: {
+    src: "/images/screenshots/eliminationHero.png",
     alt: "People enjoying a game of elimination as a fundraising event in a club.",
   },
-  eliminationGameplayScreenshot: { 
-       src: "/images/screenshots/elimiationgame.png",
-    alt: "FundRaisely elimination game, screnshots.",
-  },
-  eliminationHostScreenshot: { 
-     src: "/images/screenshots/elimiationhost.png",
-    alt: "FundRaisely elimination game, screnshots.",
 
-  },
-  eliminationLarge: { 
-     src: "/images/screenshots/eliminationlarge.png",
+  eliminationGameplayScreenshot: {
+    src: "/images/screenshots/elimiationgame.png",
     alt: "FundRaisely elimination game, screnshots.",
-
   },
-  gameRecon:{
-      src: "/images/screenshots/gamerecon.png",
+
+  eliminationHostScreenshot: {
+    src: "/images/screenshots/elimiationhost.png",
+    alt: "FundRaisely elimination game, screnshots.",
+  },
+
+  eliminationLarge: {
+    src: "/images/screenshots/eliminationlarge.png",
+    alt: "FundRaisely elimination game, screnshots.",
+  },
+
+  gameRecon: {
+    src: "/images/screenshots/gamerecon.png",
     alt: "FundRaisely end of event reconciliation screens.",
   },
+
   productdashboard: {
-       src: "/images/screenshots/productdash.png",
+    src: "/images/screenshots/productdash.png",
     alt: "FundRaisely end of event reconciliation screens.",
   },
-    tradationaldigital: {
-       src: "/images/screenshots/tradational.png",
-    alt: "FundRaisely digital tradational events.",
-  }, 
-  paymentsDonations: {
-       src: "/images/screenshots/paymentdonations.png",
+
+  tradationaldigital: {
+    src: "/images/screenshots/tradational.png",
     alt: "FundRaisely digital tradational events.",
   },
-    puzzels: {
-       src: "/images/screenshots/puzzle.png",
+
+  paymentsDonations: {
+    src: "/images/screenshots/paymentdonations.png",
     alt: "FundRaisely digital tradational events.",
-  }
-  
+  },
+
+  puzzels: {
+    src: "/images/screenshots/puzzle.png",
+    alt: "FundRaisely digital tradational events.",
+  },
 };

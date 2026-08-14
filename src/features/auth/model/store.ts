@@ -6,6 +6,7 @@
 //   - Both scopes are fetched on login and cached in sessionStorage
 //   - getEntitlementsForScope() helper added
 //   - showNoCreditWarning checks both scopes
+//   - initialized flag added to prevent premature redirect on refresh
 
 import { create } from 'zustand';
 import { authApi, quizApi } from '@shared/api';
@@ -39,7 +40,7 @@ async function fetchAllEntitlements(): Promise<EntitlementsMap> {
   );
 
   const map: EntitlementsMap = {};
-results.forEach((result, i) => {
+  results.forEach((result, i) => {
     const scope = GAME_SCOPES[i] as GameScope;
     if (result.status === 'fulfilled') {
       map[scope] = result.value;
@@ -67,7 +68,8 @@ function hasAnyZeroCredits(entitlements: EntitlementsMap): boolean {
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
-  // Initial state
+  // ── Initial state ──────────────────────────────────────────────────────────
+
   user: null,
   club: null,
   isAuthenticated: false,
@@ -77,16 +79,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // entitlements is now an EntitlementsMap, but we keep the field name
   // so existing callers that do `state.entitlements` still work.
-  // They'll get the quiz entitlements via getEntitlementsForScope('quiz').
+  // Use getEntitlementsForScope() for typed per-scope access.
   entitlements: null,
 
   showNoCreditWarning: false,
 
+  // initialized starts false so DashboardShell shows a spinner rather than
+  // immediately redirecting while getProfile() is still in flight.
+  // It is set to true exactly once — after initialize() resolves or rejects.
+  initialized: false,
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
   initialize: () => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
     if (token) {
+      // Optimistically mark authenticated so protected UI doesn't flash,
+      // then confirm (or clear) once the profile API responds.
       set({ isAuthenticated: true });
-      get().getProfile().catch(() => get().logout());
+      get()
+        .getProfile()
+        .catch(() => get().logout())
+        .finally(() => set({ initialized: true }));
+    } else {
+      // No token — nothing to hydrate, ready immediately.
+      set({ initialized: true });
     }
   },
 
@@ -134,18 +151,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
         error: null,
         successMessage: null,
+        // Already initialized from a previous initialize() call (the login
+        // page renders after initialize() has finished), but set it here too
+        // so a login on a fresh tab without a prior token also marks ready.
+        initialized: true,
       });
 
       // Fetch all scopes in parallel after successful login.
-      // Non-fatal - login succeeds even if entitlements fetch fails.
+      // Non-fatal — login succeeds even if entitlements fetch fails.
       try {
         const entitlementsMap = await fetchAllEntitlements();
-
-        // Store the map under `entitlements`.
-        // Existing callers reading `state.entitlements` will get the map object.
-        // Use getEntitlementsForScope() for typed per-scope access.
         set({
-          entitlements: entitlementsMap as any, // cast - AuthStore type will need updating
+          entitlements: entitlementsMap as any,
           showNoCreditWarning: hasAnyZeroCredits(entitlementsMap),
         });
       } catch (entError) {
@@ -182,6 +199,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       successMessage: null,
       entitlements: null,
       showNoCreditWarning: false,
+      // Keep initialized: true — the store is still ready, just logged out.
+      // DashboardShell will see initialized=true + isAuthenticated=false
+      // and redirect to / immediately, which is the correct behaviour.
+      initialized: true,
     });
   },
 
@@ -212,14 +233,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   dismissNoCreditWarning: () => set({ showNoCreditWarning: false }),
 
-  // Utility actions
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
-  setClub: (club) => set({ club }),
-  setError: (error) => set({ error, successMessage: null }),
-  clearError: () => set({ error: null }),
-  setSuccessMessage: (message) => set({ successMessage: message, error: null }),
-  clearSuccessMessage: () => set({ successMessage: null }),
-  setLoading: (loading) => set({ isLoading: loading }),
+  // ── Utility actions ────────────────────────────────────────────────────────
+
+  setUser:             (user)    => set({ user, isAuthenticated: !!user }),
+  setClub:             (club)    => set({ club }),
+  setError:            (error)   => set({ error, successMessage: null }),
+  clearError:          ()        => set({ error: null }),
+  setSuccessMessage:   (message) => set({ successMessage: message, error: null }),
+  clearSuccessMessage: ()        => set({ successMessage: null }),
+  setLoading:          (loading) => set({ isLoading: loading }),
 }));
 
 // ─── Selectors ────────────────────────────────────────────────────────────────

@@ -38,6 +38,7 @@ interface CryptoTicketDonationStepProps {
   solanaCluster?: 'mainnet' | 'devnet';
   onBack: () => void;
   onComplete: (ticket: Ticket) => void;
+  confirmEndpoint?: string;
 }
 
 type CryptoPaymentStatus =
@@ -74,6 +75,7 @@ export const CryptoTicketDonationStep: React.FC<CryptoTicketDonationStepProps> =
   solanaCluster = 'mainnet',
   onBack,
   onComplete,
+  confirmEndpoint,
 }) => {
   const { open } = useAppKit();
 
@@ -140,7 +142,8 @@ export const CryptoTicketDonationStep: React.FC<CryptoTicketDonationStepProps> =
   const confirmCryptoTicketOnBackend = async (
     result: Extract<SolanaDirectDonationResult, { success: true }>
   ): Promise<CryptoTicketConfirmResponse> => {
-    const response = await fetch('/api/quiz/tickets/crypto-donation/confirm', {
+const endpoint = confirmEndpoint ?? '/api/quiz/tickets/crypto-donation/confirm';
+const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

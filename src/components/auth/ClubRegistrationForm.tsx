@@ -252,7 +252,7 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
       if (result.success) {
         setShowSuccess(true);
         const params   = new URLSearchParams(location.search);
-        const returnTo = params.get('returnTo') || '/eventdashboard';
+        const returnTo = params.get('returnTo') || '/event-dashboard';
         setTimeout(() => { window.location.href = `/auth?mode=login&returnTo=${encodeURIComponent(returnTo)}`; }, 2500);
       }
     } catch (err) {

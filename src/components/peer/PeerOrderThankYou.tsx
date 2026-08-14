@@ -1,3 +1,4 @@
+//src/components/peer/PeerOrderThankYou.tsx
 import { ArrowRight, CheckCircle2, Mail, PartyPopper, Sparkles } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import type { PeerGeneratedEntry, PeerOrderSummary } from '../../services/PeerSupportService';

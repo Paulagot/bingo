@@ -9,16 +9,20 @@ import {
   retryPeerOrderFulfilment,
 } from '../services/peerOrderCompletionService.js';
 import { getAvailableMethodsForClub, getPublicMethods } from '../services/peerPaymentMethodsService.js';
+import { verifyAndRecordSolanaDonation } from '../../donations/services/cryptoSolanaDonationVerificationService.js';
 
 const router=Router();
 const limiter=rateLimit({windowMs:10*60*1000,max:60,standardHeaders:true,legacyHeaders:false});
+const cryptoLimiter=rateLimit({windowMs:10*60*1000,max:10,standardHeaders:true,legacyHeaders:false,message:{ok:false,error:'Too many crypto payment attempts. Please wait a few minutes.'}});
 const send=(res,p)=>res.json({ok:true,...p});
-const fail=(res,e)=>res.status(e.status||500).json({ok:false,error:e.message||'internal_error'});
+const fail=(res,e)=>res.status(e.status||e.statusCode||500).json({ok:false,error:e.message||'internal_error'});
 const actor=req=>({
   id:req.user?.id||req.club_id,
   name:req.user?.name||req.user?.email||'Admin',
   role:req.user?.role==='host'?'host':'admin',
 });
+
+// ─── Management routes (auth-gated) ──────────────────────────────────────────
 
 router.get('/peer-fundraisers',authenticateToken,async(req,res)=>{try{send(res,await svc.listFundraisers(req.club_id));}catch(e){fail(res,e);}});
 router.post('/peer-fundraisers',authenticateToken,async(req,res)=>{try{res.status(201).json({ok:true,...await svc.createFundraiser(req.club_id,req.body,req.reporting_currency)});}catch(e){fail(res,e);}});
@@ -49,9 +53,32 @@ router.post('/peer-fundraisers/:id/orders/:orderId/confirm',authenticateToken,as
 router.post('/peer-fundraisers/:id/orders/:orderId/reject',authenticateToken,async(req,res)=>{try{send(res,await rejectPeerOrder(req.params.orderId,req.params.id,req.club_id,req.body?.reason));}catch(e){fail(res,e);}});
 router.post('/peer-fundraisers/:id/orders/:orderId/retry-fulfilment',authenticateToken,async(req,res)=>{try{send(res,await retryPeerOrderFulfilment(req.params.orderId,req.params.id,req.club_id));}catch(e){fail(res,e);}});
 
+// ─── Public support routes — specific paths MUST come before wildcards ────────
+
 router.get('/peer-support/fundraiser/:id/payment-methods',limiter,async(req,res)=>{try{send(res,await getPublicMethods(req.params.id));}catch(e){fail(res,e);}});
 router.get('/peer-support/orders/:orderId/summary',limiter,async(req,res)=>{try{send(res,await svc.getPublicOrderSummary(req.params.orderId));}catch(e){fail(res,e);}});
 router.get('/peer-support/donations/status',limiter,async(req,res)=>{try{send(res,await donations.getPublicPeerDonationStatus({sessionId:req.query.sessionId}));}catch(e){fail(res,e);}});
+
+// Crypto donation confirm — uses /donations/:donationId/... so must be before
+// the /:fundraiserId/donations/... wildcard routes below.
+router.post('/peer-support/donations/:donationId/crypto-confirm',cryptoLimiter,async(req,res)=>{
+  try{
+    const{donationId}=req.params;
+    // CryptoFixedFeeStep sends entryFeeRaw + extrasRaw + cryptoDisplayAmount,
+    // not rawAmount/displayAmount. Sum the raw values for on-chain verification.
+    const{network='mainnet',txHash,senderWallet,recipientWallet,tokenCode,tokenMint=null,entryFeeRaw,extrasRaw='0',cryptoDisplayAmount}=req.body??{};
+    const rawAmount=(BigInt(String(entryFeeRaw||'0'))+BigInt(String(extrasRaw||'0'))).toString();
+    const displayAmount=cryptoDisplayAmount;
+    if(!txHash||!senderWallet||!recipientWallet)return res.status(400).json({ok:false,error:'txHash, senderWallet and recipientWallet are required'});
+    const verification=await verifyAndRecordSolanaDonation({donationId,network,txHash,senderWallet,recipientWallet,tokenCode,tokenMint,rawAmount,displayAmount});
+    await donations.confirmPublicPeerCryptoDonation({donationId,txHash});
+    console.log(`[PeerRoutes] ✅ Crypto donation ${donationId} confirmed via txHash ${txHash.slice(0,16)}...`);
+    res.json({ok:true,donationId,txHash,ledgerAmount:verification.donationAmount,ledgerCurrency:verification.donationCurrency});
+  }catch(e){fail(res,e);}
+});
+
+// ─── Public wildcard routes — these must stay LAST in this block ─────────────
+// Any new specific /peer-support/... routes must go ABOVE these lines.
 
 router.get('/peer-support/:clubSlug/:fundraiserSlug',limiter,async(req,res)=>{try{send(res,await svc.publicPayload(req.params.clubSlug,req.params.fundraiserSlug));}catch(e){fail(res,e);}});
 router.get('/peer-support/:clubSlug/:fundraiserSlug/:participantSlug',limiter,async(req,res)=>{try{send(res,await svc.publicPayload(req.params.clubSlug,req.params.fundraiserSlug,req.params.participantSlug));}catch(e){fail(res,e);}});
@@ -59,5 +86,18 @@ router.post('/peer-support/:fundraiserId/orders',limiter,async(req,res)=>{try{re
 router.post('/peer-support/orders/:orderId/claim',limiter,async(req,res)=>{try{send(res,await svc.claimOrder(req.params.orderId,req.body));}catch(e){fail(res,e);}});
 router.post('/peer-support/:fundraiserId/donations/manual',limiter,async(req,res)=>{try{res.status(201).json({ok:true,...await donations.createPublicPeerManualDonation({fundraiserId:req.params.fundraiserId,...req.body})});}catch(e){fail(res,e);}});
 router.post('/peer-support/:fundraiserId/donations/stripe-checkout',limiter,async(req,res)=>{try{res.status(201).json({ok:true,...await donations.createPublicPeerStripeDonation({fundraiserId:req.params.fundraiserId,...req.body})});}catch(e){fail(res,e);}});
+
+// Crypto checkout — /:fundraiserId/donations/crypto-checkout. Placed here
+// (after the GET wildcards, alongside the other /:fundraiserId/donations/...
+// routes) because POST /:fundraiserId/... is a different verb from
+// GET /:clubSlug/:fundraiserSlug so there is no conflict.
+router.post('/peer-support/:fundraiserId/donations/crypto-checkout',cryptoLimiter,async(req,res)=>{
+  try{
+    const{fundraiserId}=req.params;
+    const{clubPaymentMethodId,donorName,donorEmail,amount,participantId=null}=req.body??{};
+    if(!clubPaymentMethodId)return res.status(400).json({ok:false,error:'clubPaymentMethodId is required'});
+    res.status(201).json({ok:true,...await donations.createPublicPeerCryptoDonation({fundraiserId,participantId,clubPaymentMethodId,donorName,donorEmail,amount})});
+  }catch(e){fail(res,e);}
+});
 
 export default router;

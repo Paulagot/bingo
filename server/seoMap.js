@@ -469,6 +469,29 @@ export function getSeoForPath(reqPath, hostOrigin) {
       canonical: ABS(hostOrigin, '/web3/fundraisersdashboard'),
       robots: 'noindex, nofollow',
     },
+'/events/colombia-earthquake-relief': {
+      title: 'Play for Colombia | Earthquake Relief Fundraiser | FundRaisely',
+      description:
+        'Play FundRaisely Elimination or donate to support families affected by the earthquake in western Colombia. Join two live €10 games from Slane Castle or play remotely on 5 September 2026.',
+      canonical: ABS(hostOrigin, '/events/colombia-earthquake-relief'),
+
+      // Social / Open Graph image.
+      // File location:
+      // public/social/colombia-earthquake-og.png
+      image: ABS(hostOrigin, '/social/colombia-earthquake-og.png'),
+      imageAlt:
+        'Play for Colombia earthquake relief fundraiser at Slane Castle',
+      imageWidth: '1200',
+      imageHeight: '630',
+
+      type: 'website',
+      robots: 'index, follow',
+
+      keywords:
+        'Colombia earthquake relief, Colombia fundraiser, earthquake fundraiser Ireland, Slane Castle fundraiser, FundRaisely, Superteam Ireland, Castle DAO, Elimination fundraising game, Solana Seeker, crypto donations',
+    },
+
+
 '/events/safe-streets-ireland-padel': {
   title: 'Safe Streets Ireland Padel Fundraiser | FundRaisely',
   description:

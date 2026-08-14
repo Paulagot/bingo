@@ -17,10 +17,15 @@ export interface CryptoQuote {
 export type QuoteStatus = 'idle' | 'loading' | 'ready' | 'expired' | 'error';
 
 interface UseCryptoQuoteParams {
-  roomId:      string;
-  fiatAmount:  number;
-  tokenCode:   SolanaTokenCode | null;
-  enabled:     boolean;
+  roomId:         string;
+  fiatAmount:     number;
+  tokenCode:      SolanaTokenCode | null;
+  enabled:        boolean;
+  // Optional override — when provided, roomId is not sent as a query param.
+  // Used by peer fundraiser pages which resolve currency from the fundraiser,
+  // not from a room. The peer quote endpoint is:
+  //   GET /api/peer-support/fundraiser/:fundraiserId/crypto-quote?token=SOL&amount=16
+  quoteEndpoint?: string;
 }
 
 interface UseCryptoQuoteResult {
@@ -37,6 +42,7 @@ export function useCryptoQuote({
   fiatAmount,
   tokenCode,
   enabled,
+  quoteEndpoint,
 }: UseCryptoQuoteParams): UseCryptoQuoteResult {
   const [quote, setQuote]         = useState<CryptoQuote | null>(null);
   const [status, setStatus]       = useState<QuoteStatus>('idle');
@@ -45,7 +51,6 @@ export function useCryptoQuote({
 
   const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const fetchingRef  = useRef(false);
-  // Track last fetched inputs to avoid re-fetching on every render
   const lastFetchRef = useRef<{ roomId: string; fiatAmount: number; tokenCode: string | null }>({
     roomId: '', fiatAmount: 0, tokenCode: null,
   });
@@ -59,7 +64,9 @@ export function useCryptoQuote({
 
   const fetchQuote = useCallback(async () => {
     if (fetchingRef.current) return;
-    if (!roomId || !tokenCode || fiatAmount <= 0) return;
+    if (!tokenCode || fiatAmount <= 0) return;
+    // roomId is only required when using the default quiz endpoint
+    if (!quoteEndpoint && !roomId) return;
 
     fetchingRef.current = true;
     setStatus('loading');
@@ -68,11 +75,11 @@ export function useCryptoQuote({
     clearTimer();
 
     try {
-      const url =
-        `/api/quiz/crypto-quote` +
-        `?roomId=${encodeURIComponent(roomId)}` +
-        `&token=${encodeURIComponent(tokenCode)}` +
-        `&amount=${encodeURIComponent(fiatAmount)}`;
+      // When quoteEndpoint is provided (e.g. peer fundraiser), roomId is not
+      // sent — the endpoint resolves currency from its own record instead.
+      const url = quoteEndpoint
+        ? `${quoteEndpoint}?token=${encodeURIComponent(tokenCode)}&amount=${encodeURIComponent(fiatAmount)}`
+        : `/api/quiz/crypto-quote?roomId=${encodeURIComponent(roomId)}&token=${encodeURIComponent(tokenCode)}&amount=${encodeURIComponent(fiatAmount)}`;
 
       const res  = await fetch(url);
       const data = await res.json();
@@ -84,7 +91,6 @@ export function useCryptoQuote({
       setQuote(data.quote);
       setStatus('ready');
 
-      // Start the expiry countdown
       const expiresAt = new Date(data.quote.expiresAt).getTime();
 
       timerRef.current = setInterval(() => {
@@ -94,8 +100,6 @@ export function useCryptoQuote({
         if (remaining === 0) {
           clearTimer();
           setStatus('expired');
-          // Do NOT auto-fetch here - that causes the loop.
-          // The Refresh button lets the user get a new quote when ready.
         }
       }, 1000);
 
@@ -107,10 +111,8 @@ export function useCryptoQuote({
     } finally {
       fetchingRef.current = false;
     }
-  }, [roomId, tokenCode, fiatAmount]);
+  }, [roomId, tokenCode, fiatAmount, quoteEndpoint]);
 
-  // Fetch when enabled and inputs are present.
-  // Only re-fetch when inputs actually change - not on every render or timer tick.
   useEffect(() => {
     if (!enabled || !tokenCode || fiatAmount <= 0) {
       clearTimer();
@@ -127,23 +129,18 @@ export function useCryptoQuote({
       last.fiatAmount !== fiatAmount ||
       last.tokenCode !== tokenCode;
 
-    // Only fetch if inputs changed or we haven't fetched yet (status idle)
     if (!inputsChanged && status !== 'idle') return;
 
     lastFetchRef.current = { roomId, fiatAmount, tokenCode };
     fetchQuote();
 
     return () => clearTimer();
-  // We intentionally exclude fetchQuote and status from deps to avoid loops.
-  // fetchQuote is stable via useCallback; status would cause infinite re-runs.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, tokenCode, fiatAmount, roomId]);
 
-  // Cleanup on unmount
   useEffect(() => () => clearTimer(), []);
 
   const refresh = useCallback(() => {
-    // Reset lastFetchRef so the effect treats this as a fresh fetch
     lastFetchRef.current = { roomId: '', fiatAmount: 0, tokenCode: null };
     setStatus('idle');
     setQuote(null);
