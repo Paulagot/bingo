@@ -437,7 +437,9 @@ export async function createPublicPeerStripeDonation({
   ).replace(/\/$/, '');
   if (!origin) fail('app_origin_missing', 500);
 
-  const safeReturnPath = String(returnPath || '').startsWith('/fundraise/')
+ const safeReturnPath =
+  String(returnPath || '').startsWith('/fundraise/') ||
+  String(returnPath || '').startsWith('/events/')
     ? String(returnPath)
     : `/fundraise/${fundraiser.club_slug}/${fundraiser.public_slug}`;
 
