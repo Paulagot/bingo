@@ -10,17 +10,37 @@ import {
 
 export async function listFundraisers(clubId) {
   const [rows] = await connection.execute(
+    // FIX: confirmed_total now sums both peer_orders AND donations.
+    // Subqueries are used instead of LEFT JOINs on both tables to avoid
+    // row multiplication — joining peer_orders and donations simultaneously
+    // alongside peer_participants and peer_packs inflates all four counts.
     `SELECT f.*,
-      COUNT(DISTINCT p.id) participant_count,
-      COUNT(DISTINCT pk.id) pack_count,
-      COALESCE(SUM(CASE WHEN o.payment_status='confirmed' THEN o.total_amount ELSE 0 END),0) confirmed_total
+      COUNT(DISTINCT p.id) AS participant_count,
+      COUNT(DISTINCT pk.id) AS pack_count,
+      COALESCE((
+        SELECT SUM(total_amount)
+        FROM ${O}
+        WHERE peer_fundraiser_id = f.id
+          AND payment_status = 'confirmed'
+      ), 0)
+      +
+      COALESCE((
+        SELECT SUM(amount)
+        FROM ${TABLE_PREFIX}donations
+        WHERE peer_fundraiser_id = f.id
+          AND status = 'confirmed'
+      ), 0) AS confirmed_total
      FROM ${F} f
-     LEFT JOIN ${P} p ON p.peer_fundraiser_id=f.id
-     LEFT JOIN ${PK} pk ON pk.peer_fundraiser_id=f.id
-     LEFT JOIN ${O} o ON o.peer_fundraiser_id=f.id
-     WHERE f.club_id=? GROUP BY f.id ORDER BY f.created_at DESC`, [clubId]);
+     LEFT JOIN ${P} p ON p.peer_fundraiser_id = f.id AND p.club_id = f.club_id
+     LEFT JOIN ${PK} pk ON pk.peer_fundraiser_id = f.id AND pk.club_id = f.club_id
+     WHERE f.club_id = ?
+     GROUP BY f.id
+     ORDER BY f.created_at DESC`,
+    [clubId]
+  );
   return { fundraisers: rows };
 }
+
 export async function createFundraiser(clubId,b,clubReportingCurrency=null) {
   if (!b?.name?.trim()) fail('name_required');
   const fundraiserId=id();
@@ -33,25 +53,46 @@ export async function createFundraiser(clubId,b,clubReportingCurrency=null) {
      Number(b.targetAmount||0),b.currency||clubReportingCurrency||'EUR',b.startDate||null,b.endDate||null,b.status||'draft',
      publicSlug,JSON.stringify(b.settings||{})]);
 
-  // Payment methods can now be picked at creation time, consistent with
-  // how event setup works — previously this was only ever possible
-  // afterward, via a separate Payments tab, with nothing at creation time
-  // warning the club they hadn't set any up. Reuses updateMethods' existing
-  // ownership + validation logic rather than duplicating it here.
   if (Array.isArray(b.paymentMethodIds) && b.paymentMethodIds.length) {
     await updatePeerPaymentMethods(fundraiserId, clubId, b.paymentMethodIds, b.updatedBy ?? null);
   }
 
   return getFundraiser(fundraiserId,clubId);
 }
+
 export async function getFundraiser(fid,clubId) {
   const fundraiser = await assertFundraiser(fid,clubId);
-  // Previously the mgmt page had no way to know the club's real slug at all
-  // and fell back to a literal "your-club" string in the URL. Join it here
-  // so every screen that loads a single fundraiser gets the real value.
   const [clubRows] = await connection.execute(`SELECT slug, name FROM ${C} WHERE id=? LIMIT 1`, [clubId]);
-  return { fundraiser: { ...fundraiser, club_slug: clubRows[0]?.slug ?? null, club_name: clubRows[0]?.name ?? null } };
+
+  // FIX: compute confirmed_total (orders + donations) so the drawer header
+  // TargetProgress bar has a real value. assertFundraiser() is a bare
+  // SELECT * — no confirmed_total column exists on the table itself.
+  const [[totalsRow]] = await connection.execute(
+    `SELECT
+       COALESCE((
+         SELECT SUM(total_amount)
+         FROM ${O}
+         WHERE peer_fundraiser_id = ? AND payment_status = 'confirmed'
+       ), 0)
+       +
+       COALESCE((
+         SELECT SUM(amount)
+         FROM ${TABLE_PREFIX}donations
+         WHERE peer_fundraiser_id = ? AND status = 'confirmed'
+       ), 0) AS confirmed_total`,
+    [fid, fid]
+  );
+
+  return {
+    fundraiser: {
+      ...fundraiser,
+      club_slug:     clubRows[0]?.slug ?? null,
+      club_name:     clubRows[0]?.name ?? null,
+      confirmed_total: Number(totalsRow?.confirmed_total || 0),
+    },
+  };
 }
+
 export async function updateFundraiser(fid,clubId,b) {
   const cur=await assertFundraiser(fid,clubId);
   const publicSlug=b.publicSlug!==undefined
@@ -67,6 +108,7 @@ export async function updateFundraiser(fid,clubId,b) {
      JSON.stringify(b.settings??parseJson(cur.settings_json,{})),fid,clubId]);
   return getFundraiser(fid,clubId);
 }
+
 export async function listOrders(fid,clubId) {
   await assertFundraiser(fid,clubId);
 
@@ -135,8 +177,3 @@ export async function listOrders(fid,clubId) {
     }),
   };
 }
-// NOTE: confirmOrder used to live here as a bare status-flip that never
-// called expandPeerOrder — confirming a cash order through the mgmt UI
-// marked it paid but never created tickets or join links. Order confirm
-// and reject now live in peerOrderCompletionService.js (confirmPeerOrderForClub /
-// rejectPeerOrder), which run the full expansion and are ownership-checked.

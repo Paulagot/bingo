@@ -10,6 +10,7 @@ import {
 } from '../services/peerOrderCompletionService.js';
 import { getAvailableMethodsForClub, getPublicMethods } from '../services/peerPaymentMethodsService.js';
 import { verifyAndRecordSolanaDonation } from '../../donations/services/cryptoSolanaDonationVerificationService.js';
+import { getPublicFundraiserImpact } from '../services/peerImpactService.js';
 
 const router=Router();
 const limiter=rateLimit({windowMs:10*60*1000,max:60,standardHeaders:true,legacyHeaders:false});
@@ -58,7 +59,11 @@ router.post('/peer-fundraisers/:id/orders/:orderId/retry-fulfilment',authenticat
 router.get('/peer-support/fundraiser/:id/payment-methods',limiter,async(req,res)=>{try{send(res,await getPublicMethods(req.params.id));}catch(e){fail(res,e);}});
 router.get('/peer-support/orders/:orderId/summary',limiter,async(req,res)=>{try{send(res,await svc.getPublicOrderSummary(req.params.orderId));}catch(e){fail(res,e);}});
 router.get('/peer-support/donations/status',limiter,async(req,res)=>{try{send(res,await donations.getPublicPeerDonationStatus({sessionId:req.query.sessionId}));}catch(e){fail(res,e);}});
-
+router.get('/peer-support/fundraiser/:fundraiserId/impact', limiter, async (req, res) => {
+  try {
+    send(res, await getPublicFundraiserImpact(req.params.fundraiserId));
+  } catch(e) { fail(res, e); }
+});
 // Crypto donation confirm — uses /donations/:donationId/... so must be before
 // the /:fundraiserId/donations/... wildcard routes below.
 router.post('/peer-support/donations/:donationId/crypto-confirm',cryptoLimiter,async(req,res)=>{

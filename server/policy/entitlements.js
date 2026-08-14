@@ -247,7 +247,7 @@ export async function resolveEntitlements({ userId: clubId, scope = 'quiz' }) {
 
     if (Array.isArray(entRows) && entRows.length > 0) {
       base = buildEntitlementsFromRows(entRows, scope);
-      console.log(`[Entitlements] ✅ Resolved plan_entitlements for plan_id=${club.plan_id} (${club.plan_code}) scope="${scope}"`);
+      // console.log(`[Entitlements] ✅ Resolved plan_entitlements for plan_id=${club.plan_id} (${club.plan_code}) scope="${scope}"`);
     } else {
       // Fallback to legacy fundraisely_plans columns if no entitlement rows exist
       console.warn(`[Entitlements] ⚠️ No plan_entitlements rows for plan_id=${club.plan_id} - falling back to plans table`);
@@ -294,7 +294,7 @@ export async function resolveEntitlements({ userId: clubId, scope = 'quiz' }) {
     // 5) Apply per-club overrides from fundraisely_club_entitlement_overrides
     entitlements = await applyOverrides(entitlements, clubId, scope);
 
-    console.log(`[Entitlements] 👤 Club "${clubId}" | plan=${entitlements.plan_code} | scope=${scope} | credits=${creditsRemaining} (key=${creditKey}) | maxPlayers=${entitlements.max_players_per_game}`);
+    // console.log(`[Entitlements] 👤 Club "${clubId}" | plan=${entitlements.plan_code} | scope=${scope} | credits=${creditsRemaining} (key=${creditKey}) | maxPlayers=${entitlements.max_players_per_game}`);
 
     return entitlements;
   } catch (error) {
@@ -438,7 +438,7 @@ export async function consumeCredit(clubId, scope, planCode) {
       const monthlyAllowance = MONTHLY_CREDITS[planCode] ?? 0;
       const nextResetAt = firstDayOfNextMonth();
 
-      console.log(`[Credits] 🔄 Resetting credits for club "${clubId}" key="${creditKey}" plan=${planCode} → ${monthlyAllowance} credits`);
+      // console.log(`[Credits] 🔄 Resetting credits for club "${clubId}" key="${creditKey}" plan=${planCode} → ${monthlyAllowance} credits`);
 
       await connection.execute(`
         UPDATE fundraisely_club_credit_balances
@@ -458,7 +458,7 @@ export async function consumeCredit(clubId, scope, planCode) {
         ? `You've used all your credits for this month. Upgrade to Pro for more.`
         : `You've used your lifetime credit for ${scope}. Upgrade your plan to run more games.`;
 
-      console.log(`[Credits] 🚫 No credits for club "${clubId}" key="${creditKey}" (balance=${balance})`);
+      // console.log(`[Credits] 🚫 No credits for club "${clubId}" key="${creditKey}" (balance=${balance})`);
 
       return {
         ok: false,
@@ -489,7 +489,7 @@ export async function consumeCredit(clubId, scope, planCode) {
       };
     }
 
-    console.log(`[Credits] ✅ Consumed 1 credit for club "${clubId}" key="${creditKey}" (was ${balance}, now ${balance - 1})`);
+    // console.log(`[Credits] ✅ Consumed 1 credit for club "${clubId}" key="${creditKey}" (was ${balance}, now ${balance - 1})`);
     return { ok: true };
 
   } catch (error) {
@@ -527,7 +527,7 @@ export async function grantCredits(clubId, creditKey, amount) {
 
     if (result.affectedRows === 0) return false;
 
-    console.log(`[🔑 Entitlements Granted ${amount} credits to club "${clubId}" key="${creditKey}"`);
+    // console.log(`[🔑 Entitlements Granted ${amount} credits to club "${clubId}" key="${creditKey}"`);
     return true;
   } catch (error) {
     console.error(`[Credits] ❌ grantCredits failed for club "${clubId}" key "${creditKey}":`, error);

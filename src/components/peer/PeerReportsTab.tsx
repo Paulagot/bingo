@@ -81,7 +81,13 @@ export default function PeerReportsTab({ fundraiserId, currency, targetAmount }:
   const confirmed  = totals.confirmedTotal;
   const claimed    = totals.claimedTotal;
   const combined   = totals.combinedConfirmedTotal ?? confirmed;
-  const progress   = targetAmount > 0 ? Math.min(100, Math.round((confirmed / targetAmount) * 100)) : null;
+
+  // FIX: progress bar must use combined (orders + donations) not confirmed
+  // (orders only). combinedConfirmedTotal is returned by peerReportService.js
+  // which already queries both peer_orders and donations.
+  const progress = targetAmount > 0
+    ? Math.min(100, Math.round((combined / targetAmount) * 100))
+    : null;
 
   return (
     <div className="space-y-8">
@@ -134,7 +140,7 @@ export default function PeerReportsTab({ fundraiserId, currency, targetAmount }:
           >
             <div className="flex justify-between items-end mb-2">
               <div>
-                <p className="text-2xl font-black" style={{ color: brand.navy }}>{money(confirmed)}</p>
+                <p className="text-2xl font-black" style={{ color: brand.navy }}>{money(combined)}</p>
                 <p className="text-xs font-semibold mt-0.5" style={{ color: brand.slate }}>
                   raised of {money(targetAmount)} target
                 </p>

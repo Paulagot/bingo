@@ -140,8 +140,6 @@ async function publicPackAvailability({ pack, packItems, lifecycle, soldQuantity
     }
     const quantityRequired = Math.max(1, Number(item.quantity || 1));
     if (['quiz', 'elimination', 'ticketed_event'].includes(item.game_type)) {
-      // Reuse the capacity prefetched once per room in publicPayload; fall
-      // back to a live fetch only if a room wasn't prefetched (defensive).
       const capacity = capacityByRoom?.get(item.target_room_id) ?? await getRoomCapacityStatus(item.target_room_id, 0);
       if (!capacity.ticketSalesOpen) {
         const code = capacity.ticketsFull ? 'capacity_reached' : 'ticket_sales_closed';
@@ -189,6 +187,7 @@ async function publicPackAvailability({ pack, packItems, lifecycle, soldQuantity
     remaining: packRemaining,
   };
 }
+
 export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = null) {
   const [clubs] = await connection.execute(
     `SELECT id,name,slug,brand_logo_url,brand_primary_color,brand_background_color,brand_text_on_primary_color
@@ -268,8 +267,8 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
   // ── Support totals ──────────────────────────────────────────────────────
   // Compute BOTH the fundraiser-wide total (overall bar) and, when a
   // participant is in the URL, that participant's own total (personal bar).
-  // Previously the scoped total was written to both, hiding the fundraiser
-  // figure on participant pages.
+  // summariseSellActivities includes BOTH orders and donations so that
+  // overall.confirmedTotal is the true combined figure for the progress bar.
   const summariseSellActivities = async (participantId) => {
     const [orderRes, donationRes] = await Promise.all([
       connection.execute(
@@ -294,6 +293,7 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
       confirmedCount: Number(orderRow?.confirmed_count || 0) + Number(donationRow?.confirmed_count || 0),
     };
   };
+
   const summariseSponsorship = async (participantId) => {
     const [res] = await connection.execute(
       `SELECT COALESCE(SUM(CASE WHEN status='confirmed' THEN amount ELSE 0 END),0) AS confirmed_total,
@@ -305,6 +305,7 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
     const row = res[0];
     return { confirmedTotal: Number(row?.confirmed_total || 0), confirmedCount: Number(row?.confirmed_count || 0) };
   };
+
   const summarise = isSponsored ? summariseSponsorship : summariseSellActivities;
   const [overall, scoped] = await Promise.all([
     summarise(null),
@@ -366,6 +367,8 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
     };
   }));
 
+  // overall.confirmedTotal already includes both orders and donations
+  // (via summariseSellActivities above) — no separate donation query needed.
   return {
     club,
     lifecycle,
@@ -373,7 +376,7 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
       ...fundraiser,
       settings: fundraiserSettings,
       raised_amount: overall.confirmedTotal,
-      raisedAmount: overall.confirmedTotal,
+      raisedAmount: overall.confirmedTotal,          // FIX: was broken (fundraiser.raised_amount doesn't exist as a DB column)
       sponsorship_total: isSponsored ? overall.confirmedTotal : 0,
       sponsor_count: isSponsored ? overall.confirmedCount : 0,
       confirmed_support_count: overall.confirmedCount,
@@ -421,12 +424,6 @@ export async function createOrder(fid,b) {
   try{
     await conn.beginTransaction();
 
-    // Re-validate sales window and stock inside the transaction. Previously
-    // publicPayload only filtered what was *displayed* — nothing re-checked
-    // these at the moment of purchase, so a stale page or a direct API call
-    // could buy a sold-out or expired pack. The FOR UPDATE lock on the pack
-    // row also serializes concurrent purchases of the same pack, so two
-    // supporters racing for the last available spot can't both succeed.
     for (const line of lines) {
       const [windowRows] = await conn.execute(
         `SELECT id FROM ${PK} WHERE id=? AND is_active=1
@@ -469,6 +466,7 @@ export async function createOrder(fid,b) {
     await conn.commit(); return { orderId,totalAmount:total,donationAmount,payableAmount:total+donationAmount,currency:fund.currency||'EUR' };
   }catch(e){await conn.rollback();throw e;}finally{conn.release();}
 }
+
 export async function claimOrder(orderId,b={}) {
   const conn=await connection.getConnection();
   try{
@@ -507,11 +505,6 @@ export async function claimOrder(orderId,b={}) {
   return { orderId };
 }
 
-// Public order-summary lookup — peer had no equivalent to campaign's
-// GET /campaign-support/orders/:orderId/summary at all. Needed for the
-// supporter-facing thank-you screen and for polling after Stripe checkout.
-// Strips internal fields (club_id, participant_id, metadata) the same way
-// campaign's safeOrder mapping does.
 export async function getPublicOrderSummary(orderId) {
   const [orderRows]=await connection.execute(`SELECT * FROM ${O} WHERE id=? LIMIT 1`,[orderId]);
   const order=orderRows[0]; if(!order) fail('order_not_found',404);
