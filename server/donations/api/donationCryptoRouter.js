@@ -3,20 +3,20 @@
 // POST /api/donations/:clubId/crypto/confirm
 //
 // Mirrors quizCryptoDonationRouter.js's /confirm shape: same rate limit
-// (8 req / 10 min — same abuse profile, a public unauthenticated
+// (8 req / 10 min - same abuse profile, a public unauthenticated
 // endpoint anyone could hammer with fake txHashes), same "verify
 // on-chain then record" structure. Delegates the actual verify+record
 // work to cryptoSolanaDonationVerificationService.verifyAndRecordSolanaDonation
 // rather than duplicating that logic in the route handler.
 //
 // clubId is taken from the route param for consistency with the rest
-// of the donations API, but is NOT otherwise used in this handler —
+// of the donations API, but is NOT otherwise used in this handler -
 // the donationId alone is sufficient to look up everything needed
 // (see cryptoSolanaDonationVerificationService for why: the donation
 // row already carries its own club_payment_method_id, validated back
 // at /checkout time). clubId is accepted here purely so this route's
 // URL shape matches its siblings (donationCheckoutRoutes.js,
-// donationCryptoQuoteRouter.js) — a future tightening could verify
+// donationCryptoQuoteRouter.js) - a future tightening could verify
 // donation.club_id === clubId as an extra defensive check if desired.
 
 import express from 'express';

@@ -61,7 +61,7 @@ export function SiteHeader() {
        {isAuthenticated ? (
   <>
     <Link
-      to="/quiz/eventdashboard"
+      to="/event-dashboard"
       className="button button--small button--ghost-dark"
     >
       Dashboard

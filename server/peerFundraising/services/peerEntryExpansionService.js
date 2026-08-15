@@ -1,6 +1,9 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';
-import { createTicketForPeerEntry } from './peerTicketBridgeService.js';
+import {
+  createTicketForPeerEntry,
+  sendPeerEntryTicketEmail,
+} from './peerTicketBridgeService.js';
 import { createPuzzleAccessForPeerEntry } from './peerPuzzleAccessService.js';
 
 const O=`${TABLE_PREFIX}peer_orders`, OI=`${TABLE_PREFIX}peer_order_items`, PI=`${TABLE_PREFIX}peer_pack_items`;
@@ -19,27 +22,39 @@ const parseJson=(v,f={})=>{if(!v)return f;if(typeof v==='object')return v;try{re
 // the room's own real game_type).
 async function apportionAndRoomTypes(items, packPrice) {
   const ids=[...new Set(items.map(i=>i.target_room_id))],ph=ids.map(()=>'?').join(',');
-  const [rows]=await connection.execute(`SELECT room_id,config_json,game_type FROM ${R} WHERE room_id IN (${ph})`,ids);
-  const feeBy={}; const gameTypeBy={};
-  for(const row of rows){
-    const n=Number(parseJson(row.config_json,{}).entryFee||0);
-    feeBy[row.room_id]=Number.isFinite(n)&&n>0?n:0;
-    gameTypeBy[row.room_id]=row.game_type||null;
-  }
-  let feeMap;
-  if(items.length===1){
-    feeMap=new Map([[items[0].id,Number(packPrice)]]);
-  } else {
-    const refs=items.map(i=>feeBy[i.target_room_id]||0),total=refs.reduce((a,b)=>a+b,0),price=Number(packPrice);
-    feeMap=new Map(); let used=0;
-    items.forEach((item,index)=>{
-      let fee;
-      if(index===items.length-1) fee=Number((price-used).toFixed(2));
-      else { fee=total>0?Number((price*(refs[index]/total)).toFixed(2)):Number((price/items.length).toFixed(2)); used+=fee; }
-      feeMap.set(item.id,fee);
-    });
-  }
-  return { feeMap, gameTypeBy };
+  const [rows]=await connection.execute(
+    `SELECT room_id,game_type FROM ${R} WHERE room_id IN (${ph})`,
+    ids
+  );
+
+  const gameTypeBy=Object.fromEntries(rows.map(row=>[row.room_id,row.game_type||null]));
+  const refs=items.map(item=>{
+    const metadata=parseJson(item.metadata_json,{});
+    const referencePrice=Number(metadata.referencePrice ?? metadata.configuredPrice ?? 0);
+    return Number.isFinite(referencePrice)&&referencePrice>0
+      ? referencePrice * Math.max(1,Number(item.quantity||1))
+      : 0;
+  });
+
+  const total=refs.reduce((sum,value)=>sum+value,0);
+  const price=Number(packPrice||0);
+  const feeMap=new Map();
+  let used=0;
+
+  items.forEach((item,index)=>{
+    let fee;
+    if(items.length===1 || index===items.length-1){
+      fee=Number((price-used).toFixed(2));
+    } else {
+      fee=total>0
+        ? Number((price*(refs[index]/total)).toFixed(2))
+        : Number((price/items.length).toFixed(2));
+      used+=fee;
+    }
+    feeMap.set(item.id,fee);
+  });
+
+  return {feeMap,gameTypeBy};
 }
 
 // Corrects a pack item's stored item_type against its room's actual
@@ -48,17 +63,10 @@ async function apportionAndRoomTypes(items, packPrice) {
 // previously stopped it from being wrong (or drifting out of sync if the
 // room's own game_type ever changed after the pack was built).
 function correctEntryType(originalItemType, roomGameType) {
+  if (roomGameType === 'quiz') return 'game_entry';
   if (roomGameType === 'elimination') return 'elimination_entry';
-  if (roomGameType === 'quiz') {
-    return ['quiz_team_ticket','quiz_individual_ticket','game_entry'].includes(originalItemType)
-      ? originalItemType
-      : 'quiz_individual_ticket';
-  }
   if (roomGameType === 'ticketed_event') return 'event_ticket';
-  if (roomGameType === 'puzzle_sub' || roomGameType === 'puzzle_drop') return 'puzzle_entry';
-  // No room match at all (room deleted, or a genuinely non-room-backed
-  // custom item) — trust whatever was stored as a fallback rather than
-  // guessing further.
+  if (roomGameType === 'puzzle_drop') return 'puzzle_entry';
   return originalItemType;
 }
 
@@ -92,12 +100,63 @@ export async function expandPeerOrder(orderId) {
     if(!order){ await conn.rollback(); throw new Error('peer_order_not_found'); }
     if(order.payment_status!=='confirmed'){ await conn.rollback(); throw new Error('peer_order_not_confirmed'); }
 
-    const [count]=await conn.execute(`SELECT COUNT(*) cnt FROM ${E} WHERE order_id=? AND status NOT IN ('cancelled','refunded')`,[orderId]);
-    if(Number(count[0]?.cnt||0)>0){ await conn.commit(); return {duplicate:true}; }
+    const [existingEntries]=await conn.execute(
+      `SELECT
+         e.id,
+         e.entry_type,
+         e.status,
+         e.pack_item_id,
+         e.metadata_json,
+         pi.*
+       FROM ${E} e
+       JOIN ${PI} pi ON pi.id=e.pack_item_id
+       WHERE e.order_id=?
+         AND e.status NOT IN ('cancelled','refunded')
+       ORDER BY e.created_at`,
+      [orderId],
+    );
 
-    const [orderItems]=await conn.execute(`SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,[orderId]);
+    if(existingEntries.length){
+      for(const existing of existingEntries){
+        if(existing.status!=='pending_payment') continue;
 
-    for(const oi of orderItems){
+        const entryMetadata=parseJson(existing.metadata_json,{});
+        created.push({
+          entryId:existing.id,
+          packItem:existing,
+          fee:Number(entryMetadata.apportionedFee||0),
+          correctedType:existing.entry_type,
+          packItemMetadata:parseJson(existing.metadata_json_pack_item ?? existing.metadata_json,{}),
+        });
+      }
+
+      // The SELECT contains both e.metadata_json and pi.metadata_json with
+      // the same name in some MySQL drivers. Reload pack metadata explicitly
+      // so a retry always has the original option snapshot.
+      for(const item of created){
+        const [packRows]=await conn.execute(
+          `SELECT * FROM ${PI} WHERE id=? LIMIT 1`,
+          [item.packItem.id || item.packItem.pack_item_id],
+        );
+        const packItem=packRows[0];
+        if(packItem){
+          item.packItem=packItem;
+          item.packItemMetadata=parseJson(
+            packItem.metadata_json,
+            {},
+          );
+        }
+      }
+
+      await conn.commit();
+
+      if(!created.length){
+        return {duplicate:true,createdCount:0};
+      }
+    } else {
+      const [orderItems]=await conn.execute(`SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,[orderId]);
+
+      for(const oi of orderItems){
       const [packItems]=await conn.execute(`SELECT * FROM ${PI} WHERE pack_id=? ORDER BY created_at`,[oi.pack_id]);
       const { feeMap, gameTypeBy } = await apportionAndRoomTypes(packItems,Number(oi.unit_price));
       for(let orderQty=0;orderQty<Number(oi.quantity);orderQty++){
@@ -121,31 +180,122 @@ export async function expandPeerOrder(orderId) {
                  originalItemType: pi.item_type !== correctedType ? pi.item_type : undefined,
                })]
             );
-            created.push({entryId,packItem:pi,fee:feeMap.get(pi.id),correctedType});
+            created.push({entryId,packItem:pi,fee:feeMap.get(pi.id),correctedType,packItemMetadata:parseJson(pi.metadata_json,{})});
           }
         }
       }
     }
-    await conn.commit();
+      await conn.commit();
+    }
   }catch(e){await conn.rollback();throw e;}finally{conn.release();}
 
+  const failures=[];
+
   for(const x of created){
-    const itemType = x.correctedType;
+    const itemType=x.correctedType;
+
     try {
-      if(['quiz_team_ticket','quiz_individual_ticket','elimination_entry','game_entry'].includes(itemType)){
-        await createTicketForPeerEntry(x.entryId,{order,packItem:x.packItem,apportionedFee:x.fee,clubPaymentMethodId:order.club_payment_method_id});
+      if(
+        itemType==='game_entry' ||
+        itemType==='elimination_entry' ||
+        itemType==='event_ticket'
+      ){
+        const [entryRows]=await connection.execute(`SELECT linked_ticket_id FROM ${E} WHERE id=? LIMIT 1`,[x.entryId]);
+        if(entryRows[0]?.linked_ticket_id){
+          await connection.execute(
+            `UPDATE ${E}
+             SET status='confirmed',
+                 confirmed_at=COALESCE(
+                   confirmed_at,
+                   UTC_TIMESTAMP()
+                 )
+             WHERE id=?`,
+            [x.entryId],
+          );
+
+          // Capacity reservations already have a ticket, so ticket creation
+          // is skipped. Email delivery must still happen here.
+          await sendPeerEntryTicketEmail(x.entryId);
+        } else {
+          await createTicketForPeerEntry(
+          x.entryId,
+          {
+            order,
+            packItem:x.packItem,
+            packItemMetadata:x.packItemMetadata,
+            apportionedFee:x.fee,
+            clubPaymentMethodId:
+              order.club_payment_method_id,
+          },
+        );
+        }
       } else if(itemType==='puzzle_entry'){
-        await createPuzzleAccessForPeerEntry(x.entryId,{packItem:x.packItem});
+        await createPuzzleAccessForPeerEntry(
+          x.entryId,
+          {
+            order,
+            packItem:x.packItem,
+            packItemMetadata:x.packItemMetadata,
+            apportionedFee:x.fee,
+            clubPaymentMethodId:
+              order.club_payment_method_id,
+          },
+        );
       } else {
-        await connection.execute(`UPDATE ${E} SET status='confirmed',entry_code=?,confirmed_at=UTC_TIMESTAMP() WHERE id=?`,[`PE-${nanoid(8).toUpperCase()}`,x.entryId]);
+        await connection.execute(
+          `UPDATE ${E}
+           SET status='confirmed',
+               entry_code=?,
+               confirmed_at=UTC_TIMESTAMP()
+           WHERE id=?`,
+          [
+            `PE-${nanoid(8).toUpperCase()}`,
+            x.entryId,
+          ],
+        );
       }
-    } catch (err) {
-      console.error(`[PeerEntryExpansion] ❌ Downstream entitlement failed for entry ${x.entryId} (${itemType}):`, err.message);
+
       await connection.execute(
-        `UPDATE ${E} SET metadata_json=JSON_SET(COALESCE(metadata_json,'{}'), '$.expansionError', ?) WHERE id=?`,
-        [err.message, x.entryId]
+        `UPDATE ${E}
+         SET metadata_json=JSON_REMOVE(
+           COALESCE(metadata_json,'{}'),
+           '$.expansionError',
+           '$.expansionFailedAt'
+         )
+         WHERE id=?`,
+        [x.entryId],
+      );
+    } catch (error) {
+      failures.push({
+        entryId:x.entryId,
+        itemType,
+        message:error.message,
+      });
+
+      await connection.execute(
+        `UPDATE ${E}
+         SET metadata_json=JSON_SET(
+           COALESCE(metadata_json,'{}'),
+           '$.expansionError', ?,
+           '$.expansionFailedAt', UTC_TIMESTAMP()
+         )
+         WHERE id=?`,
+        [error.message,x.entryId],
       );
     }
   }
+
+  if(failures.length){
+    const error=new Error(
+      `peer_fulfilment_failed:${failures
+        .map(failure=>
+          `${failure.itemType}:${failure.message}`
+        )
+        .join('|')}`
+    );
+    error.failures=failures;
+    throw error;
+  }
+
   return {createdCount:created.length};
 }

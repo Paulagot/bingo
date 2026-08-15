@@ -114,7 +114,7 @@ const NonogramRenderer: React.FC<NonogramRendererProps> = ({
   const startPaint = useCallback((r: number, c: number) => {
     if (isReadOnly) return;
     const current = grid[r]?.[c] ?? 0;
-    // The whole drag stroke paints the *same* resulting value — toggling is
+    // The whole drag stroke paints the *same* resulting value - toggling is
     // decided once, at the start of the stroke, not per cell it passes over.
     const value: CellState = current === mode ? 0 : mode;
     paintValueRef.current = value;
@@ -346,7 +346,7 @@ const NonogramRenderer: React.FC<NonogramRendererProps> = ({
         </div>
       ) : (
         <p className="text-xs text-center max-w-xs" style={{ color: '#9a7b32' }}>
-          Use the row and column clues to fill in the grid — drag to paint multiple cells.
+          Use the row and column clues to fill in the grid - drag to paint multiple cells.
           Switch to Cross to mark cells you're sure are empty.
         </p>
       )}

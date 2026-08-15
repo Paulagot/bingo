@@ -99,7 +99,7 @@ export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onS
         </defs>
         <rect width="100" height="100" fill={`url(#ag-${roundId})`} />
 
-        {/* Target guide — fades after guideVisibleMs */}
+        {/* Target guide - fades after guideVisibleMs */}
         {showGuide && (
           <g opacity="0.4">
             <line x1={cx} y1={cy} x2={tex} y2={tey} stroke={colour} strokeWidth="0.6" strokeDasharray="2,2" />

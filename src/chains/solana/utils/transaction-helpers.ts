@@ -85,7 +85,7 @@ export async function buildTransaction(
       serialized.length > 1000 ? '⚠️ Getting large!' : '✅'
     );
   } catch {
-    // Can fail before signing — not critical
+    // Can fail before signing - not critical
   }
   
   return transaction;
@@ -125,12 +125,12 @@ export async function simulateTransaction(
     
     return { success: true, logs: simulation.value.logs ?? [] };
   } catch (error: any) {
-    // ✅ If simulation throws "already processed", the tx landed — treat as success
+    // ✅ If simulation throws "already processed", the tx landed - treat as success
     if (
       error?.message?.includes('already been processed') ||
       error?.message?.includes('AlreadyProcessed')
     ) {
-      console.log('[Solana][Simulation] ℹ️ Transaction already processed — treating as success');
+      console.log('[Solana][Simulation] ℹ️ Transaction already processed - treating as success');
       return { success: true, logs: [] };
     }
 
@@ -216,13 +216,13 @@ function getProgramErrorMessage(code: number): string {
   console.log('[Solana][Error] 🎯 Program error code:', code);
  
   const errorMessages: Record<number, string> = {
-    6000: 'Unauthorized — only the host or admin can perform this action',
+    6000: 'Unauthorized - only the host or admin can perform this action',
     6001: 'Room has already ended',
     6002: 'Room has already been refunded',
     6003: 'Invalid room status for this operation',
     6004: 'Room is full',
     6005: 'Room is no longer accepting new players (joining closed)',
-    6006: 'Not enough players — at least 2 players required to end the room',
+    6006: 'Not enough players - at least 2 players required to end the room',
     6007: 'You have already joined this room',
     6008: 'The host cannot be a winner',
     6009: 'Duplicate winner in the winners list',
@@ -230,10 +230,10 @@ function getProgramErrorMessage(code: number): string {
     6011: 'Winner did not join this room',
     6012: "Winner's token account owner does not match the declared winner",
     6013: 'Token account mint does not match the room fee token',
-    6014: 'Invalid room ID — must be 1–32 characters',
+    6014: 'Invalid room ID - must be 1–32 characters',
     6015: 'Invalid entry fee',
-    6016: 'Invalid max players — must be between 1 and 1000',
-    6017: 'Invalid charity memo — max 28 characters',
+    6016: 'Invalid max players - must be between 1 and 1000',
+    6017: 'Invalid charity memo - max 28 characters',
     6018: 'Vault account must be uninitialised before room creation',
     6019: 'Refund account list length does not match player count',
     6020: 'Arithmetic overflow',
@@ -246,7 +246,7 @@ function getProgramErrorMessage(code: number): string {
     return message;
   }
  
-  return `Program error ${code} — check transaction logs for details`;
+  return `Program error ${code} - check transaction logs for details`;
 }
 
 /**

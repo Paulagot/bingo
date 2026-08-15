@@ -159,7 +159,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-sprint-45',
     name: 'Kids Sprint',
-    description: 'Short and energetic — the perfect starter quiz for younger kids. One of every round type keeps things fresh and fun.',
+    description: 'Short and energetic - the perfect starter quiz for younger kids. One of every round type keeps things fresh and fun.',
     icon: '🏃',
     difficulty: 'Easy',
     rounds: [
@@ -177,7 +177,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-emoji-blitz-50',
     name: 'Kids Emoji Blitz',
-    description: 'Two emoji speed rounds keep energy sky-high — great for kids who love reacting fast.',
+    description: 'Two emoji speed rounds keep energy sky-high - great for kids who love reacting fast.',
     icon: '😊',
     difficulty: 'Easy',
     rounds: [
@@ -234,7 +234,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-capitals-45',
     name: 'Kids Capitals ',
-    description: 'Gentle geography for young explorers — geography ordering, and children\'s trivia.',
+    description: 'Gentle geography for young explorers - geography ordering, and children\'s trivia.',
     icon: '🗺️',
     difficulty: 'Easy',
     rounds: [
@@ -252,7 +252,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-pop-lite-50',
     name: 'Kids Pop Lite',
-    description: 'Artist names, song facts, and pop culture — emoji speed, find-it-fast, and music ordering. No audio needed.',
+    description: 'Artist names, song facts, and pop culture - emoji speed, find-it-fast, and music ordering. No audio needed.',
     icon: '🎤',
     difficulty: 'Easy',
     rounds: [
@@ -271,7 +271,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-fundraiser-65',
     name: 'Kids Fundraiser',
-    description: 'Designed for school fundraisers — three trivia rounds, speed, visual fun, and wipeout with big participation.',
+    description: 'Designed for school fundraisers - three trivia rounds, speed, visual fun, and wipeout with big participation.',
     icon: '🎒',
     difficulty: 'Easy',
     rounds: [
@@ -291,7 +291,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-adventure-mix-60',
     name: 'Kids Adventure Mix',
-    description: 'Something for every kid — trivia, emoji speed, find-it-fast, image ordering, and wipeout all in one.',
+    description: 'Something for every kid - trivia, emoji speed, find-it-fast, image ordering, and wipeout all in one.',
     icon: '🧭',
     difficulty: 'Easy',
     rounds: [
@@ -310,7 +310,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-science-stars-50',
     name: 'Kids Science Stars',
-    description: 'Space, nature, and science ordering for curious young minds — with maths speed and find-it-fast.',
+    description: 'Space, nature, and science ordering for curious young minds - with maths speed and find-it-fast.',
     icon: '🔭',
     difficulty: 'Easy',
     rounds: [
@@ -329,7 +329,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-marathon-70',
     name: 'Kids Marathon',
-    description: 'The big kids night — two trivia rounds, double wipeout, two speed rounds, and two visual rounds.',
+    description: 'The big kids night - two trivia rounds, double wipeout, two speed rounds, and two visual rounds.',
     icon: '🪀',
     difficulty: 'Easy',
     rounds: [
@@ -356,7 +356,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-speed-rush-45',
     name: 'Teens Speed Rush',
-    description: 'Compact and fast — hard children\'s trivia, wipeout, emoji speed, find-it-fast, and image ordering.',
+    description: 'Compact and fast - hard children\'s trivia, wipeout, emoji speed, find-it-fast, and image ordering.',
     icon: '⚡',
     difficulty: 'Hard',
     rounds: [
@@ -374,7 +374,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-hype-night-50',
     name: 'Teens Hype Night',
-    description: 'High-energy teen night — hard trivia, wipeout, two speed rounds, find-it-fast, and film ordering.',
+    description: 'High-energy teen night - hard trivia, wipeout, two speed rounds, find-it-fast, and film ordering.',
     icon: '🔥',
     difficulty: 'Hard',
     rounds: [
@@ -393,7 +393,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-emoji-gauntlet-60',
     name: 'Teens Emoji Gauntlet',
-    description: 'Emoji sprints, hard wipeout, find-it-fast, TV ordering, and a second trivia anchor — a full teen night.',
+    description: 'Emoji sprints, hard wipeout, find-it-fast, TV ordering, and a second trivia anchor - a full teen night.',
     icon: '🧩',
     difficulty: 'Hard',
     rounds: [
@@ -412,7 +412,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-sport-music-50',
     name: 'Teens Sport & Music',
-    description: 'Sport speed, music ordering, find-it-fast, and hard children\'s wipeout — for the sporty music fan.',
+    description: 'Sport speed, music ordering, find-it-fast, and hard children\'s wipeout - for the sporty music fan.',
     icon: '🏅',
     difficulty: 'Hard',
     rounds: [
@@ -431,7 +431,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-pop-spotlight-60',
     name: 'Teens Pop Spotlight',
-    description: 'Pop music speed, music ordering, wipeout — a pop-dedicated night with a visual edge.',
+    description: 'Pop music speed, music ordering, wipeout - a pop-dedicated night with a visual edge.',
     icon: '🎵',
     difficulty: 'Hard',
     rounds: [
@@ -450,7 +450,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-mix-match-65',
     name: 'Teens Mix & Match',
-    description: 'Broad mix for teens — sport speed, hard wipeout, visual ordering, find-it-fast, and trivia anchors.',
+    description: 'Broad mix for teens - sport speed, hard wipeout, visual ordering, find-it-fast, and trivia anchors.',
     icon: '🎧',
     difficulty: 'Hard',
     rounds: [
@@ -470,7 +470,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-quiz-battle-70',
     name: 'Teens Quiz Battle',
-    description: 'The hardest teen format — double trivia, double wipeout, all visual rounds, and two speed bursts.',
+    description: 'The hardest teen format - double trivia, double wipeout, all visual rounds, and two speed bursts.',
     icon: '🗡️',
     difficulty: 'Hard',
     rounds: [
@@ -491,7 +491,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-fundraiser-65',
     name: 'Teens Fundraiser',
-    description: 'Balanced fundraiser night — every round type, two speed bursts, and mixed difficulty to suit all teens.',
+    description: 'Balanced fundraiser night - every round type, two speed bursts, and mixed difficulty to suit all teens.',
     icon: '💬',
     difficulty: 'Hard',
     rounds: [
@@ -511,7 +511,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-history-geography-60',
     name: 'Teens History & Geography',
-    description: 'Emojis speed, world history and geography ordering, hard wipeout — for teens with curious minds.',
+    description: 'Emojis speed, world history and geography ordering, hard wipeout - for teens with curious minds.',
     icon: '📜',
     difficulty: 'Hard',
     rounds: [
@@ -530,7 +530,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-science-tech-50',
     name: 'Teens Science & Tech',
-    description: 'Space, science, tech ordering, maths speed, and hard wipeout — for the STEM-curious teen.',
+    description: 'Space, science, tech ordering, maths speed, and hard wipeout - for the STEM-curious teen.',
     icon: '🔬',
     difficulty: 'Hard',
     rounds: [
@@ -554,7 +554,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-fiesta-45',
     name: 'Family Fiesta',
-    description: 'A quick, accessible family night — one of every round type, easy difficulty, great for all ages.',
+    description: 'A quick, accessible family night - one of every round type, easy difficulty, great for all ages.',
     icon: '👨‍👩‍👧‍👦',
     difficulty: 'Easy',
     rounds: [
@@ -572,7 +572,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-emoji-dash-50',
     name: 'Family Emoji Dash',
-    description: 'Two emoji speed rounds, gentle trivia, find-it-fast, and nature ordering — a crowd pleaser for all ages.',
+    description: 'Two emoji speed rounds, gentle trivia, find-it-fast, and nature ordering - a crowd pleaser for all ages.',
     icon: '🙂',
     difficulty: 'Easy',
     rounds: [
@@ -591,7 +591,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-weekender-60',
     name: 'Family Weekender',
-    description: 'A classic family night with trivia, wipeout, speed, find-it-fast, and image ordering — one for everyone.',
+    description: 'A classic family night with trivia, wipeout, speed, find-it-fast, and image ordering - one for everyone.',
     icon: '🎈',
     difficulty: 'Easy',
     rounds: [
@@ -610,7 +610,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-geography-60',
     name: 'Family Geography Night',
-    description: 'World capitals, Emojis speed, geography ordering, find-it-fast, and wipeout — the whole world in one night.',
+    description: 'World capitals, Emojis speed, geography ordering, find-it-fast, and wipeout - the whole world in one night.',
     icon: '🌍',
     difficulty: 'Medium',
     rounds: [
@@ -629,7 +629,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-pop-parade-60',
     name: 'Family Pop Parade',
-    description: 'Artists, chart moments, music ordering, and wipeout — no audio playback needed.',
+    description: 'Artists, chart moments, music ordering, and wipeout - no audio playback needed.',
     icon: '🎤',
     difficulty: 'Easy',
     rounds: [
@@ -667,7 +667,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-sport-night-60',
     name: 'Family Sport Night',
-    description: 'Sport speed, olympic trivia, wipeout, find-it-fast, and sport ordering — for sporty families.',
+    description: 'Sport speed, olympic trivia, wipeout, find-it-fast, and sport ordering - for sporty families.',
     icon: '🏟️',
     difficulty: 'Medium',
     rounds: [
@@ -686,7 +686,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-quiz-mix-65',
     name: 'Family Quiz Mix',
-    description: 'The mixed-bag family night — two trivia anchors, wipeout, two speed rounds, find-it-fast, and ordering.',
+    description: 'The mixed-bag family night - two trivia anchors, wipeout, two speed rounds, find-it-fast, and ordering.',
     icon: '🧩',
     difficulty: 'Medium',
     rounds: [
@@ -706,7 +706,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-capitals-quest-60',
     name: 'Family Capitals Quest',
-    description: 'Friendly geography — Emojis sprint, find-it-fast, geography ordering, wipeout, and capitals trivia.',
+    description: 'Friendly geography - Emojis sprint, find-it-fast, geography ordering, wipeout, and capitals trivia.',
     icon: '🗺️',
     difficulty: 'Medium',
     rounds: [
@@ -725,7 +725,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'parents-night-65',
     name: 'Parents Night',
-    description: 'Family-friendly overall with a grown-up edge — all round types, two speed bursts, and medium difficulty.',
+    description: 'Family-friendly overall with a grown-up edge - all round types, two speed bursts, and medium difficulty.',
     icon: '🧑‍🍼',
     difficulty: 'Medium',
     rounds: [
@@ -741,7 +741,7 @@ const quizTemplates: QuizTemplate[] = [
   },
  
   // ═══════════════════════════════════════════════════════════════════════════
-  // ADULTS (18) — 2 online short formats + 4 long formats (90–100 min)
+  // ADULTS (18) - 2 online short formats + 4 long formats (90–100 min)
   // Full category range | medium/hard difficulty
   // ═══════════════════════════════════════════════════════════════════════════
  
@@ -750,7 +750,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'online-quick-night-45',
     name: 'Online Quick Night',
-    description: 'A tight online quiz with all five round types — perfect for remote groups and virtual events.',
+    description: 'A tight online quiz with all five round types - perfect for remote groups and virtual events.',
     icon: '💻',
     difficulty: 'Medium',
     rounds: [
@@ -768,7 +768,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'online-blitz-50',
     name: 'Online Blitz',
-    description: 'Fast-paced online format — pop culture theme, two speed rounds, all five round types, built for video calls.',
+    description: 'Fast-paced online format - pop culture theme, two speed rounds, all five round types, built for video calls.',
     icon: '⚡',
     difficulty: 'Medium',
     rounds: [
@@ -806,7 +806,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'pub-classic-65',
     name: 'Pub Classic',
-    description: 'The traditional pub quiz — general knowledge, history, capitals, wipeout, speed, and all visual rounds.',
+    description: 'The traditional pub quiz - general knowledge, history, capitals, wipeout, speed, and all visual rounds.',
     icon: '🍺',
     difficulty: 'Medium',
     rounds: [
@@ -826,7 +826,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-pop-night-60',
     name: 'Pop Night',
-    description: 'Artists, lyrics, chart trivia — music ordering, wipeout, and no audio playback needed.',
+    description: 'Artists, lyrics, chart trivia - music ordering, wipeout, and no audio playback needed.',
     icon: '🎶',
     difficulty: 'Medium',
     rounds: [
@@ -845,7 +845,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'sports-night-60',
     name: 'Sports Night',
-    description: 'Olympic sports, sport speed, wipeout, find-it-fast, and sport ordering — a proper sports pub night.',
+    description: 'Olympic sports, sport speed, wipeout, find-it-fast, and sport ordering - a proper sports pub night.',
     icon: '🏅',
     difficulty: 'Medium',
     rounds: [
@@ -864,7 +864,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-history-deepdive-65',
     name: 'History Deep-Dive',
-    description: 'For history buffs — hard trivia, wipeout, find-it-fast, chronological ordering, and a capitals anchor.',
+    description: 'For history buffs - hard trivia, wipeout, find-it-fast, chronological ordering, and a capitals anchor.',
     icon: '🏛️',
     difficulty: 'Hard',
     rounds: [
@@ -884,7 +884,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-capitals-master-60',
     name: 'Capitals Master',
-    description: 'Geography-heavy — Emojis speed, world capitals wipeout, geography ordering, find-it-fast.',
+    description: 'Geography-heavy - Emojis speed, world capitals wipeout, geography ordering, find-it-fast.',
     icon: '🗺️',
     difficulty: 'Hard',
     rounds: [
@@ -903,7 +903,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-film-tv-65',
     name: 'Film & TV Night',
-    description: 'Pop culture trivia, film and TV ordering, speed, wipeout, and hidden objects — the full cinema experience.',
+    description: 'Pop culture trivia, film and TV ordering, speed, wipeout, and hidden objects - the full cinema experience.',
     icon: '🎬',
     difficulty: 'Medium',
     rounds: [
@@ -923,7 +923,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-olympic-special-60',
     name: 'Olympic Special',
-    description: 'Sport sprint, Olympic trivia, wipeout, find-it-fast, and sport ordering — go for gold.',
+    description: 'Sport sprint, Olympic trivia, wipeout, find-it-fast, and sport ordering - go for gold.',
     icon: '🥇',
     difficulty: 'Medium',
     rounds: [
@@ -944,7 +944,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'pub-classic-xl-90',
     name: 'Pub Classic XL',
-    description: 'The big one — three trivia anchors, double wipeout, two speed bursts, find-it-fast, and history ordering.',
+    description: 'The big one - three trivia anchors, double wipeout, two speed bursts, find-it-fast, and history ordering.',
     icon: '🍻',
     difficulty: 'Hard',
     rounds: [
@@ -966,7 +966,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-quiz-marathon-90',
     name: 'Quiz Marathon',
-    description: 'The full endurance quiz — three trivia anchors, double wipeout, two speed bursts, ordering, and find-it-fast.',
+    description: 'The full endurance quiz - three trivia anchors, double wipeout, two speed bursts, ordering, and find-it-fast.',
     icon: '🏁',
     difficulty: 'Hard',
     rounds: [
@@ -988,7 +988,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-charity-gala-90',
     name: 'Charity Gala Night',
-    description: 'A polished, high-energy quiz for charity galas and fundraisers — every round type, built for big rooms.',
+    description: 'A polished, high-energy quiz for charity galas and fundraisers - every round type, built for big rooms.',
     icon: '🎗️',
     difficulty: 'Medium',
     rounds: [
@@ -1010,7 +1010,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-grand-night-out-100',
     name: 'The Grand Night Out',
-    description: 'The ultimate quiz night — three trivia anchors, double wipeout, two speed bursts, two ordering rounds, and find-it-fast.',
+    description: 'The ultimate quiz night - three trivia anchors, double wipeout, two speed bursts, two ordering rounds, and find-it-fast.',
     icon: '🌟',
     difficulty: 'Hard',
     rounds: [
@@ -1038,7 +1038,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'web3-crypto-sprint-45',
     name: 'Crypto Sprint',
-    description: 'Short Web3 quiz for online crypto communities and DAO events — all five round types, fast and focused.',
+    description: 'Short Web3 quiz for online crypto communities and DAO events - all five round types, fast and focused.',
     icon: '₿',
     difficulty: 'Medium',
     rounds: [
@@ -1056,7 +1056,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'future-shock-60',
     name: 'Future Shock',
-    description: 'Web3 with approachable anchors — modern and curious, with visual rounds and speed challenges.',
+    description: 'Web3 with approachable anchors - modern and curious, with visual rounds and speed challenges.',
     icon: '🪙',
     difficulty: 'Medium',
     rounds: [
@@ -1075,7 +1075,7 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'web3-wise-60',
     name: 'Web3 Wise',
-    description: 'Harder Web3 questions with a tech ordering round, maths speed, and hard wipeout — for the true believer.',
+    description: 'Harder Web3 questions with a tech ordering round, maths speed, and hard wipeout - for the true believer.',
     icon: '⛓️',
     difficulty: 'Hard',
     rounds: [
@@ -1091,11 +1091,11 @@ const quizTemplates: QuizTemplate[] = [
  
   // ~~~ WEB3: "Web3 Deep Dive"
   // Q-time: 9+4+9+9+5+6+9 = 51 min → 1 break → 66 min ≈ 65 min
-  // Web3 q usage: easy(6) + medium(6) + hard(8) = 20 total across 3 separate difficulty pools — within 12/level limit
+  // Web3 q usage: easy(6) + medium(6) + hard(8) = 20 total across 3 separate difficulty pools - within 12/level limit
   {
     id: 'web3-deep-dive-65',
     name: 'Web3 Deep Dive',
-    description: 'The most Web3-heavy quiz — all three difficulty levels, tech ordering, maths speed, and brutal hard wipeout.',
+    description: 'The most Web3-heavy quiz - all three difficulty levels, tech ordering, maths speed, and brutal hard wipeout.',
     icon: '🔗',
     difficulty: 'Hard',
     rounds: [

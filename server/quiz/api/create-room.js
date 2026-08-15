@@ -140,10 +140,10 @@ async function insertWeb2RoomRecord({
   hostId,
   setupConfig,
   roomCaps,
-  // Payment methods chosen at the activity level — see
+  // Payment methods chosen at the activity level - see
   // PaymentMethodSelector.tsx on the frontend. Default to [] so a club
   // that hasn't picked anything yet doesn't crash this function. Same
-  // gap-closing logic as eliminationMgmtService.scheduleEliminationRoom —
+  // gap-closing logic as eliminationMgmtService.scheduleEliminationRoom -
   // a freshly-created room previously had NO payment methods until later
   // linked to an event.
   ticketMethodIds  = [],
@@ -1162,7 +1162,7 @@ router.use((req, res, next) => {
 router.post('/create-room', async (req, res) => {
   let {
     config: setupConfig, roomId, hostId,
-    // Payment methods chosen at the activity level — see
+    // Payment methods chosen at the activity level - see
     // PaymentMethodSelector.tsx on the frontend.
     ticketMethodIds = [],
     onnightMethodIds = [],

@@ -67,13 +67,13 @@ function ProviderBadge({ providerName }: { providerName: string | null | undefin
  *
  *   - navigator.clipboard.writeText() is the modern, preferred API,
  *     but is gated by a Permissions Policy that a cross-origin iframe
- *     does NOT get by default — the embedding page's <iframe> tag has
+ *     does NOT get by default - the embedding page's <iframe> tag has
  *     to explicitly delegate it via allow="clipboard-write" (see
  *     tickets.js). Without that, writeText() throws.
  *
  *   - execCommand('copy') predates that Permissions Policy entirely,
  *     so it still works inside a cross-origin iframe even when
- *     clipboard-write was never delegated — making it a genuinely
+ *     clipboard-write was never delegated - making it a genuinely
  *     useful fallback here, not just a redundant old API.
  *
  * Returns false (never throws) so callers can always fall through to
@@ -84,7 +84,7 @@ function copyViaExecCommand(text: string): boolean {
     const textarea = document.createElement('textarea');
     textarea.value = text;
     // Keep it out of the visible layout and off-screen, but still a
-    // real focusable/selectable element — execCommand('copy') only
+    // real focusable/selectable element - execCommand('copy') only
     // works on the current selection, so it needs to actually exist
     // in the DOM and be selected first.
     textarea.style.position = 'fixed';
@@ -104,7 +104,7 @@ function copyViaExecCommand(text: string): boolean {
 
 /**
  * UPDATED: previously this only tried navigator.clipboard.writeText()
- * and silently swallowed any failure — inside a cross-origin iframe
+ * and silently swallowed any failure - inside a cross-origin iframe
  * without clipboard-write delegated, that failure was the NORMAL case,
  * not an edge case, and it permanently stranded the buyer at "Step 1"
  * with zero indication why (onCopied() never fired, so hasEverCopied
@@ -112,13 +112,13 @@ function copyViaExecCommand(text: string): boolean {
  * forever). This version tries three things in order, and always
  * leaves the buyer with a way forward:
  *
- *   1. navigator.clipboard.writeText() — modern API, works once
+ *   1. navigator.clipboard.writeText() - modern API, works once
  *      clipboard-write is delegated by the embedding iframe.
- *   2. execCommand('copy') — legacy fallback, unaffected by that
+ *   2. execCommand('copy') - legacy fallback, unaffected by that
  *      Permissions Policy, so it covers the iframe-without-delegation
  *      case too.
  *   3. A visible "couldn't copy automatically" state with a manual
- *      "I've copied it manually" acknowledgement — same trust model
+ *      "I've copied it manually" acknowledgement - same trust model
  *      already used elsewhere in this flow (e.g. bank transfer's
  *      "I've noted the bank details" button), not a new weaker
  *      precedent.
@@ -136,7 +136,7 @@ function CopyButton({ value, label = 'Copy', onCopied }: { value: string; label?
     } catch {
       // Expected whenever clipboard-write hasn't been delegated by a
       // cross-origin iframe, an older browser lacks the Clipboard API,
-      // or the user denied a permission prompt — fall through below.
+      // or the user denied a permission prompt - fall through below.
     }
 
     if (copyViaExecCommand(value)) {
@@ -146,7 +146,7 @@ function CopyButton({ value, label = 'Copy', onCopied }: { value: string; label?
       return;
     }
 
-    // Both methods failed — never pretend nothing happened.
+    // Both methods failed - never pretend nothing happened.
     setState('failed');
   };
 
@@ -154,7 +154,7 @@ function CopyButton({ value, label = 'Copy', onCopied }: { value: string; label?
     return (
       <div className="flex flex-col items-start gap-1.5">
         <p className="text-xs text-red-600">
-          Couldn't copy automatically — select the reference text above and copy it manually.
+          Couldn't copy automatically - select the reference text above and copy it manually.
         </p>
         <button
           type="button"
@@ -306,7 +306,7 @@ export const PaymentInstructionsContent: React.FC<{
   isDonationRoom = false,
   donationAmountInput = '',
   onDonationAmountChange,
-  // isDonationAmountValid intentionally omitted here — only used in PaymentInstructionsFooter
+  // isDonationAmountValid intentionally omitted here - only used in PaymentInstructionsFooter
 }) => {
   const providerKey = method.providerName?.toLowerCase();
   const isRevolut = providerKey === 'revolut';
@@ -316,18 +316,18 @@ export const PaymentInstructionsContent: React.FC<{
   // Determine current stage for the indicator
   const stage: 1 | 2 | 3 = !hasEverCopied ? 1 : !hasOpenedProviderLink && hasInlineProvider ? 2 : 3;
 
-  // For bank transfer or methods without a link, stage 2 is skipped — copying is enough to unlock confirm
+  // For bank transfer or methods without a link, stage 2 is skipped - copying is enough to unlock confirm
   const effectiveStage: 1 | 2 | 3 = hasInlineProvider ? stage : hasEverCopied ? 3 : 1;
 
   return (
     <div className="space-y-4">
 
-      {/* Stage indicator — only for methods with a provider link/details */}
+      {/* Stage indicator - only for methods with a provider link/details */}
       {hasInlineProvider && (
         <StageIndicator stage={effectiveStage} />
       )}
 
-      {/* Donation amount input — shown at top, must be filled before proceeding */}
+      {/* Donation amount input - shown at top, must be filled before proceeding */}
       {isDonationRoom && onDonationAmountChange && (
         <DonationAmountInput
           currencySymbol={currencySymbol}
@@ -345,7 +345,7 @@ export const PaymentInstructionsContent: React.FC<{
             </div>
             <div className="mt-1 text-3xl font-extrabold text-gray-900">
               {isDonationRoom
-                ? `${currencySymbol}${parseFloat(donationAmountInput || '0') > 0 ? parseFloat(donationAmountInput!).toFixed(2) : '—'}`
+                ? `${currencySymbol}${parseFloat(donationAmountInput || '0') > 0 ? parseFloat(donationAmountInput!).toFixed(2) : '-'}`
                 : `${currencySymbol}${totalAmount.toFixed(2)}`}
             </div>
             <div className="mt-1 text-sm text-gray-600">{method.methodLabel}</div>
@@ -354,7 +354,7 @@ export const PaymentInstructionsContent: React.FC<{
         </div>
       </div>
 
-      {/* STEP 1 — Copy reference */}
+      {/* STEP 1 - Copy reference */}
       <div
         className={`rounded-2xl border-2 p-4 sm:p-5 transition-all ${
           hasEverCopied ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50'
@@ -367,7 +367,7 @@ export const PaymentInstructionsContent: React.FC<{
                 ? <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                 : <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />}
               <div className={`font-bold ${hasEverCopied ? 'text-green-900' : 'text-amber-900'}`}>
-                {hasEverCopied ? 'Reference copied ✓' : 'Step 1 — Copy your payment reference'}
+                {hasEverCopied ? 'Reference copied ✓' : 'Step 1 - Copy your payment reference'}
               </div>
             </div>
             <p className={`mt-1 text-sm ${hasEverCopied ? 'text-green-800' : 'text-amber-800'}`}>
@@ -391,13 +391,13 @@ export const PaymentInstructionsContent: React.FC<{
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-white/60 p-3">
             <Lock className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-amber-800">
-              Copy the reference first — payment details will unlock once copied.
+              Copy the reference first - payment details will unlock once copied.
             </p>
           </div>
         )}
       </div>
 
-      {/* STEP 2 — Provider link / bank details — only shown after reference is copied */}
+      {/* STEP 2 - Provider link / bank details - only shown after reference is copied */}
       {hasEverCopied && (
         <>
           {/* Revolut link */}
@@ -410,7 +410,7 @@ export const PaymentInstructionsContent: React.FC<{
                   ? <CheckCircle2 className="h-5 w-5 text-green-600" />
                   : <Smartphone className="h-5 w-5 text-blue-600" />}
                 <div className={`font-bold ${hasOpenedProviderLink ? 'text-green-900' : 'text-blue-900'}`}>
-                  {hasOpenedProviderLink ? 'Revolut opened ✓' : 'Step 2 — Open Revolut and pay'}
+                  {hasOpenedProviderLink ? 'Revolut opened ✓' : 'Step 2 - Open Revolut and pay'}
                 </div>
               </div>
 
@@ -467,7 +467,7 @@ export const PaymentInstructionsContent: React.FC<{
                   ? <CheckCircle2 className="h-5 w-5 text-green-600" />
                   : <Building2 className="h-5 w-5 text-emerald-600" />}
                 <div className={`font-bold ${hasOpenedProviderLink ? 'text-green-900' : 'text-emerald-900'}`}>
-                  {hasOpenedProviderLink ? 'Bank details noted ✓' : 'Step 2 — Bank transfer details'}
+                  {hasOpenedProviderLink ? 'Bank details noted ✓' : 'Step 2 - Bank transfer details'}
                 </div>
               </div>
 
@@ -524,7 +524,7 @@ export const PaymentInstructionsContent: React.FC<{
             </div>
           )}
 
-          {/* Other instant payment methods (PayPal, etc.) — no specific link, just show instructions */}
+          {/* Other instant payment methods (PayPal, etc.) - no specific link, just show instructions */}
           {!isRevolut && !isBankTransfer && method.playerInstructions && (
             <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
               <div className="text-sm font-bold text-gray-900 mb-2">Payment instructions</div>
@@ -537,7 +537,7 @@ export const PaymentInstructionsContent: React.FC<{
         </>
       )}
 
-      {/* Custom instructions — shown after copy for non revolut/bank methods */}
+      {/* Custom instructions - shown after copy for non revolut/bank methods */}
       {hasEverCopied && !isRevolut && !isBankTransfer && method.playerInstructions && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
           <div

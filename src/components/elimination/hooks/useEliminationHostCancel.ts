@@ -56,7 +56,7 @@ export function useEliminationHostCancel(params: UseEliminationHostCancelParams)
     setError(null);
 
     try {
-      // Collect player wallet addresses — skip any without wallets
+      // Collect player wallet addresses - skip any without wallets
       const playerWallets = players
         .map(p => p.walletAddress)
         .filter((w): w is string => !!w);
@@ -67,7 +67,7 @@ export function useEliminationHostCancel(params: UseEliminationHostCancelParams)
         console.warn(
           '[useEliminationHostCancel]',
           players.length - playerWallets.length,
-          'players have no wallet address — they may not be refundable on-chain'
+          'players have no wallet address - they may not be refundable on-chain'
         );
       }
 
@@ -102,7 +102,7 @@ export function useEliminationHostCancel(params: UseEliminationHostCancelParams)
 
       const confirmData = await confirmRes.json();
       if (!confirmData.success) {
-        // On-chain already succeeded so don't throw — just log
+        // On-chain already succeeded so don't throw - just log
         console.warn('[useEliminationHostCancel] Server confirm failed:', confirmData.error);
       }
       getSocket().emit('host_cancel_elimination_room', { roomId, hostId });

@@ -149,7 +149,7 @@ const ImpactCampaignLeaderboard: React.FC = () => {
       </div>
 
       <SEO
-        title="Web3 Impact Campaign Leaderboard — Live Standings | FundRaisely"
+        title="Web3 Impact Campaign Leaderboard - Live Standings | FundRaisely"
         description="Track participating communities, funds raised on-chain, and live standings across blockchain networks."
         type="event"
       />
@@ -499,7 +499,7 @@ const ImpactCampaignLeaderboard: React.FC = () => {
                 </p>
                 <p className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-green-400" />
-                  <span><strong className="text-green-300">USDGLO (Glo Dollar):</strong> Total Raised (€) × 2.5 points — <em>bonus for impact!</em></span>
+                  <span><strong className="text-green-300">USDGLO (Glo Dollar):</strong> Total Raised (€) × 2.5 points - <em>bonus for impact!</em></span>
                 </p>
               </div>
             </div>

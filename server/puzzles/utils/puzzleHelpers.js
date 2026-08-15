@@ -5,7 +5,7 @@
 
 /**
  * Seeded pseudo-random number generator (Mulberry32).
- * Ensures reproducible puzzle generation — same seed = same puzzle every time.
+ * Ensures reproducible puzzle generation - same seed = same puzzle every time.
  * This is critical: all players in a challenge/week must get the same puzzle.
  */
 export function createSeededRandom(seed) {
@@ -25,14 +25,14 @@ export function createSeededRandom(seed) {
 
 /**
  * Build a deterministic seed string for a given challenge + week + puzzle type.
- * Always call this when generating — never use Math.random() directly in engines.
+ * Always call this when generating - never use Math.random() directly in engines.
  */
 export function generateSeed(challengeId, weekNumber, puzzleType) {
   return `${challengeId}-w${weekNumber}-${puzzleType}`;
 }
 
 /**
- * Fisher-Yates shuffle using a seeded rng — produces the same shuffle for the same seed.
+ * Fisher-Yates shuffle using a seeded rng - produces the same shuffle for the same seed.
  */
 export function shuffleArray(array, rng) {
   const arr = [...array];
@@ -51,7 +51,7 @@ export function pickRandom(array, rng) {
 }
 
 /**
- * Normalize a string answer for comparison — lowercase, trim, collapse spaces.
+ * Normalize a string answer for comparison - lowercase, trim, collapse spaces.
  */
 export function normalizeAnswer(str) {
   return (str ?? '').trim().toLowerCase().replace(/\s+/g, ' ');

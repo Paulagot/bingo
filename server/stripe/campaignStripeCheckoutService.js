@@ -1,7 +1,7 @@
 // server/stripe/campaignStripeCheckoutService.js
 //
 // Creates a Stripe Checkout session for a campaign product order.
-// Mirrors stripeTicketCheckoutService.js — redirect to hosted page,
+// Mirrors stripeTicketCheckoutService.js - redirect to hosted page,
 // webhook confirms on checkout.session.completed.
 
 import Stripe from 'stripe';
@@ -16,7 +16,7 @@ const T_ORDERS = `${TABLE_PREFIX}campaign_product_orders`;
  *
  * @param {object} opts
  * @param {string} opts.orderId
- * @param {string} opts.origin   — e.g. 'https://fundraisely.ie'
+ * @param {string} opts.origin   - e.g. 'https://fundraisely.ie'
  * @param {string} opts.campaignId
  */
 export async function createCampaignStripeSession({ orderId, origin, campaignId }) {
@@ -34,7 +34,7 @@ export async function createCampaignStripeSession({ orderId, origin, campaignId 
   const currency = (order.currency ?? 'EUR').toLowerCase();
 
   // Use APP_ORIGIN env var if set, otherwise fall back to request origin.
-  // In dev the server is on :3001 but the app is on :5173 — APP_ORIGIN handles this.
+  // In dev the server is on :3001 but the app is on :5173 - APP_ORIGIN handles this.
   const appOrigin = process.env.APP_ORIGIN
     || process.env.BASE_URL
     || origin.replace(':3001', ':5173');
@@ -47,7 +47,7 @@ export async function createCampaignStripeSession({ orderId, origin, campaignId 
         price_data: {
           currency,
           product_data: {
-            name: `Campaign Products — Order ${orderId.slice(0, 8)}`,
+            name: `Campaign Products - Order ${orderId.slice(0, 8)}`,
             description: `Supporter: ${order.supporter_name}`,
           },
           unit_amount: totalAmountCents,

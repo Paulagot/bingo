@@ -1,5 +1,5 @@
 /**
- * DEV ONLY — /api/elimination/dev
+ * DEV ONLY - /api/elimination/dev
  *
  * Spins up a fake single-player room, runs one round of a chosen type,
  * then cleans up. No auth, no web3, no min-player checks.
@@ -38,11 +38,11 @@ router.get('/round-types', (_req, res) => {
 // 4. Scores, emits ROUND_REVEAL, waits reveal duration
 // 5. Emits ROUND_RESULTS then ROOM_ENDED, deletes room
 //
-// The frontend connects normally via socket — it just gets a roomId +
+// The frontend connects normally via socket - it just gets a roomId +
 // playerId back from this endpoint and joins like any other player.
 
 router.post('/start-round', async (req, res) => {
-  const io = req.app.get('io'); // Socket.IO instance — set via app.set('io', io)
+  const io = req.app.get('io'); // Socket.IO instance - set via app.set('io', io)
   if (!io) {
     return res.status(500).json({ success: false, error: 'Socket.IO not available on app instance. Call app.set("io", io) in your server setup.' });
   }
@@ -155,7 +155,7 @@ router.post('/start-round', async (req, res) => {
 
       const resultPayload = rankedResults.map((r) => ({
         ...r,
-        survived: true, // dev mode — nobody gets eliminated
+        survived: true, // dev mode - nobody gets eliminated
       }));
 
       // ── REVEAL ─────────────────────────────────────────────────────────────
@@ -184,7 +184,7 @@ router.post('/start-round', async (req, res) => {
       emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'dev_round_complete' });
       await delay(2000);
       deleteRoom(roomId);
-      console.log(`[Dev] Round complete — room ${roomId} deleted`);
+      console.log(`[Dev] Round complete - room ${roomId} deleted`);
 
     } catch (err) {
       console.error('[Dev] Round loop error:', err);

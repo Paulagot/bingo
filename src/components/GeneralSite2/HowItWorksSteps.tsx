@@ -12,7 +12,7 @@ const HowItWorksSteps: React.FC = () => (
   <section id="how-it-works" className="px-4 pt-10">
     <div className="container mx-auto max-w-6xl">
       <h2 className="mb-2 text-3xl font-bold text-indigo-900">How It Works</h2>
-      <p className="mb-6 text-indigo-900/70">From setup to payout — simple, transparent, repeatable.</p>
+      <p className="mb-6 text-indigo-900/70">From setup to payout - simple, transparent, repeatable.</p>
       <div className="grid gap-4 md:grid-cols-4">
         {steps.map((s, i) => (
           <div key={s.title} className="rounded-xl bg-white p-5 shadow-sm">

@@ -21,7 +21,7 @@ function parseJson(v, fallback = null) {
  * Includes campaign summary, active products, and seller attribution.
  *
  * @param {string} campaignId
- * @param {string|null} sellerId  — from QR query param
+ * @param {string|null} sellerId  - from QR query param
  */
 export async function getCampaignSupportPayload(campaignId, sellerId = null) {
   const [campRows] = await connection.execute(
@@ -33,7 +33,7 @@ export async function getCampaignSupportPayload(campaignId, sellerId = null) {
   );
   const campaign = campRows[0];
   if (!campaign) throw Object.assign(new Error('campaign_not_found'), { status: 404 });
-  // No status column — use is_published as the active check
+  // No status column - use is_published as the active check
   // (unpublished campaigns are still accessible for testing; remove this check if you want strict enforcement)
 
   // Active products
@@ -65,7 +65,7 @@ export async function getCampaignSupportPayload(campaignId, sellerId = null) {
     });
   }
 
-  // Seller attribution (non-fatal — if sellers table doesn't exist yet, just skip)
+  // Seller attribution (non-fatal - if sellers table doesn't exist yet, just skip)
   let seller = null;
   if (sellerId) {
     try {
@@ -85,7 +85,7 @@ export async function getCampaignSupportPayload(campaignId, sellerId = null) {
       description:  campaign.description ?? null,
       targetAmount: Number(campaign.target_amount ?? 0),
       totalRaised:  Number(campaign.total_raised ?? 0),
-      currency:     'EUR',           // not stored on campaign — default EUR
+      currency:     'EUR',           // not stored on campaign - default EUR
       isPublished:  campaign.is_published === 1 || campaign.is_published === true,
       startDate:    campaign.start_date ?? null,
       endDate:      campaign.end_date   ?? null,

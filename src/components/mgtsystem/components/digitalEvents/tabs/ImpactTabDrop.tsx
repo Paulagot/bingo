@@ -1,10 +1,10 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/ImpactTabDrop.tsx
 //
-// Impact tab for Puzzle Drop — no new backend call. Reuses the same
+// Impact tab for Puzzle Drop - no new backend call. Reuses the same
 // purchases list PurchasesTabDrop already fetches (getDropPurchasesForClub)
 // and derives totals from it client-side, the same way ImpactTabSubscription
 // derives its stats from `leaderboard` rather than a dedicated impact
-// endpoint. No top-scorers section here — that needs the per-item
+// endpoint. No top-scorers section here - that needs the per-item
 // leaderboard backend, which isn't wired to a tab yet (separate piece of
 // work); this is purely the financial/participation summary.
 
@@ -74,7 +74,7 @@ export default function ImpactTabDrop({ roomId, config, dropTitle, status }: Pro
     const itemsSold = confirmed.reduce((sum, p) => sum + p.items.length, 0);
     const uniqueBuyers = new Set(confirmed.map(p => p.buyerEmail.toLowerCase())).size;
 
-    // Per-item popularity — which puzzles sold the most, confirmed only.
+    // Per-item popularity - which puzzles sold the most, confirmed only.
     const itemCounts = new Map<string, number>();
     for (const p of confirmed) {
       for (const item of p.items) {
@@ -141,7 +141,7 @@ export default function ImpactTabDrop({ roomId, config, dropTitle, status }: Pro
         <p className="text-xs text-[#4c1d95]">
           {status === 'completed'
             ? 'This Drop is completed. Totals below are final for new sales, though a trailing manual confirmation could still land after the fact.'
-            : 'This Drop is still on sale — the totals below are as of right now and will keep changing as purchases come in.'}
+            : 'This Drop is still on sale - the totals below are as of right now and will keep changing as purchases come in.'}
         </p>
       </div>
 
@@ -174,7 +174,7 @@ export default function ImpactTabDrop({ roomId, config, dropTitle, status }: Pro
 
       {stats.itemsSold === 0 && stats.pendingCount === 0 && (
         <div className="rounded-2xl border border-dashed border-[#dce1df] bg-[#fbf8f2] p-8 text-center">
-          <p className="text-sm text-[#8a9bab]">No purchases yet — impact numbers will fill in once someone buys a puzzle.</p>
+          <p className="text-sm text-[#8a9bab]">No purchases yet - impact numbers will fill in once someone buys a puzzle.</p>
         </div>
       )}
     </div>

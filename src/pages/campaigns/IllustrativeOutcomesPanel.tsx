@@ -80,7 +80,7 @@ export const IllustrativeOutcomesPanel: React.FC<Props> = ({
           
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-amber-800 text-sm">
               <Info className="h-4 w-4" />
-              Clubs keep quiz income — FundRaisely does not take a %.
+              Clubs keep quiz income - FundRaisely does not take a %.
             </div>
           </div>
 

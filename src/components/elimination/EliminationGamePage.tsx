@@ -136,7 +136,7 @@ export const EliminationGamePage: React.FC = () => {
     navigate(exitRoute, { replace: true });
   }, [getExitRoute, onRoomEnded, navigate]);
 
-  // Host enters reconciliation manually — triggered by button in winner view
+  // Host enters reconciliation manually - triggered by button in winner view
   const handleEnterReconciliation = useCallback(() => {
     sessionStorage.setItem(SESSION_RECONCILING, 'true');
     onEnterReconciliation();
@@ -217,25 +217,25 @@ export const EliminationGamePage: React.FC = () => {
     }, [onWinnerDeclared]),
 
     // ── PLAYERS_DISMISSED ─────────────────────────────────────────────────
-    // This is now a 10-minute safety-net from the server — not the primary
+    // This is now a 10-minute safety-net from the server - not the primary
     // navigation trigger. By the time it fires, most clients will have already
     // left via the winner/game_over auto-close, and the host will have clicked
     // "Start Reconciliation" manually. We only act on it if the client is
-    // somehow still on a post-game view (winner / game_over) — which means
+    // somehow still on a post-game view (winner / game_over) - which means
     // the user left their screen open for 10 full minutes without interacting.
     onPlayersDismissed: useCallback(() => {
       const view = state.view; // capture current view at time of event
       if (isHost) {
-        // Host hasn't clicked reconciliation yet after 10 minutes — push them
+        // Host hasn't clicked reconciliation yet after 10 minutes - push them
         if (view === 'winner' || view === 'waiting' || view === 'round_results') {
           handleEnterReconciliation();
         }
       } else {
-        // Player is still on winner/game_over after 10 minutes — send them home
+        // Player is still on winner/game_over after 10 minutes - send them home
         if (view === 'winner' || view === 'game_over' || view === 'eliminated') {
           handleCleanupAndNavigate();
         }
-        // If they've already navigated (lobby/waiting) — do nothing
+        // If they've already navigated (lobby/waiting) - do nothing
       }
     }, [isHost, state.view, handleEnterReconciliation, handleCleanupAndNavigate]),
 
@@ -441,7 +441,7 @@ export const EliminationGamePage: React.FC = () => {
           color: hasSubmitted ? `${rc.primary}bb` : 'rgba(255,255,255,0.75)',
           fontFamily: "'Inter', system-ui, sans-serif",
         }}>
-          {hasSubmitted ? '✓ Locked in — waiting for others' : ROUND_INSTRUCTIONS[state.activeRound.roundType]}
+          {hasSubmitted ? '✓ Locked in - waiting for others' : ROUND_INSTRUCTIONS[state.activeRound.roundType]}
         </div>
 
         <div className="flex-1 flex items-center justify-center"
@@ -450,7 +450,7 @@ export const EliminationGamePage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', textAlign: 'center' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>👁</div>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter', fontSize: '14px', margin: 0 }}>
-                You are the host — players are submitting answers on their devices.
+                You are the host - players are submitting answers on their devices.
               </p>
             </div>
           ) : (
@@ -521,7 +521,7 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // ── Game over — eliminated player sees winner announcement + feedback ──────
+  // ── Game over - eliminated player sees winner announcement + feedback ──────
   if (state.view === 'game_over') {
     return withDashboard(
       <EliminationEliminatedView
@@ -540,7 +540,7 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // ── Winner view — surviving players + host ────────────────────────────────
+  // ── Winner view - surviving players + host ────────────────────────────────
   // Host sees a "Start Reconciliation" button instead of "Return to lobby".
   // Players see auto-close after feedback is dismissed.
   if (state.view === 'winner' && state.winner) {
@@ -578,7 +578,7 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // Fallback — connecting spinner
+  // Fallback - connecting spinner
   return withDashboard(
     <div className="min-h-screen flex items-center justify-center" style={styles.page}>
       <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontFamily: "'Inter', system-ui, sans-serif" }}>

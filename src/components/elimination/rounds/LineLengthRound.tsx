@@ -20,7 +20,7 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
   const [showRef, setShowRef] = useState(true);
   const [playerLength, setPlayerLength] = useState(0.3);
   const dragging = useRef(false);
-  // Lock dragging until reference is hidden — prevents cheating
+  // Lock dragging until reference is hidden - prevents cheating
   const [dragEnabled, setDragEnabled] = useState(false);
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
 
   const rx = config.referenceLineX * 100;
   const ry = config.referenceLineY * 100;
-  // Ensure minimum visible reference line — at least 20% of viewport
+  // Ensure minimum visible reference line - at least 20% of viewport
   const refLen = Math.max(20, config.targetLength * 100);
 
   const px = config.playerStartX * 100;
@@ -106,7 +106,7 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
           </g>
         )}
 
-        {/* Player line — no percentage label */}
+        {/* Player line - no percentage label */}
         {!showRef && (
           <g>
             <circle cx={px} cy={py} r="2" fill={colour}
@@ -114,7 +114,7 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
             <line x1={px} y1={py} x2={px + pLen} y2={py}
               stroke={colour} strokeWidth="1.5" strokeLinecap="round"
               style={{ filter: `drop-shadow(0 0 3px ${colour}88)` }} />
-            {/* Drag handle — bigger for mobile */}
+            {/* Drag handle - bigger for mobile */}
             <circle cx={px + pLen} cy={py} r={hasSubmitted ? 2 : 4} fill={colour} opacity="0.9"
               style={{ filter: `drop-shadow(0 0 4px ${colour})` }} />
             {!hasSubmitted && (
@@ -135,7 +135,7 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
           </text>
         )}
       </svg>
-      {/* Lock button appears after first drag — submit early for speed bonus */}
+      {/* Lock button appears after first drag - submit early for speed bonus */}
       {!showRef && hasDragged && !hasSubmitted && !locked && (
         <button
           onPointerDown={handleSubmit}

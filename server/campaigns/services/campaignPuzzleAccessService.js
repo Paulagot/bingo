@@ -1,7 +1,7 @@
 // server/campaigns/services/campaignPuzzleAccessService.js
 //
 // Creates puzzle access records for puzzle_entry campaign entries.
-// MVP stub — flesh out when puzzle challenge game is ready.
+// MVP stub - flesh out when puzzle challenge game is ready.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';

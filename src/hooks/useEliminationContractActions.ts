@@ -49,7 +49,7 @@ export function useEliminationContractActions(chainConfig: ChainConfig) {
         };
       }
 
-      // EVM — placeholder for when you add EVM elimination
+      // EVM - placeholder for when you add EVM elimination
       throw new Error(`Elimination deploy not yet implemented for ${chainFamily}`);
     },
     [chainFamily, solanaCreateRoom, cluster]

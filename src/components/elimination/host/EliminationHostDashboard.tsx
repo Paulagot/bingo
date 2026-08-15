@@ -106,7 +106,7 @@ function getPaymentLabel(player: EliminationPlayer, methods?: ClubPaymentMethod[
   if (lower === 'pay_admin')                       return 'Pay host';
   if (lower === 'stripe' || lower === 'card')      return 'Card (Stripe)';
   if (lower === 'crypto' || lower === 'web3')      return 'Crypto / Web3';
-  return raw || '—';
+  return raw || '-';
 }
 
 function isPayAtDoorMethod(player: EliminationPlayer): boolean {
@@ -125,7 +125,7 @@ function norm(s: string) {
     .replace(/\p{Diacritic}/gu, '');
 }
 
-/** Player-specific join URL — pre-fills their identity on the join page */
+/** Player-specific join URL - pre-fills their identity on the join page */
 function buildPlayerJoinUrl(roomId: string, playerId: string, playerName: string): string {
   return `${getBaseUrl()}/elimination/join/${roomId}?playerId=${encodeURIComponent(playerId)}&name=${encodeURIComponent(playerName)}`;
 }
@@ -548,7 +548,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, paid, paymentClaimed: false } : p));
     };
 
-    // Server confirms the player was actually added — replace optimistic temp entry
+    // Server confirms the player was actually added - replace optimistic temp entry
     const handlePlayerAdded = ({ player: added }: { player: any }) => {
       const confirmed = normalise(added);
       setPlayers(prev => {
@@ -560,7 +560,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
       });
     };
 
-    // Server rejected the add (e.g. room full) — remove the optimistic entry
+    // Server rejected the add (e.g. room full) - remove the optimistic entry
     const handlePlayerAddError = ({ message }: { message: string }) => {
       console.error('[EliminationHostDashboard] host_add_player failed:', message);
       setPlayers(prev => prev.filter(p => !p.id.startsWith('host-')));
@@ -634,13 +634,13 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
         socket.emit('confirm_player_payment', {
           roomId, playerId: target.id,
           confirmedBy: { id: hostId, role: 'host' },
-          adminNotes: `Payment collected — method: ${data.paymentMethod}`,
+          adminNotes: `Payment collected - method: ${data.paymentMethod}`,
           paymentMethod: data.paymentMethod ?? null,
           clubPaymentMethodId: data.clubPaymentMethodId ?? selectedMethod?.id ?? null,
         });
       }
     } else {
-      // ── Add new player — optimistic, server confirms via host_add_player_confirmed ──
+      // ── Add new player - optimistic, server confirms via host_add_player_confirmed ──
       const tempId = `host-${Date.now()}`;
       setPlayers(prev => [...prev, {
         id: tempId, name: data.name, paid: data.paid,

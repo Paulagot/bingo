@@ -3,15 +3,15 @@
 // Deliberately does NOT extend BaseService, unlike every other *Service.ts
 // in this codebase. BaseService.getAuthHeaders() reads auth_token from
 // localStorage and attaches it as a Bearer token whenever one exists.
-// Donors are never logged in — there's no token to attach in the normal
-// case — but if this code ever runs in a context where a club ADMIN
+// Donors are never logged in - there's no token to attach in the normal
+// case - but if this code ever runs in a context where a club ADMIN
 // happens to be logged in (e.g. they're testing their own donation embed
 // while signed into the dashboard in the same browser), inheriting
 // BaseService would silently attach their session token to what's
 // supposed to be an anonymous public request. Simpler and safer to use a
 // plain fetch with no auth concept at all.
 //
-// Lives under src/components/embed/ rather than mgtsystem/ — this code
+// Lives under src/components/embed/ rather than mgtsystem/ - this code
 // ships inside the public embed page, not the admin dashboard bundle.
 
 import type {
@@ -26,11 +26,11 @@ const API_BASE_URL = import.meta.env.PROD
 
 /**
  * Mirrors the FundRaisely-domain detection your codebase already has
- * elsewhere (per earlier discussion) — this embed page is always loaded
+ * elsewhere (per earlier discussion) - this embed page is always loaded
  * from one of FundRaisely's own domains (.ie / .co.uk / localhost /
  * staging), regardless of which arbitrary site the surrounding <iframe>
  * tag is pasted onto. window.location here is the embed PAGE's own
- * location, not the parent page's — an iframe's window.location always
+ * location, not the parent page's - an iframe's window.location always
  * reflects what's loaded inside the frame, not the host page, so this is
  * safe and correct even though the iframe sits on a third-party site.
  */
@@ -68,7 +68,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 class DonationCheckoutService {
   /**
    * Fetched on embed page load. Throws if the button isn't configured,
-   * is disabled, or its method is no longer eligible — the embed page
+   * is disabled, or its method is no longer eligible - the embed page
    * should catch this and show a clear inactive state rather than a
    * blank/broken picker.
    */
@@ -81,7 +81,7 @@ class DonationCheckoutService {
   /**
    * Starts checkout for the amount the supporter picked. appOrigin is
    * filled in here automatically (not something the embed page's UI
-   * needs to pass in) — see getAppOrigin above for why this is always
+   * needs to pass in) - see getAppOrigin above for why this is always
    * correct even inside a third-party iframe.
    */
   startCheckout(

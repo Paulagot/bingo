@@ -2,7 +2,7 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 
 /**
- * Resolve club_id from a campaign — used by public routes
+ * Resolve club_id from a campaign - used by public routes
  * so we never trust club_id from the request body.
  */
 export async function getCampaignClubId(campaignId) {

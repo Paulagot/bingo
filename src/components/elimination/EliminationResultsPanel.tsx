@@ -23,7 +23,7 @@ export const EliminationResultsPanel: React.FC<Props> = ({
   const isLocalEliminated = eliminatedIds.includes(localPlayerId);
   const survived = results.filter(r => r.survived).length;
 
-  // Staggered reveal — one entry every 180ms
+  // Staggered reveal - one entry every 180ms
   useEffect(() => {
     setRevealed(0);
     const interval = setInterval(() => {
@@ -109,10 +109,10 @@ export const EliminationResultsPanel: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Full leaderboard — staggered reveal */}
+      {/* Full leaderboard - staggered reveal */}
       <div style={s.list}>
         {results.map((r, i) => {
-          const name = playerMap[r.playerId]?.name ?? '—';
+          const name = playerMap[r.playerId]?.name ?? '-';
           const isLocal = r.playerId === localPlayerId;
           const isElim = eliminatedIds.includes(r.playerId);
           const isVisible = i < revealed;

@@ -91,7 +91,7 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
 
     console.log('📤 [WinnersAssignPanel] Emitting record_prize_award:', award);
 
-    // NEW AWARD — backend handles dedupe + merge
+    // NEW AWARD - backend handles dedupe + merge
     socket.emit('record_prize_award', { roomId, award });
   };
 
@@ -109,7 +109,7 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
           <div>
             <h3 className="text-lg font-bold text-gray-900">Assign Winners</h3>
             <p className="text-sm text-gray-600">
-              Winners auto-assigned from final standings — verify or adjust as needed.
+              Winners auto-assigned from final standings - verify or adjust as needed.
             </p>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
                           {!isLocked &&
                             topCandidates.map((p, i) => (
                               <option key={p.id} value={i}>
-                                #{i + 1} {p.name} — {p.score} pts
+                                #{i + 1} {p.name} - {p.score} pts
                               </option>
                             ))}
                         </select>

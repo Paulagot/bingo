@@ -325,10 +325,10 @@ const UsecaseSchoolPage: React.FC = () => {
               <h2 className="text-indigo-900 text-3xl font-bold">Perfect For School Fundraising Goals</h2>
             </div>
             <p className="text-indigo-900/80 mb-6 leading-relaxed text-lg">
-              Imagine new playground equipment, updated classroom technology, or enriching extracurricular activities—all powered by a great quiz night.
+              Imagine new playground equipment, updated classroom technology, or enriching extracurricular activities-all powered by a great quiz night.
             </p>
             <ul className="space-y-3 mb-6">
-              <Bullet>Fund classroom resources—from interactive whiteboards to library books</Bullet>
+              <Bullet>Fund classroom resources-from interactive whiteboards to library books</Bullet>
               <Bullet>Raise money for educational trips (e.g., Year 6 trip)</Bullet>
               <Bullet>Support sports programmes with new kits and equipment</Bullet>
               <Bullet>Upgrade playground equipment and outdoor learning spaces</Bullet>

@@ -312,7 +312,7 @@ export function validate(playerAnswer, solutionData) {
   const normalized = normalizeGrid(submitted, size);
   const submittedClues = buildClues(normalized);
 
-  // Accept any grid whose clues match — not just the one canonical solution —
+  // Accept any grid whose clues match - not just the one canonical solution -
   // since a hand-authored picture can have more than one valid fill.
   if (!cluesEqual(submittedClues.rowClues, rowClues) || !cluesEqual(submittedClues.colClues, colClues)) {
     return { valid: false, reason: 'Grid does not match the clues yet.' };

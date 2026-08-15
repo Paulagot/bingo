@@ -58,7 +58,7 @@ export const formatScore = (score: number | null | undefined): string =>
  * Format an error distance as a percentage-style precision string.
  */
 export const formatError = (errorDistance: number | null): string => {
-  if (errorDistance === null) return '—';
+  if (errorDistance === null) return '-';
   const pct = (errorDistance * 100).toFixed(1);
   return `${pct}%`;
 };

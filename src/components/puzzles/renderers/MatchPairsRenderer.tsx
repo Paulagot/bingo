@@ -7,7 +7,7 @@ interface MatchPairsRendererProps {
   isReadOnly: boolean;
 }
 
-// Defined locally rather than imported from a shared puzzleTypes module —
+// Defined locally rather than imported from a shared puzzleTypes module -
 // this component only needs this exact shape, and a drifted/renamed field
 // on a shared type (the same class of bug that broke the engine's generate()
 // function) shouldn't be able to silently break this file too.
@@ -109,8 +109,8 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
   const [selectedLeftId, setSelectedLeftId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Always report the current state — including back down to zero matches
-    // — so the parent's saved answer can never drift from what's on screen.
+    // Always report the current state - including back down to zero matches
+    // - so the parent's saved answer can never drift from what's on screen.
     onAnswerChange({ matches });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matches]);
@@ -240,7 +240,7 @@ const MatchPairsRenderer: React.FC<MatchPairsRendererProps> = ({
         </div>
       )}
 
-      {/* Main matching board — always side-by-side, even on mobile, so you
+      {/* Main matching board - always side-by-side, even on mobile, so you
           never have to scroll past one whole column to reach the other. */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:gap-5">
         {/* Left items */}

@@ -4,13 +4,13 @@
     "name": "newquiz",
     "version": "0.1.0",
     "spec": "0.1.0",
-    "description": "Fundraisely quiz — fixed fee splits, any SPL token"
+    "description": "Fundraisely quiz - fixed fee splits, any SPL token"
   },
   "instructions": [
     {
       "name": "close_joining",
       "docs": [
-        "Host locks the room — no new players can join after this."
+        "Host locks the room - no new players can join after this."
       ],
       "discriminator": [
         203,
@@ -150,7 +150,7 @@
         {
           "name": "room",
           "docs": [
-            "Room closed at end — rent → platform_wallet"
+            "Room closed at end - rent → platform_wallet"
           ],
           "writable": true,
           "pda": {
@@ -213,7 +213,7 @@
         {
           "name": "admin",
           "docs": [
-            "Admin signer — validated in handler against PLATFORM_ADMIN_PUBKEY constant"
+            "Admin signer - validated in handler against PLATFORM_ADMIN_PUBKEY constant"
           ],
           "writable": true,
           "signer": true
@@ -255,7 +255,7 @@
         {
           "name": "room",
           "docs": [
-            "Room closed at end — rent → platform_wallet"
+            "Room closed at end - rent → platform_wallet"
           ],
           "writable": true,
           "pda": {
@@ -311,7 +311,7 @@
         {
           "name": "platform_token_account",
           "docs": [
-            "Platform token account — receives 15 % cut (any fee token)"
+            "Platform token account - receives 15 % cut (any fee token)"
           ],
           "writable": true
         },
@@ -379,7 +379,7 @@
       "name": "init_pool_room",
       "docs": [
         "Create a pool-based fundraising room.",
-        "Only room_id, entry_fee, and fee_token_mint needed — splits are fixed, no expiry."
+        "Only room_id, entry_fee, and fee_token_mint needed - splits are fixed, no expiry."
       ],
       "discriminator": [
         51,
@@ -395,7 +395,7 @@
         {
           "name": "room",
           "docs": [
-            "Room PDA — host pays rent"
+            "Room PDA - host pays rent"
           ],
           "writable": true,
           "pda": {
@@ -423,7 +423,7 @@
         {
           "name": "room_vault",
           "docs": [
-            "Room vault — created via CPI in handler (host pays rent)"
+            "Room vault - created via CPI in handler (host pays rent)"
           ],
           "writable": true,
           "pda": {
@@ -453,7 +453,7 @@
         {
           "name": "fee_token_mint",
           "docs": [
-            "Any SPL token mint — no whitelist"
+            "Any SPL token mint - no whitelist"
           ]
         },
         {
@@ -530,7 +530,7 @@
         {
           "name": "player_entry",
           "docs": [
-            "PlayerEntry PDA — player pays rent"
+            "PlayerEntry PDA - player pays rent"
           ],
           "writable": true,
           "pda": {
@@ -634,7 +634,7 @@
         {
           "name": "room",
           "docs": [
-            "Room closed at end — rent → platform_wallet"
+            "Room closed at end - rent → platform_wallet"
           ],
           "writable": true,
           "pda": {
@@ -867,7 +867,7 @@
     {
       "code": 6006,
       "name": "NotEnoughPlayers",
-      "msg": "Not enough players — need at least 2 to end the room"
+      "msg": "Not enough players - need at least 2 to end the room"
     },
     {
       "code": 6007,
@@ -907,7 +907,7 @@
     {
       "code": 6014,
       "name": "InvalidRoomId",
-      "msg": "Invalid room ID — must be 1–32 characters"
+      "msg": "Invalid room ID - must be 1–32 characters"
     },
     {
       "code": 6015,
@@ -917,12 +917,12 @@
     {
       "code": 6016,
       "name": "InvalidMaxPlayers",
-      "msg": "Invalid max_players — must be between 1 and 1000"
+      "msg": "Invalid max_players - must be between 1 and 1000"
     },
     {
       "code": 6017,
       "name": "InvalidMemo",
-      "msg": "Invalid charity memo — max 28 characters"
+      "msg": "Invalid charity memo - max 28 characters"
     },
     {
       "code": 6018,

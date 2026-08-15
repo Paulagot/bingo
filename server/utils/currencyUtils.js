@@ -14,9 +14,9 @@
 // ---------------------------------------------------------------------------
 // Supported currencies
 // Each entry: { code, symbol, coingeckoVsCurrency, locale, decimals }
-//   coingeckoVsCurrency — the vs_currencies param CoinGecko accepts
-//   locale              — for Intl.NumberFormat if ever needed server-side
-//   decimals            — standard decimal places for display
+//   coingeckoVsCurrency - the vs_currencies param CoinGecko accepts
+//   locale              - for Intl.NumberFormat if ever needed server-side
+//   decimals            - standard decimal places for display
 // ---------------------------------------------------------------------------
 
 export const SUPPORTED_CURRENCIES = {

@@ -1,5 +1,5 @@
 // server/utils/ticketEmail.js
-// UPDATED: game_type aware — supports 'quiz', 'elimination', and 'ticketed_event'
+// UPDATED: game_type aware - supports 'quiz', 'elimination', and 'ticketed_event'
 // Ticketed events are routed to their own email module (ticketedEventEmail.js)
 
 import { sendEmailSafe } from './mailer.js';
@@ -125,7 +125,7 @@ export async function getTicketWithRoomConfig(ticketId) {
 
   const row = rows?.[0] || null;
 
-  // ── DIAGNOSTIC — remove once game_type routing is confirmed working ────────
+  // ── DIAGNOSTIC - remove once game_type routing is confirmed working ────────
   console.log('[getTicketWithRoomConfig] ticketId:', ticketId);
   console.log('[getTicketWithRoomConfig] row found:', !!row);
   if (row) {
@@ -161,7 +161,7 @@ export async function sendTicketConfirmationEmail({
   eventTitle     = null,
   eventLocation  = null,
 }) {
-  // ── DIAGNOSTIC — remove once confirmed working ────────────────────────────
+  // ── DIAGNOSTIC - remove once confirmed working ────────────────────────────
   console.log('[sendTicketConfirmationEmail] ─────────────────────────────────');
   console.log('[sendTicketConfirmationEmail] ticketId:', ticketId);
   console.log('[sendTicketConfirmationEmail] gameType param:', gameType);
@@ -325,7 +325,7 @@ export async function sendTicketConfirmationEmail({
 
   return sendEmailSafe({
     to:      purchaserEmail,
-    subject: `${meta.emoji} Your ${meta.subjectLabel} ticket is confirmed — ${displayName}`,
+    subject: `${meta.emoji} Your ${meta.subjectLabel} ticket is confirmed - ${displayName}`,
     html,
   });
 }

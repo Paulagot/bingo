@@ -35,7 +35,7 @@ export const EliminationHostReveal: React.FC<Props> = ({
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-advance — empty dep array so interval is created exactly once.
+  // Auto-advance - empty dep array so interval is created exactly once.
   // Uses onContinueRef so it always calls the latest version of onContinue.
   useEffect(() => {
     const interval = setInterval(() => {
@@ -52,10 +52,10 @@ export const EliminationHostReveal: React.FC<Props> = ({
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, []); // ← no deps — interval created once, uses ref for callback
+  }, []); // ← no deps - interval created once, uses ref for callback
 
   const getCorrectAnswer = (reveal: any): string => {
-    if (!reveal) return '—';
+    if (!reveal) return '-';
     switch (reveal.roundType) {
       case 'true_centre':     return `Centre: (${(reveal.trueCentre?.x * 100).toFixed(0)}%, ${(reveal.trueCentre?.y * 100).toFixed(0)}%)`;
       case 'midpoint_split':  return `Midpoint: (${(reveal.actualMidpoint?.x * 100).toFixed(0)}%, ${(reveal.actualMidpoint?.y * 100).toFixed(0)}%)`;
@@ -74,31 +74,31 @@ export const EliminationHostReveal: React.FC<Props> = ({
       case 'reaction_tap':    return reveal.earlyTap ? 'Early tap penalty' : `Target at (${(reveal.targetPosition?.x * 100).toFixed(0)}%, ${(reveal.targetPosition?.y * 100).toFixed(0)}%)`;
       case 'moving_target_tap': return `Target at (${(reveal.targetPosition?.x * 100).toFixed(0)}%, ${(reveal.targetPosition?.y * 100).toFixed(0)}%)`;
       case 'path_trace':      return `Completion: ${((reveal.completionRatio ?? 0) * 100).toFixed(0)}% avg`;
-      default:                return '—';
+      default:                return '-';
     }
   };
 
   const getPlayerAnswer = (reveal: any): string => {
     if (!reveal) return 'No answer';
     switch (reveal.roundType) {
-      case 'true_centre':     return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '—';
-      case 'midpoint_split':  return reveal.playerMarker ? `(${(reveal.playerMarker.x * 100).toFixed(0)}%, ${(reveal.playerMarker.y * 100).toFixed(0)}%)` : '—';
-      case 'stop_the_bar':    return reveal.playerStopPosition != null ? `${(reveal.playerStopPosition * 100).toFixed(1)}%` : '—';
-      case 'draw_angle':      return reveal.playerAngle != null ? `${reveal.playerAngle}°` : '—';
-      case 'quick_count':     return reveal.playerGuess != null ? String(reveal.playerGuess) : '—';
-      case 'flash_maths':     return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
-      case 'line_length':     return reveal.playerLength != null ? `${(reveal.playerLength * 100).toFixed(0)}%` : '—';
-      case 'balance_point':   return reveal.playerX != null ? `${(reveal.playerX * 100).toFixed(1)}%` : '—';
-      case 'flash_grid':      return reveal.playerTaps ? `${reveal.playerTaps.length} tapped` : '—';
-      case 'pattern_align':   return reveal.playerX != null ? `(${(reveal.playerX * 100).toFixed(0)}%, ${(reveal.playerY * 100).toFixed(0)}%) · ${reveal.playerRotation?.toFixed(0)}°` : '—';
-      case 'sequence_gap':    return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
-      case 'colour_count':    return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
-      case 'time_estimation': return reveal.playerTimeMs != null ? `${(reveal.playerTimeMs / 1000).toFixed(1)}s` : '—';
-      case 'character_count': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
-      case 'reaction_tap':    return reveal.reactionMs != null && !isNaN(reveal.reactionMs) ? `${Math.max(0, Math.round(reveal.reactionMs))}ms` : reveal.earlyTap ? 'Early tap' : '—';
-      case 'moving_target_tap': return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '—';
-      case 'path_trace':      return reveal.completionRatio != null ? `${(reveal.completionRatio * 100).toFixed(0)}% complete` : '—';
-      default:                return '—';
+      case 'true_centre':     return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '-';
+      case 'midpoint_split':  return reveal.playerMarker ? `(${(reveal.playerMarker.x * 100).toFixed(0)}%, ${(reveal.playerMarker.y * 100).toFixed(0)}%)` : '-';
+      case 'stop_the_bar':    return reveal.playerStopPosition != null ? `${(reveal.playerStopPosition * 100).toFixed(1)}%` : '-';
+      case 'draw_angle':      return reveal.playerAngle != null ? `${reveal.playerAngle}°` : '-';
+      case 'quick_count':     return reveal.playerGuess != null ? String(reveal.playerGuess) : '-';
+      case 'flash_maths':     return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '-';
+      case 'line_length':     return reveal.playerLength != null ? `${(reveal.playerLength * 100).toFixed(0)}%` : '-';
+      case 'balance_point':   return reveal.playerX != null ? `${(reveal.playerX * 100).toFixed(1)}%` : '-';
+      case 'flash_grid':      return reveal.playerTaps ? `${reveal.playerTaps.length} tapped` : '-';
+      case 'pattern_align':   return reveal.playerX != null ? `(${(reveal.playerX * 100).toFixed(0)}%, ${(reveal.playerY * 100).toFixed(0)}%) · ${reveal.playerRotation?.toFixed(0)}°` : '-';
+      case 'sequence_gap':    return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '-';
+      case 'colour_count':    return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '-';
+      case 'time_estimation': return reveal.playerTimeMs != null ? `${(reveal.playerTimeMs / 1000).toFixed(1)}s` : '-';
+      case 'character_count': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '-';
+      case 'reaction_tap':    return reveal.reactionMs != null && !isNaN(reveal.reactionMs) ? `${Math.max(0, Math.round(reveal.reactionMs))}ms` : reveal.earlyTap ? 'Early tap' : '-';
+      case 'moving_target_tap': return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '-';
+      case 'path_trace':      return reveal.completionRatio != null ? `${(reveal.completionRatio * 100).toFixed(0)}% complete` : '-';
+      default:                return '-';
     }
   };
 
@@ -172,7 +172,7 @@ export const EliminationHostReveal: React.FC<Props> = ({
           display: 'flex', flexDirection: 'column', gap: '4px',
         }}>
           {results.map((r, i) => {
-            const name      = playerMap[r.playerId]?.name ?? '—';
+            const name      = playerMap[r.playerId]?.name ?? '-';
             const answer    = getPlayerAnswer(r.revealData);
             const errorPct  = r.revealData?.errorDistance != null
               ? `${(r.revealData.errorDistance * 100).toFixed(1)}% off`

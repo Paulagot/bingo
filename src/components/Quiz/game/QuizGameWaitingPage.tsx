@@ -135,7 +135,7 @@ const joinOrRecover = () => {
   }, (res?: any) => {
     if (!res?.ok) {
       log('join_and_recover failed', res);
-      // ✅ Don't navigate away — just stay on the waiting page
+      // ✅ Don't navigate away - just stay on the waiting page
       hasJoinedRef.current = false;
       return;
     }
@@ -334,7 +334,7 @@ if (phaseShouldRedirect(phase)) {
               <div className="flex items-center gap-2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 <span className="text-sm font-semibold">
-                  Hang tight — the host will start the round any moment.
+                  Hang tight - the host will start the round any moment.
                 </span>
               </div>
 
@@ -379,7 +379,7 @@ if (phaseShouldRedirect(phase)) {
             <div className="flex items-start gap-2 text-white">
               <ShieldAlert className="mt-0.5 h-5 w-5 text-white/80" />
               <div className="text-sm font-semibold text-white/90">
-                No cheating — unfair play may lead to disqualification.
+                No cheating - unfair play may lead to disqualification.
               </div>
             </div>
           </div>

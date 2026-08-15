@@ -65,7 +65,7 @@ export const activateRound = (roomId, roundId) => {
  * Record the server-side timestamp of when a player pressed START
  * in the Time Estimation round.
  *
- * This is the authoritative start time used for scoring — not the
+ * This is the authoritative start time used for scoring - not the
  * round activation time, and not any client-supplied value.
  *
  * @param {string} roomId
@@ -76,7 +76,7 @@ export const recordStartPress = (roomId, roundId, playerId) => {
   const roundState = getRoundState(roomId, roundId);
   if (!roundState) return;
   if (roundState.roundType !== 'time_estimation') return;
-  // Only record once — first press wins, ignore duplicates
+  // Only record once - first press wins, ignore duplicates
   if (roundState.startPressTimestamps[playerId]) return;
   roundState.startPressTimestamps[playerId] = now();
 };

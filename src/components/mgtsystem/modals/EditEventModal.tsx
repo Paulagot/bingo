@@ -1,6 +1,6 @@
 // src/components/mgtsystem/modals/EditEventModal.tsx
 //
-// The EDIT-EVENT modal — replaces CreateEventForm's editMode (the create
+// The EDIT-EVENT modal - replaces CreateEventForm's editMode (the create
 // half of CreateEventForm was already retired by CreateFundraiserWizard,
 // so once the dashboard swaps to this, CreateEventForm.tsx can be
 // DELETED).
@@ -10,14 +10,14 @@
 // subscription event still shows no location section, etc.), with two
 // deliberate edit-mode differences:
 //
-//   • dateMode is forced to 'datetime' even for subscription events —
+//   • dateMode is forced to 'datetime' even for subscription events -
 //     the weeks stepper is a CREATE-time input; the challenge's actual
 //     weeks/schedule are locked to Stripe billing and edited (draft-only)
 //     via the drawer's Setup tab, so showing an editable weeks control
 //     here would imply changes it cannot make.
 //   • past dates are allowed (same as CreateEventForm's editMode was).
 //
-// CONTRACT: identical to CreateEventForm's — onSubmit(data) receives the
+// CONTRACT: identical to CreateEventForm's - onSubmit(data) receives the
 // payload with start_datetime already converted to UTC; the caller
 // (QuizEventDashboard.handleUpdateEvent) performs the update and its
 // ticketed-room date sync, unchanged. Two field-preservation fixes over
@@ -105,7 +105,7 @@ export default function EditEventModal({ event, onSubmit, onCancel, campaigns = 
     try {
       const data: UpdateEventForm = {
         title:               fields.title.trim(),
-        type:                event.type,                         // unchanged — set by the wizard at creation
+        type:                event.type,                         // unchanged - set by the wizard at creation
         primary_action_type: event.primary_action_type,          // preserved (old form reset this to 'attend')
         summary:             fields.summary.trim() || undefined,
         description:         fields.description.trim() || undefined,
@@ -121,7 +121,7 @@ export default function EditEventModal({ event, onSubmit, onCancel, campaigns = 
         data.location_label = fields.location_label.trim() || undefined;
         data.online_url     = fields.online_url.trim() || undefined;
       }
-      // else: platform-hosted online type — location untouched on the row.
+      // else: platform-hosted online type - location untouched on the row.
 
       await onSubmit(data);
       onCancel(); // close, matching CreateEventForm's post-save behaviour
@@ -160,7 +160,7 @@ export default function EditEventModal({ event, onSubmit, onCancel, campaigns = 
           </button>
         </div>
 
-        {/* ── Body — the shared step ── */}
+        {/* ── Body - the shared step ── */}
         <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4" style={{ background: '#f6f1e8' }}>
           {error && <ErrorBanner message={error} />}
           <EventDetailsStep

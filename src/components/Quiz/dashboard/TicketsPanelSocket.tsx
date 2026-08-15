@@ -332,7 +332,7 @@ export const TicketsPanelSocket: React.FC<TicketsPanelSocketProps> = ({ roomId }
                               )}
                             </button>
                           )}
-                          {/* QR code button — always shown */}
+                          {/* QR code button - always shown */}
                           <button
                             onClick={() => setQrTicket(ticket)}
                             className="inline-flex items-center justify-center p-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"

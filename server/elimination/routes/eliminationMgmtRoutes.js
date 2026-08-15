@@ -36,7 +36,7 @@ import { refreshReconciliationStartingTotal } from '../services/eliminationStats
 
 // ── STATUS TRANSITION: open → live ───────────────────────────────────────────
 // Imported here so the socket layer can write to DB without going through
-// the HTTP route. Non-fatal — a DB failure never blocks the game from starting.
+// the HTTP route. Non-fatal - a DB failure never blocks the game from starting.
 import { markEliminationRoomAsLive } from '../api/eliminationMgmtService.js';
 
 
@@ -47,7 +47,7 @@ const getAllPlayers = (roomId) =>
     connected:          p.connected,
     eliminated:         p.eliminated ?? false,
     walletAddress:      p.walletAddress ?? null,
-    // ── web2 payment status — needed by host waiting room UI ──
+    // ── web2 payment status - needed by host waiting room UI ──
     paid:               p.paid            ?? false,
     paymentClaimed:     p.paymentClaimed  ?? false,
     payAtDoor:          p.payAtDoor       ?? false,
@@ -137,7 +137,7 @@ const writeLedgerEntry = async (room, player) => {
       confirmedByRole:      isConfirmed ? 'admin' : null,
     });
 
-    console.log(`[Elimination] Ledger entry written — room: ${room.roomId} player: ${player.playerId} status: ${status}`);
+    console.log(`[Elimination] Ledger entry written - room: ${room.roomId} player: ${player.playerId} status: ${status}`);
   } catch (err) {
     console.error('[Elimination] Ledger write failed (non-fatal):', err.message);
   }
@@ -213,7 +213,7 @@ export const registerEliminationSockets = (io) => {
         socket.emit('elimination_reconciliation_ledger_updated', { ok: true, insertId, roomId });
 
         console.log(
-          `[Elimination] Reconciliation ledger entry added — room: ${roomId} type: ${adjustmentType} amount: ${amount}`
+          `[Elimination] Reconciliation ledger entry added - room: ${roomId} type: ${adjustmentType} amount: ${amount}`
         );
       } catch (err) {
         console.error('[Elimination] elimination_update_reconciliation_ledger error:', err);
@@ -235,13 +235,13 @@ export const registerEliminationSockets = (io) => {
         }
 
         if (room.reconciliationApproved) {
-          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Reconciliation already approved — cannot edit' });
+          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Reconciliation already approved - cannot edit' });
         }
 
         const result = await deleteAdjustmentEntry(adjustmentId, roomId);
         socket.emit('elimination_reconciliation_ledger_updated', { ok: result.ok, deleted: adjustmentId, roomId });
 
-        console.log(`[Elimination] Reconciliation ledger entry deleted — room: ${roomId} id: ${adjustmentId}`);
+        console.log(`[Elimination] Reconciliation ledger entry deleted - room: ${roomId} id: ${adjustmentId}`);
       } catch (err) {
         console.error('[Elimination] elimination_delete_reconciliation_ledger_item error:', err);
         socket.emit(SERVER_EVENTS.ERROR, { message: 'Failed to delete adjustment' });
@@ -284,7 +284,7 @@ export const registerEliminationSockets = (io) => {
           finalTotal:      result.finalTotal,
         });
 
-        console.log(`[Elimination] ✅ Reconciliation approved via socket — room: ${roomId} by: ${approvedBy}`);
+        console.log(`[Elimination] ✅ Reconciliation approved via socket - room: ${roomId} by: ${approvedBy}`);
       } catch (err) {
         console.error('[Elimination] elimination_approve_reconciliation error:', err);
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message || 'Failed to approve reconciliation' });
@@ -622,7 +622,7 @@ export const registerEliminationSockets = (io) => {
     // ── START GAME ─────────────────────────────────────────────────────────────
     // STATUS TRANSITION: open → live
     // markEliminationRoomAsLive writes to DB once the game loop starts cleanly.
-    // It is non-fatal — a DB failure here must never prevent the game from running.
+    // It is non-fatal - a DB failure here must never prevent the game from running.
     socket.on(CLIENT_EVENTS.START_GAME, ({ roomId, hostId }) => {
       if (!rateCheck(socket, 'start_elimination_game')) return;
       try {
@@ -631,7 +631,7 @@ export const registerEliminationSockets = (io) => {
 
         startGame(roomId, (event, payload) => emitToRoom(roomId, event, payload))
           .then(() => {
-            // Game loop started cleanly — write 'live' to DB
+            // Game loop started cleanly - write 'live' to DB
             markEliminationRoomAsLive(roomId).catch((err) =>
               console.warn('[Elimination] Failed to mark room live (non-fatal):', err.message)
             );

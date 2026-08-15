@@ -154,7 +154,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
     );
   }
 
-  // SPEED ROUND — dedicated component, instant submit
+  // SPEED ROUND - dedicated component, instant submit
   if (currentRoundType === 'speed_round') {
     return (
       <SpeedAsking
@@ -174,7 +174,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
     );
   }
 
-  // HIDDEN OBJECT — asking
+  // HIDDEN OBJECT - asking
   if (currentRoundType === 'hidden_object') {
     if (!puzzle || !onTap) {
       return (
@@ -195,7 +195,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
     );
   }
 
-  // ✅ ORDER IMAGE — asking
+  // ✅ ORDER IMAGE - asking
   if (currentRoundType === 'order_image') {
     if (!orderImageQuestion || !onOrderSubmit) {
       return (

@@ -32,7 +32,7 @@ const SCRAMBLE_MOVES = {
   [Difficulty.HARD]: 75,
 };
 
-// Scoring settings scale with grid size / scramble depth — previously flat
+// Scoring settings scale with grid size / scramble depth - previously flat
 // regardless of difficulty, even though hard scrambles 5x deeper than easy.
 const DIFFICULTY_SETTINGS = {
   [Difficulty.EASY]:   { baseScore: 70,  bonusIdeal: 20, bonusGood: 40, bonusMax: 150 },
@@ -236,7 +236,7 @@ export function generate(config) {
     solutionData: {
       solvedGrid,
       size,
-      // Rough reference for a soft "solved efficiently" bonus — the number
+      // Rough reference for a soft "solved efficiently" bonus - the number
       // of moves used to scramble the board isn't a true optimal-solution
       // lower bound, but it's a reasonable par to beat.
       movesPar: moves,
@@ -295,7 +295,7 @@ export function validate(playerAnswer, solutionData) {
 // Soft, capped bonus for finishing in relatively few moves. moveCount is
 // client-reported (same trust level as timeTakenSeconds), so this is kept
 // small and only ever adds to the bonus slice, never the base correctness
-// score — a player who reports a suspiciously low moveCount gains at most
+// score - a player who reports a suspiciously low moveCount gains at most
 // this modest amount, not a leaderboard-dominating one.
 function moveEfficiencyBonus(moveCount, movesPar) {
   if (!Number.isFinite(moveCount) || !Number.isFinite(movesPar) || movesPar <= 0) return 0;

@@ -142,7 +142,7 @@ router.get('/club/:clubId/stats', authenticateToken, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APPROVE  (HTTP path — used by authenticated hosts)
+// APPROVE  (HTTP path - used by authenticated hosts)
 // Reads finalLeaderboard and prizeAwards from web2_quiz_rooms.config_json
 // so the client doesn't need to send them.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,10 +195,10 @@ router.post('/room/:roomId/approve', authenticateToken, async (req, res) => {
     const prizeAwards      = roomConfig?.reconciliation?.prizeAwards      ?? null;
 
     if (!finalLeaderboard || finalLeaderboard.length === 0) {
-      console.warn(`⚠️ No finalLeaderboard in config_json for room ${roomId} — leaderboard will be empty in report`);
+      console.warn(`⚠️ No finalLeaderboard in config_json for room ${roomId} - leaderboard will be empty in report`);
     }
     if (!prizeAwards || prizeAwards.length === 0) {
-      console.warn(`⚠️ No prizeAwards in config_json for room ${roomId} — prizes will be empty in report`);
+      console.warn(`⚠️ No prizeAwards in config_json for room ${roomId} - prizes will be empty in report`);
     }
     // ─────────────────────────────────────────────────────────────────────────
 

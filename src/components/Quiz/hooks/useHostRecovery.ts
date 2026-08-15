@@ -189,12 +189,12 @@ export function useHostRecovery({
         },
         async (res: any) => {
           if (!res?.ok) {
-            // Room not ready yet — interval will fire again in 5s
+            // Room not ready yet - interval will fire again in 5s
             console.log('[HostRecovery] Operator retry: room not ready yet:', res?.error);
             return;
           }
 
-          // Success — stop retrying and apply the snapshot
+          // Success - stop retrying and apply the snapshot
           hasJoinedRef.current = true;
           socketIdRef.current = socket.id;
           clearInterval(retryIntervalRef.current);

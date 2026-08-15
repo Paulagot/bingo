@@ -49,8 +49,8 @@ export const startStripeConnect = async (req, res) => {
     const baseUrl   = getBaseUrl(req);
     const accountLink = await stripe.accountLinks.create({
       account:     accountId,
-      refresh_url: `${baseUrl}/quiz/eventdashboard?stripe=refresh`,
-      return_url:  `${baseUrl}/quiz/eventdashboard?stripe=return`,
+      refresh_url: `${baseUrl}/event-dashboard?stripe=refresh`,
+      return_url:  `${baseUrl}/event-dashboard?stripe=return`,
       type:        'account_onboarding',
     });
 
@@ -102,7 +102,7 @@ export const getStripeConnectStatus = async (req, res) => {
 /**
  * Disconnect the club's Stripe account.
  *
- * Does NOT delete the row — stamps disconnectedAt into method_config and sets
+ * Does NOT delete the row - stamps disconnectedAt into method_config and sets
  * is_enabled = FALSE. The row stays for historical ledger joins.
  *
  * After this getStripeMethodForClub returns null so all payment flows stop
@@ -122,7 +122,7 @@ export const disconnectStripeConnect = async (req, res) => {
 
     const accountId = cfg?.connect?.accountId;
 
-    // Best-effort deauthorize — only works for OAuth accounts, safe to ignore for API-created ones
+    // Best-effort deauthorize - only works for OAuth accounts, safe to ignore for API-created ones
     if (accountId) {
       try {
         await stripe.oauth.deauthorize({
@@ -186,7 +186,7 @@ export const reconnectStripeConnect = async (req, res) => {
     const accountId = cfg?.connect?.accountId;
     if (!accountId) return res.status(400).json({ ok: false, error: 'stripe_account_id_missing' });
 
-    // Fetch current status from Stripe — account may still be fully ready
+    // Fetch current status from Stripe - account may still be fully ready
     let stripeAccount;
     try {
       stripeAccount = await stripe.accounts.retrieve(accountId);
@@ -199,7 +199,7 @@ export const reconnectStripeConnect = async (req, res) => {
     const detailsSubmitted = !!stripeAccount.details_submitted;
     const isReady = chargesEnabled && payoutsEnabled && detailsSubmitted;
 
-    // Clear disconnectedAt and restore the row — no onboarding needed if still ready
+    // Clear disconnectedAt and restore the row - no onboarding needed if still ready
     const updatedConfig = {
       ...cfg,
       connect: {
@@ -226,8 +226,8 @@ export const reconnectStripeConnect = async (req, res) => {
 
     console.log('[Stripe] ✅ Reconnected:', { clubId, accountId, isReady });
 
-    // If still ready — just tell the frontend, no redirect needed
-    // If somehow not ready — send them through onboarding
+    // If still ready - just tell the frontend, no redirect needed
+    // If somehow not ready - send them through onboarding
     if (isReady) {
       return res.json({ ok: true, ready: true, accountId, chargesEnabled, payoutsEnabled, detailsSubmitted });
     }
@@ -235,8 +235,8 @@ export const reconnectStripeConnect = async (req, res) => {
     const baseUrl     = getBaseUrl(req);
     const accountLink = await stripe.accountLinks.create({
       account:     accountId,
-      refresh_url: `${baseUrl}/quiz/eventdashboard?stripe=refresh`,
-      return_url:  `${baseUrl}/quiz/eventdashboard?stripe=return`,
+      refresh_url: `${baseUrl}/event-dashboard?stripe=refresh`,
+      return_url:  `${baseUrl}/event-dashboard?stripe=return`,
       type:        'account_onboarding',
     });
 
@@ -248,7 +248,7 @@ export const reconnectStripeConnect = async (req, res) => {
 };
 
 /**
- * Return the most recent Stripe row for UI display — including disconnected ones.
+ * Return the most recent Stripe row for UI display - including disconnected ones.
  * Used to show the "previously connected" history panel after a disconnect.
  */
 export const getStripeHistory = async (req, res) => {

@@ -80,7 +80,7 @@ router.post('/clubs-league', async (req, res) => {
 
 /**
  * GET /api/pledges/clubs-league/count
- * Public count — how many clubs have pledged (for display on landing page)
+ * Public count - how many clubs have pledged (for display on landing page)
  */
 router.get('/clubs-league/count', async (_req, res) => {
   try {

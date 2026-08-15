@@ -46,7 +46,7 @@ export default function ReconciliationDownloads({ allRoundsStats = [] }: Props) 
 
       // 3. Navigate host to event dashboard
       setTimeout(() => {
-        navigate('/quiz/eventdashboard');
+        navigate('/event-dashboard');
       }, 1500);
 
     } catch (err) {

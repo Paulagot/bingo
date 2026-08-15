@@ -1,7 +1,7 @@
 /**
- * Solana Event Parsing Utilities — IDL-verified (newquiz.json)
+ * Solana Event Parsing Utilities - IDL-verified (newquiz.json)
  *
- * ## RoomEnded event — what changed
+ * ## RoomEnded event - what changed
  *
  * Old fields: room, winners, platform_amount, host_amount, charity_amount,
  *             intent_id_hash, prize_amount, total_players, timestamp
@@ -83,17 +83,17 @@ export function parseRoomEndedEvent(
 
       let offset = 8;
 
-      // room (pubkey — 32 bytes)
+      // room (pubkey - 32 bytes)
       const room = new PublicKey(buffer.slice(offset, offset + 32));
       offset += 32;
 
-      // room_id (string — 4-byte LE length + bytes)
+      // room_id (string - 4-byte LE length + bytes)
       const roomIdLen = buffer.readUInt32LE(offset);
       offset += 4;
       const roomId = buffer.slice(offset, offset + roomIdLen).toString('utf8');
       offset += roomIdLen;
 
-      // winners (vec<pubkey> — 4-byte LE length + N*32 bytes)
+      // winners (vec<pubkey> - 4-byte LE length + N*32 bytes)
       const winnersLen = buffer.readUInt32LE(offset);
       offset += 4;
       const winners: PublicKey[] = [];
@@ -102,11 +102,11 @@ export function parseRoomEndedEvent(
         offset += 32;
       }
 
-      // total_distributed (u64 — 8 bytes LE)
+      // total_distributed (u64 - 8 bytes LE)
       const totalDistributed = new BN(buffer.slice(offset, offset + 8), 'le');
       offset += 8;
 
-      // charity_amount (u64 — 8 bytes LE)
+      // charity_amount (u64 - 8 bytes LE)
       const charityAmount = new BN(buffer.slice(offset, offset + 8), 'le');
       offset += 8;
 
@@ -114,7 +114,7 @@ export function parseRoomEndedEvent(
       const intentIdHash = Array.from(buffer.slice(offset, offset + 32));
       offset += 32;
 
-      // timestamp (i64 — 8 bytes LE)
+      // timestamp (i64 - 8 bytes LE)
       const timestamp = new BN(buffer.slice(offset, offset + 8), 'le');
       offset += 8;
 

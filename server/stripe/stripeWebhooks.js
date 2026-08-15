@@ -1,6 +1,6 @@
 // server/stripe/stripeWebhooks.js
 // CHANGES from previous version:
-//   1. Handles checkout.session.expired — hard-deletes ticket + ledger rows
+//   1. Handles checkout.session.expired - hard-deletes ticket + ledger rows
 //      for ticket_purchase sessions.
 //   2. Confirms campaign product orders on payment_intent.succeeded.
 //   3. Handles checkout.session.expired for campaign_product sessions.
@@ -8,7 +8,7 @@
 //   5. Confirms and fulfils peer-to-peer fundraiser orders.
 //   6. Cancels expired peer-to-peer Stripe orders.
 //   7. Confirms Puzzle Drop purchases (checkout.session.completed,
-//      type === 'puzzle_drop_purchase') — reuses confirmDropPurchase, the
+//      type === 'puzzle_drop_purchase') - reuses confirmDropPurchase, the
 //      exact same function the admin manual-confirm route already uses.
 //      No new confirmation logic added anywhere for this.
 
@@ -38,6 +38,9 @@ import {
   confirmPeerOrder,
   cancelExpiredPeerOrder,
 } from '../peerFundraising/services/peerOrderCompletionService.js';
+import {
+  confirmPeerDonationAutomatic,
+} from '../peerFundraising/services/peerDonationService.js';
 import { confirmDropPurchase } from '../puzzles/services/puzzleDropService.js';
 import {
   confirmSponsoredContributionAutomatic,
@@ -249,7 +252,7 @@ async function writePuzzleSubscriptionLedgerEntry({
 
     if (!billing || !billing.room_id) {
       console.warn(
-        '[StripeWebhook] Puzzle subscription ledger skipped — no billing context or room ID:',
+        '[StripeWebhook] Puzzle subscription ledger skipped - no billing context or room ID:',
         {
           stripeSubscriptionId,
           context,
@@ -328,7 +331,7 @@ async function cancelExpiredCampaignOrder(orderId, sessionId) {
 
   if (result.affectedRows === 0) {
     console.log(
-      `[StripeWebhook] Campaign order ${orderId} is not pending — expiry skipped`
+      `[StripeWebhook] Campaign order ${orderId} is not pending - expiry skipped`
     );
 
     return { cancelled: false };
@@ -451,17 +454,17 @@ export async function stripeWebhookHandler(req, res) {
       // New peer-to-peer order.
       //
       // NOTE: previously this ALSO called confirmPeerOrder here, alongside
-      // the checkout.session.completed handler below — Stripe fires both
+      // the checkout.session.completed handler below - Stripe fires both
       // event types for every Checkout Session payment, so peer orders
       // were being confirmed/expanded twice, nearly simultaneously, for
       // every single purchase. expandPeerOrder is now safe against that
-      // (row-level locking — see peerEntryExpansionService.js), but there's
+      // (row-level locking - see peerEntryExpansionService.js), but there's
       // no reason to keep doing the redundant work: checkout.session.completed
       // carries the full orderId directly in metadata and is sufficient on
       // its own for Checkout-Session-based peer orders. Skipping the peer
       // lookup here entirely removes the double-invocation at its source
       // rather than just tolerating it safely downstream.
-      // (Campaign's confirmOrderByStripeIntent above is unaffected — that
+      // (Campaign's confirmOrderByStripeIntent above is unaffected - that
       // flow doesn't have this same double-event overlap.)
     }
 
@@ -475,9 +478,22 @@ export async function stripeWebhookHandler(req, res) {
       const sessionId       = session?.id;
       const paymentIntentId = session?.payment_intent || null;
 
+      // ── Direct donation from a peer Sell Activities page ───────────────────
+
+      if (type === 'peer_direct_donation') {
+        const donationId = session?.metadata?.donationId || null;
+        if (donationId) {
+          await confirmPeerDonationAutomatic({
+            donationId,
+            externalCheckoutId: sessionId,
+            externalTransactionId: paymentIntentId ?? sessionId,
+          });
+        }
+      }
+
       // ── Peer-to-peer fundraiser order ──────────────────────────────────────
 
-      if (type === 'peer_fundraiser_order') {
+      else if (type === 'peer_fundraiser_order') {
         const orderId = session?.metadata?.orderId;
 
         if (!orderId) {
@@ -501,6 +517,15 @@ export async function stripeWebhookHandler(req, res) {
                 '[StripeWebhook] Peer order confirmed through checkout.session.completed:',
                 orderId
               );
+            }
+
+            const donationId = session?.metadata?.donationId || null;
+            if (donationId) {
+              await confirmPeerDonationAutomatic({
+                donationId,
+                externalCheckoutId: sessionId,
+                externalTransactionId: paymentIntentId ?? sessionId,
+              });
             }
           } catch (peerErr) {
             console.error(
@@ -924,10 +949,10 @@ export async function stripeWebhookHandler(req, res) {
       // ── Puzzle Drop purchase ────────────────────────────────────────────────
       //
       // Entitlements + ledger row already exist at 'expected' (created by
-      // puzzleDropStripeCheckout.js before this session existed — see
+      // puzzleDropStripeCheckout.js before this session existed - see
       // that file's header comment for why). This just flips them to
       // 'confirmed' via confirmDropPurchase, the EXACT SAME function the
-      // admin manual-confirm route uses — no new confirmation logic here
+      // admin manual-confirm route uses - no new confirmation logic here
       // at all, just a different caller.
       else if (type === 'puzzle_drop_purchase') {
         const entitlementId = session?.metadata?.entitlementId;
@@ -960,7 +985,7 @@ export async function stripeWebhookHandler(req, res) {
             // 'entitlement_already_confirmed' is expected on a rare
             // duplicate delivery even after the STRIPE_EVENTS_TABLE
             // idempotency check above (e.g. a retried delivery for an
-            // event.id Stripe considers new) — non-fatal either way.
+            // event.id Stripe considers new) - non-fatal either way.
             console.error(
               '[StripeWebhook] Puzzle Drop confirm failed (non-fatal):',
               { entitlementId, sessionId, error: dropErr.message }
@@ -1069,6 +1094,20 @@ export async function stripeWebhookHandler(req, res) {
         }
       }
 
+      // ── Direct donation from a peer Sell Activities page ───────────────────
+
+      else if (type === 'peer_direct_donation') {
+        const donationId = session?.metadata?.donationId || null;
+        if (donationId) {
+          await connection.execute(
+            `UPDATE ${TABLE_PREFIX}donations
+             SET status='expired',updated_at=UTC_TIMESTAMP()
+             WHERE id=? AND status='pending'`,
+            [donationId]
+          );
+        }
+      }
+
       // ── Peer fundraiser order ──────────────────────────────────────────────
 
       else if (type === 'peer_fundraiser_order') {
@@ -1084,6 +1123,11 @@ export async function stripeWebhookHandler(req, res) {
             orderId,
             sessionId
           );
+
+          await expirePeerDonation({
+            orderId,
+            externalCheckoutId: sessionId,
+          });
 
           if (DEBUG) {
             console.log(
@@ -1165,7 +1209,7 @@ export async function stripeWebhookHandler(req, res) {
       // ── Puzzle Drop ─────────────────────────────────────────────────────────
       //
       // Unlike ticket_purchase, we do NOT hard-delete the entitlement/
-      // ledger rows on expiry — leaving them at 'expected' forever is
+      // ledger rows on expiry - leaving them at 'expected' forever is
       // harmless (they were never playable, never counted as sold, and
       // the club can still see them in reconciliation as an abandoned
       // attempt if needed). Deleting would require cascading cleanup
@@ -1174,7 +1218,7 @@ export async function stripeWebhookHandler(req, res) {
       else if (type === 'puzzle_drop_purchase') {
         if (DEBUG) {
           console.log(
-            '[StripeWebhook] Expired puzzle_drop_purchase — entitlements left at expected:',
+            '[StripeWebhook] Expired puzzle_drop_purchase - entitlements left at expected:',
             {
               sessionId,
               entitlementId: session?.metadata?.entitlementId,
@@ -1202,7 +1246,7 @@ export async function stripeWebhookHandler(req, res) {
       if (!stripeSubscriptionId) {
         if (DEBUG) {
           console.log(
-            '[StripeWebhook] invoice.payment_succeeded has no subscription — ignored',
+            '[StripeWebhook] invoice.payment_succeeded has no subscription - ignored',
             {
               invoiceId: invoice.id,
             }
@@ -1260,7 +1304,7 @@ export async function stripeWebhookHandler(req, res) {
       if (!stripeSubscriptionId) {
         if (DEBUG) {
           console.log(
-            '[StripeWebhook] invoice.payment_failed has no subscription — ignored',
+            '[StripeWebhook] invoice.payment_failed has no subscription - ignored',
             {
               invoiceId: invoice.id,
             }

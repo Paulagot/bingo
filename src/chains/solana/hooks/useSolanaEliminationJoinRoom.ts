@@ -89,14 +89,14 @@ export function useSolanaEliminationJoinRoom(cluster?: SolanaNetworkKey) {
 
       try {
         await (program.account as any).playerEntry.fetch(playerEntryPda);
-        console.log('[EliminationJoinRoom] ✅ Already joined — returning existing entry');
+        console.log('[EliminationJoinRoom] ✅ Already joined - returning existing entry');
         return {
           success: true,
           txHash: 'already-joined',
           explorerUrl: getTxExplorerUrl(''),
         };
       } catch {
-        // Account doesn't exist — proceed with join
+        // Account doesn't exist - proceed with join
       }
 
       // ── Balance check ─────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ export function useSolanaEliminationJoinRoom(cluster?: SolanaNetworkKey) {
       }
 
       // ── Get player token account ──────────────────────────────────────────
-      // For SOL rooms we use wSOL ATA — it gets created by the wrap instructions
+      // For SOL rooms we use wSOL ATA - it gets created by the wrap instructions
       const playerToken = await getAssociatedTokenAddress(feeMint, publicKey);
 
       // ── Get room vault ────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ export function useSolanaEliminationJoinRoom(cluster?: SolanaNetworkKey) {
       let allInstructions = [instruction];
 
       if (isNativeSOL) {
-        console.log('[EliminationJoinRoom] Native SOL room — prepending wSOL wrap instructions');
+        console.log('[EliminationJoinRoom] Native SOL room - prepending wSOL wrap instructions');
         try {
           const { buildWrapSolInstructions } = await import('../utils/wsolUtils');
           const wrapIxs = await buildWrapSolInstructions(
@@ -207,7 +207,7 @@ export function useSolanaEliminationJoinRoom(cluster?: SolanaNetworkKey) {
         throw new Error(`Simulation failed: ${formatTransactionError(simResult.error)}`);
       }
 
-      console.log('[EliminationJoinRoom] Simulation passed — sending...');
+      console.log('[EliminationJoinRoom] Simulation passed - sending...');
 
       let signature: string | undefined;
       try {
@@ -227,7 +227,7 @@ export function useSolanaEliminationJoinRoom(cluster?: SolanaNetworkKey) {
           throw new Error('Transaction was sent but not confirmed in time');
         }
       } catch (err: any) {
-        // tx may have landed even though confirmation threw — check the PDA
+        // tx may have landed even though confirmation threw - check the PDA
         try {
           await (program.account as any).playerEntry.fetch(playerEntryPda);
 

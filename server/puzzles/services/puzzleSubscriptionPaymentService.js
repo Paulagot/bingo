@@ -3,13 +3,13 @@
  * server/puzzles/services/puzzleSubscriptionPaymentService.js
  *
  * Stripe-only subscription checkout for weekly-paid Puzzle Challenges.
- * Mirrors the shape of stripeTicketCheckoutService.js — reuses
+ * Mirrors the shape of stripeTicketCheckoutService.js - reuses
  * getReadyStripeForClub for the same Stripe-Connect readiness check used
  * by every other paid activity type.
  *
  * This file owns all direct Stripe calls for subscriptions. The webhook
  * dispatch itself lives in stripeWebhooks.js (new `puzzle_subscription`
- * branches), which calls the confirm/markX helpers below — kept here,
+ * branches), which calls the confirm/markX helpers below - kept here,
  * not duplicated in the webhook file, so there is exactly one place that
  * writes to fundraisely_puzzle_subscriptions.
  */
@@ -25,7 +25,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-
 
 // Same secret/TTL as supporterAuthService.js's magic-link tokens, so a
 // token issued here is accepted by authenticateSupporter without any
-// middleware change — it's structurally identical, just issued via a
+// middleware change - it's structurally identical, just issued via a
 // different trigger (a confirmed Stripe session instead of a clicked
 // email link).
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
@@ -42,11 +42,11 @@ const DEBUG = false;
  * challenge, and persist both ids on the challenge row.
  *
  * Called from challengeService.updateChallengeStatus right before the
- * status flip to 'active', for paid challenges only. Idempotent — if the
+ * status flip to 'active', for paid challenges only. Idempotent - if the
  * challenge already has a stripe_price_id, returns it unchanged rather
  * than creating a duplicate Product/Price on Stripe.
  *
- * Throws on failure — the caller (updateChallengeStatus) must let that
+ * Throws on failure - the caller (updateChallengeStatus) must let that
  * failure abort the status flip. A club must not be able to "activate" a
  * paid challenge with no working checkout behind it.
  */
@@ -65,12 +65,12 @@ export async function ensureStripeProductAndPrice({ challengeId, clubId }) {
   }
 
   if (challenge.is_free) {
-    // Nothing to provision for a free challenge — caller should not have
+    // Nothing to provision for a free challenge - caller should not have
     // called this for a free challenge, but guard anyway.
     return { stripePriceId: null, stripeProductId: null };
   }
 
-  // Already provisioned — reuse rather than recreate on Stripe.
+  // Already provisioned - reuse rather than recreate on Stripe.
   if (challenge.stripe_price_id && challenge.stripe_product_id) {
     return {
       stripePriceId: challenge.stripe_price_id,
@@ -88,14 +88,14 @@ export async function ensureStripeProductAndPrice({ challengeId, clubId }) {
   }
 
   // weekly_price is stored as the smallest currency unit already
-  // (see challengeService.createChallenge — no *100 happens there),
+  // (see challengeService.createChallenge - no *100 happens there),
   // so it is used directly as Stripe's unit_amount.
   const unitAmount = Math.round(Number(challenge.weekly_price));
   const currency = (challenge.currency || 'eur').toLowerCase();
 
   const product = await stripe.products.create(
     {
-      name: `Puzzle Challenge — ${challenge.title}`,
+      name: `Puzzle Challenge - ${challenge.title}`,
       metadata: { challengeId, clubId },
     },
     { stripeAccount: stripeConn.accountId }
@@ -154,29 +154,29 @@ export async function createCheckoutSession({ challengeId, supporterEmail, suppo
     throw new Error('Challenge not found.');
   }
   if (challenge.is_free) {
-    throw new Error('This challenge is free — use the join-free flow instead.');
+    throw new Error('This challenge is free - use the join-free flow instead.');
   }
   if (challenge.status === 'cancelled') {
     throw new Error('This challenge has been cancelled.');
   }
   if (!challenge.stripe_price_id) {
-    // Activation should have created this — if it's missing, the challenge
+    // Activation should have created this - if it's missing, the challenge
     // was never properly activated (or activation predates this build).
     throw new Error('stripe_not_connected');
   }
 
-  // New sign-ups close once the LAST week has unlocked — starts_at +
+  // New sign-ups close once the LAST week has unlocked - starts_at +
   // (total_weeks - 1) weeks, matching exactly how each week's own
   // unlocksAt is computed in challengeService.js. Same check as
   // joinFree's, kept in sync since both flows must agree on when
-  // enrollment closes. This does NOT affect anyone already subscribed —
+  // enrollment closes. This does NOT affect anyone already subscribed -
   // it only blocks brand-new checkouts.
   const weekMs = 7 * 24 * 60 * 60 * 1000;
   const startsAtMs = new Date(challenge.starts_at).getTime();
   const lastWeekUnlocksAt = startsAtMs + (challenge.total_weeks - 1) * weekMs;
 
   if (Date.now() > lastWeekUnlocksAt) {
-    throw new Error('New sign-ups have closed for this challenge — the final week has already unlocked.');
+    throw new Error('New sign-ups have closed for this challenge - the final week has already unlocked.');
   }
 
   const stripeConn = await getReadyStripeForClub(clubId);
@@ -186,11 +186,11 @@ export async function createCheckoutSession({ challengeId, supporterEmail, suppo
 
   // Find-or-create the supporter record so we have a stable player_id to
   // attach the subscription row to. Reuses the exact same helper the
-  // magic-link signup flow uses (supporterAuthService.js) — this is the
+  // magic-link signup flow uses (supporterAuthService.js) - this is the
   // single source of truth for supporter creation, so a subscription
   // checkout produces a fully-formed supporter row (gdpr_consent,
   // lifecycle_stage, contact_source, etc.), not a partial one. It also
-  // throws if the email has previously opted out (do_not_contact) — that
+  // throws if the email has previously opted out (do_not_contact) - that
   // error is allowed to propagate, since the checkout route should refuse
   // to enroll someone who has opted out of communications.
   const supporter = await findOrCreateSupporter({
@@ -208,7 +208,7 @@ export async function createCheckoutSession({ challengeId, supporterEmail, suppo
     name: supporterName,
   });
 
-  // Pending subscription row — UNIQUE KEY (challenge_id, player_id) means
+  // Pending subscription row - UNIQUE KEY (challenge_id, player_id) means
   // a second checkout attempt by the same supporter reuses this row rather
   // than erroring; we upsert defensively.
   const subscriptionId = await upsertPendingSubscription({
@@ -226,7 +226,7 @@ export async function createCheckoutSession({ challengeId, supporterEmail, suppo
       customer: stripeCustomerId,
       line_items: [{ price: challenge.stripe_price_id, quantity: 1 }],
       // Lands the player on the real, existing challenge-play route once
-      // payment succeeds — Stripe Checkout already shows its own
+      // payment succeeds - Stripe Checkout already shows its own
       // payment-confirmed screen before this redirect fires, so there's no
       // need for a separate branded interstitial (mirrors how
       // PuzzleAuthPage.tsx also redirects straight into /play after
@@ -235,7 +235,7 @@ export async function createCheckoutSession({ challengeId, supporterEmail, suppo
       cancel_url: `${origin}/join/puzzle/challenge/${challengeId}?cancelled=true`,
       subscription_data: {
         // Copied by Stripe onto the created Subscription object, and from
-        // there onto every Invoice it generates — this is how
+        // there onto every Invoice it generates - this is how
         // invoice.payment_succeeded / payment_failed / subscription.deleted
         // (which carry a Subscription, not a Checkout Session) get back to
         // our subscriptionId without needing session.metadata.
@@ -275,24 +275,24 @@ export async function createCheckoutSession({ challengeId, supporterEmail, suppo
  * Exchange a completed Stripe Checkout Session id for a supporter JWT.
  *
  * Called once, right after the player lands back on /challenges/:id/play
- * from Stripe. createCheckoutSession never issues a token itself — the
+ * from Stripe. createCheckoutSession never issues a token itself - the
  * player has no supporter session until this runs, since unlike the
  * magic-link flow there's no "click a link to prove you own this email"
  * step in the Stripe redirect itself. This exists to close that gap
  * without putting a long-lived JWT directly in a redirect URL (where it
- * would sit in browser history and server access logs) — only Stripe's
+ * would sit in browser history and server access logs) - only Stripe's
  * own short opaque session id appears in the URL; the token itself is
  * only ever returned in a JSON response body.
  *
  * Deliberately checks Stripe directly (session.payment_status /
  * session.status) rather than our own fundraisely_puzzle_subscriptions
  * row, because Stripe can redirect the browser back to success_url
- * before our webhook has necessarily been processed — checking our own
+ * before our webhook has necessarily been processed - checking our own
  * DB here would be a race against that webhook. Stripe's own session
  * object is authoritative regardless of webhook timing.
  *
- * Throws on any mismatch — wrong challenge, session not actually paid,
- * session not found, etc. — so a stranger can't mint themselves a token
+ * Throws on any mismatch - wrong challenge, session not actually paid,
+ * session not found, etc. - so a stranger can't mint themselves a token
  * by guessing or reusing an unrelated session id.
  */
 export async function exchangeSessionForSupporterToken({ sessionId, challengeId }) {
@@ -310,7 +310,7 @@ export async function exchangeSessionForSupporterToken({ sessionId, challengeId 
 
   // The Checkout Session was created on the connected account
   // (createCheckoutSession passes { stripeAccount: ... } at creation
-  // time too) — it must be retrieved the same way, or Stripe won't find
+  // time too) - it must be retrieved the same way, or Stripe won't find
   // it from the platform context.
   const session = await stripe.checkout.sessions.retrieve(
     sessionId,
@@ -322,7 +322,7 @@ export async function exchangeSessionForSupporterToken({ sessionId, challengeId 
   const meta = session.metadata || {};
   if (meta.type !== 'puzzle_subscription' || meta.challengeId !== challengeId) {
     // Either a session for something else entirely, or one for a
-    // different challenge — never trust it for this challenge's access.
+    // different challenge - never trust it for this challenge's access.
     throw new Error('Checkout session does not match this challenge.');
   }
 
@@ -358,7 +358,7 @@ export async function exchangeSessionForSupporterToken({ sessionId, challengeId 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Webhook-driven state transitions
-// Called from stripeWebhooks.js — one function per event type, each scoped
+// Called from stripeWebhooks.js - one function per event type, each scoped
 // to exactly the columns that event is authoritative for.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -367,12 +367,12 @@ export async function exchangeSessionForSupporterToken({ sessionId, challengeId 
  * the player in the challenge.
  *
  * Also: this is cycle 1 under the pay-per-unlock access model (see
- * paid_cycles below) — set immediately here rather than waiting for the
+ * paid_cycles below) - set immediately here rather than waiting for the
  * separate invoice.payment_succeeded event for this same first invoice,
  * so week 1 access is available the instant checkout completes, not
  * delayed behind a second webhook round-trip. invoice.payment_succeeded
  * is still relied on for cycle 2 onward (see updateSubscriptionPeriodEnd)
- * — it distinguishes the first invoice from renewals via billing_reason,
+ * - it distinguishes the first invoice from renewals via billing_reason,
  * so this first cycle is never double-counted.
  *
  * Also computes and applies this player's own cancel_at on the Stripe
@@ -380,16 +380,16 @@ export async function exchangeSessionForSupporterToken({ sessionId, challengeId 
  * per-player and set reactively here (not baked into the Checkout
  * Session at creation time) because under the pay-per-unlock model each
  * player's own billing clock starts from THEIR first payment, not from
- * the challenge's shared starts_at — a player joining a week late should
+ * the challenge's shared starts_at - a player joining a week late should
  * still get the full total_weeks of access from when THEY started
  * paying, not have their access window already partly elapsed by the
  * challenge's calendar.
  *
- * Also sends the player a real magic-link email here — exchangeSessionForSupporterToken
+ * Also sends the player a real magic-link email here - exchangeSessionForSupporterToken
  * already gets them straight into the challenge the instant they land
  * back from Stripe, but that's a one-off token exchange, not a durable
  * way back in. Without this email, a paid player who switches devices or
- * clears their browser would have no way to sign back in later at all —
+ * clears their browser would have no way to sign back in later at all -
  * unlike the free flow, nothing about paying via Stripe checkout proves
  * email ownership the way clicking an emailed link does. Sending the
  * same magic link here gives paid subscribers the exact same durable
@@ -427,11 +427,11 @@ export async function confirmSubscriptionCheckout({ subscriptionId, challengeId,
  * Compute first_period_started_at + total_weeks for this challenge and
  * push it to Stripe as the subscription's cancel_at, so it auto-cancels
  * after exactly the number of weeks the challenge runs for, anchored to
- * when THIS player started paying. Idempotent in effect — re-setting the
+ * when THIS player started paying. Idempotent in effect - re-setting the
  * same cancel_at on an already-cancel_at-set subscription is harmless,
  * Stripe just overwrites it with the same value.
  *
- * Swallows errors rather than throwing — failing to set an auto-cancel
+ * Swallows errors rather than throwing - failing to set an auto-cancel
  * date is not a reason to fail the whole checkout confirmation; worst
  * case the subscription just needs cancelling manually later, which is
  * recoverable, whereas failing confirmSubscriptionCheckout itself would
@@ -467,14 +467,14 @@ async function applyCancelAtForSubscription({ challengeId, clubId, stripeSubscri
 /**
  * Look up the player's name/email and send them the same magic link
  * email the free-flow join uses, so a paid subscriber has a durable way
- * to sign back in later — not just the one-off token they got from
+ * to sign back in later - not just the one-off token they got from
  * exchangeSessionForSupporterToken at the moment they landed back from
  * Stripe. sendMagicLink already embeds challengeId in the link, so
  * clicking it lands them straight back on this challenge's play page,
  * same as any free-flow magic link.
  *
  * Swallows errors rather than throwing, same reasoning as
- * applyCancelAtForSubscription — a failed confirmation email is not a
+ * applyCancelAtForSubscription - a failed confirmation email is not a
  * reason to fail the whole checkout confirmation; the player still has
  * working access via the token they already received, this is purely
  * about their ability to come back later.
@@ -504,13 +504,13 @@ async function sendPaidConfirmationMagicLink({ playerId, clubId, challengeId }) 
 }
 
 /**
- * invoice.payment_succeeded → bump current_period_end, and — for
- * genuine renewals only — increment paid_cycles.
+ * invoice.payment_succeeded → bump current_period_end, and - for
+ * genuine renewals only - increment paid_cycles.
  *
  * billing_reason distinguishes the first invoice (subscription_create,
  * already counted as cycle 1 by confirmSubscriptionCheckout above) from
  * a real renewal (subscription_cycle). Only subscription_cycle
- * increments here — without this check, the first invoice's own
+ * increments here - without this check, the first invoice's own
  * payment_succeeded event would double-count cycle 1 as cycle 2.
  */
 export async function updateSubscriptionPeriodEnd({ stripeSubscriptionId, currentPeriodEnd, billingReason }) {
@@ -545,20 +545,20 @@ export async function markSubscriptionPastDue({ stripeSubscriptionId }) {
 
 /**
  * Cancel every active/past_due subscriber's Stripe subscription
- * IMMEDIATELY — no more charges will ever be taken. Deliberately does
+ * IMMEDIATELY - no more charges will ever be taken. Deliberately does
  * NOT touch access (challenge_players rows are untouched) and does NOT
- * refund anything — subscribers keep whatever weeks they've already
+ * refund anything - subscribers keep whatever weeks they've already
  * paid for, per the explicit decision this was built against.
  *
  * Called from challengeService.updateChallengeStatus when a club cancels
- * a challenge — this is the piece that was previously entirely missing:
+ * a challenge - this is the piece that was previously entirely missing:
  * cancelPuzzleSubRoom only ever flipped local DB status, so subscribers
  * kept being billed indefinitely regardless of the club "cancelling."
  *
  * Non-fatal per-subscription: one failed Stripe call doesn't stop the
  * rest from being attempted. Returns a summary rather than throwing, so
  * the caller (and ultimately the club, via the UI) can see exactly how
- * many succeeded vs failed — a partial failure here is something a club
+ * many succeeded vs failed - a partial failure here is something a club
  * needs to know about and possibly finish manually in the Stripe
  * dashboard, not something to silently swallow.
  */
@@ -578,12 +578,12 @@ export async function cancelAllActiveSubscriptionsForChallenge({ challengeId, cl
 
   const stripeConn = await getReadyStripeForClub(clubId);
   if (!stripeConn) {
-    // No Stripe connection at all — every cancellation would fail the
+    // No Stripe connection at all - every cancellation would fail the
     // same way, so report it as one clear error rather than N identical ones.
     return {
       cancelledCount: 0,
       failedCount: subscriptions.length,
-      errors: ['Stripe is not connected for this club — could not reach Stripe to cancel any subscriptions.'],
+      errors: ['Stripe is not connected for this club - could not reach Stripe to cancel any subscriptions.'],
     };
   }
 
@@ -592,7 +592,7 @@ export async function cancelAllActiveSubscriptionsForChallenge({ challengeId, cl
 
   for (const sub of subscriptions) {
     try {
-      // Immediate cancellation — NOT cancel_at_period_end. This stops
+      // Immediate cancellation - NOT cancel_at_period_end. This stops
       // billing right away; the subscriber keeps access to whatever
       // weeks they've already paid for (access is governed by
       // challenge_players / puzzle unlock logic, not by subscription
@@ -607,7 +607,7 @@ export async function cancelAllActiveSubscriptionsForChallenge({ challengeId, cl
       cancelledCount++;
     } catch (err) {
       // Stripe throws if the subscription was already cancelled on their
-      // side (e.g. it naturally hit its own cancel_at moments earlier) —
+      // side (e.g. it naturally hit its own cancel_at moments earlier) -
       // treat that as success, not a failure to report.
       if (err?.code === 'resource_missing' || /already.*canceled/i.test(err?.message || '')) {
         await markSubscriptionCancelled({ stripeSubscriptionId: sub.stripe_subscription_id });
@@ -639,14 +639,14 @@ export async function markSubscriptionCancelled({ stripeSubscriptionId }) {
  *
  * Joins fundraisely_puzzle_subscriptions → fundraisely_puzzle_challenges →
  * fundraisely_supporters so the webhook handler doesn't need to know this
- * table's shape or duplicate the join — same reasoning as every other
+ * table's shape or duplicate the join - same reasoning as every other
  * write to fundraisely_puzzle_subscriptions living in this file: exactly
  * one place that understands this table.
  *
  * Used for the invoice.payment_succeeded (renewal) ledger write, where
  * the webhook only has a stripeSubscriptionId to start from. The
  * checkout.session.completed (first-cycle) ledger write doesn't need
- * this — challengeId/clubId/playerId already arrive in session.metadata.
+ * this - challengeId/clubId/playerId already arrive in session.metadata.
  *
  * Returns null if no matching subscription row exists (e.g. the
  * subscription isn't a puzzle subscription at all).

@@ -314,7 +314,7 @@ const Web3Causes: React.FC = () => {
       href: 'https://www.idtheftcenter.org/',
       imgSrc: 'partner/ITRCLogo.jpg',
       tagline:
-        'Your life, your identity.\nThe ITRC, a non-profit founded in 1999, supports victims of identity theft, fraud, and scams and offers identity protection education — free of charge.',
+        'Your life, your identity.\nThe ITRC, a non-profit founded in 1999, supports victims of identity theft, fraud, and scams and offers identity protection education - free of charge.',
     },
     {
       name: 'CLEAN International',

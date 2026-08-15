@@ -2,25 +2,25 @@
 //
 // Now a THIN WRAPPER around SubscriptionActivityStep (the extracted body
 // shared with CreateFundraiserWizard's step 3, rendered here with
-// editMode so the challenge-level fields — title, starts, weeks, and the
-// per-week schedule pickers — come back). Same Props contract as before;
+// editMode so the challenge-level fields - title, starts, weeks, and the
+// per-week schedule pickers - come back). Same Props contract as before;
 // supports BOTH modes during the wizard rollout:
 //
-//   • edit mode  (existingRoomId set) — its long-term job: fetches the
+//   • edit mode  (existingRoomId set) - its long-term job: fetches the
 //     challenge linked to that room, edits in place via updateChallenge.
-//     Only works while the challenge is a draft — once Stripe's
+//     Only works while the challenge is a draft - once Stripe's
 //     Product/Price exist and subscribers are billing against this
 //     schedule, changing weeks/price/schedule would shift what
 //     already-paying subscribers agreed to. The backend enforces this
 //     (updateChallenge throws 'challenge_not_editable'); this modal also
 //     locks its own fields defensively.
-//   • create mode (no existingRoomId) — legacy path kept working until
+//   • create mode (no existingRoomId) - legacy path kept working until
 //     the dashboard's Add Activity is fully rewired to the wizard;
 //     createChallenge + onSaved(room_id) so handleActivitySaved can
 //     link, identical to the previous behaviour.
 //
 // The create call goes to the puzzles module's own challengeService
-// (POST /api/puzzle-challenges) — event-agnostic; it creates the
+// (POST /api/puzzle-challenges) - event-agnostic; it creates the
 // challenge row AND its linked room, and we hand room_id to onSaved().
 
 import { useEffect, useState } from 'react';
@@ -58,7 +58,7 @@ export default function ScheduleSubscriptionModal({ onClose, onSaved, event, exi
   const [loadingExisting, setLoadingExisting]     = useState(isEditMode);
   const [loadError, setLoadError]                 = useState<string | null>(null);
 
-  // Prefill title/start date from the event — dates belong to the event,
+  // Prefill title/start date from the event - dates belong to the event,
   // not re-entered here. (In create mode the wizard is the primary path;
   // this keeps the legacy path behaving as before.)
   const [config, setConfig] = useState<SubscriptionConfig>(() => ({
@@ -107,7 +107,7 @@ export default function ScheduleSubscriptionModal({ onClose, onSaved, event, exi
     return () => { cancelled = true; };
   }, [isEditMode, existingRoomId]);
 
-  // Once a challenge has left draft, editing is blocked — Stripe's
+  // Once a challenge has left draft, editing is blocked - Stripe's
   // Product/Price and subscribers' own billing already depend on this
   // schedule not shifting. Backend enforces this too; defensive UI lock.
   const isLocked = isEditMode && !!existingChallenge && existingChallenge.status !== 'draft';
@@ -141,7 +141,7 @@ export default function ScheduleSubscriptionModal({ onClose, onSaved, event, exi
         description: config.description.trim() || undefined,
         totalWeeks: config.totalWeeks,
         startsAt: new Date(config.startsAt).toISOString(),
-        // Create mode: omit the schedule — the backend auto-generates one.
+        // Create mode: omit the schedule - the backend auto-generates one.
         // Edit mode: send the schedule as shown, since the club may have
         // tweaked individual weeks while the challenge is a draft.
         puzzleSchedule: isEditMode ? config.schedule : undefined,
@@ -162,13 +162,13 @@ export default function ScheduleSubscriptionModal({ onClose, onSaved, event, exi
 
       const challenge = await challengeService.createChallenge(payload);
 
-      // room_id is created server-side alongside the challenge (non-fatal —
+      // room_id is created server-side alongside the challenge (non-fatal -
       // see challengeService.createChallenge). If it's missing, the room
       // failed to create; the challenge still exists but won't link to
       // this event or show on the dashboard until retried.
       if (!challenge.room_id) {
         setError(
-          'Challenge created, but the linked room failed to set up — it will not appear on the dashboard yet. Contact support to retry linking.'
+          'Challenge created, but the linked room failed to set up - it will not appear on the dashboard yet. Contact support to retry linking.'
         );
         setSubmitting(false);
         return;
@@ -241,7 +241,7 @@ export default function ScheduleSubscriptionModal({ onClose, onSaved, event, exi
         ) : (
         <>
 
-        {/* ── Scrollable content — the shared step ── */}
+        {/* ── Scrollable content - the shared step ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
           style={{ background: '#fbf8f2' }}>
 
@@ -249,7 +249,7 @@ export default function ScheduleSubscriptionModal({ onClose, onSaved, event, exi
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <Lock className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" />
               <p className="text-xs text-amber-900">
-                This challenge is {existingChallenge?.status} and can no longer be edited — Stripe billing and the
+                This challenge is {existingChallenge?.status} and can no longer be edited - Stripe billing and the
                 weekly schedule are already locked in for subscribers.
               </p>
             </div>

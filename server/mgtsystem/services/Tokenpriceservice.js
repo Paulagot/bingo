@@ -4,12 +4,12 @@
 //
 // Strategy:
 //   1. Return cached value if fresh (< CACHE_TTL_MS)
-//   2. Deduplicate in-flight requests — if a fetch is already running for the same
+//   2. Deduplicate in-flight requests - if a fetch is already running for the same
 //      token/currency pair, share that promise instead of firing another request.
 //      This prevents CoinGecko 429s on staging where multiple requests arrive simultaneously.
 //   3. Try CoinGecko /simple/price  (uses coingeckoId from token config)
 //   4. Fall back to Jupiter Price API v2  (Solana tokens only, returns USD, we convert)
-//   5. If both fail, return null — callers must handle gracefully
+//   5. If both fail, return null - callers must handle gracefully
 //
 // Usage:
 //   import { getTokenPrice, toFiat } from './tokenPriceService.js';
@@ -17,24 +17,24 @@
 //   const price = await getTokenPrice('SOL', 'GBP');   // e.g. 122.10
 //   const value = await toFiat(0.5, 'SOL', 'EUR');     // e.g. 71.15
 //
-// IMPORTANT — currency must come from the room config, not hardcoded:
+// IMPORTANT - currency must come from the room config, not hardcoded:
 //
-//   // ❌ Wrong — always EUR regardless of club currency
+//   // ❌ Wrong - always EUR regardless of club currency
 //   const price = await getTokenPrice('SOL');
 //
-//   // ✅ Correct — pass room.currency which is stored on the room config JSON
+//   // ✅ Correct - pass room.currency which is stored on the room config JSON
 //   const price = await getTokenPrice('SOL', room.currency);
 //   const value = await toFiat(amount, 'SOL', room.currency);
 //
 //   Room config example (from your DB):
 //   { "currency": "EUR", "currencySymbol": "€", "entryFee": "5", ... }
-//   The `currency` field is ISO 4217 — EUR, GBP, USD etc.
+//   The `currency` field is ISO 4217 - EUR, GBP, USD etc.
 
 import { SOLANA_TOKENS, EVM_TOKENS } from './solanaTokenConfig.js';
 import { getCurrencyConfig, SUPPORTED_CURRENCIES } from '../../utils/currencyUtils.js';
 
 // ---------------------------------------------------------------------------
-// Cache — keyed by `${tokenCode}:${currencyCode}` e.g. 'SOL:EUR'
+// Cache - keyed by `${tokenCode}:${currencyCode}` e.g. 'SOL:EUR'
 // ---------------------------------------------------------------------------
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -69,7 +69,7 @@ function getCached(tokenCode, currencyCode) {
 /**
  * NEW: last-resort fallback for when BOTH live providers fail at once.
  * Unlike getCached, this does NOT enforce the normal TTL and does NOT
- * delete the entry — it's only ever consulted after both CoinGecko and
+ * delete the entry - it's only ever consulted after both CoinGecko and
  * Jupiter have already failed, as a "better than nothing" price rather
  * than hard-failing the donor's quote entirely. Bounded to 1 hour past
  * expiry so a genuinely stale price (e.g. after a long outage) doesn't
@@ -90,9 +90,9 @@ function setCache(tokenCode, currencyCode, price) {
 }
 
 // ---------------------------------------------------------------------------
-// Source 1 — CoinGecko /simple/price
+// Source 1 - CoinGecko /simple/price
 // Supports all our fiat currencies natively via vs_currencies param.
-// Rate limit: ~10–30 req/min on free tier — fine for end-of-quiz usage.
+// Rate limit: ~10–30 req/min on free tier - fine for end-of-quiz usage.
 // ---------------------------------------------------------------------------
 
 /**
@@ -123,9 +123,9 @@ async function fetchFromCoinGecko(coingeckoId, vsCurrency) {
 }
 
 // ---------------------------------------------------------------------------
-// Source 2 — Jupiter Price API v2 (Solana-native, USD only)
+// Source 2 - Jupiter Price API v2 (Solana-native, USD only)
 // We convert USD → target currency using a CoinGecko cross-rate.
-// Note: Jupiter only quotes USD — we fetch a USDC/fiat cross-rate from CoinGecko
+// Note: Jupiter only quotes USD - we fetch a USDC/fiat cross-rate from CoinGecko
 // to convert. This cross-rate is also cached to avoid extra CoinGecko calls.
 // ---------------------------------------------------------------------------
 
@@ -168,15 +168,15 @@ async function getUsdCrossRate(targetCurrencyCode) {
 /**
  * UPDATED: migrated from Jupiter Price API V2 to V3.
  *
- * V2 (/price/v2) is officially deprecated by Jupiter — the 404s you'll
+ * V2 (/price/v2) is officially deprecated by Jupiter - the 404s you'll
  * see in logs from the old endpoint aren't a rate-limit or outage,
  * they're the sunset endpoint genuinely no longer existing. V3 also
  * changed the response shape entirely (no longer nested under
- * `.data.{mint}.price` — the mint is now the top-level key, and the
+ * `.data.{mint}.price` - the mint is now the top-level key, and the
  * field is `usdPrice` not `price`) and now requires an API key sent
  * as the `x-api-key` header, obtained free from https://portal.jup.ag.
  *
- * Set JUPITER_API_KEY in your environment before this will work — if
+ * Set JUPITER_API_KEY in your environment before this will work - if
  * it's missing, this function fails fast with a clear error instead
  * of sending a request that Jupiter will just reject with 401.
  *
@@ -190,7 +190,7 @@ async function fetchFromJupiter(mintAddress, targetCurrencyCode) {
 
   const apiKey = process.env.JUPITER_API_KEY;
   if (!apiKey) {
-    throw new Error('JUPITER_API_KEY is not set — Price API V3 requires an API key (get one free at portal.jup.ag)');
+    throw new Error('JUPITER_API_KEY is not set - Price API V3 requires an API key (get one free at portal.jup.ag)');
   }
 
   const url = `https://api.jup.ag/price/v3?ids=${mint}`;
@@ -207,7 +207,7 @@ async function fetchFromJupiter(mintAddress, targetCurrencyCode) {
 
   const json = await res.json();
   // V3 shape: { [mint]: { usdPrice, blockId, decimals, priceChange24h } }
-  // — NOT V2's { data: { [mint]: { price } } }, which is why this line
+  // - NOT V2's { data: { [mint]: { price } } }, which is why this line
   // changed along with the URL above.
   const priceUsd = json?.[mint]?.usdPrice;
 
@@ -223,7 +223,7 @@ async function fetchFromJupiter(mintAddress, targetCurrencyCode) {
 }
 
 // ---------------------------------------------------------------------------
-// Private — does the actual fetch work, called only by getTokenPrice
+// Private - does the actual fetch work, called only by getTokenPrice
 // Separated out so inFlightRequests can wrap just this function
 // ---------------------------------------------------------------------------
 
@@ -261,11 +261,11 @@ async function fetchPrice(tokenCode, currency) {
     console.warn(`[TokenPrice] ❌ Jupiter also failed for ${tokenCode}/${currency.code}: ${err.message}`);
   }
 
-  // Both live providers failed — last resort: a recent-but-expired
+  // Both live providers failed - last resort: a recent-but-expired
   // cached price, rather than hard-failing the caller entirely.
   const stale = getStaleCache(tokenCode, currency.code);
   if (stale !== null) {
-    console.warn(`[TokenPrice] ⚠️ Both providers failed — serving STALE cached price for ${tokenCode}/${currency.code}: ${currency.symbol}${stale}`);
+    console.warn(`[TokenPrice] ⚠️ Both providers failed - serving STALE cached price for ${tokenCode}/${currency.code}: ${currency.symbol}${stale}`);
     return stale;
   }
 
@@ -278,19 +278,19 @@ async function fetchPrice(tokenCode, currency) {
 
 /**
  * Get the current price for a token in any supported fiat currency.
- * Returns null if both sources fail — callers should store NULL, not 0.
+ * Returns null if both sources fail - callers should store NULL, not 0.
  *
  * Always pass the currency from the room config:
  *   getTokenPrice('SOL', room.currency)
  *
  * @param {string} tokenCode          e.g. 'SOL', 'USDC', 'BONK'
- * @param {string} [currencyCode]     ISO 4217 code — defaults to 'EUR'
+ * @param {string} [currencyCode]     ISO 4217 code - defaults to 'EUR'
  * @returns {Promise<number|null>}
  */
 export async function getTokenPrice(tokenCode, currencyCode = 'EUR') {
   const currency = SUPPORTED_CURRENCIES[currencyCode] ?? SUPPORTED_CURRENCIES.EUR;
 
-  // 1) Cache hit — return immediately, no network call needed
+  // 1) Cache hit - return immediately, no network call needed
   const cached = getCached(tokenCode, currency.code);
   if (cached !== null) {
     console.log(`[TokenPrice] 💾 Cache hit ${tokenCode}/${currency.code}: ${currency.symbol}${cached}`);
@@ -319,14 +319,14 @@ export async function getTokenPrice(tokenCode, currencyCode = 'EUR') {
 
 /**
  * Convert a token display amount to a fiat value.
- * Returns null if price unavailable — store as NULL in DB, not 0.
+ * Returns null if price unavailable - store as NULL in DB, not 0.
  *
  * Always pass the currency from the room config:
  *   toFiat(amount, 'SOL', room.currency)
  *
  * @param {number} displayAmount   Human-readable token amount (not raw on-chain units)
  * @param {string} tokenCode       e.g. 'SOL'
- * @param {string} [currencyCode]  ISO 4217 code — defaults to 'EUR'
+ * @param {string} [currencyCode]  ISO 4217 code - defaults to 'EUR'
  * @returns {Promise<number|null>}
  */
 export async function toFiat(displayAmount, tokenCode, currencyCode = 'EUR') {
@@ -336,7 +336,7 @@ export async function toFiat(displayAmount, tokenCode, currencyCode = 'EUR') {
   if (price === null) return null;
 
   const value = displayAmount * price;
-  // Round to 4 dp — enough precision for micro-transactions (BONK etc.)
+  // Round to 4 dp - enough precision for micro-transactions (BONK etc.)
   return Math.round(value * 10_000) / 10_000;
 }
 
@@ -360,7 +360,7 @@ export async function getTokenPrices(tokenCodes, currencyCode = 'EUR') {
 }
 
 // ---------------------------------------------------------------------------
-// Legacy exports — kept so existing callers don't break immediately.
+// Legacy exports - kept so existing callers don't break immediately.
 // Callers should migrate to the currency-aware versions when convenient.
 // ---------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/PurchasesTabDrop.tsx
 //
-// Drop's replacement for Payments + Tickets tabs combined — there's no
+// Drop's replacement for Payments + Tickets tabs combined - there's no
 // ticket concept here (entitlements aren't tickets, they're per-item
 // access grants) and no "outstanding player" concept either (that's a
 // quiz-room idea). Instead: a flat list of purchases, grouped by ledger
@@ -8,11 +8,11 @@
 // Confirm action for anything still 'claimed'.
 //
 // Confirming ANY entitlement on a ledger via confirmDropPurchase already
-// confirms every sibling entitlement on that same ledger server-side —
+// confirms every sibling entitlement on that same ledger server-side -
 // so the button here calls confirm once using primaryEntitlementId,
 // exactly matching that existing behaviour, not once per item.
 //
-// No "add sale manually" action yet — deliberately out of scope for this
+// No "add sale manually" action yet - deliberately out of scope for this
 // pass (see conversation notes); only list + confirm.
 
 import { useEffect, useMemo, useState } from 'react';
@@ -33,9 +33,9 @@ interface Props {
 type Filter = 'all' | 'claimed' | 'confirmed';
 
 function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
+  if (!value) return '-';
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('en-IE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
@@ -96,7 +96,7 @@ export default function PurchasesTabDrop({ roomId, config, confirmedBy, confirme
 
   const handleConfirm = async (purchase: DropPurchase) => {
     if (!confirmedBy) {
-      setError('Missing confirmer identity — please refresh and try again.');
+      setError('Missing confirmer identity - please refresh and try again.');
       return;
     }
     const key = purchase.ledgerId || purchase.primaryEntitlementId;
@@ -283,7 +283,7 @@ export default function PurchasesTabDrop({ roomId, config, confirmedBy, confirme
                     <div className="text-right">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Amount</p>
                       <p className="text-base font-bold text-[#102532]">
-                        {purchase.amount !== null ? fmt(purchase.amount) : '—'}
+                        {purchase.amount !== null ? fmt(purchase.amount) : '-'}
                       </p>
                     </div>
                     {purchase.status === 'claimed' && (

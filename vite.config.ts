@@ -99,12 +99,12 @@ export default defineConfig(({ mode }) => {
               '@reown/appkit-adapter-wagmi'
             ],
 
-            // Farcaster (isolated — large dep tree with ox sub-deps)
+            // Farcaster (isolated - large dep tree with ox sub-deps)
             'farcaster': [
               '@farcaster/miniapp-sdk',
             ],
 
-            // Base Account (isolated — large dep tree with ox sub-deps)
+            // Base Account (isolated - large dep tree with ox sub-deps)
             'base-account': [
               '@base-org/account',
             ],
@@ -122,7 +122,7 @@ export default defineConfig(({ mode }) => {
       },
 
       chunkSizeWarningLimit: 1500,
-      sourcemap: false, // Disabled — sourcemaps consume 30-40% extra RAM during build
+      sourcemap: false, // Disabled - sourcemaps consume 30-40% extra RAM during build
       cssCodeSplit: true,
       minify: 'esbuild',
       target: 'esnext',

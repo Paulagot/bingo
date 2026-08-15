@@ -3,28 +3,28 @@
 // Reconciliation endpoints for completed ticketed events.
 // All routes require authenticateToken middleware.
 //
-// GET  /room/:roomId              — state (meta + reconciliation + adjustments + summary)
-// GET  /room/:roomId/payment-view — ledger view: confirmed groups + claimed + disputed
-// POST /room/:roomId/adjustments  — add adjustment row
-// PATCH /room/:roomId/adjustments/:id — update adjustment row
-// DELETE /room/:roomId/adjustments/:id — delete adjustment row
-// POST /room/:roomId/approve      — approve and lock reconciliation
-// POST /room/:roomId/dispute-payment — mark a claimed payment as disputed
+// GET  /room/:roomId              - state (meta + reconciliation + adjustments + summary)
+// GET  /room/:roomId/payment-view - ledger view: confirmed groups + claimed + disputed
+// POST /room/:roomId/adjustments  - add adjustment row
+// PATCH /room/:roomId/adjustments/:id - update adjustment row
+// DELETE /room/:roomId/adjustments/:id - delete adjustment row
+// POST /room/:roomId/approve      - approve and lock reconciliation
+// POST /room/:roomId/dispute-payment - mark a claimed payment as disputed
 //
 // v2 CHANGES (the duplicate-reconciliation fix):
 //   1. /approve no longer uses INSERT … ON DUPLICATE KEY UPDATE. That
-//      pattern only updates in place if room_id has a UNIQUE index —
+//      pattern only updates in place if room_id has a UNIQUE index -
 //      it doesn't (and can't: subscriptions/drops need many rows per
 //      room), so every approval silently INSERTED a second header row,
 //      orphaning the draft the adjustments were linked to (produced
 //      ghost drafts 81/83/85/87/90, then 92/93 live). Approval now
-//      UPDATEs the draft row by its exact id — the same pattern
-//      approveCurrentPeriod already uses for subs/drops — and returns
+//      UPDATEs the draft row by its exact id - the same pattern
+//      approveCurrentPeriod already uses for subs/drops - and returns
 //      409 if already approved, so re-approval can't stack duplicates
 //      either (the D153E66F 73/76/77 triple).
 //   2. adjustmentsNet is computed via the shared classifier
-//      (server/shared/adjustmentClassifier.js) — the single source of
-//      truth — instead of a local switch. Unclassified adjustments are
+//      (server/shared/adjustmentClassifier.js) - the single source of
+//      truth - instead of a local switch. Unclassified adjustments are
 //      logged and excluded rather than silently ignored.
 //   3. The ledger stamp uses the KNOWN reconciliation id, not a
 //      "SELECT id … LIMIT 1" subquery that could grab the wrong row.
@@ -130,7 +130,7 @@ router.get('/room/:roomId', async (req, res) => {
       [roomId]
     );
 
-    // Summary from ledger — confirmed ticket payments only
+    // Summary from ledger - confirmed ticket payments only
     const [[summaryRow]] = await connection.execute(
       `SELECT
          SUM(CASE WHEN ledger_type = 'entry_fee'     THEN amount ELSE 0 END) AS entry_fees,
@@ -142,7 +142,7 @@ router.get('/room/:roomId', async (req, res) => {
       [roomId]
     );
 
-    // Ticket counts — total, checkedIn
+    // Ticket counts - total, checkedIn
     const [[ticketCounts]] = await connection.execute(
       `SELECT
          COUNT(*) AS total,
@@ -166,7 +166,7 @@ router.get('/room/:roomId', async (req, res) => {
       [roomId]
     );
 
-    // By ticket type breakdown — null ticket_type_id = legacy room with no types
+    // By ticket type breakdown - null ticket_type_id = legacy room with no types
     const [byTicketType] = await connection.execute(
       `SELECT
          COALESCE(ticket_type_id,   'general')          AS ticket_type_id,
@@ -247,16 +247,16 @@ router.get('/room/:roomId', async (req, res) => {
 
 // ─── GET /room/:roomId/payment-view ───────────────────────────────────────────
 // Returns the on-the-night view:
-//   confirmedGroups — all confirmed ledger rows, grouped by who confirmed them.
+//   confirmedGroups - all confirmed ledger rows, grouped by who confirmed them.
 //     Each player row includes saleType: 'walk_in' | 'advance' based on
 //     payment_reference = 'WALKIN' (set by the walk-in checkin endpoint).
-//   claimed  — rows still in 'claimed' status needing manual resolution
-//   disputed — rows marked disputed
+//   claimed  - rows still in 'claimed' status needing manual resolution
+//   disputed - rows marked disputed
 
 router.get('/room/:roomId/payment-view', async (req, res) => {
   const { roomId } = req.params;
   try {
-    // ── Confirmed rows — grouped by confirmer
+    // ── Confirmed rows - grouped by confirmer
     const [confirmedRows] = await connection.execute(
       `SELECT
          l.player_id,
@@ -326,7 +326,7 @@ router.get('/room/:roomId/payment-view', async (req, res) => {
     const confirmedGroups = [...confirmedGroupMap.values()]
       .sort((a, b) => b.totalAmount - a.totalAmount);
 
-    // ── Claimed rows — need manual confirm or dispute
+    // ── Claimed rows - need manual confirm or dispute
     const [claimedRows] = await connection.execute(
       `SELECT
          l.player_id,
@@ -357,7 +357,7 @@ router.get('/room/:roomId/payment-view', async (req, res) => {
       amount:           Number(row.total_amount || 0),
     }));
 
-    // ── Disputed rows — info only
+    // ── Disputed rows - info only
     const [disputedRows] = await connection.execute(
       `SELECT
          l.player_id,
@@ -423,7 +423,7 @@ router.post('/room/:roomId/adjustments', async (req, res) => {
     // reconciliation_id to link to.
     const draft = await ensureDraftReconciliation(roomId, room.club_id);
     if (draft.approved) {
-      return res.status(409).json({ error: 'Reconciliation already approved — adjustments are locked' });
+      return res.status(409).json({ error: 'Reconciliation already approved - adjustments are locked' });
     }
 
     const insertedId = await addAdjustmentRow({
@@ -508,8 +508,8 @@ router.delete('/room/:roomId/adjustments/:id', async (req, res) => {
 
 // ─── POST /room/:roomId/approve ───────────────────────────────────────────────
 // v2: approves the draft row IN PLACE (UPDATE by id) instead of the old
-// INSERT … ON DUPLICATE KEY UPDATE, which — with no unique index on
-// room_id — inserted a duplicate header on every approval.
+// INSERT … ON DUPLICATE KEY UPDATE, which - with no unique index on
+// room_id - inserted a duplicate header on every approval.
 
 router.post('/room/:roomId/approve', async (req, res) => {
   const { roomId }   = req.params;
@@ -539,7 +539,7 @@ router.post('/room/:roomId/approve', async (req, res) => {
 
     // ── Get (or create) the draft and refuse re-approval ────────────────
     // ensureDraftReconciliation returns the existing row for this room
-    // (creating one only if none exists — e.g. an approval with zero
+    // (creating one only if none exists - e.g. an approval with zero
     // adjustments). If it's already approved, block: re-approval was the
     // other path that stacked duplicate rows (D153E66F's 73/76/77).
     const draft = await ensureDraftReconciliation(roomId, room.club_id);
@@ -605,7 +605,7 @@ router.post('/room/:roomId/approve', async (req, res) => {
     }
 
     // Adjustments added before any draft existed carry a NULL
-    // reconciliation_id — claim them so the audit chain is complete.
+    // reconciliation_id - claim them so the audit chain is complete.
     await connection.execute(
       `UPDATE ${ADJUSTMENTS_TABLE}
        SET reconciliation_id = ?

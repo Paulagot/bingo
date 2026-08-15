@@ -277,11 +277,11 @@ const WordLadderRenderer: React.FC<WordLadderRendererProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Intro — collapsed to a single compact row. Previously this had an
+      {/* Intro - collapsed to a single compact row. Previously this had an
           eyebrow label ("Word ladder") that just repeated the page title
           right above it, a subtitle repeating the one-letter-at-a-time
           rule (already stated in the section below AND in the How to play
-          overlay), and two boxed stat cards — all of which added height
+          overlay), and two boxed stat cards - all of which added height
           without adding new information on a screen already tight on
           vertical space. */}
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2.5">

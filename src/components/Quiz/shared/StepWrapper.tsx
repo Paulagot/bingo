@@ -59,7 +59,7 @@ interface StepWrapperProps {
   children: React.ReactNode;
   mode: StepMode;
   onClose?: () => void;
-  /** Wider card on desktop — avoids scroll on ticket details step */
+  /** Wider card on desktop - avoids scroll on ticket details step */
   wide?: boolean;
 }
 
@@ -106,7 +106,7 @@ export const StepWrapper: React.FC<StepWrapperProps> = ({
   if (mode === 'modal') {
     return (
       <>
-        {/* Backdrop — blurred dim overlay */}
+        {/* Backdrop - blurred dim overlay */}
         <div
           ref={backdropRef}
           aria-hidden="true"
@@ -118,7 +118,7 @@ export const StepWrapper: React.FC<StepWrapperProps> = ({
           }}
         />
 
-        {/* Positioning shell — flex-end on mobile (sheet), center on desktop (modal) */}
+        {/* Positioning shell - flex-end on mobile (sheet), center on desktop (modal) */}
         <div className="fixed inset-0 z-[51] flex items-end sm:items-center justify-center sm:p-6">
           {/* The sheet / card itself */}
           <div
@@ -131,7 +131,7 @@ export const StepWrapper: React.FC<StepWrapperProps> = ({
               // Mobile: auto height, cap at 92dvh for very tall content
               // Desktop: cap at 85vh
               'max-h-[92dvh] sm:max-h-[85vh]',
-              // Width — constrained on desktop, full width on mobile
+              // Width - constrained on desktop, full width on mobile
               wide ? 'sm:max-w-2xl' : 'sm:max-w-md',
               // Elevation
               'shadow-[0_-2px_40px_rgba(0,0,0,0.18)] sm:shadow-2xl',
@@ -167,7 +167,7 @@ export const StepWrapper: React.FC<StepWrapperProps> = ({
 };
 
 // ─── Drag handle ─────────────────────────────────────────────────────────────
-// Visual only — communicates "bottom sheet" to the user.
+// Visual only - communicates "bottom sheet" to the user.
 // Drag-to-dismiss is intentionally disabled for payment flows.
 
 const DragHandle: React.FC = () => (
@@ -260,7 +260,7 @@ export const StepFooter: React.FC<{ children: React.ReactNode }> = ({ children }
       WebkitBackdropFilter: 'blur(16px)',
       borderTop: '1px solid rgba(0,0,0,0.07)',
       paddingTop: 12,
-      // Safe area for iPhone home bar — on short sheets this is what keeps
+      // Safe area for iPhone home bar - on short sheets this is what keeps
       // the buttons from sitting right on the edge of the screen
       paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
     }}

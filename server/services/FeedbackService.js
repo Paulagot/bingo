@@ -41,7 +41,7 @@ async submitFeedback(payload) {
 }
 
   /**
-   * Aggregate summary for a room — useful for host dashboard later.
+   * Aggregate summary for a room - useful for host dashboard later.
    * @param {string} roomId
    */
   async getRoomFeedbackSummary(roomId) {

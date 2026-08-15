@@ -1,25 +1,25 @@
 // src/components/puzzles/pages/PuzzleDropPlayPage.tsx
 //
 // Drop's equivalent of PuzzlePage.tsx. Same PuzzleShell/getPuzzleMeta reuse,
-// same loadedData/isLoading/pageError shape — the actual puzzle-playing
+// same loadedData/isLoading/pageError shape - the actual puzzle-playing
 // experience is identical regardless of which product sold access to it.
 //
 // What's genuinely different from PuzzlePage.tsx, not just renamed:
 //   - Auth is entitlementId (URL param) + access_token (?token= query
-//     param) instead of a supporter session — see puzzleDropPlayService.ts.
+//     param) instead of a supporter session - see puzzleDropPlayService.ts.
 //   - No "locked, unlocks later" state (Drop items have no per-item
-//     unlock schedule) — replaced with a "payment pending confirmation"
+//     unlock schedule) - replaced with a "payment pending confirmation"
 //     state instead (spec §5.4: clicking the link before the club
 //     confirms a manual payment should land here, not on an error).
-//   - No "back to my challenge" link after Save & Exit — Drop has no
+//   - No "back to my challenge" link after Save & Exit - Drop has no
 //     persistent multi-item hub page yet, so this shows an inline
 //     "saved" confirmation instead of navigating anywhere.
-//   - No club branding fetch — uses the default theme. A public
+//   - No club branding fetch - uses the default theme. A public
 //     branding-by-room lookup could be added later; skipped here rather
 //     than guessed at.
 //   - After submitting, shows links to this item's leaderboard and the
 //     Drop's overall "wall of fame" (PuzzleDropItemLeaderboardPage.tsx /
-//     PuzzleDropWallOfFamePage.tsx) — flagged as a gap and fixed once it
+//     PuzzleDropWallOfFamePage.tsx) - flagged as a gap and fixed once it
 //     was noticed there was previously nowhere to navigate to after
 //     completing a puzzle.
 
@@ -62,7 +62,7 @@ export default function PuzzleDropPlayPage() {
   const alreadySubmitted = Boolean(submittedScoreResult) || Boolean(loadedData?.previousSubmission);
   const scoreResult = submittedScoreResult ?? loadedData?.previousSubmission ?? null;
 
-  // No club branding fetch — default theme only. See file header note.
+  // No club branding fetch - default theme only. See file header note.
   const theme = resolvePuzzleTheme(null);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export default function PuzzleDropPlayPage() {
     [puzzleInstance, entitlementId, token]
   );
 
-  // Explicit "Save & Exit" — no hub page to navigate to yet (see file
+  // Explicit "Save & Exit" - no hub page to navigate to yet (see file
   // header note), so this shows an inline confirmation instead.
   const handleSaveProgress = useCallback(
     async (progressData: Record<string, unknown>) => {
@@ -190,7 +190,7 @@ export default function PuzzleDropPlayPage() {
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-[#6E6A63]">
               The organiser hasn't confirmed your payment yet. This same link will unlock your
-              puzzle automatically once they do — no need to request a new one.
+              puzzle automatically once they do - no need to request a new one.
             </p>
           </div>
         </div>
@@ -251,13 +251,13 @@ export default function PuzzleDropPlayPage() {
           ) : null}
         </div>
 
-        {/* Previously this was a dead end — the score showed with nowhere
+        {/* Previously this was a dead end - the score showed with nowhere
             to go afterward. Now offers both a per-item leaderboard link
             and the Drop's overall wall-of-fame. */}
         {alreadySubmitted && loadedData?.dropRoomId && (
           <div className="mb-4 rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] p-4">
             <p className="mb-3 text-sm font-medium text-[#2E6A46]">
-              🎉 Nice work — see how you stack up:
+              🎉 Nice work - see how you stack up:
             </p>
             <div className="flex flex-wrap gap-2">
               <Link
@@ -278,7 +278,7 @@ export default function PuzzleDropPlayPage() {
 
         {saveConfirmed ? (
           <div className="mb-4 rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-3">
-            <p className="text-sm font-medium text-[#2E6A46]">✓ Progress saved — come back to this link any time.</p>
+            <p className="text-sm font-medium text-[#2E6A46]">✓ Progress saved - come back to this link any time.</p>
           </div>
         ) : null}
 

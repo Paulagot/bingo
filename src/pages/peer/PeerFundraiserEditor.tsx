@@ -6,8 +6,8 @@ import type {ClubPaymentMethod} from '../../services/PeerService';
 
 // Format type is NOT asked here on purpose. It's stored on the fundraiser
 // and can still be set later via the Overview tab edit form, but nothing
-// in the app currently branches on it — no different landing page, no
-// different behavior — so asking the club to choose between 5 options at
+// in the app currently branches on it - no different landing page, no
+// different behavior - so asking the club to choose between 5 options at
 // creation time is a decision with no payoff yet. Once format-specific
 // landing pages exist, revisit whether this belongs back here.
 
@@ -18,7 +18,7 @@ export default function PeerFundraiserEditor(){
   const [methodsLoaded,setMethodsLoaded]=useState(false);
 
   useEffect(()=>{
-    // Payment methods ARE picked here, at creation time — unlike format,
+    // Payment methods ARE picked here, at creation time - unlike format,
     // this genuinely matters immediately: a club can't meaningfully set up
     // a fundraiser (or an event) without knowing how supporters will pay.
     svc.getAvailablePaymentMethods()
@@ -50,7 +50,7 @@ export default function PeerFundraiserEditor(){
         </p>
         {methodsLoaded && methods.length===0 && (
           <p className="rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-100">
-            No payment methods are set up for your club yet — you can add them afterward and link them from the Payments tab.
+            No payment methods are set up for your club yet - you can add them afterward and link them from the Payments tab.
           </p>
         )}
         <div className="space-y-2">

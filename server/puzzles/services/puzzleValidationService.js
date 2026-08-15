@@ -38,13 +38,13 @@ export async function validateAndScore({
     };
   }
 
-  // ── 2. Load the stored solution — never trust the client ─────────────────
-  // Reads BOTH id pairs — challenge_id/week_number (subscription) and
-  // drop_room_id/item_number (Drop) — off the instance row. Exactly one
+  // ── 2. Load the stored solution - never trust the client ─────────────────
+  // Reads BOTH id pairs - challenge_id/week_number (subscription) and
+  // drop_room_id/item_number (Drop) - off the instance row. Exactly one
   // pair is populated per instance (see the puzzle_instances migration's
   // "never both, never neither" rule), so whichever pair is non-null here
   // is simply carried through onto the submission row below. This is what
-  // lets this one function serve both puzzle products unmodified — no
+  // lets this one function serve both puzzle products unmodified - no
   // branching on "is this a Drop instance," just pass-through of whatever
   // the instance actually has.
   const [rows] = await database.connection.execute(
@@ -60,20 +60,20 @@ export async function validateAndScore({
   const solutionData =
     typeof solution_data === 'string' ? JSON.parse(solution_data) : solution_data;
 
-  // ── 3. Determine the trusted elapsed time — server-tracked, not the
+  // ── 3. Determine the trusted elapsed time - server-tracked, not the
   //        client's own claim. See puzzleProgressService.getTrustedElapsedSeconds
   //        for how this is built from autosave heartbeats. Only falls back to
   //        the client-reported value if we have genuinely no tracking data at
-  //        all (sessions that predate this feature) — never as a preference.
+  //        all (sessions that predate this feature) - never as a preference.
   const serverElapsedSeconds = await getTrustedElapsedSeconds({ instanceId, playerId });
   const trustedTimeTakenSeconds = serverElapsedSeconds ?? Math.max(0, Number(timeTakenSeconds) || 0);
 
-  // Soft anomaly flag — doesn't block or alter scoring, just makes it cheap
+  // Soft anomaly flag - doesn't block or alter scoring, just makes it cheap
   // to query "submissions where the client's claimed time looks nothing
   // like what the server actually observed" later. A big gap is exactly
   // the tab-switch-to-a-solver pattern discussed earlier; flagging it is
   // the realistic ceiling for detecting that client-side, per our earlier
-  // conversation — this can't prevent it, only surface it for review.
+  // conversation - this can't prevent it, only surface it for review.
   const reportedTimeTakenSeconds = Math.max(0, Number(timeTakenSeconds) || 0);
   const timeAnomaly =
     serverElapsedSeconds !== null &&
@@ -93,14 +93,14 @@ export async function validateAndScore({
     },
   });
 
-  // ── 5. Persist — plain INSERT, no overwrite ───────────────────────────────
+  // ── 5. Persist - plain INSERT, no overwrite ───────────────────────────────
   // The unique key uq_instance_player (instance_id, player_id) guarantees
   // only one row per player per puzzle. We no longer use ON DUPLICATE KEY
-  // UPDATE — if somehow a race condition fires a duplicate, MySQL will throw
+  // UPDATE - if somehow a race condition fires a duplicate, MySQL will throw
   // and the second request will be rejected cleanly.
   //
   // challenge_id/week_number and drop_room_id/item_number are inserted
-  // straight through from what was read off the instance in step 2 — one
+  // straight through from what was read off the instance in step 2 - one
   // pair will be null, the other populated, matching whichever kind of
   // instance this is. See fundraisely_puzzle_submissions migration v3.
   await database.connection.execute(

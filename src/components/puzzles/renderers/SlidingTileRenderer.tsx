@@ -323,7 +323,7 @@ const SlidingTileRenderer: React.FC<SlidingTileRendererProps> = ({
         </div>
       )}
 
-      {/* How to play now lives in the shared overlay button (see PuzzleShell) —
+      {/* How to play now lives in the shared overlay button (see PuzzleShell) -
           this used to duplicate that same content in its own card here,
           which was one of the larger contributors to mobile scroll length. */}
 

@@ -142,7 +142,7 @@ const BlockchainWalletSection: React.FC<Props> = ({
                   @{user.username}
                 </p>
               )}
-              {/* Fallback: no user fields yet — show truncated address */}
+              {/* Fallback: no user fields yet - show truncated address */}
               {!user?.displayName && !user?.username && miniAppAddress && (
                 <p className="font-mono text-xs text-emerald-700">
                   {miniAppAddress.slice(0, 6)}…{miniAppAddress.slice(-4)}
@@ -155,7 +155,7 @@ const BlockchainWalletSection: React.FC<Props> = ({
             </span>
           </div>
 
-          {/* Wallet address shown small below — useful for debugging, subtle in prod */}
+          {/* Wallet address shown small below - useful for debugging, subtle in prod */}
           {miniAppAddress && (
             <p className="mt-2 font-mono text-[10px] text-emerald-500 text-center">
               {miniAppAddress.slice(0, 6)}…{miniAppAddress.slice(-4)}

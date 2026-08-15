@@ -18,7 +18,7 @@ export interface GameTypeMeta {
   buyingLabel: string;     // subtitle copy on purchase page
   completedLabel: string;
   // Returns the URL for the primary action button on the status page.
-  // For ticketed events this is null — there is no game to join.
+  // For ticketed events this is null - there is no game to join.
   joinPath: ((roomId: string, joinToken: string) => string) | null;
   // Whether this game type has a live join flow at all
   hasJoinFlow: boolean;
@@ -57,10 +57,10 @@ const META: Record<GameType, GameTypeMeta> = {
     ticketNoun:     'ticket',
     eventNoun:      'event',
     eventNounCap:   'Event',
-    joinLabel:      'View Ticket',      // not shown — hasJoinFlow: false
+    joinLabel:      'View Ticket',      // not shown - hasJoinFlow: false
     buyingLabel:    'event',
     completedLabel: 'event',
-    hasJoinFlow:    false,              // no live game join — host scans QR at door
+    hasJoinFlow:    false,              // no live game join - host scans QR at door
     joinPath:       null,
   },
 };
@@ -68,5 +68,5 @@ const META: Record<GameType, GameTypeMeta> = {
 export function getGameTypeMeta(gameType?: string | null): GameTypeMeta {
   if (gameType === 'elimination')    return META.elimination;
   if (gameType === 'ticketed_event') return META.ticketed_event;
-  return META.quiz; // default — safe for existing tickets with no gameType field
+  return META.quiz; // default - safe for existing tickets with no gameType field
 }

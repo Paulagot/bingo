@@ -10,14 +10,14 @@ import { createSeededRandom, shuffleArray, normalizeAnswer, calcTimeBonus } from
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 
 // ---------------------------------------------------------------------------
-// Word bank — load from DB in production, hardcoded for MVP
+// Word bank - load from DB in production, hardcoded for MVP
 // ---------------------------------------------------------------------------
 
 // Scoring settings scale with word length / difficulty (5/6/7 letters),
 // matching the pattern used by cryptogramEngine, nonogramEngine, etc.
 // Previously this engine paid a flat baseScore + bonus window regardless of
 // difficulty, so a hard 7-letter word scored the same as an easy 5-letter
-// one — no incentive to play harder difficulties.
+// one - no incentive to play harder difficulties.
 const DIFFICULTY_SETTINGS = {
   [Difficulty.EASY]:   { baseScore: 45, bonusIdeal: 15, bonusGood: 30, bonusMax: 90 },
   [Difficulty.MEDIUM]: { baseScore: 60, bonusIdeal: 20, bonusGood: 30, bonusMax: 120 },
@@ -109,7 +109,7 @@ export function generate(config) {
 
   const { word, clue } = bank[Math.floor(rng() * bank.length)];
 
-  // Scramble — retry if result accidentally equals the original word
+  // Scramble - retry if result accidentally equals the original word
   let scrambled = word;
   let attempts  = 0;
   while (scrambled === word && attempts < 20) {

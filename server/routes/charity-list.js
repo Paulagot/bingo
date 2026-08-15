@@ -8,7 +8,7 @@
 // Response shape matches the Charity type in gbcharities.ts:
 //   { charities: Array<{ id: 0, name: string, direct: true, chain: string }> }
 //
-// No auth needed — this is just a list of charity names, no wallets exposed.
+// No auth needed - this is just a list of charity names, no wallets exposed.
 
 import express from 'express';
 import { connection, TABLE_PREFIX } from '../config/database.js';
@@ -32,7 +32,7 @@ router.get('/list', async (req, res) => {
     const [rows] = await connection.execute(sql, params);
 
     // Map to the Charity shape the frontend expects.
-    // id: 0 signals "no TGB org id" — the frontend checks direct: true instead.
+    // id: 0 signals "no TGB org id" - the frontend checks direct: true instead.
     const charities = rows.map(row => ({
       id:     0,
       name:   row.charity_name,

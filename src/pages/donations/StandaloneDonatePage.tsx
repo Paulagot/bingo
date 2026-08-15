@@ -1,7 +1,7 @@
 // src/pages/donations/StandaloneDonatePage.tsx
 //
 // Rendered at /donate-now/:clubId (and /donate-now/:clubId/success).
-// A normal, top-level page — no iframe, no modal, no donate.js, no
+// A normal, top-level page - no iframe, no modal, no donate.js, no
 // window.open()-based relay. Built per the emergency-handoff doc as a
 // scope-cut standalone alternative to the iframe/modal embed flow,
 // specifically so it sidesteps the still-open postMessage relay bug in
@@ -16,7 +16,7 @@
 // you" state is just this same page rendering a different view.
 //
 // Club ID resolution: reads VITE_DONATION_CLUB_ID from env first (so a
-// different value can be set per environment/deploy — e.g. the test
+// different value can be set per environment/deploy - e.g. the test
 // club locally, the real pilot club's id on the deploy that goes
 // live), falling back to a literal default ONLY so the page never
 // hard-crashes with no club configured at all. Update
@@ -24,13 +24,13 @@
 // club to the real pilot club.
 //
 // Crypto leg: opens the existing CryptoDonationCheckoutPage in a NEW
-// TAB via window.open() — this page becomes the real window.opener,
+// TAB via window.open() - this page becomes the real window.opener,
 // so that page's existing, unmodified postMessage-to-opener success
 // effect (per the handoff doc) reaches a real listener here, the same
 // way it already reaches DonateEmbedPage's listener today. No changes
 // needed to that file at all. If the message never arrives (tab
 // closed early, etc.), the supporter just stays on the
-// 'awaiting_crypto' view — nothing auto-closes since this is a real
+// 'awaiting_crypto' view - nothing auto-closes since this is a real
 // page, not a modal.
 
 import { useEffect, useState } from 'react';
@@ -60,7 +60,7 @@ const FALLBACK_PRIMARY_COLOR = '#157f85';
 const FALLBACK_BACKGROUND_COLOR = '#ffffff';
 const FALLBACK_TEXT_ON_PRIMARY = '#ffffff';
 
-// Test-club default — used only if VITE_DONATION_CLUB_ID isn't set at
+// Test-club default - used only if VITE_DONATION_CLUB_ID isn't set at
 // build time. Swap the env var per environment, not this fallback.
 const FALLBACK_CLUB_ID = 'e14cce81-e3d0-4668-a199-5cb9e7a4539b';
 
@@ -168,12 +168,12 @@ export default function StandaloneDonatePage() {
   // sends to window.opener once an on-chain crypto donation confirms
   // (per the handoff doc's description of that page's existing,
   // unmodified success effect). THIS page is genuinely the opener here
-  // — the crypto leg above uses a real window.open() — so this listener
+  // - the crypto leg above uses a real window.open() - so this listener
   // receives that message exactly the same way DonateEmbedPage's own
   // listener does today, with no changes needed to the child page at
   // all. If the child tab's message never arrives (e.g. pop-up blocked
   // some other way, or the supporter closes the tab without finishing),
-  // the supporter simply stays on the 'awaiting_crypto' view — there is
+  // the supporter simply stays on the 'awaiting_crypto' view - there is
   // no auto-close or timeout here since this is a real page they can
   // read, not a modal that needs to disappear.
   useEffect(() => {
@@ -211,14 +211,14 @@ export default function StandaloneDonatePage() {
         donorEmail: donorEmail.trim() || undefined,
         // Tells the backend to point Stripe's success_url/cancel_url at
         // THIS page instead of the old hardcoded /embed/donate/:clubId
-        // path. Optional on the backend — see DonationCheckoutService.js
-        // patch — so this is purely additive and doesn't touch the
+        // path. Optional on the backend - see DonationCheckoutService.js
+        // patch - so this is purely additive and doesn't touch the
         // existing iframe flow's behavior at all.
         returnPath: `/donate-now/${clubId}`,
       });
 
       if (result.provider === 'stripe' || result.provider === 'sumup_api') {
-        // SAME-TAB redirect — this is the whole point of this page.
+        // SAME-TAB redirect - this is the whole point of this page.
         // No window.open, nothing to relay, nothing to close.
         window.location.href = result.redirectUrl;
         return;
@@ -227,14 +227,14 @@ export default function StandaloneDonatePage() {
       if (result.provider === 'crypto') {
         // Open in a NEW TAB rather than navigating away in this tab.
         // This page has no modal/iframe behind it, so it doesn't
-        // strictly need a new tab per the handoff doc — but
+        // strictly need a new tab per the handoff doc - but
         // CryptoDonationCheckoutPage's only DOCUMENTED success
         // mechanism is window.opener.postMessage(...). Its file
         // contents weren't available while building this page, so
         // rather than invent an unverified query-param return path
         // that risks silently stranding the supporter, this opens a
         // new tab and listens for that SAME postMessage this tab
-        // becomes the opener of — reusing the one mechanism that page
+        // becomes the opener of - reusing the one mechanism that page
         // is confirmed to have, with no need for it to know this page
         // exists or change anything about it.
         const params2 = new URLSearchParams({

@@ -1,6 +1,6 @@
 // src/components/Elimination/tickets/EliminationTicketPurchasePage.tsx
 //
-// Thin page wrapper — exactly like TicketPurchasePage but sits on the
+// Thin page wrapper - exactly like TicketPurchasePage but sits on the
 // elimination route: /elimination/:roomId/tickets
 //
 // The underlying TicketPurchaseFlow reads game_type from the room info

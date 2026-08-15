@@ -64,10 +64,10 @@ const updates: UpdateItem[] = [
   },
   {
     id: 13,
-    title: 'Privacy-Protecting Fundraising Portal — Solana Colosseum Hackathon',
+    title: 'Privacy-Protecting Fundraising Portal - Solana Colosseum Hackathon',
     date: 'September 2025',
     description:
-      'We built a privacy-preserving donation portal for the Solana Colosseum hackathon: Solana Pay flows, Arcium MPC-backed receipts, and tiered donor commitments — all designed to protect donor privacy while proving impact.',
+      'We built a privacy-preserving donation portal for the Solana Colosseum hackathon: Solana Pay flows, Arcium MPC-backed receipts, and tiered donor commitments - all designed to protect donor privacy while proving impact.',
     image: '/images/colosseum.jpg',
     category: 'event',
     cta: {
@@ -148,7 +148,7 @@ const updates: UpdateItem[] = [
   },
   {
     id: 5,
-    title: 'Private Beta Open — Clubs & Communities',
+    title: 'Private Beta Open - Clubs & Communities',
     date: 'June 2025',
     description:
       'We are now open for private beta registrations! Clubs and community groups can DM us on X to be included.  Our Quix in a Box event will be ready in July!',
@@ -193,7 +193,7 @@ const updates: UpdateItem[] = [
     title: 'Prizewinner at Solana Superteam Ireland Breakout Hackathon',
     date: 'May 2025',
     description:
-      'Our very first hackathon — and our first win! We came 5th place at the Solana Superteam Ireland Breakout Hackathon.',
+      'Our very first hackathon - and our first win! We came 5th place at the Solana Superteam Ireland Breakout Hackathon.',
     image: '/images/solanasuper.jpg',
     category: 'achievement',
     video: 'https://youtu.be/9ySA87Kjx8s',
@@ -226,7 +226,7 @@ const WhatsNew: React.FC = () => {
   const collectionPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: "What's New — FundRaisely",
+    name: "What's New - FundRaisely",
     url: abs('/whats-new'),
     description:
       "Latest updates, features, events and community highlights from FundRaisely's fundraising platform.",
@@ -277,7 +277,7 @@ const WhatsNew: React.FC = () => {
       </a>
 
       <SEO
-        title="Inside FundRaisely — Latest Updates"
+        title="Inside FundRaisely - Latest Updates"
         description="Stay updated with FundRaisely's latest developments, features, and community achievements. Follow our journey building the future of fundraising for clubs and charities."
         keywords="fundraisely updates, platform news, fundraising innovations, development progress"
         ukKeywords="fundraising platform updates UK, charity software news Britain, nonprofit technology UK"

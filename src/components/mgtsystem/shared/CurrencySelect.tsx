@@ -43,7 +43,7 @@ export default function CurrencySelect({ value, onChange, disabled, id, classNam
     >
       {CURRENCY_OPTIONS.map(c => (
         <option key={c.code} value={c.code}>
-          {c.symbol} — {c.label}
+          {c.symbol} - {c.label}
         </option>
       ))}
     </select>

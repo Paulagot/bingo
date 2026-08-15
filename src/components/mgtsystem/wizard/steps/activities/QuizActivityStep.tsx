@@ -2,7 +2,7 @@
 //
 // The BODY of the old ScheduleQuizModal, extracted for:
 //   • step 3 of CreateFundraiserWizard (create)
-//   • ScheduleQuizModal (edit — thin wrapper, passes editMode)
+//   • ScheduleQuizModal (edit - thin wrapper, passes editMode)
 //
 // UNLIKE the other activity steps, quiz config does NOT live in the
 // wizard store: it lives in useQuizSetupStore (persisted separately
@@ -12,19 +12,19 @@
 //
 //   { seeded: boolean, paymentMethods }
 //
-//   • seeded — create mode only. First arrival at this step hardResets
+//   • seeded - create mode only. First arrival at this step hardResets
 //     the quiz store (same as the old modal's mount effect) and stamps
 //     currency; on wizard RESUME seeded is already true, so the quiz
 //     store's own localStorage draft rehydrates untouched instead of
 //     being wiped. (Known trade-off: if the standalone Quiz Wizard was
-//     used in between, its edits show here — drafts are best-effort.)
-//   • paymentMethods — kept in the wizard config, NOT in the quiz
+//     used in between, its edits show here - drafts are best-effort.)
+//   • paymentMethods - kept in the wizard config, NOT in the quiz
 //     store's setupConfig, because payment methods are a flat room
 //     column (linked_payment_methods_json) written via
 //     QuizPaymentMethodsService, deliberately separate from config_json.
 //
 // The event's date/timezone are synced INTO the quiz store whenever the
-// draft event changes (create mode) — in the wizard the user can go back
+// draft event changes (create mode) - in the wizard the user can go back
 // to step 2 and move the date, and the quiz config must follow. Edit
 // mode never does this; the wrapper seeds from the room's config_json.
 
@@ -61,7 +61,7 @@ export function defaultQuizConfig(): QuizWizardConfig {
   };
 }
 
-// Same rules as the old modal's validate() — reads the quiz store, since
+// Same rules as the old modal's validate() - reads the quiz store, since
 // that's where the config actually lives.
 export function validateQuizConfig(_cfg: QuizWizardConfig): Record<string, string> {
   const setupConfig = useQuizSetupStore.getState().setupConfig;
@@ -252,7 +252,7 @@ export default function QuizActivityStep({
         <div className="grid grid-cols-2 gap-3">
           {([
             { mode: 'fixed_fee' as const, icon: <DollarSign className="h-4 w-4" />, label: 'Fixed Entry Fee', desc: 'Every player pays the same entry fee' },
-            { mode: 'donation'  as const, icon: <Gift className="h-4 w-4" />,       label: 'Donation Based',  desc: 'Players donate any amount — or play free' },
+            { mode: 'donation'  as const, icon: <Gift className="h-4 w-4" />,       label: 'Donation Based',  desc: 'Players donate any amount - or play free' },
           ]).map(({ mode, icon, label, desc }) => {
             const active = fundraisingMode === mode;
             return (
@@ -279,8 +279,8 @@ export default function QuizActivityStep({
           title={isDonation ? 'Currency' : 'Entry Fee'}
           subtitle={
             isDonation
-              ? `Currency: ${sym} (${currency}) — set by your club`
-              : `Set the entry fee per player — currency: ${sym} (${currency})`
+              ? `Currency: ${sym} (${currency}) - set by your club`
+              : `Set the entry fee per player - currency: ${sym} (${currency})`
           }
         />
         {!isDonation && (
@@ -509,7 +509,7 @@ export default function QuizActivityStep({
       {/* ── 5. Prizes ── */}
       <Section>
         <SectionHeader icon={<Trophy className="h-4 w-4" />} title="Prizes"
-          subtitle={`At least a 1st place prize is required — up to ${MAX_PRIZES} total`} />
+          subtitle={`At least a 1st place prize is required - up to ${MAX_PRIZES} total`} />
         <div className="space-y-3">
           {prizes.map((prize, i) => (
             <div key={i} className="rounded-xl border p-3 space-y-2"
@@ -567,7 +567,7 @@ export default function QuizActivityStep({
       </Section>
 
       {/* ── 6. Payment Methods ── */}
-      {/* Kept in the WIZARD config, not the quiz store — see header. */}
+      {/* Kept in the WIZARD config, not the quiz store - see header. */}
       <PaymentMethodSelector
         mode="split"
         value={value.paymentMethods}
@@ -577,7 +577,7 @@ export default function QuizActivityStep({
 
       {!editMode && entitlements && (
         <p className="text-xs px-1" style={{ color: '#8a9bab' }}>
-          {entitlements.game_credits_remaining ?? 0} credits remaining — creating this quiz uses one credit.
+          {entitlements.game_credits_remaining ?? 0} credits remaining - creating this quiz uses one credit.
         </p>
       )}
 

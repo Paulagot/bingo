@@ -148,7 +148,7 @@ export const solanaRpcUrls = {
 };
 
 // ---------------------------------------------
-// 🛠️ Adapters — instantiated at module level,
+// 🛠️ Adapters - instantiated at module level,
 //    matching the official Reown examples exactly.
 //
 // SolanaAdapter takes NO wallet arguments.
@@ -156,7 +156,7 @@ export const solanaRpcUrls = {
 // via the `wallets` option causes those adapters to call
 // registerWalletStandard() on construction, which triggers
 // Solflare's browser extension to open ObjectMultiplex streams
-// immediately — before AppKit is ready — causing
+// immediately - before AppKit is ready - causing
 // MaxListenersExceededWarning in StrictMode.
 //
 // With no arguments, AppKit discovers injected wallets

@@ -30,7 +30,7 @@ import ReconciliationDownloads from '../payments/ReconciliationDownloads';
 import ReconciliationLedger from '../payments/ReconciliationLedger';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPES — mirrors backend getPaymentLedgerReconciliationView return shape
+// TYPES - mirrors backend getPaymentLedgerReconciliationView return shape
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface TicketDetail {
@@ -819,7 +819,7 @@ const PaymentReconciliationPanel: React.FC = () => {
             <SectionHeader
               icon={<Ticket className="h-4 w-4" />}
               title="Pre-sold Ticket Sales"
-              subtitle="All confirmed before the quiz — redeemed means the player turned up"
+              subtitle="All confirmed before the quiz - redeemed means the player turned up"
               badge={
                 <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                   {recView.tickets.total} ticket{recView.tickets.total !== 1 ? 's' : ''} ·{' '}
@@ -911,7 +911,7 @@ const PaymentReconciliationPanel: React.FC = () => {
             <SectionHeader
               icon={<UserCheck className="h-4 w-4" />}
               title="On the Night"
-              subtitle="Walk-in payments — grouped by who collected and confirmed"
+              subtitle="Walk-in payments - grouped by who collected and confirmed"
               badge={
                 <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                   {fmt(recView.onTheNight.totalConfirmed)} confirmed
@@ -928,7 +928,7 @@ const PaymentReconciliationPanel: React.FC = () => {
               }
             />
 
-            {/* Confirmed groups — one per person who confirmed */}
+            {/* Confirmed groups - one per person who confirmed */}
             {recView.onTheNight.confirmedGroups.map((group) => (
               <CollapsibleGroup
                 key={group.confirmedById}
@@ -990,7 +990,7 @@ const PaymentReconciliationPanel: React.FC = () => {
 
                     <div>
                       <div className="text-sm font-semibold text-amber-900">
-                        Claimed — awaiting confirmation
+                        Claimed - awaiting confirmation
                       </div>
 
                       <div className="text-xs text-amber-700">
@@ -1146,15 +1146,15 @@ const PaymentReconciliationPanel: React.FC = () => {
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-amber-600">
-                          {m.claimed > 0 ? fmt(m.claimed) : '—'}
+                          {m.claimed > 0 ? fmt(m.claimed) : '-'}
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-red-600">
-                          {m.disputed > 0 ? fmt(m.disputed) : '—'}
+                          {m.disputed > 0 ? fmt(m.disputed) : '-'}
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-gray-400">
-                          {m.expected > 0 ? fmt(m.expected) : '—'}
+                          {m.expected > 0 ? fmt(m.expected) : '-'}
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
@@ -1196,15 +1196,15 @@ const PaymentReconciliationPanel: React.FC = () => {
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-amber-600">
-                          {totClaim > 0 ? fmt(totClaim) : '—'}
+                          {totClaim > 0 ? fmt(totClaim) : '-'}
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-red-600">
-                          {totDisp > 0 ? fmt(totDisp) : '—'}
+                          {totDisp > 0 ? fmt(totDisp) : '-'}
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-gray-400">
-                          {totExp > 0 ? fmt(totExp) : '—'}
+                          {totExp > 0 ? fmt(totExp) : '-'}
                         </td>
 
                         <td className="px-4 py-3 text-sm text-right text-gray-900">
@@ -1475,7 +1475,7 @@ const PaymentReconciliationPanel: React.FC = () => {
           />
 
           <InfoBox>
-            End the quiz session — all players and admins will be disconnected and you will be
+            End the quiz session - all players and admins will be disconnected and you will be
             returned to your event dashboard.
           </InfoBox>
 

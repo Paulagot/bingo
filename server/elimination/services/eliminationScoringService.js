@@ -105,7 +105,7 @@ export const scoreRound = (submissions, config, activePlayerIds) => {
       const result = scoreOne(submission, config);
 
       // New engines calculate speedBonus internally and return it.
-      // Old engines (true_centre, midpoint_split, stop_the_bar) do not — apply it here.
+      // Old engines (true_centre, midpoint_split, stop_the_bar) do not - apply it here.
       let precisionScore, speedBonus, totalScore;
 
       if (result.speedBonus !== undefined) {
@@ -150,7 +150,7 @@ export const scoreRound = (submissions, config, activePlayerIds) => {
     };
 
     // Pass all engine-specific extras through to formatRevealData.
-    // Each engine only uses what it needs — extras are ignored.
+    // Each engine only uses what it needs - extras are ignored.
     const rawResult = submission
       ? {
           score: detail.precisionScore ?? detail.score,

@@ -8,7 +8,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
 
-  // Shorter durations are harder to estimate — difficulty makes targets shorter.
+  // Shorter durations are harder to estimate - difficulty makes targets shorter.
   // Round 1: 6–8s whole seconds (easy to count)
   // Round 8: 3–5s half-seconds (harder to feel precisely)
   const minTarget = Math.round(lerp(6000, 3000, t));
@@ -21,7 +21,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   return {
     roundType: ROUND_TYPE.TIME_ESTIMATION,
     targetTimeMs,
-    roundStartTimestamp: null, // filled by activateRound — not used for scoring
+    roundStartTimestamp: null, // filled by activateRound - not used for scoring
     durationMs: ROUND_DURATION[ROUND_TYPE.TIME_ESTIMATION],
   };
 };
@@ -42,7 +42,7 @@ export const validateSubmission = (submission) => {
 export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   // Use the server-recorded START press time as the reference point.
   // This is injected into the submission by closeAndScoreRound from
-  // roundState.startPressTimestamps[playerId] — it is never client-supplied.
+  // roundState.startPressTimestamps[playerId] - it is never client-supplied.
   //
   // Fall back to roundStartTimestamp only if startPressedAt is missing
   // (e.g. player never pressed START and was auto-submitted at round end).
@@ -74,7 +74,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   const errorDistance = clamp(diff / config.targetTimeMs, 0, 1);
   const precisionScore = errorToScore(errorDistance, 1.0);
 
-  // No speed bonus — the timing IS the entire mechanic
+  // No speed bonus - the timing IS the entire mechanic
   return {
     score: precisionScore,
     precisionScore,

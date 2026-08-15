@@ -41,7 +41,7 @@ function money(sym: string, value: number | string | null | undefined, decimals 
 }
 
 function titleCase(value: string | null | undefined) {
-  if (!value) return '—';
+  if (!value) return '-';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -173,13 +173,13 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
   const { sym } = useCurrency(config);
 
   const statusTone    = getStatusTone(room.status);
-  const statIncome    = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '—';
+  const statIncome    = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '-';
   const isDonation    = config?.fundraisingMode === 'donation';
   const venueCapacity = Number(config?.roomCaps?.venueCapacity ?? config?.venueCapacity ?? config?.roomCaps?.maxPlayers ?? 0);
   const scheduled     = formatDateTime(config?.eventDateTime || room.scheduled_at);
   const timeZone      = config?.timeZone || (room as any).time_zone || null;
 
-  // Ticket types — prefer the array, fall back to legacy single entryFee
+  // Ticket types - prefer the array, fall back to legacy single entryFee
   const ticketTypes: TicketType[] = (() => {
     if (Array.isArray(config?.ticketTypes) && config.ticketTypes.length > 0) {
       return config.ticketTypes;
@@ -310,7 +310,7 @@ export default function OverviewTabTicketedEvent({ room, config, stats, linkedEv
           {isDonation ? (
             <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
               <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Fundraising model">
-                Donation — attendees choose their amount
+                Donation - attendees choose their amount
               </DetailRow>
               <DetailRow icon={<Sparkles className="h-4 w-4" />} label="Currency">
                 {sym} ({config?.currency ?? 'club currency'})

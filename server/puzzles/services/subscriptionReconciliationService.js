@@ -2,26 +2,26 @@
 //
 // Period-aware reconciliation for puzzle subscriptions, built on the SAME
 // shared tables ticketed events use (fundraisely_quiz_reconciliation /
-// _adjustments) — no schema changes. What's different is that a
+// _adjustments) - no schema changes. What's different is that a
 // subscription's room_id can have MANY reconciliation rows over its life
 // (one per period, e.g. monthly), not one. Every function here is written
 // with that in mind; nothing here modifies or is called by the existing
 // quiz/ticketed-event reconciliation code, so this is purely additive.
 //
 // Column reuse (documented here since it's not obvious from the schema
-// alone — same spirit as puzzleSubRoomService.js repurposing config_json):
+// alone - same spirit as puzzleSubRoomService.js repurposing config_json):
 //   starting_entry_fees → opening balance, carried from the PREVIOUS
 //                          period's final_total (0 for the very first period)
 //   starting_extras     → this period's confirmed Stripe receipts, summed
 //                          from quiz_payment_ledger for the period's date window
 //   starting_total       → starting_entry_fees + starting_extras (unchanged formula)
 //   adjustments_net       → this period's manual adjustments net (refunds/fees/etc,
-//                          scoped via reconciliation_id) — unchanged meaning
+//                          scoped via reconciliation_id) - unchanged meaning
 //   final_total           → starting_total + adjustments_net = this period's
 //                          CLOSING balance, and next period's opening balance
 //
 // "Transactions in between" = the confirmed ledger receipts (a count + sum,
-// not individual adjustment rows — Stripe payments are already the ledger's
+// not individual adjustment rows - Stripe payments are already the ledger's
 // job to record) PLUS whatever manual adjustments get added during the period.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
@@ -102,7 +102,7 @@ export async function getAdjustmentsForReconciliation(reconciliationId) {
   }));
 }
 
-// ─── Lifetime summary — the "overall" rollup across every period ─────────────
+// ─── Lifetime summary - the "overall" rollup across every period ─────────────
 
 export async function getLifetimeSummary(roomId) {
   const history = await getReconciliationHistory(roomId);
@@ -120,7 +120,7 @@ export async function getLifetimeSummary(roomId) {
     totalReceipts,
     totalAdjustments,
     // Current balance is the latest period's closing figure, whether that
-    // period is approved yet or not — an unapproved draft's final_total
+    // period is approved yet or not - an unapproved draft's final_total
     // is still a live running total, just not locked yet.
     currentBalance:  latest.closingBalance,
     lastApprovedAt:  lastApproved?.approvedAt ?? null,
@@ -130,7 +130,7 @@ export async function getLifetimeSummary(roomId) {
 // ─── This period's confirmed Stripe receipts ─────────────────────────────────
 // "entry_fee" / "stripe" is exactly what writePuzzleSubscriptionLedgerEntry
 // in stripeWebhooks.js writes for every subscription payment (first cycle
-// and renewals alike) — see that function's createExpectedPayment call.
+// and renewals alike) - see that function's createExpectedPayment call.
 
 export async function getPeriodReceipts(roomId, sinceIso) {
   const [[row]] = await connection.execute(
@@ -147,11 +147,11 @@ export async function getPeriodReceipts(roomId, sinceIso) {
 }
 
 // ─── Read-only preview of the current period ─────────────────────────────────
-// Used by GET /current — NEVER inserts anything. If the latest period is
+// Used by GET /current - NEVER inserts anything. If the latest period is
 // still open (unapproved), that IS the current period, returned as-is.
 // If the latest is approved (or none exists yet), there's no draft row
 // for the "next" period until someone actually writes something (an
-// adjustment or an approval) — so this computes what that period WOULD
+// adjustment or an approval) - so this computes what that period WOULD
 // look like right now, without creating it. Viewing the tab should never
 // itself open a new period; only ensureCurrentDraftReconciliation (called
 // from the write routes) does that.
@@ -165,7 +165,7 @@ export async function previewCurrentPeriod(roomId) {
     return { period: latest, adjustments, liveReceipts: receipts };
   }
 
-  // No draft exists yet for the next period — synthesize a preview.
+  // No draft exists yet for the next period - synthesize a preview.
   // sinceIso: receipts since the last approval, or "all time" (epoch) if
   // this subscription has never been reconciled before.
   const openingBalance = latest ? latest.closingBalance : 0;
@@ -173,7 +173,7 @@ export async function previewCurrentPeriod(roomId) {
   const receipts = await getPeriodReceipts(roomId, sinceIso);
 
   const preview = {
-    id:               null, // no row exists yet — created on first write
+    id:               null, // no row exists yet - created on first write
     roomId,
     clubId:           latest ? latest.clubId : null,
     openingBalance,
@@ -196,7 +196,7 @@ export async function previewCurrentPeriod(roomId) {
 // ─── Ensure the current period's draft row exists ────────────────────────────
 // Mirrors ensureDraftReconciliation's role for ticketed events, but checks
 // the MOST RECENT row rather than assuming there's only ever one. If the
-// latest period is still open (unapproved), that IS the current period —
+// latest period is still open (unapproved), that IS the current period -
 // return it. If it's approved (or none exists yet), start a new period,
 // carrying the previous period's closing balance forward as this one's
 // opening balance.
@@ -210,27 +210,27 @@ export async function ensureCurrentDraftReconciliation(roomId, clubId) {
 
   const openingBalance = latest ? latest.closingBalance : 0;
 
-  // Anchor this period's "start" explicitly — the exact point receipts
-  // get counted from. For period 1 (no history), that's epoch — "since
-  // forever" — matching previewCurrentPeriod's own fallback exactly.
+  // Anchor this period's "start" explicitly - the exact point receipts
+  // get counted from. For period 1 (no history), that's epoch - "since
+  // forever" - matching previewCurrentPeriod's own fallback exactly.
   // For period 2+, it's the previous period's approval moment.
   //
   // This MUST be written into created_at directly rather than left to
   // default to UTC_TIMESTAMP(): this row might not get created until
   // long after the period conceptually started (e.g. nobody touches a
   // new period until the first adjustment gets added days later), and
-  // getPeriodReceipts — called from both this read-write path and the
-  // read-only preview — keys off this exact column. Defaulting to NOW()
+  // getPeriodReceipts - called from both this read-write path and the
+  // read-only preview - keys off this exact column. Defaulting to NOW()
   // here silently excluded every payment that arrived between the true
-  // period start and whenever someone first happened to touch it — which
+  // period start and whenever someone first happened to touch it - which
   // is exactly the bug that showed real receipts as €0.
   const periodStartIso = latest ? latest.approvedAt : '1970-01-01T00:00:00.000Z';
-  // Bind as a JS Date, not the raw ISO string — mysql2 converts Date
+  // Bind as a JS Date, not the raw ISO string - mysql2 converts Date
   // objects correctly for datetime columns, but a raw 'T'/'Z' ISO string
   // is not guaranteed valid MySQL datetime syntax and was almost
   // certainly what caused this insert to 500. Every other timestamp
   // write in this codebase goes through a toMysqlDateTime-style
-  // conversion for exactly this reason — this one just used a plain JS
+  // conversion for exactly this reason - this one just used a plain JS
   // Date instead of also building that string, which works just as well.
   const periodStartForSql = new Date(periodStartIso);
 
@@ -247,14 +247,14 @@ export async function ensureCurrentDraftReconciliation(roomId, clubId) {
   return { id: String(result.insertId), isNew: true, openingBalance };
 }
 
-// ─── Approve — locks the current period and starts the next one's baseline ──
+// ─── Approve - locks the current period and starts the next one's baseline ──
 
 export async function approveCurrentPeriod({ roomId, clubId, reconciliationId, approvedBy, notes, finalLeaderboard }) {
   const draft = await getReconciliationById(roomId, reconciliationId);
   if (!draft) throw Object.assign(new Error('not_found'), { statusCode: 404 });
   if (draft.approvedAt) throw Object.assign(new Error('already_approved'), { statusCode: 409 });
 
-  // Receipts since this period's draft was opened — NOT since the
+  // Receipts since this period's draft was opened - NOT since the
   // subscription began, that's what openingBalance already accounts for.
   const receipts = await getPeriodReceipts(roomId, draft.periodStart);
 
@@ -289,10 +289,10 @@ export async function approveCurrentPeriod({ roomId, clubId, reconciliationId, a
     ]
   );
 
-  // Stamp every ledger row that fed this period's receipts — this is
+  // Stamp every ledger row that fed this period's receipts - this is
   // the audit trail piece: which reconciliation a payment was settled
   // under, and who approved it. reconciled_by / reconciled_by_name mirror
-  // the existing confirmed_by / confirmed_by_name split on this table —
+  // the existing confirmed_by / confirmed_by_name split on this table -
   // reconciled_by would ideally be a resolved user id, but approvedBy
   // here is the same free-text name the reconciliation row's own
   // approved_by column already stores, so both columns get that string

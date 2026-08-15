@@ -1,5 +1,5 @@
 // server/utils/ticketedEventEmail.js
-// No embedded QR — email clients block base64 images.
+// No embedded QR - email clients block base64 images.
 // The ticket status page at /tickets/status/:ticketId IS the ticket.
 // The email's only job is to get the attendee to that page reliably.
 
@@ -132,7 +132,7 @@ export async function sendTicketedEventConfirmationEmail({
       </div>
     </div>
 
-    <!-- Primary CTA — the ticket link IS the ticket -->
+    <!-- Primary CTA - the ticket link IS the ticket -->
     <div style="background:linear-gradient(135deg,#157f85,#0e6268);border-radius:14px;padding:24px;text-align:center;margin-bottom:20px;">
       <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">
         Your ticket link
@@ -174,7 +174,7 @@ export async function sendTicketedEventConfirmationEmail({
 
   return sendEmailSafe({
     to:      purchaserEmail,
-    subject: `🎫 Your ticket is confirmed — ${eventTitle || displayName}`,
+    subject: `🎫 Your ticket is confirmed - ${eventTitle || displayName}`,
     html,
   });
 }

@@ -2,7 +2,7 @@
  * solana-tokens.js  (backend)
  *
  * Lean Solana token config for server-side use only.
- * No UI concerns — no logos, no display order, no formatting, no coingeckoId.
+ * No UI concerns - no logos, no display order, no formatting, no coingeckoId.
  *
  * Used by:
  *  - TGB API calls         (tgbCode → pledgeCurrency, tgbMinDonation validation)
@@ -11,7 +11,7 @@
  *  - Request validation    (isSupportedToken, meetsMinDonation)
  *
  * Pool Room:  feeToken === prizeToken === charityToken (host picks one)
- * Asset Room: feeToken only (prizes are host-uploaded assets — same token list)
+ * Asset Room: feeToken only (prizes are host-uploaded assets - same token list)
  *
  * ⚠️  All mint addresses are Solana MAINNET.
  *     For devnet, swap mints via SOLANA_NETWORK=devnet + devnet overrides below.
@@ -26,7 +26,7 @@ export const SOLANA_TOKENS = {
   SOL: {
     code: 'SOL',
     name: 'Solana',
-    mint: null,                                              // native SOL — no mint address
+    mint: null,                                              // native SOL - no mint address
     decimals: 9,                                             // 1 SOL = 1_000_000_000 lamports
     isNative: true,
     tgbCode: 'SOL',
@@ -57,7 +57,7 @@ export const SOLANA_TOKENS = {
     code: 'BONK',
     name: 'Bonk',
     mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
-    decimals: 5,                                             // ⚠️  5 decimals — NOT 6
+    decimals: 5,                                             // ⚠️  5 decimals - NOT 6
     isNative: false,
     tgbCode: 'BONK',
     tgbMinDonation: 4000,
@@ -109,7 +109,7 @@ export const SOLANA_TOKENS = {
     code: 'MEW',
     name: 'cat in a dogs world',
     mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5',
-    decimals: 5,                                             // ⚠️  5 decimals — NOT 6
+    decimals: 5,                                             // ⚠️  5 decimals - NOT 6
     isNative: false,
     tgbCode: 'MEW',
     tgbMinDonation: 10,
@@ -129,13 +129,13 @@ export const SOLANA_TOKENS = {
 
 // ---------------------------------------------------------------------------
 // Devnet mint overrides
-// Most SPL tokens don't exist on devnet — use these wrapped/mock mints
+// Most SPL tokens don't exist on devnet - use these wrapped/mock mints
 // for local testing. SOL works natively on devnet with no changes.
 // Override by setting SOLANA_NETWORK=devnet in your .env
 // ---------------------------------------------------------------------------
 
 export const SOLANA_DEVNET_OVERRIDES = {
-  // USDG devnet equivalent — use Circle's devnet USDC as a stand-in stablecoin
+  // USDG devnet equivalent - use Circle's devnet USDC as a stand-in stablecoin
   // mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'
   // Uncomment and populate as needed per token for your devnet test setup
 };
@@ -277,7 +277,7 @@ export function getTokenByMint(mint) {
 }
 
 /**
- * Assert a token code is valid — throws a structured error suitable for
+ * Assert a token code is valid - throws a structured error suitable for
  * returning as a 400 response. Use at the top of route handlers.
  *
  * @param {string} code        - Token code from request body

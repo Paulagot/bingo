@@ -72,7 +72,7 @@ export function utcToLocalInputTz(utcIso: string, timeZone: string): string {
       hour: '2-digit', minute: '2-digit',
       hour12: false,
     });
-    // sv-SE gives "YYYY-MM-DD HH:MM" — replace space with T
+    // sv-SE gives "YYYY-MM-DD HH:MM" - replace space with T
     return formatter.format(date).replace(' ', 'T');
   } catch {
     return '';

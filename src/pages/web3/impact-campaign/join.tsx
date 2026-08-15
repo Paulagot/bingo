@@ -96,7 +96,7 @@ const JoinImpactCampaignPageFull: React.FC = () => {
   const isAnyModalOpen = showWizard || showJoinModal;
 
   const pageTitle = useMemo(
-    () => 'Host or Join a Web3 Quiz — Impact Campaign (date TBC 2026) | FundRaisely',
+    () => 'Host or Join a Web3 Quiz - Impact Campaign (date TBC 2026) | FundRaisely',
     []
   );
 
@@ -114,7 +114,7 @@ const JoinImpactCampaignPageFull: React.FC = () => {
   const webPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'Host or Join a Web3 Quiz — Impact Campaign',
+    name: 'Host or Join a Web3 Quiz - Impact Campaign',
     description:
       'Spin up a Web3 quiz or join an existing room for the Web3 Impact Campaign. Choose Solana, Stellar, or Base and raise on-chain for verified charities.',
     url: abs('/web3/impact-campaign/join'),
@@ -655,11 +655,11 @@ const JoinImpactCampaignPage: React.FC = () => {
   const { isMiniApp } = useMiniAppContext();
 
   if (isMiniApp) {
-    // Mini app: slim dark page — no videos, no FAQs
+    // Mini app: slim dark page - no videos, no FAQs
     return <MiniAppLandingInner />;
   }
 
-  // Full web experience — all videos, sections, CTAs
+  // Full web experience - all videos, sections, CTAs
   return <JoinImpactCampaignPageFull />;
 };
 

@@ -4,7 +4,7 @@
 // Steps: name-entry → payment-method → payment-instructions | pay-at-door-confirm | crypto-fixed-fee
 // Stripe redirects out to Stripe Checkout; return is handled by EliminationJoinSuccessPage.
 //
-// Web3 rooms and free rooms bypass this component entirely — see EliminationJoinPage.
+// Web3 rooms and free rooms bypass this component entirely - see EliminationJoinPage.
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -186,7 +186,7 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
     const maxPlayers = (roomData as any).maxPlayers ?? 999;
 
     if (inMemoryCount >= maxPlayers) {
-      setError('Sorry, this game is full — no spots remaining.');
+      setError('Sorry, this game is full - no spots remaining.');
       return;
     }
 
@@ -195,12 +195,12 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
       const data = await res.json();
       const cap = data.capacity;
       if (cap && cap.totalTickets + inMemoryCount >= cap.maxCapacity) {
-        setError('Sorry, this game is full — no spots remaining.');
+        setError('Sorry, this game is full - no spots remaining.');
         return;
       }
     }
   } catch {
-    // Non-fatal — socket will enforce
+    // Non-fatal - socket will enforce
   }
 
     const methods = await fetchPaymentMethods();
@@ -312,8 +312,8 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
   // ── Step: crypto-fixed-fee success ────────────────────────────────────────
   // By the time onSuccess fires, the backend has already verified the on-chain
   // transaction and written the ledger row. We join as paid: true.
-  // skipInternalJoin — prevents CryptoFixedFeeStep emitting join_quiz_room
-  // skipInternalNavigate — prevents it navigating to /quiz/game/...
+  // skipInternalJoin - prevents CryptoFixedFeeStep emitting join_quiz_room
+  // skipInternalNavigate - prevents it navigating to /quiz/game/...
   // Navigation here is handled by the elimination_room_state socket handler.
   const handleCryptoSuccess = (result: FixedFeeConfirmResult) => {
     if (!selectedMethod) return;
@@ -323,7 +323,7 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
     emitJoinRoom(
       roomId,
       name.trim(),
-      undefined,        // no playerId — let the server assign one via addPlayer
+      undefined,        // no playerId - let the server assign one via addPlayer
       undefined,
       undefined,
       {

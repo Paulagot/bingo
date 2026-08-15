@@ -2,11 +2,11 @@
 //
 // Reconciliation panel for completed ticketed events.
 //
-// Step 1 — Ticket Revenue: confirmed totals + manual payment breakdown
+// Step 1 - Ticket Revenue: confirmed totals + manual payment breakdown
 //           (who collected cash / confirmed Revolut) + unresolved claimed
 //           payments with Confirm/Dispute actions.
-// Step 2 — Adjustments: HTTP-based ledger, saves on blur.
-// Step 3 — Approve: locks records, stamps ledger.
+// Step 2 - Adjustments: HTTP-based ledger, saves on blur.
+// Step 3 - Approve: locks records, stamps ledger.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -181,7 +181,7 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
   const confirmedGroups  = paymentView?.onTheNight?.confirmedGroups ?? [];
   const pendingClaimed   = claimedPayments.length;
 
-  // ── Walk-in vs advance counts — derived from confirmedGroups (paymentView)
+  // ── Walk-in vs advance counts - derived from confirmedGroups (paymentView)
   // We intentionally do NOT rely on summary.tickets for this because that type
   // only has { total, checkedIn, notCheckedIn }. The saleType breakdown lives
   // in each player row inside confirmedGroups.
@@ -435,7 +435,7 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
           )}
 
           {/* ── Ticket Sales Breakdown (advance vs walk-in) ──
-              Derived from confirmedGroups in paymentView — no extra fields needed
+              Derived from confirmedGroups in paymentView - no extra fields needed
               on the PaymentSummary type. Only shown when we have both types. */}
           {(walkInCount > 0 || advanceCount > 0) && (
             <div className="rounded-xl border border-gray-200 overflow-hidden mb-4">
@@ -643,7 +643,7 @@ export default function TicketedEventReconciliationTab({ room, onRefreshRoom }: 
           {disputedPayments.length > 0 && (
             <div className="rounded-xl border border-red-200 overflow-hidden">
               <div className="px-4 py-2.5 bg-red-50 border-b border-red-200 text-xs font-semibold text-red-800 uppercase">
-                {disputedPayments.length} disputed payment{disputedPayments.length !== 1 ? 's' : ''} — excluded from total
+                {disputedPayments.length} disputed payment{disputedPayments.length !== 1 ? 's' : ''} - excluded from total
               </div>
               <div className="divide-y divide-red-50 bg-white">
                 {disputedPayments.map((player: any) => (

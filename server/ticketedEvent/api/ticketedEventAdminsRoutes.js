@@ -1,6 +1,6 @@
 // server/ticketedEvent/api/ticketedEventAdminsRoutes.js
 //
-// NEW FILE — manages door staff / admins for ticketed_event rooms.
+// NEW FILE - manages door staff / admins for ticketed_event rooms.
 // Persists to web2_quiz_rooms.config_json.admins (same shape used by
 // quiz/elimination: [{ id, name, createdAt }]) so the Impact tab's existing
 // volunteer-counting logic works unchanged.
@@ -10,9 +10,9 @@
 //   app.use('/api/ticketed-event/admins', ticketedEventAdminsRoutes);
 //
 // Routes:
-//   GET    /room/:roomId           — list admins
-//   POST   /room/:roomId           — add an admin { name }
-//   DELETE /room/:roomId/:adminId  — remove an admin
+//   GET    /room/:roomId           - list admins
+//   POST   /room/:roomId           - add an admin { name }
+//   DELETE /room/:roomId/:adminId  - remove an admin
 
 import express from 'express';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
@@ -43,8 +43,8 @@ async function saveRoomConfig(roomId, config) {
   );
 }
 
-// ── GET /room/:roomId — list admins ────────────────────────────────────────
-// Public (no auth) — door staff with only an operator token still need to
+// ── GET /room/:roomId - list admins ────────────────────────────────────────
+// Public (no auth) - door staff with only an operator token still need to
 // see the current staff list when opening the dashboard.
 router.get('/room/:roomId', async (req, res) => {
   try {
@@ -60,10 +60,10 @@ router.get('/room/:roomId', async (req, res) => {
   }
 });
 
-// ── POST /room/:roomId — add an admin ──────────────────────────────────────
-// Auth required — only the logged-in host can add door staff (door staff
+// ── POST /room/:roomId - add an admin ──────────────────────────────────────
+// Auth required - only the logged-in host can add door staff (door staff
 // themselves connect via operator token, which doesn't pass authenticateToken,
-// so they can't add other staff — only the host can, from the dashboard).
+// so they can't add other staff - only the host can, from the dashboard).
 router.post('/room/:roomId', authenticateToken, async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -95,7 +95,7 @@ router.post('/room/:roomId', authenticateToken, async (req, res) => {
   }
 });
 
-// ── DELETE /room/:roomId/:adminId — remove an admin ────────────────────────
+// ── DELETE /room/:roomId/:adminId - remove an admin ────────────────────────
 router.delete('/room/:roomId/:adminId', authenticateToken, async (req, res) => {
   try {
     const { roomId, adminId } = req.params;

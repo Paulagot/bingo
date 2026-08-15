@@ -28,7 +28,7 @@ class EventsService extends BaseService {
 
   /**
    * Create a new event (automatically saved as draft)
-   * Note: clubId comes from JWT on the backend — not passed in the URL
+   * Note: clubId comes from JWT on the backend - not passed in the URL
    */
   async createEvent(_clubId: string, eventData: CreateEventForm): Promise<{ event: Event; message: string }> {
     return this.request<{ event: Event; message: string }>(`/events`, {

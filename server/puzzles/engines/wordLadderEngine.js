@@ -175,7 +175,7 @@ const CURATED_WORD_LADDER_BANK = {
       theme: 'Head to tail',
       startWord: 'HEAD',
       endWord: 'TAIL',
-      // FIX: original path jumped HEAD,HEAL,TEAL,TALL,TAIL — TEAL->TALL
+      // FIX: original path jumped HEAD,HEAL,TEAL,TALL,TAIL - TEAL->TALL
       // changes two letters at once (pos2 E->A AND pos3 A->L). Bridged
       // with TELL so every step changes exactly one letter.
       solutionPath: ['HEAD', 'HEAL', 'TEAL', 'TELL', 'TALL', 'TAIL'],
@@ -184,10 +184,10 @@ const CURATED_WORD_LADDER_BANK = {
       theme: 'Cake to fish',
       startWord: 'CAKE',
       endWord: 'FISH',
-      // FIX: original path jumped FATE->FIST — changes THREE letters at
+      // FIX: original path jumped FATE->FIST - changes THREE letters at
       // once (pos2 A->I, pos3 T->S, pos4 E->T). This one was missed in an
       // earlier manual review pass and only caught once the automated
-      // self-check above existed — exactly the case that check is for.
+      // self-check above existed - exactly the case that check is for.
       // Replaced with a different, fully-verified route (CASE/CASH/WASH/
       // WISH bridge CAKE to FISH, which share no letters in common
       // positions, so no shorter bridge was readily available).
@@ -206,7 +206,7 @@ const CURATED_WORD_LADDER_BANK = {
       theme: 'Work to play',
       startWord: 'WORK',
       endWord: 'PLAY',
-      // FIX: original path jumped PART->PLAT — changes two letters at once
+      // FIX: original path jumped PART->PLAT - changes two letters at once
       // (pos2 A->L AND pos3 R->A). Bridged with PERT, PEAT.
       solutionPath: ['WORK', 'PORK', 'PARK', 'PART', 'PERT', 'PEAT', 'PLAT', 'PLAY'],
     },
@@ -214,7 +214,7 @@ const CURATED_WORD_LADDER_BANK = {
       theme: 'Fire to cold',
       startWord: 'FIRE',
       endWord: 'COLD',
-      // FIX: original path jumped HIDE->HOLD — changes THREE letters at
+      // FIX: original path jumped HIDE->HOLD - changes THREE letters at
       // once (pos2 I->O, pos3 D->L, pos4 E->D), the worst break in this
       // bank. No clean short bridge existed for that pair, so replaced
       // with a different, shorter, fully-verified route instead.
@@ -224,7 +224,7 @@ const CURATED_WORD_LADDER_BANK = {
       theme: 'Slow to fast',
       startWord: 'SLOW',
       endWord: 'FAST',
-      // FIX: original path jumped FORT->FAST — changes two letters at once
+      // FIX: original path jumped FORT->FAST - changes two letters at once
       // (pos2 O->A AND pos3 R->S). Bridged with PORT, PART, PAST
       // (deliberately avoiding the shorter FORT->FART->FAST bridge, which
       // works letter-wise but isn't family-puzzle-appropriate).
@@ -290,7 +290,7 @@ const LIVE_WORD_LADDER_BANK = {
       theme: 'Head to tail',
       startWord: 'HEAD',
       endWord: 'TAIL',
-      // FIX: see CURATED_WORD_LADDER_BANK above — TEAL->TALL was a
+      // FIX: see CURATED_WORD_LADDER_BANK above - TEAL->TALL was a
       // two-letter jump. Bridged with TELL.
       solutionPath: ['HEAD', 'HEAL', 'TEAL', 'TELL', 'TALL', 'TAIL'],
     },
@@ -314,7 +314,7 @@ const LIVE_WORD_LADDER_BANK = {
       theme: 'Fire to cold',
       startWord: 'FIRE',
       endWord: 'COLD',
-      // FIX: HIDE->HOLD was a three-letter jump — the worst break in this
+      // FIX: HIDE->HOLD was a three-letter jump - the worst break in this
       // bank. Replaced with a different, shorter, fully-verified route.
       solutionPath: ['FIRE', 'FORE', 'FORD', 'CORD', 'COLD'],
     },
@@ -352,12 +352,12 @@ const LIVE_WORD_LADDER_BANK = {
 };
 
 // ---------------------------------------------------------------------------
-// Bank self-check — runs once at module load, same fail-fast pattern used by
+// Bank self-check - runs once at module load, same fail-fast pattern used by
 // nonogramEngine and numberPathEngine. This is what would have caught the
 // broken ladders (steps that silently changed two or three letters at once)
 // immediately at server startup instead of shipping an unsolvable puzzle
 // that even a player who knew the answer couldn't submit. Only checks
-// non-disabled entries — anything marked `disabled: true` is deliberately
+// non-disabled entries - anything marked `disabled: true` is deliberately
 // excluded from the runtime pool and doesn't need to be valid to sit here
 // as a reference/draft. Relies on function hoisting: normaliseWord and
 // differByOneLetter are declared further down this file but are available
@@ -498,7 +498,7 @@ function validateStepShape(steps, wordLength) {
   return { valid: true };
 }
 
-// Scoring settings scale with word length / step count — previously flat
+// Scoring settings scale with word length / step count - previously flat
 // regardless of difficulty (4-letter/4-step easy scored the same as
 // 5-letter/6-step hard).
 const DIFFICULTY_SETTINGS = {

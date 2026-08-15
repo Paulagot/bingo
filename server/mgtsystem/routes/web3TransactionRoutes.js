@@ -3,16 +3,16 @@
 // Unauthenticated routes for recording confirmed Web3 transactions.
 //
 // Security model (no JWT auth available for players):
-//   1. Rate limiting  — tight per-IP limits stop bulk replay/spam
-//   2. On-chain verification — server re-fetches the tx and confirms it
+//   1. Rate limiting  - tight per-IP limits stop bulk replay/spam
+//   2. On-chain verification - server re-fetches the tx and confirms it
 //                              actually succeeded before writing to DB
-//   3. Idempotency   — duplicate tx_hash + chain + network is silently ignored
-//   4. Input validation — every field validated before any DB or chain call
-//   5. Room existence check — tx must reference a real, active room
+//   3. Idempotency   - duplicate tx_hash + chain + network is silently ignored
+//   4. Input validation - every field validated before any DB or chain call
+//   5. Room existence check - tx must reference a real, active room
 //
 // What this route does NOT do:
-//   - Prize payouts — those are inserted server-side in finalize-confirm only
-//   - Refunds — reserved for future implementation
+//   - Prize payouts - those are inserted server-side in finalize-confirm only
+//   - Refunds - reserved for future implementation
 
 import express from 'express';
 import rateLimit from 'express-rate-limit';
@@ -60,7 +60,7 @@ async function verifySolanaTx(txHash, cluster) {
 
 /**
  * Verify an EVM transaction succeeded on-chain.
- * Uses a public RPC — no API key needed for receipt checks.
+ * Uses a public RPC - no API key needed for receipt checks.
  */
 async function verifyEvmTx(txHash, network) {
   // Map our network names to public RPC endpoints
@@ -74,7 +74,7 @@ async function verifyEvmTx(txHash, network) {
   const rpcUrl = RPC_URLS[network];
   if (!rpcUrl) {
     console.warn(`[web3TxRoute] Unknown EVM network for verification: ${network}`);
-    // Unknown network — don't block the insert, just warn
+    // Unknown network - don't block the insert, just warn
     return true;
   }
 
@@ -169,7 +169,7 @@ router.post('/join-payment', joinPaymentLimiter, async (req, res) => {
     }
 
     // ── Room existence check ───────────────────────────────────────────────
-    // Only check elimination rooms in memory — quiz rooms handled separately.
+    // Only check elimination rooms in memory - quiz rooms handled separately.
     // Both games share this route; quiz room check could be added here later.
     if (game_type === 'elimination') {
       const room = getRoom(room_id);
@@ -183,7 +183,7 @@ router.post('/join-payment', joinPaymentLimiter, async (req, res) => {
 
     // ── On-chain verification ──────────────────────────────────────────────
     // Re-verify the tx on-chain server-side. This is the main security gate
-    // for an unauthenticated route — we don't trust the client's claim that
+    // for an unauthenticated route - we don't trust the client's claim that
     // the tx succeeded.
     let verified = false;
     try {
@@ -195,7 +195,7 @@ router.post('/join-payment', joinPaymentLimiter, async (req, res) => {
       }
     } catch (verifyErr) {
       console.warn('[web3TxRoute] On-chain verification failed:', verifyErr.message);
-      // Verification error (RPC issue) — fail safe, reject the request
+      // Verification error (RPC issue) - fail safe, reject the request
       return res.status(502).json({
         success: false,
         error: 'Could not verify transaction on-chain. Please try again.',
@@ -228,7 +228,7 @@ router.post('/join-payment', joinPaymentLimiter, async (req, res) => {
     });
 
     if (result.duplicate) {
-      // Already recorded — safe to return success (idempotent)
+      // Already recorded - safe to return success (idempotent)
       return res.json({ success: true, id: result.id, duplicate: true });
     }
 

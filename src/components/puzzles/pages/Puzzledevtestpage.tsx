@@ -11,7 +11,7 @@ const PUZZLE_TYPES: PuzzleType[] = ['anagram', 'sequenceOrdering', 'matchPairs',
 const DIFFICULTIES: PuzzleDifficulty[] = ['easy', 'medium', 'hard'];
 
 // =============================================================================
-// COMPLETE PUZZLE_META — replace the existing PUZZLE_META object in
+// COMPLETE PUZZLE_META - replace the existing PUZZLE_META object in
 // src/pages/PuzzleDevTestPage.tsx with this entire block
 // =============================================================================
 
@@ -27,7 +27,7 @@ const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
   sequenceOrdering: {
     title: 'Sequence Ordering',
     instructions:
-      'The items below are in the wrong order. Drag and drop them into the correct sequence — ' +
+      'The items below are in the wrong order. Drag and drop them into the correct sequence - ' +
       'for example chronological order, size order, or logical steps. ' +
       'When you are happy with the order hit Submit.',
   },
@@ -51,7 +51,7 @@ const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
   slidingTile: {
     title: 'Sliding Tile Puzzle',
     instructions:
-      'Slide the numbered tiles into order — 1 to 15 reading left to right, top to bottom — ' +
+      'Slide the numbered tiles into order - 1 to 15 reading left to right, top to bottom - ' +
       'with the blank space in the bottom-right corner. ' +
       'Only tiles directly next to the blank space can move. Click a tile to slide it.',
   },
@@ -61,14 +61,14 @@ const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
     instructions:
       'Fill every row, every column, and every 3×3 box with the digits 1 to 9. ' +
       'Each digit can only appear once in each row, column, and box. ' +
-      'The darker-coloured cells are fixed — only the light cells can be changed. ' +
+      'The darker-coloured cells are fixed - only the light cells can be changed. ' +
       'Tap a cell to select it, then tap a number on the pad below to fill it in.',
   },
 
   patternCompletion: {
     title: 'Pattern Completion',
     instructions:
-      'Study the 3×3 grid of shapes carefully — there is a pattern in the colours and shapes across the rows and columns. ' +
+      'Study the 3×3 grid of shapes carefully - there is a pattern in the colours and shapes across the rows and columns. ' +
       'The bottom-right cell is missing. ' +
       'Choose the option below that correctly completes the pattern and hit Submit.',
   },
@@ -77,7 +77,7 @@ const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
     title: 'Word Ladder',
     instructions:
       'Transform the top word into the bottom word, one step at a time. ' +
-      'Each step must be a valid word that differs from the word above it by exactly one letter — ' +
+      'Each step must be a valid word that differs from the word above it by exactly one letter - ' +
       'you can change, add, or remove a single letter. ' +
       'Fill in the rungs of the ladder and hit Submit when done.',
   },
@@ -85,7 +85,7 @@ const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
   cryptogram: {
     title: 'Cryptogram',
     instructions:
-      'A secret phrase has been encoded — every letter has been swapped for a different letter. ' +
+      'A secret phrase has been encoded - every letter has been swapped for a different letter. ' +
       'The same encoded letter always represents the same real letter throughout. ' +
       'Use logic and common words to crack the code. ' +
       'Click a letter in the phrase to select it, then type your guess. ' +
@@ -109,14 +109,14 @@ const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
       'and you can never place a larger disk on top of a smaller one. ' +
       'Use peg B as a temporary space. ' +
       'Click a peg to pick up its top disk, then click the destination peg to place it. ' +
-      'The fewer moves you use the better — can you match the minimum?',
+      'The fewer moves you use the better - can you match the minimum?',
   },
 
   nonogram: {
     title: 'Nonogram',
     instructions:
       'Fill in the grid to reveal a hidden pixel-art picture. ' +
-      'The numbers along each row and column tell you how many consecutive filled cells there are in that line — ' +
+      'The numbers along each row and column tell you how many consecutive filled cells there are in that line - ' +
       'for example "3" means exactly 3 filled cells in a row, and "2 1" means a group of 2, a gap, then a group of 1. ' +
       'Left-click a cell to fill it. Right-click to mark a cell as definitely empty (shown as ✕). ' +
       'Use logic to work out which cells must be filled. Hit Submit when the grid is complete.',
@@ -126,7 +126,7 @@ const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
     title: 'Memory Pairs',
     instructions:
       'All the cards are face down. Flip two cards at a time to try to find a matching pair. ' +
-      'If they match they stay face up — if not, they flip back over. ' +
+      'If they match they stay face up - if not, they flip back over. ' +
       'Remember where you have seen each symbol and use it to find the pairs faster. ' +
       'Find all matching pairs to complete the puzzle.',
   },
@@ -150,7 +150,7 @@ export default function PuzzleDevTestPage() {
   // Token lives only in localStorage under 'auth_token'
   const tokenFromStore = isAuthenticated ? localStorage.getItem('auth_token') : null;
 
-  // Check all common property names — UUID clubs use club_id
+  // Check all common property names - UUID clubs use club_id
   const clubId = (club as any)?.club_id
     ?? (club as any)?.id
     ?? (club as any)?.clubId
@@ -188,7 +188,7 @@ export default function PuzzleDevTestPage() {
 
   const handleLoadPuzzle = async () => {
     if (!token) {
-      addLog({ type: 'error', message: 'No token — paste one in the Token field below' });
+      addLog({ type: 'error', message: 'No token - paste one in the Token field below' });
       return;
     }
 
@@ -217,8 +217,8 @@ export default function PuzzleDevTestPage() {
         setInstanceId(body.puzzle.id);
         setPuzzleData(body.puzzle.puzzleData);
         setSavedState(body.progress ?? null);
-        addLog({ type: 'success', message: `Puzzle loaded — instanceId: ${body.puzzle.id}, type: ${body.puzzle.puzzleType}` });
-        if (body.progress) addLog({ type: 'info', message: 'Saved progress found — resuming' });
+        addLog({ type: 'success', message: `Puzzle loaded - instanceId: ${body.puzzle.id}, type: ${body.puzzle.puzzleType}` });
+        if (body.progress) addLog({ type: 'info', message: 'Saved progress found - resuming' });
       }
     } catch (err: any) {
       addLog({ type: 'error', message: `Fetch failed: ${err.message}` });
@@ -261,7 +261,7 @@ export default function PuzzleDevTestPage() {
 
   const handleSubmit = async (answer: Record<string, unknown>, timeTaken: number) => {
     if (!instanceId) {
-      addLog({ type: 'error', message: 'No instanceId — load the puzzle first' });
+      addLog({ type: 'error', message: 'No instanceId - load the puzzle first' });
       return;
     }
 
@@ -323,7 +323,7 @@ export default function PuzzleDevTestPage() {
             <p className="text-xs text-amber-600">
               {tokenFromStore
                 ? `🟢 Logged in${clubId ? ` · Club ID: ${clubId}` : ' · Club ID not found'}`
-                : '🟡 Not logged in — go to /login first, or paste a token below'}
+                : '🟡 Not logged in - go to /login first, or paste a token below'}
             </p>
             {entitlements && (
               <p className="text-xs text-amber-500 mt-0.5">
@@ -342,7 +342,7 @@ export default function PuzzleDevTestPage() {
       {/* Config panel */}
       <div className="max-w-3xl mx-auto mb-6 bg-white rounded-xl border border-gray-200 px-5 py-5 space-y-4">
 
-        {/* Token — only show if not auto-detected */}
+        {/* Token - only show if not auto-detected */}
         {!tokenFromStore && (
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
@@ -437,11 +437,11 @@ export default function PuzzleDevTestPage() {
               : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.99]'
           }`}
         >
-          {isLoading ? 'Loading from server...' : isStale ? '⚠️ Settings changed — Reload Puzzle' : puzzleData ? '↺ Reload Puzzle' : '▶ Load Puzzle from Server'}
+          {isLoading ? 'Loading from server...' : isStale ? '⚠️ Settings changed - Reload Puzzle' : puzzleData ? '↺ Reload Puzzle' : '▶ Load Puzzle from Server'}
         </button>
       </div>
 
-      {/* Puzzle shell — only shown once loaded */}
+      {/* Puzzle shell - only shown once loaded */}
       {puzzleData && (
         <PuzzleShell
           key={shellKey}

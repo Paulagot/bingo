@@ -109,7 +109,7 @@ ${altHreflangLinks(domain, page.path)}
 function generateRobotsTxt(domain) {
   return `User-agent: *
 
-# ALLOW — Public marketing pages
+# ALLOW - Public marketing pages
 Allow: /
 Allow: /demo
 Allow: /pricing
@@ -126,7 +126,7 @@ Allow: /blog
 Allow: /resources
 Allow: /resources/
 
-# ALLOW — Public Web3 pages
+# ALLOW - Public Web3 pages
 Allow: /web3
 Allow: /web3/
 Allow: /web3/features
@@ -137,10 +137,10 @@ Allow: /web3/causes
 Allow: /web3/elimination
 Allow: /web3/quiz
 
-# ALLOW — Public campaign pages
+# ALLOW - Public campaign pages
 Allow: /campaigns/clubs-league
 
-# BLOCK — Old, private, app and system routes
+# BLOCK - Old, private, app and system routes
 Disallow: /old/
 Disallow: /search
 Disallow: /game/

@@ -11,7 +11,7 @@ import { ROUND_TYPE, ROUND_DURATION, GAME_RULES } from '../../utils/eliminationC
 const PATH_TYPES = ['linear', 'bounce', 'arc'];
 
 // Error is normalised against a fixed arena distance, not target radius.
-// This means difficulty affects target size and speed — not the scoring window.
+// This means difficulty affects target size and speed - not the scoring window.
 // A miss of MAX_SCORE_DISTANCE units (35% of arena) = zero score.
 const MAX_SCORE_DISTANCE = 0.35;
 
@@ -134,7 +134,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
 
   // Use client-reported position if within plausible drift tolerance (0.15 units).
   // This scores against what the player actually saw. If outside tolerance,
-  // fall back to server computation — likely tampered.
+  // fall back to server computation - likely tampered.
   let targetPosition = serverTargetPosition;
 
   if (
@@ -154,7 +154,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   const dy = submission.tapY - targetPosition.y;
   const missDistance = Math.sqrt(dx * dx + dy * dy);
 
-  // Fixed normalisation — difficulty affects target size/speed, not the scoring window.
+  // Fixed normalisation - difficulty affects target size/speed, not the scoring window.
   // Round 1 (large target, slow) and Round 8 (small target, fast) use the same
   // distance scale so scores are comparable across difficulty levels.
   const errorDistance = clamp(missDistance / MAX_SCORE_DISTANCE, 0, 1);

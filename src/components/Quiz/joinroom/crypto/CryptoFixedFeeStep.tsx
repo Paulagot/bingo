@@ -48,23 +48,10 @@ interface BaseProps {
   solanaCluster?:        'mainnet' | 'devnet';
   onBack:                () => void;
   onSuccess?:            (result: FixedFeeConfirmResult) => void;
-  /**
-   * When true, skips the internal `join_quiz_room` socket emit.
-   * Use for non-quiz games (e.g. elimination) where the caller handles joining.
-   */
   skipInternalJoin?:     boolean;
-  /**
-   * When true, skips the internal navigate to /quiz/game/...
-   * Use for non-quiz games where the caller handles navigation via onSuccess.
-   */
   skipInternalNavigate?: boolean;
-  /**
-   * Override the backend confirm endpoint.
-   * Used by CampaignSupportPage so campaign orders go to the campaign-specific
-   * confirm route instead of /api/quiz/tickets/crypto-fixed-fee/confirm.
-   * When not provided, the default quiz ticket or walkin route is used.
-   */
   confirmEndpoint?: string;
+  quoteEndpoint?:   string;   // ← ADD THIS
 }
 
 interface WalkinProps extends BaseProps {
@@ -121,6 +108,7 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
     skipInternalJoin = false,
     skipInternalNavigate = false,
     confirmEndpoint,
+     quoteEndpoint, 
   } = props;
 
   const navigate   = useNavigate();
@@ -152,6 +140,7 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
       fiatAmount:  totalFiatAmount,
       tokenCode:   selectedToken,
       enabled:     !isBusy && totalFiatAmount > 0,
+      quoteEndpoint,
     });
 
   useEffect(() => {
@@ -203,11 +192,11 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
       entryFeeRaw:          entryFeeRaw.toString(),
       extrasRaw:            extrasRaw.toString(),
 
-      // Fiat amounts — what the host priced the room at
+      // Fiat amounts - what the host priced the room at
       entryFeeDisplay:      entryFeeAmount,
       extrasDisplay:        extrasAmount,
 
-      // Crypto amounts — what was actually quoted and sent
+      // Crypto amounts - what was actually quoted and sent
       cryptoDisplayAmount:  quote!.tokenAmount,   // e.g. 0.034521
       cryptoRawAmount:      quote!.rawAmount,      // e.g. '34521000'
 
@@ -529,7 +518,7 @@ const result = await sendDonation({
           {isExpired && (
             <div className="mt-3 flex items-center gap-2 text-sm text-amber-700">
               <AlertCircle className="h-4 w-4" />
-              Quote expired — tap Refresh to get a new price
+              Quote expired - tap Refresh to get a new price
             </div>
           )}
 

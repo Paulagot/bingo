@@ -1,6 +1,6 @@
 // server/campaigns/api/campaignSupportRoutes.js
 //
-// Public campaign support routes — NO auth required.
+// Public campaign support routes - NO auth required.
 // Protected only by rate limiting.
 // Never exposes club management data.
 //
@@ -87,7 +87,7 @@ router.post('/campaign-support/:campaignId/orders', async (req, res) => {
  *
  * Called by the frontend immediately before showing the thank-you screen.
  * Fires the order-level confirmation email to the supporter.
- * Always returns 200 — email failures are logged but never surfaced to the UI.
+ * Always returns 200 - email failures are logged but never surfaced to the UI.
  */
 router.post('/orders/:orderId/send-confirmation-email', async (req, res) => {
   const { orderId } = req.params;
@@ -96,7 +96,7 @@ router.post('/orders/:orderId/send-confirmation-email', async (req, res) => {
     return res.status(400).json({ error: 'orderId_required' });
   }
  
-  // Fire and forget — non-fatal by design
+  // Fire and forget - non-fatal by design
   sendCampaignOrderConfirmationEmail(orderId).catch(err => {
     console.error(`[OrderEmail] ❌ Failed to send order confirmation for ${orderId}:`, err.message);
   });

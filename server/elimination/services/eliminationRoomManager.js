@@ -22,7 +22,7 @@ export const createRoom = ({
   hostId,
   hostName,
   hostSocketId,
-  // ── web3 fields (all optional — null for web2 rooms) ──
+  // ── web3 fields (all optional - null for web2 rooms) ──
   paymentMode = 'web2',       // 'web2' | 'web3'
   web3Chain = null,           // 'solana' | 'evm'
   solanaCluster = null,       // 'devnet' | 'mainnet'
@@ -74,7 +74,7 @@ export const createRoom = ({
     evmContractAddress,
     onChainRoomId,
 
-    // clubId is not stored on web3 rooms — Stripe Connect is not used for web3
+    // clubId is not stored on web3 rooms - Stripe Connect is not used for web3
     clubId: null,
     currency: null,
   };
@@ -88,7 +88,7 @@ export const createRoom = ({
  *
  * Used by the management system hydrate endpoint when a host launches
  * a scheduled Web2 elimination from the dashboard. The roomId comes
- * from the DB record — we do NOT generate a new one.
+ * from the DB record - we do NOT generate a new one.
  *
  * @param {string} roomId         - the existing DB room_id
  * @param {string} hostId         - from the DB row
@@ -129,7 +129,7 @@ export const createRoomFromConfig = (roomId, hostId, hostName, config = {}) => {
     currency:    config.currency  ?? 'EUR',
     maxPlayers:  config.maxPlayers ?? GAME_RULES.MAX_PLAYERS,
 
-    // ── Web3 fields — null for Web2 rooms, kept for shape consistency ─────
+    // ── Web3 fields - null for Web2 rooms, kept for shape consistency ─────
     web3Chain:          null,
     solanaCluster:      null,
     feeMint:            null,
@@ -210,7 +210,7 @@ const buildPlayer = ({
  *
  * Web3 players supply txSignature + walletAddress.
  * Web2 players supply payment fields (paid, paymentClaimed, payAtDoor, etc.).
- * Free/no-fee players supply nothing extra — all payment fields default to null/false.
+ * Free/no-fee players supply nothing extra - all payment fields default to null/false.
  *
  * @returns {{ room: Object, player: Object }} or throws if room full / not waiting.
  */
@@ -264,7 +264,7 @@ export const addPlayer = (roomId, {
  * so that when their socket fires `join_elimination_room` with the same playerId
  * the reconnect path in the socket handler finds them immediately.
  *
- * Unlike addPlayer this does NOT throw if the player already exists — the webhook
+ * Unlike addPlayer this does NOT throw if the player already exists - the webhook
  * can fire more than once (Stripe retry), so idempotency is important.
  *
  * @param {string} roomId
@@ -287,14 +287,14 @@ export const addPlayerWithId = (roomId, playerId, {
   const room = getRoom(roomId);
   if (!room) throw new Error(`Room not found: ${roomId}`);
 
-  // Idempotency — webhook may fire twice; don't duplicate the player
+  // Idempotency - webhook may fire twice; don't duplicate the player
   if (room.players[playerId]) {
-    console.log(`[Elimination] addPlayerWithId: player ${playerId} already in room ${roomId} — skipping`);
+    console.log(`[Elimination] addPlayerWithId: player ${playerId} already in room ${roomId} - skipping`);
     return { room, player: room.players[playerId], alreadyExisted: true };
   }
 
   if (room.status !== ROOM_STATUS.WAITING) {
-    throw new Error(`Cannot pre-register player — room ${roomId} is not in waiting status (status: ${room.status})`);
+    throw new Error(`Cannot pre-register player - room ${roomId} is not in waiting status (status: ${room.status})`);
   }
 
   if (Object.keys(room.players).length >= (room.maxPlayers ?? GAME_RULES.MAX_PLAYERS)) {
@@ -304,7 +304,7 @@ export const addPlayerWithId = (roomId, playerId, {
   const player = buildPlayer({
     playerId,
     name,
-    socketId,       // null — player hasn't connected via socket yet
+    socketId,       // null - player hasn't connected via socket yet
     txSignature,
     walletAddress,
     paid,
@@ -326,7 +326,7 @@ export const addPlayerWithId = (roomId, playerId, {
  * Returns { room, player } or null.
  */
 export const findPlayerBySocket = (socketId) => {
-  if (!socketId) return null;   // host-added players have no socket — skip
+  if (!socketId) return null;   // host-added players have no socket - skip
   for (const room of rooms.values()) {
     for (const player of Object.values(room.players)) {
       if (player.socketId === socketId) return { room, player };
@@ -509,7 +509,7 @@ export const getRoomSnapshot = (roomId) => {
     startedAt: room.startedAt,
     endedAt: room.endedAt,
 
-    // ── payment / room config fields — needed by join page ──
+    // ── payment / room config fields - needed by join page ──
     paymentMode:  room.paymentMode,
     entryFee:     room.entryFee,
     currency:     room.currency  ?? 'EUR',
@@ -525,13 +525,13 @@ export const getRoomSnapshot = (roomId) => {
     charityName:  room.charityName,
     onChainRoomId: room.onChainRoomId,
 
-    // clubId intentionally omitted from public snapshot —
+    // clubId intentionally omitted from public snapshot -
     // only used server-side for Stripe Connect lookup
   };
 };
 
 /**
- * Player snapshot — included in room snapshots sent to all clients.
+ * Player snapshot - included in room snapshots sent to all clients.
  * Payment fields are included so the host dashboard can show payment status.
  */
 const playerSnapshot = (p) => ({

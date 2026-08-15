@@ -62,22 +62,22 @@ const ROUND_TYPE_META: Record<RoundType, { label: string; glyph: string; descrip
   sequence_gap: {
     label: 'Sequence Gap',
     glyph: '…',
-    description: 'A number sequence flashes with one value missing — estimate what it was',
+    description: 'A number sequence flashes with one value missing - estimate what it was',
   },
   colour_count: {
     label: 'Colour Count',
     glyph: '⬤',
-    description: 'Coloured shapes flash — count how many match the target colour',
+    description: 'Coloured shapes flash - count how many match the target colour',
   },
   time_estimation: {
     label: 'Time Estimation',
     glyph: '⏱',
-    description: 'No clock shown — tap when you think the target time has passed',
+    description: 'No clock shown - tap when you think the target time has passed',
   },
   character_count: {
     label: 'Character Count',
     glyph: 'A?',
-    description: 'Letters flash on screen — count how many match the target character',
+    description: 'Letters flash on screen - count how many match the target character',
   },
   reaction_tap: {
   label: 'Reaction Tap',
@@ -97,10 +97,10 @@ path_trace: {
 };
 
 const ELIMINATION_DESCRIPTIONS: Record<string, (count: number, active: number) => string> = {
-  none: () => 'No eliminations this round — precision practice',
+  none: () => 'No eliminations this round - precision practice',
   percentage: (count) => `The ${count} least precise player${count === 1 ? '' : 's'} will be eliminated`,
-  reduce_to_three: (count) => `${count} players will be cut — only 3 advance to the final`,
-  final: () => 'One player wins — everyone else is eliminated',
+  reduce_to_three: (count) => `${count} players will be cut - only 3 advance to the final`,
+  final: () => 'One player wins - everyone else is eliminated',
 };
 
 // Typewriter text component with blinking cursor
@@ -126,7 +126,7 @@ const TypewriterText: React.FC<{ text: string; style?: React.CSSProperties }> = 
   );
 };
 
-// Typewriter hook — reveals text one character at a time
+// Typewriter hook - reveals text one character at a time
 const useTypewriter = (text: string, delay = 35): string => {
   const [displayed, setDisplayed] = useState('');
   useEffect(() => {

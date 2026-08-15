@@ -116,7 +116,7 @@ const DemoPage: React.FC = () => {
   const videoJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'VideoObject',
-    name: 'FundRaisely Fundraising Quiz — Product Demo',
+    name: 'FundRaisely Fundraising Quiz - Product Demo',
     description:
       'See how to set up a fundraising quiz, invite players, enable fundraising extras, and export audit-ready reports.',
     thumbnailUrl: [thumbMax, thumbHQ],
@@ -152,7 +152,7 @@ const DemoPage: React.FC = () => {
       </a>
 
       <SEO
-        title="Fundraising Quiz Demo — Watch How FundRaisely Works"
+        title="Fundraising Quiz Demo - Watch How FundRaisely Works"
         description="See the fundraising quiz in action: 4-step setup, templates/custom rounds, in-person payments, and audit-ready reports."
         keywords="fundraising quiz demo, quiz fundraiser software"
         domainStrategy="geographic"
@@ -202,7 +202,7 @@ const DemoPage: React.FC = () => {
         <section className="px-4 pb-2">
           <div className="container mx-auto max-w-5xl">
             <YouTubeBlock
-              title="FundRaisely Fundraising Quiz — Product Demo"
+              title="FundRaisely Fundraising Quiz - Product Demo"
               youtubeUrlOrId={DEMO_VIDEO_ID}
               className="rounded-2xl border border-indigo-100 shadow-sm"
             />

@@ -15,16 +15,16 @@
 //     linked_payment_methods_json stays empty; the Stripe connection is
 //     gated in challengeService.updateChallengeStatus via
 //     getReadyStripeForClub, not via the payment methods table.
-//   - No entry_fee / ticket_types / prizes / extras — pricing lives on
+//   - No entry_fee / ticket_types / prizes / extras - pricing lives on
 //     fundraisely_puzzle_challenges.weekly_price.
 //   - scheduled_at = challenge starts_at (first puzzle unlocks).
 //     ended_at computed at creation: starts_at + total_weeks × 7 days.
-//     Both stored upfront — unlike ticketed_event where ended_at is set
+//     Both stored upfront - unlike ticketed_event where ended_at is set
 //     when the event actually ends. Known end date is a feature here, not
 //     a departure from the pattern.
 //   - No reconciliation flow (no quiz_payment_ledger involvement).
 //     reconciliation_status = 'pending' is written for schema compliance
-//     but will never advance — this is a known limitation flagged in the
+//     but will never advance - this is a known limitation flagged in the
 //     spec (section 1.4 / 2.9a), to be addressed in a separate reporting
 //     pass.
 //   - host_id / host_name come from the club admin who created the
@@ -39,7 +39,7 @@ const TABLE     = `${TABLE_PREFIX}web2_quiz_rooms`;
 const GAME_TYPE = 'puzzle_sub';
 const eventIntegrationsService = new EventIntegrationsService();
 
-// Matches toMysqlUtcDateTime in ticketedEventMgmtService.js exactly —
+// Matches toMysqlUtcDateTime in ticketedEventMgmtService.js exactly -
 // duplicated rather than shared because there's no shared utils module
 // for these services yet, and this is a one-liner that doesn't justify
 // a new import chain.
@@ -80,7 +80,7 @@ export async function createPuzzleSubRoom({
   const roomId = uuidv4().replace(/-/g, '').slice(0, 16).toUpperCase();
 
   // Compute ends_at from starts_at + total_weeks × 7 days.
-  // Stored upfront for display — unlike ticketed_event where ended_at is
+  // Stored upfront for display - unlike ticketed_event where ended_at is
   // set reactively when the event ends. For a fixed-length subscription
   // the end date is always known at creation time.
   const startsAtMs = startsAt ? new Date(startsAt).getTime() : null;
@@ -95,26 +95,26 @@ export async function createPuzzleSubRoom({
     hostId,
     hostName:    hostName ?? null,
     title:       title    ?? null,
-    // weeklyPrice stored as-is from fundraisely_puzzle_challenges —
+    // weeklyPrice stored as-is from fundraisely_puzzle_challenges -
     // already in smallest currency unit (same as how it's stored on
-    // the challenge row — see challengeService.createChallenge comment).
+    // the challenge row - see challengeService.createChallenge comment).
     weeklyPrice: weeklyPrice ?? null,
     currency:    currency   ?? 'eur',
     totalWeeks:  totalWeeks ?? null,
-    // eventDateTime / startsAt — both stored so the management dashboard
+    // eventDateTime / startsAt - both stored so the management dashboard
     // can display start date without parsing the challenges table too.
     eventDateTime: startsAt ?? null,
     startsAt:      startsAt ?? null,
-    // Computed end date — same value as ended_at on the room row, stored
+    // Computed end date - same value as ended_at on the room row, stored
     // in config_json too so it's accessible without a second column lookup.
     endsAt: endsAtMysql,
     // Same field name and {name, role} shape as TicketedEventConfig's
-    // eventSponsors — kept consistent across activity types rather than
+    // eventSponsors - kept consistent across activity types rather than
     // inventing a subscription-specific name.
     eventSponsors: eventSponsors ?? [],
   });
 
-  // room_caps_json — subscriptions have no venue capacity concept, but
+  // room_caps_json - subscriptions have no venue capacity concept, but
   // the column exists and other services may read it. Store a minimal
   // shape rather than NULL so JSON_EXTRACT calls don't crash.
   const capsJson = JSON.stringify({ maxPlayers: 999999 });
@@ -141,7 +141,7 @@ export async function createPuzzleSubRoom({
     ]
   );
 
-  console.log(`[puzzleSubRoomService] 📅 Created room ${roomId} for challenge ${challengeId} — ${totalWeeks} weeks, ends ${endsAtMysql ?? 'TBD'}`);
+  console.log(`[puzzleSubRoomService] 📅 Created room ${roomId} for challenge ${challengeId} - ${totalWeeks} weeks, ends ${endsAtMysql ?? 'TBD'}`);
 
   return roomId;
 }
@@ -256,7 +256,7 @@ export async function openPuzzleSubRoom({ challengeId, clubId }) {
   );
 
   if (!result?.affectedRows) {
-    console.warn(`[puzzleSubRoomService] ⚠️ openPuzzleSubRoom — no room updated for challenge ${challengeId}. Room may already be open or does not exist.`);
+    console.warn(`[puzzleSubRoomService] ⚠️ openPuzzleSubRoom - no room updated for challenge ${challengeId}. Room may already be open or does not exist.`);
   }
 
   return { ok: (result?.affectedRows ?? 0) > 0 };
@@ -308,7 +308,7 @@ export async function completePuzzleSubRoom({ challengeId, clubId }) {
 // ─── Update config ─────────────────────────────────────────────────────────────
 
 /**
- * Update challenge metadata in the room's config_json — called when a
+ * Update challenge metadata in the room's config_json - called when a
  * club edits the challenge title, weekly price, or schedule before activation.
  * Only works on 'scheduled' rooms (locked once open, same as ticketed_event).
  */
@@ -328,7 +328,7 @@ export async function updatePuzzleSubRoom({
   if (!room) throw Object.assign(new Error('not_found'), { statusCode: 404 });
   if (room.status !== 'scheduled') {
     throw Object.assign(
-      new Error('room_not_editable — only scheduled challenges can be edited'),
+      new Error('room_not_editable - only scheduled challenges can be edited'),
       { statusCode: 409, currentStatus: room.status }
     );
   }
@@ -379,7 +379,7 @@ export async function updatePuzzleSubRoom({
   );
 
   // Sync updated payment methods / dates to any linked events.
-  // Non-fatal — room is updated either way.
+  // Non-fatal - room is updated either way.
   try {
     await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({
       roomId: room.room_id,

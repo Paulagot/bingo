@@ -13,7 +13,7 @@ function round2(value) {
   return Number.isFinite(rounded) ? rounded : 0;
 }
 
-// ── Token decimals — used to convert raw units to human-readable amounts ──────
+// ── Token decimals - used to convert raw units to human-readable amounts ──────
 // Add new tokens here as you support them
 const TOKEN_DECIMALS = {
   'USDC':  6,
@@ -42,7 +42,7 @@ export async function syncEliminationImpactToDb({
   hostWallet,
   charityWallet,
   charityName,
-  tokenCode,       // e.g. 'USDC', 'SOL' — passed from frontend
+  tokenCode,       // e.g. 'USDC', 'SOL' - passed from frontend
   chain,           // e.g. 'solana'
   network,         // e.g. 'devnet' | 'mainnet'
   totalRaised,     // raw token units (number)
@@ -120,7 +120,7 @@ export async function syncEliminationImpactToDb({
         charityName     ?? 'Unknown charity',
         totalRaisedHuman,    // ← human units
         charityAmountHuman,  // ← human units
-        0,                   // extras_revenue — not used in elimination
+        0,                   // extras_revenue - not used in elimination
         hostFeeHuman,        // ← human units
         numberOfPlayers ?? 0,
         ELIMINATION_CAMPAIGN_ID,
@@ -132,7 +132,7 @@ export async function syncEliminationImpactToDb({
     );
     console.log(`[syncElimination] ✅ impact_campaign_events row inserted for room ${roomId}`);
   } else {
-    console.log(`[syncElimination] ℹ️ impact_campaign_events already exists for room ${roomId} — skipping`);
+    console.log(`[syncElimination] ℹ️ impact_campaign_events already exists for room ${roomId} - skipping`);
   }
 
   // ── 2. events row (idempotent) ────────────────────────────────────────────
@@ -153,7 +153,7 @@ export async function syncEliminationImpactToDb({
     txSignature ? `Finalize tx: ${txSignature}` : '',
     tokenPriceEur
       ? `Token price at save: €${tokenPriceEur} / ${tokenCode}`
-      : `⚠️ Token price unavailable — EUR amounts need backfill`,
+      : `⚠️ Token price unavailable - EUR amounts need backfill`,
   ].filter(Boolean).join('\n');
 
   const [existingEvent] = await connection.execute(
@@ -220,7 +220,7 @@ export async function syncEliminationImpactToDb({
   if (!Array.isArray(existingIncome) || existingIncome.length === 0) {
     const priceNote = tokenPriceEur
       ? `@ €${tokenPriceEur}/${tokenCode}`
-      : `(EUR price unavailable — needs backfill)`;
+      : `(EUR price unavailable - needs backfill)`;
 
     const incomeDescription = [
       `Platform fee (15%) from Web3 elimination room ${roomId}`,

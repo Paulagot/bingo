@@ -1,10 +1,10 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/SetupTabDrop.tsx
 //
-// Setup tab for Puzzle Drop — read-only display + an Edit button that
+// Setup tab for Puzzle Drop - read-only display + an Edit button that
 // hands off to the shared EditFundraiserModal (onEditFundraiser), same
 // convention as SetupTabSubscription and the elimination/ticketed-event
 // branches of SetupTab. Deliberately not building a second inline editor
-// here — updateDrop already exists and EditFundraiserModal already owns
+// here - updateDrop already exists and EditFundraiserModal already owns
 // the "event + activity settings, saved together" flow; duplicating that
 // logic in this tab would just create two ways to edit the same thing.
 //
@@ -23,7 +23,7 @@ interface Props {
 }
 
 function titleCase(value: string | null | undefined) {
-  if (!value) return '—';
+  if (!value) return '-';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -53,7 +53,7 @@ export default function SetupTabDrop({ roomId, status, onEditFundraiser }: Props
       {isScheduled ? (
         <div className="flex items-center justify-between rounded-lg border border-[rgba(124,58,237,0.3)] bg-[rgba(124,58,237,0.06)] p-3">
           <p className="text-xs text-[#4c1d95]">
-            Still scheduled — items, pricing and timing can be edited before this Drop goes on sale.
+            Still scheduled - items, pricing and timing can be edited before this Drop goes on sale.
           </p>
           <button type="button" onClick={onEditFundraiser}
             className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
@@ -66,7 +66,7 @@ export default function SetupTabDrop({ roomId, status, onEditFundraiser }: Props
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span>
-            Items, pricing and timing were locked in once this Drop went on sale and can't be edited here —
+            Items, pricing and timing were locked in once this Drop went on sale and can't be edited here -
             buyers have already purchased against this configuration. Contact support if this needs to change.
           </span>
         </div>
@@ -129,7 +129,7 @@ export default function SetupTabDrop({ roomId, status, onEditFundraiser }: Props
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl border p-4" style={{ borderColor: '#dce1df', background: '#ffffff' }}>
               <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">Currency</p>
-              <p className="mt-1 text-lg font-bold text-[#102532]">{detail.config?.currency?.toUpperCase() ?? '—'}</p>
+              <p className="mt-1 text-lg font-bold text-[#102532]">{detail.config?.currency?.toUpperCase() ?? '-'}</p>
             </div>
             <div className="rounded-xl border p-4" style={{ borderColor: '#dce1df', background: '#ffffff' }}>
               <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">Time zone</p>

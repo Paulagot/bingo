@@ -142,13 +142,13 @@ export default function OverallLeaderboardCard({
                           <span>{name}</span>
                         </span>
                       ))
-                    : <span className="text-sm text-amber-700">—</span>
+                    : <span className="text-sm text-amber-700">-</span>
                   }
                 </div>
               </div>
 
               <p className="mb-6 text-sm text-gray-500">
-                Players will be asked to guess a number. The closest answer wins. This happens automatically — you just need to confirm to start.
+                Players will be asked to guess a number. The closest answer wins. This happens automatically - you just need to confirm to start.
               </p>
 
               {/* Actions */}

@@ -56,7 +56,7 @@ export default function PlayerChallengePage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   // isAuthenticated() reads a token from localStorage, so it isn't
-  // reactive on its own — this is re-evaluated explicitly below, after
+  // reactive on its own - this is re-evaluated explicitly below, after
   // any Stripe session exchange has had a chance to set a fresh token,
   // rather than captured once and frozen for the lifetime of the
   // component.
@@ -64,7 +64,7 @@ export default function PlayerChallengePage() {
 
   const sessionId = searchParams.get('session_id');
 
-  // Club branding — this page always fetches its own challenge data
+  // Club branding - this page always fetches its own challenge data
   // (unlike the check-email page, which inherits theme via navigation
   // state), so it can resolve theme directly and doesn't need a
   // fallback for lost state on refresh.
@@ -85,7 +85,7 @@ export default function PlayerChallengePage() {
       setActionError(null);
 
       // Landed here from Stripe Checkout (success_url carries
-      // ?session_id=... deliberately with no token in it — see
+      // ?session_id=... deliberately with no token in it - see
       // exchangeSessionForSupporterToken for why). Exchange it for a
       // real supporter token before deciding anything about auth/
       // enrollment state below, so a just-paid player doesn't briefly
@@ -94,7 +94,7 @@ export default function PlayerChallengePage() {
       let authNow = supporterAuthService.isAuthenticated();
 
       // True once we have independent proof of enrollment that doesn't
-      // depend on the webhook having landed yet — exchangeSession
+      // depend on the webhook having landed yet - exchangeSession
       // succeeding already means Stripe confirmed this exact session
       // as paid for this exact challenge, which is a stronger and
       // faster signal than waiting on getEnrollmentStatus to agree
@@ -110,7 +110,7 @@ export default function PlayerChallengePage() {
           provenEnrolledByCheckout = true;
           setIsAuth(true);
         } catch (err) {
-          // Don't fail the whole page over this — fall through to the
+          // Don't fail the whole page over this - fall through to the
           // normal unauthenticated view. The most common real cause is
           // the player reloading this URL much later after the token
           // they'd otherwise already have has naturally been used, or
@@ -197,7 +197,7 @@ export default function PlayerChallengePage() {
   const lockedWeeks = weeks.filter(w => w.status === 'locked').length;
   const completedWeeks = weeks.filter(w => w.status === 'completed').length;
 
-  // The trophy card's "current" puzzle — matches what the card's own
+  // The trophy card's "current" puzzle - matches what the card's own
   // "Play now" button already navigates to: the earliest not-yet-completed
   // available week (catch-up first), not whatever unlocked most recently.
   // Falls back to the last week if everything's completed (nothing pending
@@ -484,7 +484,7 @@ export default function PlayerChallengePage() {
             </div>
           </section>
 
-          {/* Leaderboard links — the share/recruit exit (Wall of Fame, fully
+          {/* Leaderboard links - the share/recruit exit (Wall of Fame, fully
               public) and, once enrolled, the "how am I doing" exit (Overall
               standings, auth required). Kept as their own card rather than
               folded into "Challenge summary" below, since these are actions
@@ -508,7 +508,7 @@ export default function PlayerChallengePage() {
                     🏆 Wall of fame
                   </span>
                   <span className="block text-xs text-[#6E6A63]">
-                    Top 3 every week — share it
+                    Top 3 every week - share it
                   </span>
                 </span>
                 <span className="text-[#6E6A63]">→</span>
@@ -629,7 +629,7 @@ function WeekCard({
 
     if (isCompleted) {
       // Completed weeks route to that week's public leaderboard, not
-      // back into the puzzle/result panel — matches the intent of
+      // back into the puzzle/result panel - matches the intent of
       // clicking a finished puzzle ("how did I do?").
       navigate(`/leaderboards/${challengeId}/weeks/${week.weekNumber}`);
       return;

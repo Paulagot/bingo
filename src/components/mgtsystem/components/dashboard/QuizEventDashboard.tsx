@@ -1,21 +1,25 @@
 // src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx
+//
+// EVENTS DASHBOARD - now only responsible for events. Club-level concerns
+// (logout, payment methods, donation button, income report, notifications)
+// have been lifted into DashboardShell + ClubDrawer so they are accessible
+// from every dashboard (events, peer, and future).
+//
+// Nothing functional has changed inside this file - only the club-level
+// JSX, state, effects and imports were removed.
+
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { eventIntegrationsService } from '../../services/EventIntegrationsService';
 import QuizRoomsService, { type RoomStats } from '../../services/quizRoomServices';
 import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
 import ticketedEventReconciliationService from '../../services/TicketedEventReconciliationService';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
-import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
-
-import ManageDonationButtonModal from '../../modals/ManageDonationButtonModal'; 
-import TotalIncomeReportButton from './TotalIncomeReportButton';
-
 
 import {
-  CreditCard, Calendar, PlusCircle, RefreshCw,
+  Calendar, PlusCircle, RefreshCw,
   Trophy, CalendarDays, CheckCircle,
-  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket, LogOut, Gift, Footprints
+  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket, Footprints
 } from 'lucide-react';
 
 import { quizApi } from '../../../../shared/api';
@@ -32,29 +36,19 @@ import type { ActivityTypeId } from '../../wizard/activityRegistry';
 import EditFundraiserModal from '../../modals/EditFundraiserModal';
 import eventsService from '../../services/eventsServices';
 import type { Event } from '../../types/event';
-import NotificationsTicker from './NotificationsTicker';
 
 type ViewMode = 'table' | 'cards';
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed' | 'cancelled';
-// ADDED 'puzzle_drop' — was missing, which is what caused newly-created
-// Drop activities to never appear as "linked" anywhere in this dashboard.
 type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
 
 interface LinkedActivity {
   room_id: string;
-  // ADDED 'puzzle_drop'
   game_type: 'quiz' | 'elimination' | 'ticketed_event' | 'puzzle_sub' | 'puzzle_drop' | 'sponsored_activity';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
-// A fundraiser can be edited only while its activity is still SCHEDULED —
-// once the room opens/goes live/ends, its config (and the event details
-// bound to it) are locked, matching the drawer's Setup-tab rule. Events
-// with no activity yet (legacy) have nothing scheduled to lock, so they
-// stay editable. Kept as a free function so the card, the row, and the
-// render guard all apply the identical test.
 function canEditFundraiser(activity: LinkedActivity | null | undefined): boolean {
-  if (!activity) return true;            // no activity linked yet — editable
+  if (!activity) return true;
   return activity.status === 'scheduled';
 }
 
@@ -83,14 +77,6 @@ function parseConfigJson(v: any) {
 
 export default function QuizEventDashboard() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-
-  const logout = useAuthStore((s: any) => s.logout);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
 
   const clubId          = useAuthStore((s: any) => s.club?.id || s.user?.club_id);
   const clubName        = useAuthStore((s: any) => s.user?.club_name || s.user?.clubName || 'Your Club');
@@ -122,16 +108,11 @@ export default function QuizEventDashboard() {
   const [linkedEventsMap, setLinkedEventsMap]       = useState<Record<string, { eventId: string; eventTitle: string }>>({});
   const [paymentMethodMap, setPaymentMethodMap]     = useState<Record<string, boolean>>({});
 
-  const [managePaymentsOpen, setManagePaymentsOpen]               = useState(false);
-   const [manageDonationButtonOpen, setManageDonationButtonOpen]   = useState(false);   
-
   const [ents, setEnts]               = useState<any>(null);
   const [entsLoading, setEntsLoading] = useState(true);
   const [entsError, setEntsError]     = useState<string | null>(null);
   const featureAccess    = useMemo(() => getFeatureAccess(ents), [ents]);
   const creditsRemaining = useMemo(() => extractCreditsRemaining(ents), [ents]);
-
-
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
@@ -145,12 +126,6 @@ export default function QuizEventDashboard() {
     for (const e of events) {
       const activity   = activityMap[e.id];
       const roomStatus = activity?.status;
-      // A puzzle_sub room's 'open' status means the challenge is actively
-      // running and billing weekly — that's a "live" state. A puzzle_drop
-      // room's 'open' status means "on sale now" but Drop has no live/
-      // completed phase at all (§3.1) — its 'open' reads the same as
-      // quiz/elimination's 'open' (upcoming/active window), so it's
-      // deliberately NOT included in isRunningSubscription below.
       const isRunningSubscription = activity?.game_type === 'puzzle_sub' && roomStatus === 'open';
 
       if (roomStatus === 'live' || isRunningSubscription)           counts.live++;
@@ -229,7 +204,6 @@ export default function QuizEventDashboard() {
       elimination:    base.filter(e => activityMap[e.id]?.game_type === 'elimination').length,
       ticketed_event: base.filter(e => activityMap[e.id]?.game_type === 'ticketed_event').length,
       puzzle_sub:     base.filter(e => activityMap[e.id]?.game_type === 'puzzle_sub').length,
-      // ADDED
       puzzle_drop:    base.filter(e => activityMap[e.id]?.game_type === 'puzzle_drop').length,
       sponsored_activity: base.filter(e => activityMap[e.id]?.game_type === 'sponsored_activity').length,
     };
@@ -253,35 +227,35 @@ export default function QuizEventDashboard() {
 
   const loadActivities = async (eventList: Event[]): Promise<Record<string, Room>> => {
     try {
-  const eventIds = eventList.map(event => event.id);
+      const eventIds = eventList.map(event => event.id);
 
-const response = await eventIntegrationsService.lookupByEventIds(eventIds);
-const integrations = response?.integrations || [];
+      const response = await eventIntegrationsService.lookupByEventIds(eventIds);
+      const integrations = response?.integrations || [];
 
-const validTypes = new Set([
-  'quiz_web2',
-  'elimination',
-  'ticketed_event',
-  'puzzle_sub',
-  'puzzle_drop',
-  'sponsored_activity',
-]);
+      const validTypes = new Set([
+        'quiz_web2',
+        'elimination',
+        'ticketed_event',
+        'puzzle_sub',
+        'puzzle_drop',
+        'sponsored_activity',
+      ]);
 
-const integrationByEventId = new Map<string, any>();
+      const integrationByEventId = new Map<string, any>();
 
-for (const integration of integrations) {
-  if (
-    validTypes.has(integration.integration_type) &&
-    !integrationByEventId.has(integration.event_id)
-  ) {
-    integrationByEventId.set(integration.event_id, integration);
-  }
-}
+      for (const integration of integrations) {
+        if (
+          validTypes.has(integration.integration_type) &&
+          !integrationByEventId.has(integration.event_id)
+        ) {
+          integrationByEventId.set(integration.event_id, integration);
+        }
+      }
 
-const pairs = eventList.map(event => [
-  event.id,
-  integrationByEventId.get(event.id) ?? null,
-] as const);
+      const pairs = eventList.map(event => [
+        event.id,
+        integrationByEventId.get(event.id) ?? null,
+      ] as const);
 
       const newActivityMap: Record<string, LinkedActivity> = {};
       const roomIds: string[] = [];
@@ -289,9 +263,6 @@ const pairs = eventList.map(event => [
       for (const [eventId, integration] of pairs) {
         if (!integration?.external_ref) continue;
 
-        // FIX: added the 'puzzle_drop' branch — without it, even once the
-        // integration is found above, it would fall through to the final
-        // ': quiz' default and be mislabelled.
         const gameType: LinkedActivity['game_type'] =
           integration.integration_type === 'elimination'
             ? 'elimination'
@@ -340,11 +311,6 @@ const pairs = eventList.map(event => [
           setRoomRowsMap(freshRowMap);
           setActivityMap(updatedActivityMap);
 
-          // Outstanding payments — puzzle_drop excluded here too, same
-          // reasoning as puzzle_sub/ticketed_event: this endpoint reads
-          // per-player-in-a-room unpaid state, which doesn't match Drop's
-          // per-purchase entitlement model. A Drop-specific outstanding-
-          // purchases view is separate future work, not this bug.
           const completedIds = Object.values(updatedActivityMap)
             .filter((a): a is LinkedActivity =>
               !!a &&
@@ -355,24 +321,22 @@ const pairs = eventList.map(event => [
               a.game_type !== 'sponsored_activity'
             )
             .map(a => a.room_id);
-if (completedIds.length > 0) {
-  try {
-    const response =
-      await quizLatePaymentsService.getUnpaidPlayerCounts(completedIds);
 
-    setOutstandingMap(response.counts ?? {});
-  } catch {
-    const emptyMap: Record<string, number> = {};
-
-    for (const roomId of completedIds) {
-      emptyMap[roomId] = 0;
-    }
-
-    setOutstandingMap(emptyMap);
-  }
-} else {
-  setOutstandingMap({});
-}
+          if (completedIds.length > 0) {
+            try {
+              const response =
+                await quizLatePaymentsService.getUnpaidPlayerCounts(completedIds);
+              setOutstandingMap(response.counts ?? {});
+            } catch {
+              const emptyMap: Record<string, number> = {};
+              for (const roomId of completedIds) {
+                emptyMap[roomId] = 0;
+              }
+              setOutstandingMap(emptyMap);
+            }
+          } else {
+            setOutstandingMap({});
+          }
 
         } catch (e) {
           console.error('Failed to load room rows:', e);
@@ -385,68 +349,61 @@ if (completedIds.length > 0) {
           .filter(a => a.game_type === 'ticketed_event' && freshRowMap[a.room_id]?.status === 'completed')
           .map(a => a.room_id);
 
-     if (completedTicketedIds.length > 0) {
-  try {
-    const response =
-      await ticketedEventReconciliationService.getFinalTotals(
-        completedTicketedIds
-      );
+        if (completedTicketedIds.length > 0) {
+          try {
+            const response =
+              await ticketedEventReconciliationService.getFinalTotals(
+                completedTicketedIds
+              );
 
-    setRoomStatsMap(prev => {
-      const next = { ...prev };
-
-      for (const roomId of completedTicketedIds) {
-        const finalTotal = response.totals?.[roomId];
-
-        if (finalTotal != null && next[roomId]) {
-          next[roomId] = {
-            ...next[roomId],
-            totalIncome: finalTotal,
-          };
+            setRoomStatsMap(prev => {
+              const next = { ...prev };
+              for (const roomId of completedTicketedIds) {
+                const finalTotal = response.totals?.[roomId];
+                if (finalTotal != null && next[roomId]) {
+                  next[roomId] = {
+                    ...next[roomId],
+                    totalIncome: finalTotal,
+                  };
+                }
+              }
+              return next;
+            });
+          } catch (error) {
+            console.error(
+              'Failed to load ticketed event reconciliation totals:',
+              error
+            );
+          }
         }
-      }
 
-      return next;
-    });
-  } catch (error) {
-    console.error(
-      'Failed to load ticketed event reconciliation totals:',
-      error
-    );
-  }
-}
+        const pmMap: Record<string, boolean> = {};
 
-const pmMap: Record<string, boolean> = {};
+        for (const roomId of roomIds) {
+          const raw = freshRowMap[roomId]?.linked_payment_methods_json;
 
-for (const roomId of roomIds) {
-  const raw = freshRowMap[roomId]?.linked_payment_methods_json;
+          let linked: any = raw;
 
-  let linked: any = raw;
+          if (typeof raw === 'string') {
+            try {
+              linked = JSON.parse(raw);
+            } catch {
+              linked = null;
+            }
+          }
 
-  if (typeof raw === 'string') {
-    try {
-      linked = JSON.parse(raw);
-    } catch {
-      linked = null;
-    }
-  }
+          const methodIds = [
+            ...(Array.isArray(linked?.ticket_method_ids) ? linked.ticket_method_ids : []),
+            ...(Array.isArray(linked?.onnight_method_ids) ? linked.onnight_method_ids : []),
+            ...(Array.isArray(linked?.linked_method_ids) ? linked.linked_method_ids : []),
+            ...(Array.isArray(linked?.payment_method_ids) ? linked.payment_method_ids : []),
+          ];
 
-  const methodIds = [
-    ...(Array.isArray(linked?.ticket_method_ids) ? linked.ticket_method_ids : []),
-    ...(Array.isArray(linked?.onnight_method_ids) ? linked.onnight_method_ids : []),
-    ...(Array.isArray(linked?.linked_method_ids) ? linked.linked_method_ids : []),
-    ...(Array.isArray(linked?.payment_method_ids) ? linked.payment_method_ids : []),
-  ];
+          pmMap[roomId] = methodIds.length > 0;
+        }
 
-  pmMap[roomId] = methodIds.length > 0;
-}
+        setPaymentMethodMap(pmMap);
 
-setPaymentMethodMap(pmMap);
-
-        // FIX: added a puzzleDropLinks lookup — without it, a Drop room's
-        // entry in linkedEventsMap never populates, breaking the drawer's
-        // "linked to event X" display and Unlink action for Drop
-        // specifically. Same missing-branch pattern as the fixes above.
         const [quizLinks, eliminationLinks, ticketedLinks, subscriptionLinks, dropLinks, sponsoredLinks] = await Promise.all([
           eventIntegrationsService.lookupLinks({ integration_type: 'quiz_web2',      external_refs: roomIds }),
           eventIntegrationsService.lookupLinks({ integration_type: 'elimination',     external_refs: roomIds }),
@@ -479,42 +436,34 @@ setPaymentMethodMap(pmMap);
     }
   };
 
- const loadEvents = async (): Promise<Record<string, Room>> => {
-  if (!clubId) return {};
+  const loadEvents = async (): Promise<Record<string, Room>> => {
+    if (!clubId) return {};
 
-  setEventsLoading(true);
-  setEventsError(null);
+    setEventsLoading(true);
+    setEventsError(null);
 
-  try {
-    const res = await eventsService.getClubEvents(clubId);
-    const loaded = res.events || [];
+    try {
+      const res = await eventsService.getClubEvents(clubId);
+      const loaded = res.events || [];
 
-    setEvents(loaded);
+      setEvents(loaded);
+      setEventsLoading(false);
 
-    // The main event list is ready. Render it immediately.
-    setEventsLoading(false);
+      if (loaded.length > 0) {
+        return await loadActivities(loaded);
+      }
 
-    // Related activity, room and payment data can populate afterward.
-    if (loaded.length > 0) {
-      return await loadActivities(loaded);
+      return {};
+    } catch (e: any) {
+      setEventsError(e?.message || 'Failed to load events');
+      return {};
+    } finally {
+      setEventsLoading(false);
     }
-
-    return {};
-  } catch (e: any) {
-    setEventsError(e?.message || 'Failed to load events');
-    return {};
-  } finally {
-    setEventsLoading(false);
-  }
-};
+  };
 
   useEffect(() => { loadEntitlements(); }, []);
   useEffect(() => { loadEvents(); }, [clubId]);
-  useEffect(() => {
-    if (!clubId) return;
-    const p = searchParams.get('stripe');
-    if (p === 'return' || p === 'refresh') setManagePaymentsOpen(true);
-  }, [clubId]);
 
   useEffect(() => {
     const liveIds = Object.values(activityMap)
@@ -609,147 +558,126 @@ setPaymentMethodMap(pmMap);
     { key: 'elimination',    label: 'Elimination', icon: <Trophy className="h-3 w-3" />,    count: gameTypeCounts.elimination },
     { key: 'ticketed_event', label: 'Ticketed',    icon: <Ticket className="h-3 w-3" />,    count: gameTypeCounts.ticketed_event },
     { key: 'puzzle_sub',     label: 'Subscription', icon: <Puzzle className="h-3 w-3" />,   count: gameTypeCounts.puzzle_sub },
-    // ADDED
     { key: 'puzzle_drop',    label: 'Drop',         icon: <Puzzle className="h-3 w-3" />,   count: gameTypeCounts.puzzle_drop },
     { key: 'sponsored_activity', label: 'Sponsored', icon: <Footprints className="h-3 w-3" />, count: gameTypeCounts.sponsored_activity },
   ];
 
   return (
-    <div style={{ backgroundColor: '#f6f1e8' }}>
-      <div className="container mx-auto max-w-7xl px-4 py-6 sm:py-8">
-              <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
-              style={{ background: '#ffffff', borderColor: '#f2c5c2', color: '#b42318' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#fff4f3'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; }}
-            >
-              <LogOut className="h-4 w-4" />
-              Log out
-            </button>
-
-               {/* ── Notifications ── */}
-        <div className="mb-6">
-          <NotificationsTicker />
+    <div className="container mx-auto max-w-7xl px-4 py-6 sm:py-8">
+      {/* ── Header ── */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: '#102532' }}>Events</h1>
+          <p className="mt-1 text-sm font-semibold" style={{ color: '#52636f' }}>{clubName}</p>
         </div>
 
-        {/* ── Header ── */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold" style={{ color: '#102532' }}>Events</h1>
-            <p className="mt-1 text-sm font-semibold" style={{ color: '#52636f' }}>{clubName}</p>
-          </div>
-          
-      <div className="flex gap-2 flex-wrap">
-            {featureAccess.quizPayments && (
-              <button type="button" onClick={() => setManagePaymentsOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
-                style={{ background: 'rgba(210,181,130,0.2)', color: '#102532' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(210,181,130,0.35)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(210,181,130,0.2)')}>
-                <CreditCard className="h-4 w-4" />
-                <span className="hidden sm:inline">Payment Methods</span>
-                <span className="sm:hidden">Payments</span>
-              </button>
-            )}
-               <TotalIncomeReportButton clubId={clubId} clubName={clubName} />
-
-            {featureAccess.quizPayments && (
-              <button type="button" onClick={() => setManageDonationButtonOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
-                style={{ background: 'rgba(210,181,130,0.2)', color: '#102532' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(210,181,130,0.35)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(210,181,130,0.2)')}>
-                <Gift className="h-4 w-4" />
-                <span className="hidden sm:inline">Donation Button</span>
-                <span className="sm:hidden">Donate</span>
-              </button>
-            )}
-
-            <button type="button"
-              onClick={() => { setWizardEvent(null); setWizardType(undefined); setShowWizard(true); }}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
-              style={{ background: '#157f85' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}>
-              <PlusCircle className="h-4 w-4" /> Create Fundraiser
-            </button>
-          </div>
+        <div className="flex gap-2 flex-wrap">
+          <button type="button"
+            onClick={() => { setWizardEvent(null); setWizardType(undefined); setShowWizard(true); }}
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
+            style={{ background: '#157f85' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}>
+            <PlusCircle className="h-4 w-4" /> Create Fundraiser
+          </button>
         </div>
+      </div>
 
- 
-
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          {[
-            { label: 'Total Events', value: events.length,         Icon: CalendarDays, color: 'indigo' },
-            { label: 'Upcoming',     value: statusCounts.upcoming, Icon: Calendar,     color: 'blue'   },
-            { label: 'Live Now',     value: statusCounts.live,     Icon: CheckCircle,  color: 'green'  },
-            {
-              label: 'Credits',
-              value: entsLoading ? '…' : entsError ? 'N/A' : creditsRemaining,
-              Icon: Trophy,
-              color: 'amber',
-              refresh: loadEntitlements,
-            },
-          ].map(({ label, value, Icon, color, refresh }) => (
-            <div key={label} className="rounded-xl p-3 sm:p-4 shadow-sm"
-              style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-              <div className="flex items-center gap-3">
-                <div className={`flex-shrink-0 p-2 rounded-lg bg-${color}-100`}>
-                  <Icon className={`h-4 w-4 sm:h-5 sm:w-5 text-${color}-600`} />
-                </div>
-                <div>
-                  <p className="text-xs font-medium" style={{ color: '#52636f' }}>{label}</p>
-                  <div className="flex items-center gap-2">
-                    <p className={`text-lg sm:text-xl font-bold text-${color}-600`}>{value}</p>
-                    {refresh && (
-                      <button type="button" onClick={refresh} className="p-1 rounded hover:bg-gray-100">
-                        <RefreshCw className="h-3 w-3" style={{ color: '#52636f' }} />
-                      </button>
-                    )}
-                  </div>
+      {/* ── Stats ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        {[
+          { label: 'Total Events', value: events.length,         Icon: CalendarDays, color: 'indigo' },
+          { label: 'Upcoming',     value: statusCounts.upcoming, Icon: Calendar,     color: 'blue'   },
+          { label: 'Live Now',     value: statusCounts.live,     Icon: CheckCircle,  color: 'green'  },
+          {
+            label: 'Credits',
+            value: entsLoading ? '…' : entsError ? 'N/A' : creditsRemaining,
+            Icon: Trophy,
+            color: 'amber',
+            refresh: loadEntitlements,
+          },
+        ].map(({ label, value, Icon, color, refresh }) => (
+          <div key={label} className="rounded-xl p-3 sm:p-4 shadow-sm"
+            style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+            <div className="flex items-center gap-3">
+              <div className={`flex-shrink-0 p-2 rounded-lg bg-${color}-100`}>
+                <Icon className={`h-4 w-4 sm:h-5 sm:w-5 text-${color}-600`} />
+              </div>
+              <div>
+                <p className="text-xs font-medium" style={{ color: '#52636f' }}>{label}</p>
+                <div className="flex items-center gap-2">
+                  <p className={`text-lg sm:text-xl font-bold text-${color}-600`}>{value}</p>
+                  {refresh && (
+                    <button type="button" onClick={refresh} className="p-1 rounded hover:bg-gray-100">
+                      <RefreshCw className="h-3 w-3" style={{ color: '#52636f' }} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-          ))}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filters ── */}
+      <div className="mb-4 overflow-hidden rounded-xl shadow-sm"
+        style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+
+        {/* Status tabs */}
+        <div className="flex items-center gap-1 px-2 pt-2 pb-0"
+          style={{ borderBottom: '1px solid #f1f0ee' }}>
+          {(['all','upcoming','live','completed','cancelled'] as StatusFilter[]).map(s => {
+            const count = statusCounts[s as keyof typeof statusCounts] ?? 0;
+            const isActive = statusFilter === s;
+            const labels: Record<StatusFilter, string> = {
+              all: 'All', upcoming: 'Upcoming', live: 'Live',
+              completed: 'Completed', cancelled: 'Cancelled',
+            };
+            return (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap rounded-t-lg ${
+                  isActive ? '' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                }`}
+                style={isActive
+                  ? { color: '#157f85', borderBottom: '2px solid #157f85', marginBottom: '-1px' }
+                  : {}}>
+                {s === 'live' && statusCounts.live > 0 && (
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
+                  </span>
+                )}
+                {labels[s]}
+                {count > 0 && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                    isActive
+                      ? 'bg-[rgba(21,127,133,0.12)] text-[#157f85]'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* ── Filters ── */}
-        <div className="mb-4 overflow-hidden rounded-xl shadow-sm"
-          style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-
-          {/* Status tabs */}
-          <div className="flex items-center gap-1 px-2 pt-2 pb-0"
-            style={{ borderBottom: '1px solid #f1f0ee' }}>
-            {(['all','upcoming','live','completed','cancelled'] as StatusFilter[]).map(s => {
-              const count = statusCounts[s as keyof typeof statusCounts] ?? 0;
-              const isActive = statusFilter === s;
-              const labels: Record<StatusFilter, string> = {
-                all: 'All', upcoming: 'Upcoming', live: 'Live',
-                completed: 'Completed', cancelled: 'Cancelled',
-              };
+        {/* Game type + search row */}
+        <div className="flex items-center gap-2 px-3 py-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
+            {gameTypeButtons.map(({ key, label, icon, count }) => {
+              const isActive = gameTypeFilter === key;
               return (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap rounded-t-lg ${
-                    isActive ? '' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-                  }`}
+                <button key={key} onClick={() => setGameTypeFilter(key)}
+                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
                   style={isActive
-                    ? { color: '#157f85', borderBottom: '2px solid #157f85', marginBottom: '-1px' }
-                    : {}}>
-                  {s === 'live' && statusCounts.live > 0 && (
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
-                    </span>
-                  )}
-                  {labels[s]}
+                    ? { background: '#157f85', color: '#fff' }
+                    : { background: '#f6f1e8', color: '#52636f' }}>
+                  {icon}
+                  {label}
                   {count > 0 && (
                     <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
-                      isActive
-                        ? 'bg-[rgba(21,127,133,0.12)] text-[#157f85]'
-                        : 'bg-gray-100 text-gray-500'
+                      isActive ? 'bg-white/20 text-white' : 'bg-white text-gray-500'
                     }`}>
                       {count}
                     </span>
@@ -757,186 +685,138 @@ setPaymentMethodMap(pmMap);
                 </button>
               );
             })}
-          </div>
 
-          {/* Game type + search row */}
-          <div className="flex items-center gap-2 px-3 py-2 flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
-              {gameTypeButtons.map(({ key, label, icon, count }) => {
-                const isActive = gameTypeFilter === key;
-                return (
-                  <button key={key} onClick={() => setGameTypeFilter(key)}
-                    className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
-                    style={isActive
-                      ? { background: '#157f85', color: '#fff' }
-                      : { background: '#f6f1e8', color: '#52636f' }}>
-                    {icon}
-                    {label}
-                    {count > 0 && (
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-white text-gray-500'
-                      }`}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-
-              {[
-                { label: 'Other',  icon: <Sparkles className="h-3 w-3" /> },
-              ].map(({ label, icon }) => (
-                <div key={label}
-                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-not-allowed opacity-50 whitespace-nowrap"
-                  style={{ background: '#f1f0ee', color: '#8a9bab' }}
-                  title="Coming soon">
-                  {icon}{label}
-                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
-                    style={{ background: 'rgba(210,181,130,0.2)', color: '#8a6d2f' }}>
-                    Soon
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="hidden sm:block h-4 w-px bg-gray-200 flex-shrink-0" />
-
-            <div className="relative flex-1 min-w-[140px]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-              <input
-                type="text" value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search events…"
-                className="w-full rounded-lg border py-1.5 pl-8 pr-7 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#157f85] focus:border-transparent transition"
-                style={{ borderColor: '#dce1df', background: '#fafafa' }}
-              />
-              {search && (
-                <button onClick={() => setSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-
-            {activeFilterCount > 0 && (
-              <button
-                onClick={() => { setStatusFilter('all'); setGameTypeFilter('all'); setSearch(''); }}
-                className="hidden sm:flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex-shrink-0 transition-colors hover:bg-red-50 text-gray-500 hover:text-red-600"
-                style={{ border: '1px solid #dce1df' }}>
-                <X className="h-3 w-3" /> Clear
-              </button>
-            )}
-
-            {!isMobile && (
-              <div className="flex gap-1 rounded-lg p-1 flex-shrink-0" style={{ background: '#f1f0ee' }}>
-                <button onClick={() => setViewMode('table')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
-                  style={viewMode === 'table' ? { color: '#157f85' } : {}}>
-                  <LayoutList className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => setViewMode('cards')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'cards' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
-                  style={viewMode === 'cards' ? { color: '#157f85' } : {}}>
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                </button>
+            {[
+              { label: 'Other',  icon: <Sparkles className="h-3 w-3" /> },
+            ].map(({ label, icon }) => (
+              <div key={label}
+                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-not-allowed opacity-50 whitespace-nowrap"
+                style={{ background: '#f1f0ee', color: '#8a9bab' }}
+                title="Coming soon">
+                {icon}{label}
+                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
+                  style={{ background: 'rgba(210,181,130,0.2)', color: '#8a6d2f' }}>
+                  Soon
+                </span>
               </div>
-            )}
+            ))}
           </div>
-        </div>
 
-        {/* ── Events list ── */}
-        {eventsLoading ? (
-          <div className="flex items-center justify-center py-16 rounded-xl"
-            style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-            <div className="h-7 w-7 animate-spin rounded-full border-4 border-t-transparent"
-              style={{ borderColor: '#157f85', borderTopColor: 'transparent' }} />
-            <span className="ml-3 text-sm" style={{ color: '#52636f' }}>Loading events…</span>
+          <div className="hidden sm:block h-4 w-px bg-gray-200 flex-shrink-0" />
+
+          <div className="relative flex-1 min-w-[140px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+            <input
+              type="text" value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search events…"
+              className="w-full rounded-lg border py-1.5 pl-8 pr-7 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#157f85] focus:border-transparent transition"
+              style={{ borderColor: '#dce1df', background: '#fafafa' }}
+            />
+            {search && (
+              <button onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-        ) : eventsError ? (
-          <div className="py-12 text-center rounded-xl"
-            style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-            <p className="text-sm font-semibold" style={{ color: '#e9574f' }}>Failed to load events</p>
-            <p className="mt-1 text-xs" style={{ color: '#52636f' }}>{eventsError}</p>
-            <button onClick={loadEvents}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
-              style={{ background: '#157f85' }}>
-              <RefreshCw className="h-4 w-4" /> Retry
+
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => { setStatusFilter('all'); setGameTypeFilter('all'); setSearch(''); }}
+              className="hidden sm:flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex-shrink-0 transition-colors hover:bg-red-50 text-gray-500 hover:text-red-600"
+              style={{ border: '1px solid #dce1df' }}>
+              <X className="h-3 w-3" /> Clear
             </button>
-          </div>
-        ) : filteredEvents.length === 0 ? (
-          <div className="py-16 text-center rounded-xl"
-            style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-            <Calendar className="mx-auto mb-4 h-10 w-10" style={{ color: '#b8c6b0' }} />
-            <h3 className="text-lg font-semibold mb-2" style={{ color: '#102532' }}>
-              {search
-                ? `No events matching "${search}"`
-                : events.length === 0
-                  ? 'No events yet'
-                  : `No ${statusFilter} events`}
-            </h3>
-            <p className="text-sm mb-4" style={{ color: '#52636f' }}>
-              {events.length === 0
-                ? 'Create your first event, then add an activity to it'
-                : 'Try a different filter'}
-            </p>
-            {events.length === 0 && (
-              <button
-                onClick={() => { setWizardEvent(null); setWizardType(undefined); setShowWizard(true); }}
-                className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
-                style={{ background: '#157f85' }}>
-                <PlusCircle className="h-4 w-4" /> Create Your First Fundraiser
+          )}
+
+          {!isMobile && (
+            <div className="flex gap-1 rounded-lg p-1 flex-shrink-0" style={{ background: '#f1f0ee' }}>
+              <button onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                style={viewMode === 'table' ? { color: '#157f85' } : {}}>
+                <LayoutList className="h-3.5 w-3.5" />
               </button>
-            )}
-            {(search || statusFilter !== 'all') && (
-              <button
-                onClick={() => { setSearch(''); setStatusFilter('all'); }}
-                className="ml-3 text-sm font-semibold"
-                style={{ color: '#157f85' }}>
-                Clear filters
+              <button onClick={() => setViewMode('cards')}
+                className={`p-1.5 rounded-md transition-colors ${viewMode === 'cards' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                style={viewMode === 'cards' ? { color: '#157f85' } : {}}>
+                <LayoutGrid className="h-3.5 w-3.5" />
               </button>
-            )}
-          </div>
-        ) : viewMode === 'table' ? (
-          <div className="overflow-hidden rounded-xl shadow-sm" style={{ border: '1px solid #dce1df' }}>
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_120px] gap-4 px-4 py-3 text-xs font-semibold uppercase"
-              style={{ background: '#fbf8f2', color: '#52636f', borderBottom: '1px solid #dce1df' }}>
-              <div>Event</div><div>Date</div><div>Activity</div>
-              <div>Tickets</div><div>Income</div>
-              <div className="text-right">Actions</div>
             </div>
-            <div className="divide-y" style={{ background: '#ffffff', '--divide-color': '#f1f0ee' } as any}>
-              {filteredEvents.map(event => {
-                const activity    = activityMap[event.id];
-                const stats       = activity ? roomStatsMap[activity.room_id] : undefined;
-                const outstanding = activity ? (outstandingMap[activity.room_id] ?? 0) : 0;
-                return (
-                  <FundraiselyEventRow
-                    key={event.id}
-                    event={event}
-                    linkedActivity={activity as any}
-                    activityStats={stats}
-                    outstandingCount={outstanding}
-                    onOpenDrawer={() => handleOpenDrawer(event)}
-                    onAddActivity={(type) => handleAddActivity(event, type as ActivityTypeId)}
-                    onEdit={canEditFundraiser(activityMap[event.id]) ? () => setEventToEdit(event) : undefined}
-                    onPublish={() => handlePublish(event)}
-                    onUnpublish={() => handleUnpublish(event)}
-                  />
-                );
-              })}
-            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Events list ── */}
+      {eventsLoading ? (
+        <div className="flex items-center justify-center py-16 rounded-xl"
+          style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+          <div className="h-7 w-7 animate-spin rounded-full border-4 border-t-transparent"
+            style={{ borderColor: '#157f85', borderTopColor: 'transparent' }} />
+          <span className="ml-3 text-sm" style={{ color: '#52636f' }}>Loading events…</span>
+        </div>
+      ) : eventsError ? (
+        <div className="py-12 text-center rounded-xl"
+          style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+          <p className="text-sm font-semibold" style={{ color: '#e9574f' }}>Failed to load events</p>
+          <p className="mt-1 text-xs" style={{ color: '#52636f' }}>{eventsError}</p>
+          <button onClick={loadEvents}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+            style={{ background: '#157f85' }}>
+            <RefreshCw className="h-4 w-4" /> Retry
+          </button>
+        </div>
+      ) : filteredEvents.length === 0 ? (
+        <div className="py-16 text-center rounded-xl"
+          style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+          <Calendar className="mx-auto mb-4 h-10 w-10" style={{ color: '#b8c6b0' }} />
+          <h3 className="text-lg font-semibold mb-2" style={{ color: '#102532' }}>
+            {search
+              ? `No events matching "${search}"`
+              : events.length === 0
+                ? 'No events yet'
+                : `No ${statusFilter} events`}
+          </h3>
+          <p className="text-sm mb-4" style={{ color: '#52636f' }}>
+            {events.length === 0
+              ? 'Create your first event, then add an activity to it'
+              : 'Try a different filter'}
+          </p>
+          {events.length === 0 && (
+            <button
+              onClick={() => { setWizardEvent(null); setWizardType(undefined); setShowWizard(true); }}
+              className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
+              style={{ background: '#157f85' }}>
+              <PlusCircle className="h-4 w-4" /> Create Your First Fundraiser
+            </button>
+          )}
+          {(search || statusFilter !== 'all') && (
+            <button
+              onClick={() => { setSearch(''); setStatusFilter('all'); }}
+              className="ml-3 text-sm font-semibold"
+              style={{ color: '#157f85' }}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      ) : viewMode === 'table' ? (
+        <div className="overflow-hidden rounded-xl shadow-sm" style={{ border: '1px solid #dce1df' }}>
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_120px] gap-4 px-4 py-3 text-xs font-semibold uppercase"
+            style={{ background: '#fbf8f2', color: '#52636f', borderBottom: '1px solid #dce1df' }}>
+            <div>Event</div><div>Date</div><div>Activity</div>
+            <div>Tickets</div><div>Income</div>
+            <div className="text-right">Actions</div>
           </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="divide-y" style={{ background: '#ffffff', '--divide-color': '#f1f0ee' } as any}>
             {filteredEvents.map(event => {
               const activity    = activityMap[event.id];
               const stats       = activity ? roomStatsMap[activity.room_id] : undefined;
               const outstanding = activity ? (outstandingMap[activity.room_id] ?? 0) : 0;
               return (
-                <FundraiselyEventCard
+                <FundraiselyEventRow
                   key={event.id}
                   event={event}
-                  linkedActivity={activity}
+                  linkedActivity={activity as any}
                   activityStats={stats}
                   outstandingCount={outstanding}
                   onOpenDrawer={() => handleOpenDrawer(event)}
@@ -948,8 +828,30 @@ setPaymentMethodMap(pmMap);
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredEvents.map(event => {
+            const activity    = activityMap[event.id];
+            const stats       = activity ? roomStatsMap[activity.room_id] : undefined;
+            const outstanding = activity ? (outstandingMap[activity.room_id] ?? 0) : 0;
+            return (
+              <FundraiselyEventCard
+                key={event.id}
+                event={event}
+                linkedActivity={activity}
+                activityStats={stats}
+                outstandingCount={outstanding}
+                onOpenDrawer={() => handleOpenDrawer(event)}
+                onAddActivity={(type) => handleAddActivity(event, type as ActivityTypeId)}
+                onEdit={canEditFundraiser(activityMap[event.id]) ? () => setEventToEdit(event) : undefined}
+                onPublish={() => handlePublish(event)}
+                onUnpublish={() => handleUnpublish(event)}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Modals ── */}
 
@@ -1022,25 +924,6 @@ setPaymentMethodMap(pmMap);
           }}
         />
       )}
-
-      {managePaymentsOpen && clubId && (
-        <ManagePaymentMethodsModal
-          clubId={clubId}
-          onClose={() => setManagePaymentsOpen(false)}
-        />
-      )}
-
-         {manageDonationButtonOpen && clubId && (
-        <ManageDonationButtonModal
-          clubId={clubId}
-          onClose={() => setManageDonationButtonOpen(false)}
-          onOpenPaymentMethods={() => {
-            setManageDonationButtonOpen(false);
-            setManagePaymentsOpen(true);
-          }}
-        />
-      )}
-
     </div>
   );
 }

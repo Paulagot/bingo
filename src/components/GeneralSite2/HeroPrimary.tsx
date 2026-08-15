@@ -12,7 +12,7 @@ const HeroPrimary: React.FC = () => {
         <a
           href="/founding-partners"
           className="group relative mx-auto mb-6 block max-w-3xl rounded-2xl border border-white/10 p-[1px] shadow-xl hover:scale-[1.01] transition-transform bg-gradient-to-r from-teal-600 via-cyan-600 to-teal-600"
-          aria-label="Founding Partner Waitlist now live — lock your price for life"
+          aria-label="Founding Partner Waitlist now live - lock your price for life"
         >
           <div className="rounded-2xl bg-white/90 backdrop-blur-sm p-3 sm:p-4">
             <div className="flex items-center justify-center gap-3 text-teal-800">
@@ -20,7 +20,7 @@ const HeroPrimary: React.FC = () => {
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
               </span>
               <span className="text-sm sm:text-base font-semibold">
-                Founding Partner Waitlist now live — <span className="underline decoration-teal-400/60 decoration-2 underline-offset-2">lock your price for life</span>
+                Founding Partner Waitlist now live - <span className="underline decoration-teal-400/60 decoration-2 underline-offset-2">lock your price for life</span>
               </span>
               <span className="hidden sm:inline-flex items-center gap-1 text-teal-800/80 font-semibold">
                 <span className="group-hover:translate-x-0.5 transition-transform">Learn more</span>

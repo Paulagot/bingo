@@ -3,7 +3,7 @@
 // Read-only verification: for every APPROVED reconciliation, refetch its
 // adjustments, recompute the net with the shared classifier, and diff
 // against the stored adjustments_net. Run BEFORE migrating any approval
-// flow to the classifier — if this comes back clean, the refactor changes
+// flow to the classifier - if this comes back clean, the refactor changes
 // nothing in practice; if it doesn't, every mismatch is a real historical
 // mis-sign worth eyeballing (drop's missing prize_payout, quiz's
 // default-subtract, or a bad cash_over_short reason_code).
@@ -17,7 +17,7 @@ import { computeAdjustmentsNet, classifyAdjustment } from '../shared/adjustmentC
 const RECON_TABLE = `${TABLE_PREFIX}quiz_reconciliation`;
 const ADJ_TABLE = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
 
-const EPSILON = 0.005; // decimal(10,2) — anything past rounding is real
+const EPSILON = 0.005; // decimal(10,2) - anything past rounding is real
 
 async function main() {
   const [recons] = await connection.execute(
@@ -35,7 +35,7 @@ async function main() {
   for (const rec of recons) {
     // Adjustments link by reconciliation_id where it was set
     // (quiz/ticketed/sub/drop). Elimination never stamps it, so fall
-    // back to room_id for rows with NULL reconciliation_id — safe
+    // back to room_id for rows with NULL reconciliation_id - safe
     // because elimination has exactly one reconciliation per room.
     const [adjRows] = await connection.execute(
       `SELECT id, adjustment_type, reason_code, amount

@@ -61,7 +61,7 @@ export const EliminationEliminatedView: React.FC<Props> = ({
         Better luck next time, <span style={s.name}>{playerName}</span>.
       </div>
 
-      {/* Game over — show winner + sponsor */}
+      {/* Game over - show winner + sponsor */}
       {gameOver && winnerName && (
         <div style={s.winnerBanner}>
           <div style={s.winnerLabel}>Winner</div>
@@ -72,7 +72,7 @@ export const EliminationEliminatedView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Still playing — show spectator info */}
+      {/* Still playing - show spectator info */}
       {!gameOver && (
         <div style={s.spectatorBox}>
           <div style={s.spectatorLabel}>Spectating</div>
@@ -97,10 +97,10 @@ export const EliminationEliminatedView: React.FC<Props> = ({
       )}
 
       <div style={s.noSubmitBanner}>
-        You have been eliminated — your game is over
+        You have been eliminated - your game is over
       </div>
 
-      {/* Feedback modal — shown when game ends, pauses the auto-leave countdown */}
+      {/* Feedback modal - shown when game ends, pauses the auto-leave countdown */}
       {gameOver && roomId && !feedbackDone && (
         <FeedbackModal
           roomId={roomId}
@@ -110,7 +110,7 @@ export const EliminationEliminatedView: React.FC<Props> = ({
         />
       )}
 
-      {/* Auto-leave CTA — only shown after feedback is done (or no feedback) */}
+      {/* Auto-leave CTA - only shown after feedback is done (or no feedback) */}
       {gameOver && onLeave && feedbackDone && (
         <div style={s.leaveSection}>
           <button onClick={onLeave} style={s.leaveBtn}>

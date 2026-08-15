@@ -111,7 +111,7 @@ const QuizFeaturesPage: React.FC = () => {
   const webPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'Fundraising Quiz Features — Transform Your Community Events | FundRaisely',
+    name: 'Fundraising Quiz Features - Transform Your Community Events | FundRaisely',
     description:
       'Discover comprehensive fundraising quiz features designed for charities and non-profits. Interactive extras, payment management, real-time scoring, and professional reporting tools.',
     url: abs('/quiz/features'),
@@ -195,7 +195,7 @@ const QuizFeaturesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
-        title="Fundraising Quiz Features — Transform Your Community Events | FundRaisely"
+        title="Fundraising Quiz Features - Transform Your Community Events | FundRaisely"
         description="Discover comprehensive fundraising quiz features designed for charities and non-profits. Interactive extras, payment management, real-time scoring, and professional reporting tools."
         keywords="fundraising quiz features, charity quiz app features, fundraising quiz app features, interactive fundraising quiz, community fundraising platform, non-profit quiz night features"
         structuredData={[breadcrumbsJsonLd, webPageJsonLd, itemListJsonLd, faqJsonLd]}
@@ -359,7 +359,7 @@ const QuizFeaturesPage: React.FC = () => {
           <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
             <h2 className="text-indigo-900 text-3xl font-bold mb-2">Ticketing & Payment Reconciliation</h2>
             <p className="text-indigo-900/70 text-lg mb-6">
-              Sell tickets with Stripe, and track every payment — including cash and instant transfers — with a purpose-built
+              Sell tickets with Stripe, and track every payment - including cash and instant transfers - with a purpose-built
               reconciliation system designed for real community events.
             </p>
 
@@ -373,7 +373,7 @@ const QuizFeaturesPage: React.FC = () => {
               <FeatureCard
                 icon={<Smartphone className="h-5 w-5" />}
                 title="Cash + Instant Payment Tracking"
-                desc="Track Revolut, Wise, bank transfer and cash payments with a unique expected vs received system — so you can run the event your community prefers without losing visibility."
+                desc="Track Revolut, Wise, bank transfer and cash payments with a unique expected vs received system - so you can run the event your community prefers without losing visibility."
                 gradient="from-violet-600 to-purple-700"
               />
               <FeatureCard
@@ -532,7 +532,7 @@ const QuizFeaturesPage: React.FC = () => {
       <section className="px-4 pt-12 pb-8">
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-indigo-900 mb-8 text-3xl font-bold text-center">
-            Fundraising Quiz Features — Frequently Asked Questions
+            Fundraising Quiz Features - Frequently Asked Questions
           </h2>
           <div className="grid gap-6 md:grid-cols-2">
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">

@@ -51,7 +51,7 @@ function getMethodLabel(m: string): string {
 }
 
 // ─── Emit with timeout fallback ───────────────────────────────────────────────
-// Socket.io ack callbacks aren't guaranteed — if the server doesn't call back
+// Socket.io ack callbacks aren't guaranteed - if the server doesn't call back
 // within 5s, we treat it as success anyway so the UI doesn't hang.
 function emitWithFallback(
   socket: any,

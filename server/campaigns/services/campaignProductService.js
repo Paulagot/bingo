@@ -2,7 +2,7 @@
 //
 // CRUD for campaign products and product items.
 // All write operations validate club/campaign ownership.
-// club_id is always taken from auth middleware — never trusted from client.
+// club_id is always taken from auth middleware - never trusted from client.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';
@@ -56,7 +56,7 @@ async function assertProductOwnership(productId, campaignId, clubId) {
 
 /**
  * Assert a room belongs to the club.
- * The rooms table has no campaign_id column — rooms are owned by the club
+ * The rooms table has no campaign_id column - rooms are owned by the club
  * and referenced by products. Validation is by club ownership only.
  */
 async function assertRoomLinkedToCampaign(roomId, campaignId, clubId) {
@@ -134,8 +134,8 @@ export async function getProduct(productId, campaignId, clubId) {
 /**
  * Create a product with its product items.
  * @param {string} campaignId
- * @param {string} clubId  — from auth, never client
- * @param {object} payload — see spec section 6.3/6.4
+ * @param {string} clubId  - from auth, never client
+ * @param {object} payload - see spec section 6.3/6.4
  */
 export async function createProduct(campaignId, clubId, payload) {
   await assertCampaignOwnership(campaignId, clubId);
@@ -289,7 +289,7 @@ export async function duplicateProduct(productId, campaignId, clubId) {
 
 /**
  * Fetch all active rooms for the club to use in templates.
- * The rooms table has no campaign_id — we return all non-cancelled
+ * The rooms table has no campaign_id - we return all non-cancelled
  * club rooms so templates can pick appropriate ones.
  */
 async function getLinkedRooms(campaignId, clubId) {
@@ -345,7 +345,7 @@ const TEMPLATES = {
 };
 
 /**
- * Apply a product template — creates suggested products from linked campaign events.
+ * Apply a product template - creates suggested products from linked campaign events.
  */
 export async function applyTemplate(campaignId, clubId, templateKey) {
   await assertCampaignOwnership(campaignId, clubId);

@@ -438,7 +438,7 @@ export default function CommunityGroupsPage() {
               <p>
                 The event used a donate-what-you-want entry model, so supporters
                 could choose their own contribution to take part. It was not
-                just a donation page — it was a live quiz night with
+                just a donation page - it was a live quiz night with
                 participation, gameplay, fundraising extras and a shared result
                 at the end.
               </p>

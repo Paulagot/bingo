@@ -31,7 +31,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
       });
       const params   = new URLSearchParams(location.search);
       const returnTo = params.get('returnTo');
-      if (!showNoCreditWarning) navigate(returnTo || '/quiz/eventdashboard', { replace: true });
+      if (!showNoCreditWarning) navigate(returnTo || '/event-dashboard', { replace: true });
     } catch (err) {
       console.error('Login failed:', err);
     }
@@ -46,7 +46,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     dismissNoCreditWarning();
     const params   = new URLSearchParams(location.search);
     const returnTo = params.get('returnTo');
-    navigate(returnTo || '/quiz/eventdashboard', { replace: true });
+    navigate(returnTo || '/event-dashboard', { replace: true });
   };
 
   const inputCls = (hasVal?: boolean) =>

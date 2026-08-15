@@ -2,7 +2,7 @@
 //
 // Period-aware reconciliation for Sponsored Activity, built on the SAME shared
 // tables ticketed events and subscriptions use (fundraisely_quiz_reconciliation
-// / _adjustments) — no schema changes. Direct structural port of
+// / _adjustments) - no schema changes. Direct structural port of
 // subscriptionReconciliationService.js; the one deliberate difference is
 // getPeriodReceipts: subscriptions are Stripe-only, so that service filters
 // payment_method = 'stripe'. Sponsored Activity entitlements confirm via cash, instant
@@ -119,10 +119,10 @@ export async function getLifetimeSummary(roomId) {
   };
 }
 
-// ─── This period's confirmed receipts — ALL payment methods ─────────────────
+// ─── This period's confirmed receipts - ALL payment methods ─────────────────
 // CHANGED from the subscription version: no `AND payment_method = 'stripe'`.
 // Sponsored Activity's ledger rows for a confirmed purchase can be cash, instant_payment,
-// stripe, or crypto (see createSponsored ActivityEntitlements/confirmSponsored ActivityPurchase) — all
+// stripe, or crypto (see createSponsored ActivityEntitlements/confirmSponsored ActivityPurchase) - all
 // of them count as real money received for this Sponsored Activity, so all are summed.
 
 export async function getPeriodReceipts(roomId, sinceIso) {
@@ -187,7 +187,7 @@ export async function ensureCurrentDraftReconciliation(roomId, clubId) {
   // Same rationale as subscriptionReconciliationService.js: this must be
   // written into created_at explicitly, and bound as a JS Date object
   // (not a raw ISO string) since mysql2 needs a Date for correct datetime
-  // conversion — a plain 'T'/'Z' string caused exactly this insert to
+  // conversion - a plain 'T'/'Z' string caused exactly this insert to
   // 500 there, so the same fix applies here verbatim.
   const periodStartIso = latest ? latest.approvedAt : '1970-01-01T00:00:00.000Z';
   const periodStartForSql = new Date(periodStartIso);
@@ -205,7 +205,7 @@ export async function ensureCurrentDraftReconciliation(roomId, clubId) {
   return { id: String(result.insertId), isNew: true, openingBalance };
 }
 
-// ─── Approve — locks the current period and starts the next one's baseline ──
+// ─── Approve - locks the current period and starts the next one's baseline ──
 
 export async function approveCurrentPeriod({ roomId, clubId, reconciliationId, approvedBy, notes }) {
   const draft = await getReconciliationById(roomId, reconciliationId);
@@ -245,7 +245,7 @@ export async function approveCurrentPeriod({ roomId, clubId, reconciliationId, a
     ]
   );
 
-  // Same audit-trail stamping as the subscription version — no
+  // Same audit-trail stamping as the subscription version - no
   // payment_method restriction here either, matching getPeriodReceipts.
   await connection.execute(
     `UPDATE ${LEDGER_TABLE}

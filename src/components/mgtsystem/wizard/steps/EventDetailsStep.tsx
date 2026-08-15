@@ -1,11 +1,11 @@
 // src/components/mgtsystem/wizard/steps/EventDetailsStep.tsx
 //
-// Step 2: the event's what/when/where/goal — the sections that used to
+// Step 2: the event's what/when/where/goal - the sections that used to
 // live in CreateEventForm, now shaped by the chosen activity type:
 //
 //   def.showLocation === false → no "Where" section at all; the event is
 //     saved as location_type 'online' with no label/URL (puzzle types are
-//     platform-hosted — agreed decision).
+//     platform-hosted - agreed decision).
 //   def.dateMode === 'startPlusWeeks' → the "When" section asks for a
 //     start date/time PLUS a duration in weeks (subscription-style
 //     activities), instead of a single event date/time. The weeks value
@@ -13,7 +13,7 @@
 //     activity's own schedule payload (phase-2 puzzle_sub step).
 //
 // State is fully controlled by the wizard store (fields/onChange), so
-// every keystroke is autosaved — this component holds no state of its own
+// every keystroke is autosaved - this component holds no state of its own
 // beyond what it renders.
 //
 // UTC handling matches CreateEventForm exactly: the datetime-local value
@@ -93,7 +93,7 @@ export default function EventDetailsStep({
               placeholder={`e.g. Christmas ${def.label}`}
               className={inputClass(!!errors.title)} disabled={disabled} autoFocus />
           </Field>
-          <Field label="Summary" hint="(optional — max 280 chars)" error={errors.summary}>
+          <Field label="Summary" hint="(optional - max 280 chars)" error={errors.summary}>
             <textarea value={fields.summary}
               onChange={e => onChange({ summary: e.target.value })}
               placeholder="A one-liner that tells people what this event is about…"
@@ -104,7 +104,7 @@ export default function EventDetailsStep({
               {summaryLen}/280
             </p>
           </Field>
-          <Field label="Description" hint="(optional — max 750 chars)">
+          <Field label="Description" hint="(optional - max 750 chars)">
             <textarea value={fields.description}
               onChange={e => onChange({ description: e.target.value })}
               placeholder="Tell people what to expect, how to prepare, or anything else they need to know…"

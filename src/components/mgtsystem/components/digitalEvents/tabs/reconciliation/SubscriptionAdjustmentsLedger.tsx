@@ -1,7 +1,7 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/reconciliation/SubscriptionAdjustmentsLedger.tsx
 //
 // Same shape as TicketedEventAdjustmentsLedger (add/edit/delete, saves on
-// blur) — a fresh copy rather than a shared/generalized component, per the
+// blur) - a fresh copy rather than a shared/generalized component, per the
 // house preference for new small standalone files. Points at
 // SubscriptionReconciliationService instead, and always saves against
 // whatever the CURRENT period is (the backend resolves that, this
@@ -17,7 +17,7 @@ import subscriptionReconciliationService, {
 } from '../../../../services/SubscriptionReconciliationService';
 
 const ADJUSTMENT_TYPES: AdjustmentType[] = ['received', 'refund',  'expense'];
-// cash_over_short / prize_payout omitted from the picker — subscriptions
+// cash_over_short / prize_payout omitted from the picker - subscriptions
 // are Stripe-only (no cash) and have no prizes today. The enum on the
 // table still allows them; nothing stops a future prize-award feature
 // from surfacing them here later.

@@ -127,7 +127,7 @@ function utcToLocalInput(utcIso: string, timeZone: string): string {
       hour: '2-digit', minute: '2-digit',
       hour12: false,
     });
-    // sv-SE gives "YYYY-MM-DD HH:MM" — replace space with T
+    // sv-SE gives "YYYY-MM-DD HH:MM" - replace space with T
     return formatter.format(date).replace(' ', 'T');
   } catch {
     return '';
@@ -184,7 +184,7 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
   const [venueCapacity, setVenueCapacity] = useState('');
 
   // ── Payment methods ──────────────────────────────────────────────────────────
-  // Ticketed events DO have an advance/on-the-night split — tickets can be
+  // Ticketed events DO have an advance/on-the-night split - tickets can be
   // bought ahead of time online, or at the door on the night. Same shape
   // as quiz/elimination, mode="split".
   const rawLinkedPaymentMethods = existingRoom?.linked_payment_methods_json;
@@ -226,7 +226,7 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
         saleEndsAt: t.saleEndsAt ? utcToLocalInput(String(t.saleEndsAt), timeZone) : '',
       })));
     } else if (cfg.entryFee) {
-      // Legacy room with no ticketTypes — synthesise a single General Admission type
+      // Legacy room with no ticketTypes - synthesise a single General Admission type
       setTicketTypes([{
         id: 'general', name: 'General Admission', price: String(cfg.entryFee),
         isEnabled: true, quantity: '', saleEndsAt: '',
@@ -240,7 +240,7 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
         : [{ name: '', role: '' }]
     );
 
-    // Venue capacity — check both roomCaps in config and the room's own room_caps_json
+    // Venue capacity - check both roomCaps in config and the room's own room_caps_json
     // (stored as room_caps_json on the room record, parsed into cfg.roomCaps)
     const cap =
       cfg.roomCaps?.venueCapacity ??
@@ -344,7 +344,7 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
         if (isNaN(qty) || qty < 1) {
           return `"${t.name}" quantity limit must be at least 1`;
         }
-        // Individual type qty can exceed venue cap — warning shown separately.
+        // Individual type qty can exceed venue cap - warning shown separately.
         // Hard ceiling enforced at purchase time by canPurchaseTickets.
       }
     }
@@ -420,7 +420,7 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
       }
     } catch (e: any) {
       if (e?.message?.includes('409')) {
-        setError('This event can no longer be edited — it may have already started.');
+        setError('This event can no longer be edited - it may have already started.');
       } else {
         setError(e?.message || `Failed to ${isEditMode ? 'update' : 'schedule'} event. Please try again.`);
       }
@@ -635,10 +635,10 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
                     {(tt.quantity || tt.saleEndsAt) && (
                       <div className="text-xs space-y-0.5" style={{ color: '#8a9bab' }}>
                         {tt.quantity && (
-                          <p>Max {tt.quantity} ticket{parseInt(tt.quantity) !== 1 ? 's' : ''} of this type — remaining spots roll into overall capacity.</p>
+                          <p>Max {tt.quantity} ticket{parseInt(tt.quantity) !== 1 ? 's' : ''} of this type - remaining spots roll into overall capacity.</p>
                         )}
                         {tt.saleEndsAt && (
-                          <p>Sale closes at {new Date(tt.saleEndsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} ({timeZone}) — this type will auto-hide for buyers after that.</p>
+                          <p>Sale closes at {new Date(tt.saleEndsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} ({timeZone}) - this type will auto-hide for buyers after that.</p>
                         )}
                       </div>
                     )}
@@ -666,7 +666,7 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
             <SectionHeader
               icon={<Heart className="h-4 w-4" />}
               title="Event Sponsors"
-              subtitle={`Organisations supporting this event — up to ${MAX_SPONSORS} (optional)`}
+              subtitle={`Organisations supporting this event - up to ${MAX_SPONSORS} (optional)`}
             />
             <div className="space-y-3">
               {eventSponsors.map((sponsor, i) => (
@@ -720,7 +720,7 @@ export default function ScheduleTicketedEventModal({ onClose, onSaved, event, ex
             <SectionHeader
               icon={<Trophy className="h-4 w-4" />}
               title="Prizes"
-              subtitle={`Optional — up to ${MAX_PRIZES} prizes`}
+              subtitle={`Optional - up to ${MAX_PRIZES} prizes`}
             />
             <div className="space-y-3">
               {prizes.map((prize, i) => (

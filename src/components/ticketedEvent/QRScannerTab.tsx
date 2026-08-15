@@ -42,15 +42,15 @@ function getAuthHeaders(token?: string | null): Record<string, string> {
 //   https://yoursite.com/tickets/status/TICKET-ABC123
 //
 // The backend scan route accepts either:
-//   { joinToken: "raw-join-token" }   — for manual entry / raw token QRs
-//   { ticketId:  "TICKET-ABC123" }    — for ticket status page URLs
+//   { joinToken: "raw-join-token" }   - for manual entry / raw token QRs
+//   { ticketId:  "TICKET-ABC123" }    - for ticket status page URLs
 //
 function parseScannedValue(raw: string): { joinToken?: string; ticketId?: string } {
   try {
     const url = new URL(raw.trim());
     const segments = url.pathname.split('/').filter(Boolean);
 
-    // /tickets/status/:ticketId  — the shape our QR codes produce
+    // /tickets/status/:ticketId  - the shape our QR codes produce
     if (segments.length >= 2 && segments[segments.length - 2] === 'status') {
       return { ticketId: segments[segments.length - 1] };
     }
@@ -65,10 +65,10 @@ function parseScannedValue(raw: string): { joinToken?: string; ticketId?: string
     const t = url.searchParams.get('token') || url.searchParams.get('joinToken');
     if (t) return { joinToken: t };
 
-    // Give up and send the whole URL — backend will 404 gracefully
+    // Give up and send the whole URL - backend will 404 gracefully
     return { joinToken: raw.trim() };
   } catch {
-    // Not a URL at all — treat as a raw join token (manual entry)
+    // Not a URL at all - treat as a raw join token (manual entry)
     return { joinToken: raw.trim() };
   }
 }
@@ -151,7 +151,7 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
         video.srcObject = null;
       }
     } catch {
-      // ignore — best effort
+      // ignore - best effort
     }
   };
 
@@ -196,7 +196,7 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
       } catch { /* ignore */ }
       scannerRef.current = null;
     }
-    // Always force-release the stream — html5-qrcode doesn't always do this
+    // Always force-release the stream - html5-qrcode doesn't always do this
     releaseMediaStream();
     setCameraActive(false);
   };

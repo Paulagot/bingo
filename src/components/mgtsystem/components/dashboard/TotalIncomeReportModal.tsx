@@ -1,7 +1,7 @@
 // src/components/mgtsystem/components/dashboard/TotalIncomeReportModal.tsx
 //
 // Club-wide income report overlay, v2.1. Reads the assembled report from
-// /api/income-report/:clubId — this component is rendering only.
+// /api/income-report/:clubId - this component is rendering only.
 //
 // Hierarchy (reads like a mini P&L):
 //   1. Gross income vs target        ← NO expenses in this number
@@ -58,14 +58,14 @@ function formatMoney(n: number, currency = 'EUR') {
 }
 
 function formatDate(iso: string | null) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleDateString('en-IE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 /**
  * Raw on-chain integer amount → human token units (e.g. "1.3" SOL),
  * using the same decimals table the backend uses for quoting. Returns
- * null if the token is unknown — better to show nothing than a wrong
+ * null if the token is unknown - better to show nothing than a wrong
  * number. Display only, never used for transfers.
  */
 function rawAmountToTokenUnits(rawAmount: string | null, tokenCode: string | null): string | null {
@@ -191,7 +191,7 @@ function AdjustmentRowView({ row }: { row: AdjustmentDetailRow }) {
   );
 }
 
-/** "Money received (4) · Cash over (1)" — aggregated across payment methods */
+/** "Money received (4) · Cash over (1)" - aggregated across payment methods */
 function aggregatedAdjustmentSummary(byType: AdjustmentLine[]) {
   const counts: Record<string, number> = {};
   for (const a of byType) {
@@ -565,7 +565,7 @@ export default function TotalIncomeReportModal({ clubId, clubName, onClose }: To
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="text-xs" style={{ color: MUTE }}>—</span>
+                                    <span className="text-xs" style={{ color: MUTE }}>-</span>
                                   )}
                                 </td>
                                 <td className="px-4 py-2.5 text-xs" style={{ color: MUTE }}>{formatDate(d.confirmedAt)}</td>
@@ -707,7 +707,7 @@ export default function TotalIncomeReportModal({ clubId, clubName, onClose }: To
                     {report.unclassifiedAdjustments.length} adjustment{report.unclassifiedAdjustments.length === 1 ? '' : 's'} couldn't be classified as income or expense
                   </p>
                   <p className="text-[11px] mt-0.5" style={{ color: MUTE }}>
-                    Excluded from all totals — check the reason code on cash over/short entries in reconciliation.
+                    Excluded from all totals - check the reason code on cash over/short entries in reconciliation.
                   </p>
                 </div>
               )}

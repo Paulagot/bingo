@@ -2,16 +2,16 @@
 //
 // The BODY of the old ScheduleTicketedEventModal, extracted (same pattern
 // as EliminationActivityStep) so it renders identically in:
-//   • step 3 of CreateFundraiserWizard (create — submit via the
+//   • step 3 of CreateFundraiserWizard (create - submit via the
 //     registry's createRoom in submitChain)
-//   • ScheduleTicketedEventModal (edit — thin wrapper owning updateRoom)
+//   • ScheduleTicketedEventModal (edit - thin wrapper owning updateRoom)
 //
 // No API calls, no submit button here. Config in via value/onChange,
 // event context via draftEvent (sale-deadline hints show the event's
 // timezone; the actual local→UTC conversion happens at submit time in
 // the registry's createRoom / the modal's update handler).
 //
-// Validation stays the old modal's single-message style — the registry
+// Validation stays the old modal's single-message style - the registry
 // validate() returns it under the 'form' key, rendered as a banner at
 // the top of this step, and inputs highlight against it exactly like
 // the old `!!error` behaviour.
@@ -76,7 +76,7 @@ export function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || `type_${Date.now()}`;
 }
 
-// Same rules as the old modal's validate() — one message at a time,
+// Same rules as the old modal's validate() - one message at a time,
 // returned under the 'form' key.
 export function validateTicketedEventConfig(cfg: TicketedEventConfig): Record<string, string> {
   if (!cfg.venueCapacity || isNaN(parseInt(cfg.venueCapacity)) || parseInt(cfg.venueCapacity) < 1) {
@@ -96,7 +96,7 @@ export function validateTicketedEventConfig(cfg: TicketedEventConfig): Record<st
       if (isNaN(qty) || qty < 1) {
         return { form: `"${t.name}" quantity limit must be at least 1` };
       }
-      // Individual type qty can exceed venue cap — warning shown separately.
+      // Individual type qty can exceed venue cap - warning shown separately.
       // Hard ceiling enforced at purchase time by canPurchaseTickets.
     }
   }
@@ -339,10 +339,10 @@ export default function TicketedEventActivityStep({
                 {(tt.quantity || tt.saleEndsAt) && (
                   <div className="text-xs space-y-0.5" style={{ color: '#8a9bab' }}>
                     {tt.quantity && (
-                      <p>Max {tt.quantity} ticket{parseInt(tt.quantity) !== 1 ? 's' : ''} of this type — remaining spots roll into overall capacity.</p>
+                      <p>Max {tt.quantity} ticket{parseInt(tt.quantity) !== 1 ? 's' : ''} of this type - remaining spots roll into overall capacity.</p>
                     )}
                     {tt.saleEndsAt && (
-                      <p>Sale closes at {new Date(tt.saleEndsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} ({timeZone}) — this type will auto-hide for buyers after that.</p>
+                      <p>Sale closes at {new Date(tt.saleEndsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} ({timeZone}) - this type will auto-hide for buyers after that.</p>
                     )}
                   </div>
                 )}
@@ -370,7 +370,7 @@ export default function TicketedEventActivityStep({
         <SectionHeader
           icon={<Heart className="h-4 w-4" />}
           title="Event Sponsors"
-          subtitle={`Organisations supporting this event — up to ${MAX_SPONSORS} (optional)`}
+          subtitle={`Organisations supporting this event - up to ${MAX_SPONSORS} (optional)`}
         />
         <div className="space-y-3">
           {eventSponsors.map((sponsor, i) => (
@@ -424,7 +424,7 @@ export default function TicketedEventActivityStep({
         <SectionHeader
           icon={<Trophy className="h-4 w-4" />}
           title="Prizes"
-          subtitle={`Optional — up to ${MAX_PRIZES} prizes`}
+          subtitle={`Optional - up to ${MAX_PRIZES} prizes`}
         />
         <div className="space-y-3">
           {prizes.map((prize, i) => (

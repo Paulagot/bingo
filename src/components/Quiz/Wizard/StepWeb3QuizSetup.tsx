@@ -141,7 +141,7 @@ const getTokensForChoice = (choice: ChoiceValue) => {
   if (choice === 'solanaMainnet' || choice === 'solanaDevnet') {
     return SOLANA_TOKEN_LIST.map((code) => ({
       value: code,
-      label: `${code} — ${SOLANA_TOKENS[code].name}`,
+      label: `${code} - ${SOLANA_TOKENS[code].name}`,
     }));
   }
 
@@ -432,7 +432,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({
     }
 
     if (allSectionsComplete) {
-      return `🎉 Perfect! Your Web3 quiz is configured—host set, ${network} selected, token chosen, and entry fee set.`;
+      return `🎉 Perfect! Your Web3 quiz is configured-host set, ${network} selected, token chosen, and entry fee set.`;
     }
 
     if (!completedSections.host) {
@@ -650,7 +650,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({
               </label>
               <div className="flex items-center gap-2 rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2.5">
                 <span className="text-sm font-semibold text-blue-800">{selectedInfo?.label ?? DEFAULT_CHOICE}</span>
-                <span className="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-600">Locked — Mini App</span>
+                <span className="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-600">Locked - Mini App</span>
               </div>
               <p className="text-fg/60 text-xs">{selectedInfo?.description}</p>
             </div>
@@ -688,7 +688,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({
           </div>
         )}
 
-        {/* ── Charity dropdown — merged TGB + direct ──────────────────────── */}
+        {/* ── Charity dropdown - merged TGB + direct ──────────────────────── */}
         <div className="mt-4 space-y-2">
           <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
             <Heart className="h-4 w-4 text-red-500" />
@@ -724,7 +724,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({
           {selectedCharity && (
             <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] break-words text-indigo-800">
               {selectedCharity.direct
-                ? '✓ Direct donation — wallet address managed by FundRaisely'
+                ? '✓ Direct donation - wallet address managed by FundRaisely'
                 : `TGB Org ID: ${(setupConfig as any).web3CharityOrgId}`}
             </div>
           )}

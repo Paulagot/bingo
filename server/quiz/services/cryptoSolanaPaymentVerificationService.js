@@ -448,7 +448,7 @@ export async function verifySplTokenTransfer({
   }
 
 // Accept any positive delta to the correct recipient wallet.
-// Amount verification is handled by the quote TTL — if the quote
+// Amount verification is handled by the quote TTL - if the quote
 // expired the player gets a new price before paying.
 if (delta > 0n) {
   return { ok: true, tx };
@@ -661,9 +661,9 @@ export async function verifyAndRecordSolanaCryptoDonation({
     roomCurrencySymbol,
     web3Result,
     // Fiat values
-    donationFiat:     donationFiat ?? 0,      // in room currency — use this for ledger
+    donationFiat:     donationFiat ?? 0,      // in room currency - use this for ledger
     donationCurrency: roomCurrency,           // ISO code of donationFiat
-        // always EUR — for legacy callers / reporting
+        // always EUR - for legacy callers / reporting
     verifiedTx: verified.tx,
   };
 }
@@ -693,7 +693,7 @@ export async function verifyAndRecordSolanaFixedFeePayment({
   tokenCode,
   tokenMint = null,
  
-  // Raw on-chain units — sum must equal what was actually sent
+  // Raw on-chain units - sum must equal what was actually sent
   entryFeeRaw,   // string | number  e.g. '33780000'
   extrasRaw = 0, // string | number  e.g. '0'
  
@@ -738,7 +738,7 @@ export async function verifyAndRecordSolanaFixedFeePayment({
  
   const config = parseJsonMaybe(room.config_json, {});
  
-  // Fixed-fee only — donation rooms use verifyAndRecordSolanaCryptoDonation
+  // Fixed-fee only - donation rooms use verifyAndRecordSolanaCryptoDonation
   const fundraisingMode = config?.fundraisingMode;
   if (fundraisingMode === 'donation') {
     const err = new Error('This endpoint is for fixed-fee rooms only');
@@ -785,7 +785,7 @@ export async function verifyAndRecordSolanaFixedFeePayment({
     throw err;
   }
  
-  // Record in web3 ledger — entry_fee_amount + extras_amount split
+  // Record in web3 ledger - entry_fee_amount + extras_amount split
   const web3Result = await insertJoinPayment({
     game_type:         'quiz',
     room_id:           roomId,

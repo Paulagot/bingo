@@ -4,24 +4,24 @@
 // CryptoDonationCheckoutPage.tsx's CryptoCheckoutInner so it can be
 // rendered TWO ways:
 //
-//   1. Inside CryptoDonationCheckoutPage.tsx (unchanged) — a real
+//   1. Inside CryptoDonationCheckoutPage.tsx (unchanged) - a real
 //      top-level tab, used on mobile/uncertain devices, where the
 //      wallet app-switch-and-return needs a real browsing context.
 //
-//   2. Inline inside DonationModal.tsx (new) — rendered directly in
+//   2. Inline inside DonationModal.tsx (new) - rendered directly in
 //      the modal on desktop, no new tab at all, since desktop wallet
 //      connection (extension, or QR scanned by a separate device)
 //      never needs the app-switch-and-return that makes iframe
 //      nesting risky in the first place.
 //
 // Deliberately does NOT touch window.opener, postMessage, or
-// window.close() — that's the standalone page's own concern (it has a
+// window.close() - that's the standalone page's own concern (it has a
 // real second window to notify and close). This component just calls
 // onSuccess(confirmData) and lets its caller decide what "success"
 // means in its own context.
 //
 // Assumes it's already wrapped in AppKit/Wagmi/QueryClient providers by
-// its caller — CryptoDonationCheckoutPage.tsx keeps its existing manual
+// its caller - CryptoDonationCheckoutPage.tsx keeps its existing manual
 // provider loading; DonationModal.tsx wraps this in <Web3Provider force>,
 // reusing the same generic provider component TicketPurchaseFlow's
 // crypto step already uses, rather than a third copy of that loading
@@ -208,7 +208,7 @@ export default function DonationCryptoPaymentStep({
       const confirmed = await confirmOnBackend(result);
       setConfirmData(confirmed);
       setStatus('success');
-      // Caller decides what "success" means in its own context — a
+      // Caller decides what "success" means in its own context - a
       // real page closes its tab; a modal shows a thank-you and
       // auto-closes. No opener/postMessage logic here at all.
       onSuccess(confirmed);
@@ -307,7 +307,7 @@ export default function DonationCryptoPaymentStep({
         )}
         {isExpired && (
           <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: '#b54708' }}>
-            <AlertCircle className="h-4 w-4" /> Quote expired — tap Refresh
+            <AlertCircle className="h-4 w-4" /> Quote expired - tap Refresh
           </div>
         )}
         {quoteStatus === 'error' && quoteError && (

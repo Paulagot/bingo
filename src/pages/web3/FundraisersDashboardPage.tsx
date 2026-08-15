@@ -156,7 +156,7 @@ export default function FundraisersDashboardPage() {
                 <SectionDivider />
                 <FundraiserHostEarnings hosted={data.hostedOverview} />
 
-                {/* If user has never hosted — show launch CTAs */}
+                {/* If user has never hosted - show launch CTAs */}
                 {data.hostedOverview.rooms_launched === 0 && (
                   <>
                     <SectionDivider />
@@ -168,7 +168,7 @@ export default function FundraisersDashboardPage() {
                 <div className="fl-overview-bottom">
                   <div className="fl-overview-activity">
                     <SectionLabel badge="both">Recent activity</SectionLabel>
-                    {/* Cap at last 10 — full list is on the Activity tab */}
+                    {/* Cap at last 10 - full list is on the Activity tab */}
                     <FundraiserRecentActivity items={data.recentActivity.slice(0, 10)} />
                   </div>
                   <div className="fl-overview-coming-soon">

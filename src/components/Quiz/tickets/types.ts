@@ -30,7 +30,7 @@ export interface RoomInfo {
   gameType?:          'quiz' | 'elimination' | 'ticketed_event';
   clubName?:          string | null;
   eventDetails?:      EventDetails | null;
-  // ── Ticket types — present for ticketed_event rooms only ─────────────────
+  // ── Ticket types - present for ticketed_event rooms only ─────────────────
   ticketTypes?:       TicketTypeOption[];
 }
 

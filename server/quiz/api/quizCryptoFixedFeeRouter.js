@@ -1,7 +1,7 @@
 // server/quiz/api/quizCryptoFixedFeeRouter.js
 //
 // POST /api/quiz/crypto-fixed-fee/confirm
-// Walk-in fixed-fee crypto payment — verifies on-chain, writes ledger, player joins immediately.
+// Walk-in fixed-fee crypto payment - verifies on-chain, writes ledger, player joins immediately.
 
 import express from 'express';
 import rateLimit from 'express-rate-limit';

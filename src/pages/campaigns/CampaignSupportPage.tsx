@@ -1,6 +1,6 @@
 // src/pages/campaigns/CampaignSupportPage.tsx
 //
-// Public campaign support page — app-like mobile-first product selection flow.
+// Public campaign support page - app-like mobile-first product selection flow.
 // Flow:
 // 1) Pick products / see product details, event details and prizes
 // 2) Enter supporter details
@@ -302,7 +302,7 @@ function itemTypeLabel(type?: string): string {
 
 function includedLine(room: ProductRoomDetails): string {
   const qty = room.quantity > 1 ? `${room.quantity} × ` : '';
-  return `${qty}${itemTypeLabel(room.itemType)}${room.roomName ? ` — ${room.roomName}` : ''}`;
+  return `${qty}${itemTypeLabel(room.itemType)}${room.roomName ? ` - ${room.roomName}` : ''}`;
 }
 
 function formatEventDate(value?: string | null): string | null {
@@ -363,7 +363,7 @@ function methodDisplay(m: CampaignPaymentMethod): { icon: string; label: string;
     return {
       icon: '🔗',
       label: isSolana ? 'Pay with Crypto on Solana' : (m.methodLabel || 'Pay with crypto'),
-      hint: 'Pay with crypto — confirmed on-chain automatically.',
+      hint: 'Pay with crypto - confirmed on-chain automatically.',
     };
   }
 
@@ -419,7 +419,7 @@ function useLogoSrc(apiLogo?: string | null) {
 // ─── Order confirmation email helper ────────────────────────────────────────────
 // Fire-and-forget: never block the UI or show an error to the supporter
 // if the email call fails. Calls the backend endpoint which itself is
-// non-fatal — the order and ticket records already exist at this point.
+// non-fatal - the order and ticket records already exist at this point.
 function fireOrderConfirmationEmail(orderId: string | null) {
   if (!orderId) return;
   campaignSupportService
@@ -616,7 +616,7 @@ export default function CampaignSupportPage() {
         return;
       }
 
-      // Cash to player — supporter has given cash to the seller.
+      // Cash to player - supporter has given cash to the seller.
       // Claim the order immediately (no reference needed) and go straight
       // to the thank-you/confirm screen. The club confirms on their side.
       if (isCashToPlayerMethod(selectedMethod)) {
@@ -1001,7 +1001,7 @@ function ProductChoiceCard({ product, currency, quantity, onOpen, onAdd, onRemov
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="max-w-full break-words text-[clamp(1.05rem,4.8vw,1.25rem)] font-black leading-tight tracking-tight text-slate-950">{product.name} — {fmt(product.price, product.currency ?? currency)}</h2>
+            <h2 className="max-w-full break-words text-[clamp(1.05rem,4.8vw,1.25rem)] font-black leading-tight tracking-tight text-slate-950">{product.name} - {fmt(product.price, product.currency ?? currency)}</h2>
             <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300" />
           </div>
           <div className="mt-2 space-y-1">

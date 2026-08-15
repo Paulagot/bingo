@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
     await sendEmailSafe({
       to: email,
       subject: 'We received your message',
-      html: `<p>Hi ${escapeHtml(name)},</p><p>Thanks for reaching out — we’ll reply soon.</p>`
+      html: `<p>Hi ${escapeHtml(name)},</p><p>Thanks for reaching out - we’ll reply soon.</p>`
     });
   }
 

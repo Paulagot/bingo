@@ -121,6 +121,10 @@ import subscriptionReconciliationRoutes from './puzzles/routes/subscriptionRecon
 import puzzleDropReconciliationRoutes from './puzzles/routes/puzzleDropReconciliationRoutes.js';
 import puzzleDropRouter from './puzzles/routes/puzzleDropRoutes.js';
 import clubIncomeReportRouter from './mgtsystem/routes/clubIncomeReport.js';
+import clubBrandingRoutes from './routes/clubBrandingRoutes.js';
+
+import peerCryptoQuoteRouter from './peerFundraising/api/peerCryptoQuoteRouter.js';
+import peerCryptoRoutes from './peerFundraising/api/peerCryptoRoutes.js';
 
 
 
@@ -181,6 +185,8 @@ app.get('/health', (req, res) => {
     port: process.env.PORT || 3001,
   });
 });
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -276,6 +282,9 @@ console.log(
   '  ✅ peer-to-peer routes',
 );
 
+app.use('/api', peerCryptoQuoteRouter);
+app.use('/api', peerCryptoRoutes);
+
 app.use(
   '/api',
   peerRoutes,
@@ -285,6 +294,11 @@ app.use(
   '/api',
   peerPaymentRoutes,
 );
+
+app.use('/api', peerCryptoQuoteRouter);
+app.use('/api', peerCryptoRoutes);
+
+app.use('/api/clubs', clubBrandingRoutes);
 
 /*
 |--------------------------------------------------------------------------
@@ -992,6 +1006,7 @@ app.use(
 app.use('/api/income-report', clubIncomeReportRouter);
 
 app.use('/api/puzzle-drop', puzzleDropRouter);
+
 
 app.use(
   '/api/web3-transactions',

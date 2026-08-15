@@ -13,7 +13,7 @@
 // FIXED: this file previously had TWO 'POST /stripe/checkout' route
 // handlers (a leftover original plus the updated one appended below
 // it). Express matches routes in registration order and the first
-// handler that sends a response wins — the original, checkoutContext-
+// handler that sends a response wins - the original, checkoutContext-
 // unaware handler was silently swallowing every request, and the
 // updated one below it never ran at all. There is now only ONE
 // '/stripe/checkout' handler, in its original file position.
@@ -73,13 +73,13 @@ function isInvalidTicketPaymentMethodError(message = '') {
 //
 // Returns the available types, each decorated with:
 //   - soldCount:  number of tickets sold for this type
-//   - remaining:  min(type.quantity - soldCount, venueAvailable) — null if no type limit
+//   - remaining:  min(type.quantity - soldCount, venueAvailable) - null if no type limit
 // ─────────────────────────────────────────────────────────────────────────────
 async function getAvailableTicketTypes(roomId, config, venueAvailableForTickets) {
   const allTypes = Array.isArray(config.ticketTypes) && config.ticketTypes.length > 0
     ? config.ticketTypes
     : config.entryFee
-      // Legacy room — synthesise single type
+      // Legacy room - synthesise single type
       ? [{ id: 'general', name: 'General Admission', price: String(config.entryFee), isEnabled: true, quantity: null, saleEndsAt: null }]
       : [];
 
@@ -202,11 +202,11 @@ router.get('/room/:roomId/info', async (req, res) => {
       }
     }
 
-    // ── Ticket types — filtered to available only ─────────────────────────
+    // ── Ticket types - filtered to available only ─────────────────────────
     let ticketTypes = undefined;
 
     if (roomData.gameType === 'ticketed_event') {
-      // Only evaluate availability when sales are actually open —
+      // Only evaluate availability when sales are actually open -
       // avoids an unnecessary DB query for completed/cancelled rooms.
       if (capacity.ticketSalesOpen) {
         ticketTypes = await getAvailableTicketTypes(
@@ -340,11 +340,11 @@ router.post('/create-with-payment', async (req, res) => {
  * GET /api/quiz/tickets/room/:roomId/domain-check
  *
  * Public, unauthenticated check the ticket embed script (tickets.js)
- * calls before rendering its button — mirrors donate.js's equivalent
+ * calls before rendering its button - mirrors donate.js's equivalent
  * exactly (GET /donations/:clubId/domain-check → isHostnameAllowed in
  * DonationButtonService.js), reusing the SAME club-level
  * fundraisely_club_allowed_domains table rather than adding a new one.
- * Domain registration is a per-CLUB setting, not per-donation-button —
+ * Domain registration is a per-CLUB setting, not per-donation-button -
  * so a club that has already registered their site for the donation
  * widget is automatically covered for the ticket widget too, with
  * nothing new for them to configure.
@@ -354,7 +354,7 @@ router.post('/create-with-payment', async (req, res) => {
  * this room before running the same hostname check.
  *
  * Returns a plain { allowed: boolean } rather than throwing on
- * "room not found" or "no domains registered" — both are expected,
+ * "room not found" or "no domains registered" - both are expected,
  * common outcomes here (anyone can call this with any roomId +
  * hostname), not error conditions.
  */
@@ -392,7 +392,7 @@ router.get('/room/:roomId/domain-check', async (req, res) => {
 /**
  * POST /api/quiz/tickets/stripe/checkout
  *
- * (Previously duplicated — see file header. This is now the ONLY
+ * (Previously duplicated - see file header. This is now the ONLY
  * handler for this route.)
  */
 router.post('/stripe/checkout', async (req, res) => {
@@ -408,7 +408,7 @@ router.post('/stripe/checkout', async (req, res) => {
       appOrigin,
       ticketTypeId,     // ← new
       ticketTypeName,   // ← new
-      checkoutContext,  // ← new: 'embedded_new_tab' | 'page' — see TicketPurchaseFlow.tsx
+      checkoutContext,  // ← new: 'embedded_new_tab' | 'page' - see TicketPurchaseFlow.tsx
     } = req.body;
 
     if (!roomId || !purchaserName || !purchaserEmail) {

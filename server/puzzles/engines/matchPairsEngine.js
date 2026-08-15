@@ -3,14 +3,14 @@
  * server/puzzles/engines/matchPairsEngine.js
  *
  * Objective: Player matches each item in one column with the correct item
- * in the other column. Logic/association puzzle — not a memory flip game.
+ * in the other column. Logic/association puzzle - not a memory flip game.
  */
 
 import { createSeededRandom, shuffleArray, calcTimeBonus } from '../utils/puzzleHelpers.js';
 import { PuzzleType, Difficulty } from '../puzzleTypes.js';
 
 // ---------------------------------------------------------------------------
-// Pairing bank — load from DB in production
+// Pairing bank - load from DB in production
 // Each template has a set of pairs. We'll shuffle right-side items for the player.
 // ---------------------------------------------------------------------------
 
@@ -260,7 +260,7 @@ const MATCH_PAIRS_BANK = {
 };
 
 // ---------------------------------------------------------------------------
-// Template self-check — runs once at module load. Catches exactly the class
+// Template self-check - runs once at module load. Catches exactly the class
 // of bug that shipped previously (fields referenced by generate()/validate()
 // that don't actually exist on the template) before it can crash a request.
 // ---------------------------------------------------------------------------
@@ -304,7 +304,7 @@ function assertValidTemplate(difficulty, template, index) {
     pairedLeft.add(p.leftId);
     pairedRight.add(p.rightId);
   }
-  // Every declared item must be used in exactly one pair — no orphans.
+  // Every declared item must be used in exactly one pair - no orphans.
   for (const id of leftIds)  if (!pairedLeft.has(id))  throw new Error(`${label}: leftItem "${id}" is never paired.`);
   for (const id of rightIds) if (!pairedRight.has(id)) throw new Error(`${label}: rightItem "${id}" is never paired.`);
 }
@@ -354,7 +354,7 @@ export function generate(config) {
     puzzleData: {
       prompt: template.prompt,
       leftItems,
-      rightItems, // shuffled — player must match these to left items
+      rightItems, // shuffled - player must match these to left items
     },
     solutionData: {
       matches,

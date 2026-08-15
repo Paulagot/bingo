@@ -163,7 +163,7 @@ const LaunchSection: React.FC<LaunchSectionProps> = ({
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3">
         <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
         <p className="text-sm text-blue-800">
-          <strong>How it works:</strong> Share the operator link with the person holding the mic first —
+          <strong>How it works:</strong> Share the operator link with the person holding the mic first -
           they open it on their device and wait in the lobby. Once they're ready, you click{' '}
           <strong>Launch Quiz</strong> here and the game starts for everyone.
         </p>
@@ -182,7 +182,7 @@ const LaunchSection: React.FC<LaunchSectionProps> = ({
  
           <div className="p-5">
             <p className="text-xs text-gray-500 mb-4">
-              The person holding the mic — they get game controls only, no admin or payment access, and <strong>no login required</strong>.
+              The person holding the mic - they get game controls only, no admin or payment access, and <strong>no login required</strong>.
             </p>
  
             {!operatorUrl && !operatorTokenError && (
@@ -234,7 +234,7 @@ const LaunchSection: React.FC<LaunchSectionProps> = ({
                 {/* Bullets */}
                 <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5 grid grid-cols-1 gap-1">
                   <span className="text-xs text-gray-500">✓ Valid for 8 hours</span>
-                  <span className="text-xs text-gray-500">✓ Game controls only — no payments or admin</span>
+                  <span className="text-xs text-gray-500">✓ Game controls only - no payments or admin</span>
                   <span className="text-xs text-gray-500">✓ No login required on the operator device</span>
                 </div>
               </div>
@@ -272,7 +272,7 @@ const LaunchSection: React.FC<LaunchSectionProps> = ({
               <div className="flex items-center gap-2">
                 <div className={`h-2 w-2 rounded-full shrink-0 ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
                 <span className="text-sm text-gray-700">
-                  {connected ? 'Socket connected' : 'Socket disconnected — refresh the page'}
+                  {connected ? 'Socket connected' : 'Socket disconnected - refresh the page'}
                 </span>
               </div>
  
@@ -899,7 +899,7 @@ const allTabs = useMemo(() => {
           count: config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0,
         }]
       : []),
-    // ✅ Pool tab — Web3 rooms only
+    // ✅ Pool tab - Web3 rooms only
     ...(isWeb3
       ? [{
           id: 'pool' as TabType,
@@ -936,7 +936,7 @@ const allTabs = useMemo(() => {
             ).length || 0,
         }]
       : []),
-    // ✅ Payments tab — Web2 rooms only
+    // ✅ Payments tab - Web2 rooms only
     ...(!isWeb3
       ? [{ id: 'payments' as TabType, label: 'Payments', icon: <CreditCard className="h-4 w-4" />, count: null }]
       : []),
@@ -1375,7 +1375,7 @@ if (isSpectating && roomId) {
             <span>Host Quiz Dashboard</span>
           </h1>
           <p className="text-fg/70 text-lg">
-            Welcome, <strong>{config?.hostName || 'Host'}</strong> — manage your quiz event below
+            Welcome, <strong>{config?.hostName || 'Host'}</strong> - manage your quiz event below
           </p>
 
           {config?.isWeb3Room && (

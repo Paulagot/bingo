@@ -3,7 +3,7 @@ import database from '../../config/database.js';
 /**
  * Record the FIRST time a player is served a playable puzzle instance.
  * Lives in its own table (not fundraisely_puzzle_progress) because a
- * progress row is created on save with real progress_data — piggybacking
+ * progress row is created on save with real progress_data - piggybacking
  * on it would force the GET route to insert placeholder progress rows,
  * changing what loadProgress returns to the frontend.
  *
@@ -36,7 +36,7 @@ export async function getFirstViewedAtMs(instanceId, playerId) {
   if (!rows?.length || !rows[0].first_viewed_at) return null;
 
   const value = rows[0].first_viewed_at;
-  // MySQL DATETIME has no timezone info — stored as UTC by recordFirstView,
+  // MySQL DATETIME has no timezone info - stored as UTC by recordFirstView,
   // so parse it as UTC (same convention as challengeService's
   // fromMysqlDateTimeAsUtc).
   if (value instanceof Date) return value.getTime();
@@ -44,7 +44,7 @@ export async function getFirstViewedAtMs(instanceId, playerId) {
 }
 
 // Any single gap between saves longer than this is capped rather than
-// counted in full — this is what stops a backgrounded/idle tab (or someone
+// counted in full - this is what stops a backgrounded/idle tab (or someone
 // stepping away) from inflating active_seconds, without punishing the
 // player for it either. It also bounds how much a single "leave the save
 // call running in a background tab" trick could add per ping.
@@ -74,7 +74,7 @@ export async function saveProgress({ instanceId, playerId, clubId, progressData 
     deltaSeconds = Math.max(0, Math.round((nowMs - lastPingMs) / 1000));
     deltaSeconds = Math.min(deltaSeconds, MAX_HEARTBEAT_GAP_SECONDS);
   }
-  // No previous ping (first save this session) contributes 0 — we don't
+  // No previous ping (first save this session) contributes 0 - we don't
   // know how long they'd already been looking at the puzzle before their
   // first autosave fired, so we deliberately undercount rather than guess.
 
@@ -116,7 +116,7 @@ export async function loadProgress(instanceId, playerId) {
 
 /**
  * Best-effort, server-tracked "how long has this player actually been
- * engaged with this puzzle" — NOT simple wall-clock since first view, so a
+ * engaged with this puzzle" - NOT simple wall-clock since first view, so a
  * genuine interruption (mid-puzzle break) doesn't tank their time bonus.
  *
  * Made up of:
@@ -126,9 +126,9 @@ export async function loadProgress(instanceId, playerId) {
  *     hitting Submit).
  *
  * Falls back to elapsed-since-first-view (capped) if the player submitted
- * before any autosave ever fired — e.g. a puzzle solved fast enough that
+ * before any autosave ever fired - e.g. a puzzle solved fast enough that
  * the autosave interval never ticked. Falls back to null (caller decides
- * what to do — see puzzleValidationService) if there's no tracking data at
+ * what to do - see puzzleValidationService) if there's no tracking data at
  * all, which will only happen for sessions that predate this feature.
  */
 export async function getTrustedElapsedSeconds({ instanceId, playerId }) {
@@ -145,7 +145,7 @@ export async function getTrustedElapsedSeconds({ instanceId, playerId }) {
 
   const firstViewedAtMs = await getFirstViewedAtMs(instanceId, playerId);
   if (firstViewedAtMs !== null) {
-    // No autosave ever fired for this session — most likely a quick solve.
+    // No autosave ever fired for this session - most likely a quick solve.
     // Cap generously (10 min) rather than trusting raw wall-clock, since we
     // have no heartbeat data to tell "quick solve" apart from "opened it,
     // walked away for hours, came straight back and submitted."

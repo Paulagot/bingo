@@ -63,7 +63,7 @@ export function Header() {
 
     // App
    
-    eventDashboard: '/quiz/eventdashboard',
+    eventDashboard: '/event-dashboard',
   };
 
   const onFreeTrial = isCurrent(ROUTES.freeTrial);

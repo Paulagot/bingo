@@ -83,7 +83,7 @@ const UsecaseClubsPage: React.FC = () => {
     '@context': 'https://schema.org', '@type': 'WebPage',
     name: 'Sports & Social Club Fundraising Quizzes | Easy Events | FundRaisely',
     url: abs2('/quiz/use-cases/clubs'),
-    description: 'Raise more for your club with engaging quiz nights. Simple setup, gamified extras, reconciliation, and sponsor visibility—built for busy volunteers.'
+    description: 'Raise more for your club with engaging quiz nights. Simple setup, gamified extras, reconciliation, and sponsor visibility-built for busy volunteers.'
   };
 
   const faqJsonLd = {
@@ -104,7 +104,7 @@ const UsecaseClubsPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
         title="Sports & Social Club Fundraising Quizzes | Easy Events | FundRaisely"
-        description="Raise more for your club with engaging quiz nights. Simple setup, gamified extras, clear reconciliation, and sponsor visibility—built for busy volunteers."
+        description="Raise more for your club with engaging quiz nights. Simple setup, gamified extras, clear reconciliation, and sponsor visibility-built for busy volunteers."
         keywords="sports club fundraising quiz, club trivia night fundraiser, community club quiz night, fundraising for sports teams, social club quiz event, easy club fundraiser, virtual club quiz, team fundraising ideas, club event planning, fundraising quiz platform"
         ukKeywords="club quiz fundraiser UK, sports club quiz night, fundraising quiz platform"
         ieKeywords="club quiz fundraiser Ireland, sports club quiz night, fundraising quiz platform"

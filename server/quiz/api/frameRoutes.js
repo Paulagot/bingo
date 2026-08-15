@@ -11,7 +11,7 @@ const BASE_URL    = process.env.BASE_URL || 'https://fundraisely-staging.up.rail
 const TARGET_PATH = '/web3/impact-campaign/baseapp';    // ← updated
 
 // ─────────────────────────────────────────────
-// GET /frame/image  — rendered HTML banner (legacy/fallback)
+// GET /frame/image  - rendered HTML banner (legacy/fallback)
 // ─────────────────────────────────────────────
 router.get('/image', (req, res) => {
   res.setHeader('Content-Type', 'text/html');
@@ -62,7 +62,7 @@ router.get('/image', (req, res) => {
   <div class="blob2"></div>
   <div class="card">
     <div class="tagline">Play. Raise. <span>Impact.</span></div>
-    <div class="sub">Join a Web3 fundraising quiz — support real causes on-chain, compete with your community, and make every answer count.</div>
+    <div class="sub">Join a Web3 fundraising quiz - support real causes on-chain, compete with your community, and make every answer count.</div>
     <div class="badge"><div class="badge-dot"></div>Live on Base &amp; Avalanche</div>
   </div>
 </body>
@@ -70,7 +70,7 @@ router.get('/image', (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// GET /frame  — Mini App embed metadata page
+// GET /frame  - Mini App embed metadata page
 // Post THIS URL in the Base app to get a rich card
 // ─────────────────────────────────────────────
 router.get('/', (req, res) => {
@@ -96,10 +96,10 @@ router.get('/', (req, res) => {
 <head>
   <meta charset="utf-8"/>
   <meta name="base:app_id" content="69a1865e991116aebf36caae" />
-  <title>FundRaisely — Web3 Fundraising Quiz</title>
+  <title>FundRaisely - Web3 Fundraising Quiz</title>
   <meta name="fc:miniapp" content='${miniappEmbed}' />
   <meta name="fc:frame"   content='${miniappEmbed}' />
-  <meta property="og:title"       content="FundRaisely — Web3 Fundraising Quiz" />
+  <meta property="og:title"       content="FundRaisely - Web3 Fundraising Quiz" />
   <meta property="og:description" content="Play, raise, and make an impact on-chain." />
   <meta property="og:image"       content="${BASE_URL}/embed-image.png" />
 </head>

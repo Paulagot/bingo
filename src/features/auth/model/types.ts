@@ -8,6 +8,7 @@ export interface AuthState {
   club: Club | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  initialized: boolean;  // ← add this
   error: string | null;
   successMessage: string | null;
   entitlements: Entitlements | null;
@@ -31,11 +32,11 @@ export interface AuthActions {
 }
 
 export interface RegisterRequest {
-  clubName:              string;   // was: name — now club-specific
-  personName:            string;   // new — the person registering
+  clubName:              string;
+  personName:            string;
   email:                 string;
   password:              string;
-  reportingCurrency:     string;   // new — ISO 4217 code e.g. 'EUR'
+  reportingCurrency:     string;
   gdprConsent:           boolean;
   privacyPolicyAccepted: boolean;
   marketingConsent?:     boolean;

@@ -56,11 +56,11 @@ export interface SupporterChallenge {
 // ── Overall / cumulative leaderboard ──────────────────────────────────────────
 //
 // Mirrors ChallengeService's LeaderboardEntry/LeaderboardWeek shape (same
-// backend response — GET /puzzle-challenges/:challengeId/leaderboard, which
+// backend response - GET /puzzle-challenges/:challengeId/leaderboard, which
 // is authenticateAny and returns identical JSON for a club token or a
 // supporter token). Kept as a separate local type here rather than imported
 // from ChallengeService, since that service is club-side (mgtsystem) and
-// this one is the player-side auth service — they shouldn't depend on each
+// this one is the player-side auth service - they shouldn't depend on each
 // other. No answers/solutions in this payload; see challengeService.js's
 // getLeaderboard for why that's safe to expose.
 
@@ -171,7 +171,7 @@ class SupporterAuthService extends BaseService {
 
   /**
    * Start Stripe Checkout (subscription mode) for a paid challenge.
-   * Public endpoint — no supporter token needed up front, since the
+   * Public endpoint - no supporter token needed up front, since the
    * backend creates the supporter record as part of this call. Returns
    * a Stripe Checkout URL; the caller is responsible for redirecting to
    * it (this service never does window.location itself, consistent
@@ -192,7 +192,7 @@ class SupporterAuthService extends BaseService {
    * Exchange a Stripe Checkout Session id for a supporter token, once
    * the player lands back from Stripe on /challenges/:id/play. Stores
    * the returned token exactly like verifyToken does, so isAuthenticated()
-   * becomes true immediately after this resolves — no separate login
+   * becomes true immediately after this resolves - no separate login
    * step needed post-payment.
    */
   async exchangeSession(
@@ -221,7 +221,7 @@ class SupporterAuthService extends BaseService {
    * Cumulative leaderboard across every week of the challenge. Same
    * endpoint the club dashboard's ChallengeLeaderboardPage uses
    * (GET /puzzle-challenges/:challengeId/leaderboard), but called here
-   * with the supporter's own bearer token — the route is authenticateAny,
+   * with the supporter's own bearer token - the route is authenticateAny,
    * so either token is accepted and the JSON shape is identical.
    */
   getOverallLeaderboard(challengeId: string) {

@@ -1,5 +1,5 @@
 // src/pages/campaigns/CampaignSellerPage.tsx
-// Public seller stats — no login. URL: /campaigns/:campaignId/sellers/:sellerId
+// Public seller stats - no login. URL: /campaigns/:campaignId/sellers/:sellerId
 
 import { useEffect,  useState } from 'react';
 import { useParams } from 'react-router-dom';

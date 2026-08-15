@@ -1,16 +1,16 @@
 /**
- * useContractActions — orchestrates blockchain actions across EVM, Solana, Stellar.
+ * useContractActions - orchestrates blockchain actions across EVM, Solana, Stellar.
  *
  * ## Solana changes (new contract)
  *
  * deploy() Solana path:
  * - Asset room branch REMOVED (init_asset_room is gone from new contract)
  * - solanaCreatePoolRoom now only receives: roomId, currency, entryFee
- *   All fee splits are fixed on-chain — hostFeePct, prizePoolPct,
+ *   All fee splits are fixed on-chain - hostFeePct, prizePoolPct,
  *   charityName, prizeSplits are no longer passed.
  *
  * distributePrizes() Solana path:
- * - Unchanged — solanaEndRoom signature is the same.
+ * - Unchanged - solanaEndRoom signature is the same.
  */
 
 import { useCallback, useMemo } from 'react';
@@ -91,7 +91,7 @@ type DistributeArgs = {
   charityWallet?:        string;
   charityAmountPreview?: string;
   charityCurrency?:      string;
-  /** All players who joined — needed to build remainingAccounts for end_room */
+  /** All players who joined - needed to build remainingAccounts for end_room */
   allPlayers?:           string[];
 };
 
@@ -277,7 +277,7 @@ export function useContractActions(chainConfig: ChainConfig) {
       if (effectiveChain === 'solana') {
         // New contract: only roomId, currency, entryFee are needed.
         // hostFeePct, prizePoolPct, charityName, prizeSplits, prizeMode,
-        // and expectedPrizes are all FIXED or GONE — do not pass them.
+        // and expectedPrizes are all FIXED or GONE - do not pass them.
         const currency = ((params.currency ?? 'USDG').toUpperCase()) as SolanaTokenCode;
 
         const result = await solanaCreatePoolRoom({

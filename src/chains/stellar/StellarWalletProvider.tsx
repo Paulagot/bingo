@@ -364,7 +364,7 @@ export const StellarWalletProvider: React.FC<StellarWalletProviderProps> = ({
 // This lets StepWeb3ReviewLaunch trigger connect/disconnect via window events.
 useEffect(() => {
   const onRequestConnect = () => {
-    // optional guard — don’t spam if already connecting/connected
+    // optional guard - don’t spam if already connecting/connected
     if (stellarWallet.isConnected || stellarWallet.isConnecting) return;
     enhancedConnect().catch((e) => console.warn('[Stellar] connect() via event failed:', e));
   };

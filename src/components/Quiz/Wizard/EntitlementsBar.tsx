@@ -12,7 +12,7 @@ const EntitlementsBar: React.FC<Props> = ({ ents, scope = 'quiz', className }) =
   if (!ents) return null;
 
   const credits = ents.game_credits_remaining ?? 0;
-  const maxPlayers = ents.max_players_per_game ?? '—';
+  const maxPlayers = ents.max_players_per_game ?? '-';
   const planCode = ents.plan_code ?? '';
 
   const creditLabel = planCode === 'FREE'

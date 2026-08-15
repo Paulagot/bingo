@@ -26,7 +26,7 @@ export interface EliminationWeb3Config {
 }
 
 // ── Generates a short ID safe for Solana PDA seeds (max 32 bytes) ─────────────
-// 8 uppercase chars from base36 — unique enough for a game room
+// 8 uppercase chars from base36 - unique enough for a game room
 const generateOnChainRoomId = (): string =>
   Math.random().toString(36).substring(2, 10).toUpperCase();
 
@@ -86,8 +86,8 @@ export function useEliminationWeb3Launch(config: EliminationWeb3Config) {
       const hostId = generatePlayerId();
 
       console.log('[useEliminationWeb3Launch] IDs generated:', {
-        onChainRoomId,  // e.g. "A3F8K2ZQ" — goes on-chain
-        hostId,         // e.g. "player_uuid" — server only
+        onChainRoomId,  // e.g. "A3F8K2ZQ" - goes on-chain
+        hostId,         // e.g. "player_uuid" - server only
       });
 
       // ── Step 2: deploy create_room on-chain ───────────────────────────────
@@ -139,7 +139,7 @@ export function useEliminationWeb3Launch(config: EliminationWeb3Config) {
       // ── Step 4: set session and navigate ─────────────────────────────────
       setLaunchState('success');
 
-      // Server room ID — used by socket events and the game UI
+      // Server room ID - used by socket events and the game UI
       sessionStorage.setItem('elim_room_id', response.roomId);
       // Host auth token
       sessionStorage.setItem('elim_host_id', hostId);
@@ -147,7 +147,7 @@ export function useEliminationWeb3Launch(config: EliminationWeb3Config) {
       sessionStorage.setItem('elim_player_name', config.hostName.trim());
       // Flag as host
       sessionStorage.setItem('elim_is_host', 'true');
-      // On-chain room ID — needed to derive PDA for finalize_game
+      // On-chain room ID - needed to derive PDA for finalize_game
       sessionStorage.setItem('elim_onchain_room_id', onChainRoomId);
 
       // Small delay so success state renders before navigation

@@ -43,7 +43,7 @@ export interface Entitlements {
   // Credits
   game_credits_remaining: number;
 
-  // Game features — quiz_features is the legacy key, game_features is generic
+  // Game features - quiz_features is the legacy key, game_features is generic
   quiz_features?: Record<string, boolean | undefined>;
   game_features?: Record<string, boolean | undefined>;
   quizFeatures?: Record<string, boolean | undefined>; // legacy alias

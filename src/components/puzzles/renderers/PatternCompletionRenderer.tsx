@@ -371,7 +371,7 @@ const PatternCompletionRenderer: React.FC<PatternCompletionRendererProps> = ({
     // Previously this only fired while something was selected, so tapping a
     // selected tile again to deselect it left the parent's saved answer
     // pointing at the old (now-unselected) option. Always report the current
-    // state — including back down to null — so it can never drift from what
+    // state - including back down to null - so it can never drift from what
     // the player actually sees on screen.
     onAnswerChange({ selectedOption: selected });
   }, [selected, onAnswerChange]);

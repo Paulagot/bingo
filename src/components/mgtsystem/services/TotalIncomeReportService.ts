@@ -2,7 +2,7 @@
 //
 // Data layer for the club-wide Total Income Report. v2: the backend now
 // owns categorization, adjustment classification, and the dynamic target
-// (/api/income-report/:clubId — see clubIncomeReportService.js). This
+// (/api/income-report/:clubId - see clubIncomeReportService.js). This
 // service is a thin typed pass-through; the modal is pure rendering.
 //
 // The old version fetched donations + a tickets summary and did the math
@@ -33,7 +33,7 @@ export interface TicketTypeSummary {
 
 export interface TicketsCategory extends IncomeCategory {
   byType: TicketTypeSummary[];
-  /** Ticket count per quiz_tickets — may differ from ledger `count` */
+  /** Ticket count per quiz_tickets - may differ from ledger `count` */
   typeCount: number;
 }
 
@@ -80,7 +80,7 @@ export interface AdjustmentDetailRow {
 
 export interface ClubIncomeReport {
   target: number;
-  /** All income, NO expenses — this is what's measured against target */
+  /** All income, NO expenses - this is what's measured against target */
   grossIncome: number;
   progressPct: number;
   income: {

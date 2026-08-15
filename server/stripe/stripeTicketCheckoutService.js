@@ -49,7 +49,7 @@ function resolveTicketTypeForStripe(config, ticketTypeId) {
       ? [{ id: 'general', name: 'General Admission', price: String(config.entryFee), isEnabled: true, quantity: null, saleEndsAt: null }]
       : [];
 
-  if (types.length === 0) throw new Error('ticket_type_not_found — no ticket types configured');
+  if (types.length === 0) throw new Error('ticket_type_not_found - no ticket types configured');
 
   let type = ticketTypeId ? types.find(t => t.id === ticketTypeId) : null;
   if (!type) type = types[0];
@@ -57,9 +57,9 @@ function resolveTicketTypeForStripe(config, ticketTypeId) {
 
   // Basic availability checks (full check happens in quizTicketService on manual payments;
   // Stripe pre-creates the row so we do a lightweight check here)
-  if (type.isEnabled === false) throw new Error(`ticket_type_unavailable — "${type.name}" is not currently available`);
+  if (type.isEnabled === false) throw new Error(`ticket_type_unavailable - "${type.name}" is not currently available`);
   if (type.saleEndsAt && Date.now() > new Date(type.saleEndsAt).getTime()) {
-    throw new Error(`ticket_type_unavailable — "${type.name}" sale has ended`);
+    throw new Error(`ticket_type_unavailable - "${type.name}" sale has ended`);
   }
 
   return {
@@ -82,7 +82,7 @@ export async function createTicketAndStripeSession({
   ticketTypeName = null,   // ← new
   // ── embed support ──────────────────────────────────────────────────────
   // 'embedded_new_tab' | 'page'. Only 'embedded_new_tab' appends
-  // ?embed=1 to success_url below — see stripeQuizTicketSuccess.tsx,
+  // ?embed=1 to success_url below - see stripeQuizTicketSuccess.tsx,
   // which only attempts window.close() on itself when it sees that
   // flag. Defaults to 'page' so nothing changes for any existing
   // caller of this function that doesn't pass it.
@@ -121,7 +121,7 @@ export async function createTicketAndStripeSession({
     totalAmount = parsedDonation;
 
   } else if (isTicketedEvent) {
-    // Resolve ticket type — sets ticketTypeId, ticketTypeName, price
+    // Resolve ticket type - sets ticketTypeId, ticketTypeName, price
     const resolved = resolveTicketTypeForStripe(config, ticketTypeId);
     ticketTypeId   = resolved.ticketTypeId;
     ticketTypeName = resolved.ticketTypeName;
@@ -178,7 +178,7 @@ export async function createTicketAndStripeSession({
     ]
   );
 
-  // 5) Ledger rows (EXPECTED — webhook confirms them)
+  // 5) Ledger rows (EXPECTED - webhook confirms them)
   const tempPlayerId = `ticket_${ticketId}`;
 
   const entryLedgerId = await createExpectedPayment({
@@ -234,7 +234,7 @@ export async function createTicketAndStripeSession({
     productName = ticketTypeName
       ? `${ticketTypeName} Ticket`
       : 'Event Ticket';
-    if (config.roomCaps?.eventTitle) productName += ` — ${config.roomCaps.eventTitle}`;
+    if (config.roomCaps?.eventTitle) productName += ` - ${config.roomCaps.eventTitle}`;
   } else if (isDonationRoom) {
     productName = `${gameType === 'elimination' ? 'Elimination' : 'Quiz'} Donation Ticket`;
   } else {
@@ -242,7 +242,7 @@ export async function createTicketAndStripeSession({
   }
 
   // Only appended when this checkout was created for the embedded
-  // new-tab flow — see stripeQuizTicketSuccess.tsx, which gates its
+  // new-tab flow - see stripeQuizTicketSuccess.tsx, which gates its
   // auto-close behavior on this exact flag being present. Absent
   // entirely for every existing (non-embedded) page, so nothing about
   // their behavior changes.

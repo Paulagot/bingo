@@ -20,7 +20,7 @@ export const Web3JoinSection: React.FC<Props> = ({
   onPaymentDone,
   onError,
 }) => {
-  // ── Use cluster from roomData — never hardcode devnet ─────────────────────
+  // ── Use cluster from roomData - never hardcode devnet ─────────────────────
   const cluster = roomData.solanaCluster ?? 'mainnet';
 
   const chainConfig = toChainConfig({
@@ -43,7 +43,7 @@ export const Web3JoinSection: React.FC<Props> = ({
 
   const entryFeeDisplay = roomData.entryFee
     ? (roomData.entryFee / Math.pow(10, decimals)).toFixed(4)
-    : '—';
+    : '-';
 
  const handlePay = async () => {
   if (!walletAddress) return;
@@ -62,7 +62,7 @@ export const Web3JoinSection: React.FC<Props> = ({
     const checkData = await checkRes.json();
  
     if (!checkData.success) {
-      throw new Error('Room not found — it may have been cancelled.');
+      throw new Error('Room not found - it may have been cancelled.');
     }
  
     const roomStatus = checkData.room?.status;
@@ -91,7 +91,7 @@ export const Web3JoinSection: React.FC<Props> = ({
     if (!result.success) throw new Error((result as any).error ?? 'Payment failed');
  
     // ── NEW: Record in ledger ─────────────────────────────────────────────
-    // Fire-and-forget — if this fails, the player can still join.
+    // Fire-and-forget - if this fails, the player can still join.
     // The server will re-verify the tx independently before writing.
     web3TransactionService.recordJoinPayment({
       game_type:        'elimination',
@@ -103,7 +103,7 @@ export const Web3JoinSection: React.FC<Props> = ({
       tx_hash:          result.txHash,
       fee_token:        tokenSymbol,        // already derived from feeMint
       token_address:    feeMint,
-      amount:           roomData.entryFee,  // raw units — same value passed to contract
+      amount:           roomData.entryFee,  // raw units - same value passed to contract
       entry_fee_amount: roomData.entryFee,  // full amount is entry fee for elimination
       extras_amount:    0,
       donation_amount:  0,

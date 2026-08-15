@@ -6,7 +6,7 @@
  *  direct === true. Never pass id to TGB when direct === true.
  */
 export type Charity = {
-  id: number;          // TGB orgId — only meaningful when direct !== true
+  id: number;          // TGB orgId - only meaningful when direct !== true
   name: string;        // display name
   logoUrl?: string;
   blurb?: string;

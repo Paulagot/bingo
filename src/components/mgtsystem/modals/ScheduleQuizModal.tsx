@@ -4,22 +4,22 @@
 // with CreateFundraiserWizard's step 3). Same Props contract as before;
 // supports BOTH modes during the wizard rollout:
 //
-//   • edit mode  (existingRoom set)  — pre-fills the quiz store from the
+//   • edit mode  (existingRoom set)  - pre-fills the quiz store from the
 //     room's config_json, submit PATCHes via quizApi.updateWeb2Room.
-//   • create mode (no existingRoom) — legacy path kept working; submit
+//   • create mode (no existingRoom) - legacy path kept working; submit
 //     POSTs via roomApi.createRoom + onSaved(roomId) so
 //     handleActivitySaved can link, identical to previous behaviour.
 //
-// The modal keeps the old hardReset-on-mount (right for a modal — every
+// The modal keeps the old hardReset-on-mount (right for a modal - every
 // open is a fresh session), then seeds the quiz store itself and renders
 // the step with editMode so the step's own seeding/date-sync (which is
 // wizard-specific) stays out of the way.
 //
-// Payment methods are set here too — kept as a SEPARATE top-level
+// Payment methods are set here too - kept as a SEPARATE top-level
 // concern from config_json. Unlike entry fee / prizes / extras (which
 // all live inside config_json), payment methods are their own flat room
 // column (linked_payment_methods_json), validated and written via
-// QuizPaymentMethodsService — folding them into config_json would bypass
+// QuizPaymentMethodsService - folding them into config_json would bypass
 // that validation and the room→event sync that depends on reading that
 // column directly.
 
@@ -56,7 +56,7 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
   const clubCurrencySym = currencySymbol(clubCurrencyISO);
 
   // ── Payment methods ────────────────────────────────────────────────────────
-  // Hydrated from the room's own linked_payment_methods_json on edit — NOT
+  // Hydrated from the room's own linked_payment_methods_json on edit - NOT
   // from the event. Held in the step's config (seeded: true tells the step
   // the wrapper owns store seeding).
   const [config, setConfig] = useState<QuizWizardConfig>(() => {
@@ -235,7 +235,7 @@ export default function ScheduleQuizModal({ onClose, onSaved, event, existingRoo
           </button>
         </div>
 
-        {/* Body — the shared step */}
+        {/* Body - the shared step */}
         <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4" style={{ background: '#f6f1e8' }}>
           {error && <ErrorBanner message={error} />}
           <QuizActivityStep

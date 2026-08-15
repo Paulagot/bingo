@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 let socket: Socket | null = null;
  
 export const getSocket = (): Socket => {
-  // Return existing socket if it exists at all — even if temporarily disconnected.
+  // Return existing socket if it exists at all - even if temporarily disconnected.
   // Socket.IO will buffer emits and send them once reconnected.
   if (socket) {
     return socket;
@@ -26,7 +26,7 @@ export const getSocket = (): Socket => {
  
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible' && socket && !socket.connected) {
-      console.log('🎮 [Elimination] Page visible again — reconnecting socket');
+      console.log('🎮 [Elimination] Page visible again - reconnecting socket');
       socket.connect();
     }
   };
@@ -69,7 +69,7 @@ export const disconnectSocket = (): void => {
 // ─── Emitters ─────────────────────────────────────────────────────────────────
  
 /**
- * Web2 payment fields — all optional, only sent for rooms with an entry fee.
+ * Web2 payment fields - all optional, only sent for rooms with an entry fee.
  */
 export interface Web2PaymentFields {
   /** True only after Stripe webhook confirmation (join-success page). */
@@ -80,7 +80,7 @@ export interface Web2PaymentFields {
   payAtDoor?: boolean;
   /** 'instant_payment' | 'stripe' | 'crypto' | 'pay_admin' */
   paymentMethod?: string;
-  /** e.g. 'ELIM-ABC123' — generated client-side for manual payment flows. */
+  /** e.g. 'ELIM-ABC123' - generated client-side for manual payment flows. */
   paymentReference?: string;
   /** FK to fundraisely_club_payment_methods.id */
   clubPaymentMethodId?: string | number | null;
@@ -88,7 +88,7 @@ export interface Web2PaymentFields {
 }
  
 /**
- * Emit join room — waits for socket to be connected before emitting.
+ * Emit join room - waits for socket to be connected before emitting.
  * This prevents the race where a payment completes during a brief socket
  * reconnect and the emit gets sent with a corrupted/buffered state.
  *
@@ -132,11 +132,11 @@ export const emitJoinRoom = (
     return;
   }
  
-  // Socket exists but is mid-reconnect — wait for it rather than buffering
-  console.log('🎮 [Elimination] Socket reconnecting — queuing join emit');
+  // Socket exists but is mid-reconnect - wait for it rather than buffering
+  console.log('🎮 [Elimination] Socket reconnecting - queuing join emit');
   const onConnect = () => {
     clearTimeout(timeout);
-    console.log('🎮 [Elimination] Socket reconnected — emitting join now');
+    console.log('🎮 [Elimination] Socket reconnected - emitting join now');
     s.emit('join_elimination_room', payload);
   };
  

@@ -7,7 +7,7 @@
 //   - entry_fee is pre-computed apportionedFee (ratio-weighted by room entryFee)
 //   - extras: all enabled room extras are granted at price 0 (same as donation room)
 //   - ledger: creates a confirmed ledger entry using ticket_${ticketId} as placeholder
-//     player_id — exactly matching the normal ticket flow. Gets upgraded to real
+//     player_id - exactly matching the normal ticket flow. Gets upgraded to real
 //     player_id when the supporter redeems the ticket and joins the room.
 //   - club_payment_method_id resolved from the room's linked payment methods
 //   - confirmation email sent via existing sendTicketConfirmationEmail utility
@@ -64,13 +64,13 @@ async function getRoomData(roomId, clubId) {
  * Build the extras array to store on the ticket.
  *
  * Campaign product ticket holders get ALL enabled room extras included at
- * price 0 — they are granted as part of the campaign purchase price.
+ * price 0 - they are granted as part of the campaign purchase price.
  * This mirrors how donation rooms give extras automatically.
  *
- * Only quiz rooms have fundraisingOptions — elimination rooms return []
+ * Only quiz rooms have fundraisingOptions - elimination rooms return []
  * which is correct (elimination has no mid-game extras).
  *
- * @param {object} roomConfig  — parsed config_json from the room
+ * @param {object} roomConfig  - parsed config_json from the room
  * @returns {Array}  e.g. [{ extraId: 'buyHint', price: 0, source: 'campaign_product', included: true }, ...]
  */
 function buildIncludedExtras(roomConfig) {
@@ -140,7 +140,7 @@ function toLedgerPaymentSource(paymentMethodCategory) {
  *
  * @param {string} entryId
  * @param {string} itemType
- * @param {object} context — { order, productItem, orderItem, apportionedFee }
+ * @param {object} context - { order, productItem, orderItem, apportionedFee }
  */
 export async function createTicketForEntry(entryId, itemType, context) {
   const { order, productItem, orderItem } = context;
@@ -154,7 +154,7 @@ export async function createTicketForEntry(entryId, itemType, context) {
   const orderId   = order.id;
 
   // ── 1. Fetch room config (for extras and email) ──────────────────────────
-  // clubPaymentMethodId comes from the campaign order via context — it's the
+  // clubPaymentMethodId comes from the campaign order via context - it's the
   // method the supporter actually used, not the room's on-the-night method.
   const { config: roomConfig } = await getRoomData(roomId, clubId);
   const clubPaymentMethodId = context.clubPaymentMethodId ?? null;
@@ -162,7 +162,7 @@ export async function createTicketForEntry(entryId, itemType, context) {
   // ── 2. Extras: grant all enabled room extras at price 0 ───────────────────
   const extras     = buildIncludedExtras(roomConfig);
   const extrasJson = JSON.stringify(extras);
-  // extras_total stays 0 — they are included in the campaign price
+  // extras_total stays 0 - they are included in the campaign price
   // total_amount = entryFee only (no extra charge)
 
   // ── 3. Entry fee ──────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ export async function createTicketForEntry(entryId, itemType, context) {
       extrasJson,                    // ← all enabled room extras at price 0
       entryFee,                      // total_amount = entryFee (extras are free)
       currency,
-      `campaign_entry_${entryId}`,   // payment_reference — traceable to entry
+      `campaign_entry_${entryId}`,   // payment_reference - traceable to entry
       clubPaymentMethodId,
       joinToken,
     ]
@@ -222,7 +222,7 @@ export async function createTicketForEntry(entryId, itemType, context) {
   );
 
   // ── 6. Ledger entry ───────────────────────────────────────────────────────
-  // Use ticket_${ticketId} as placeholder player_id — exactly matching the
+  // Use ticket_${ticketId} as placeholder player_id - exactly matching the
   // normal ticket purchase flow in quizTicketService.js. This gets upgraded
   // to the real player_id when the supporter redeems the ticket (redeemTicket
   // runs: UPDATE ledger SET player_id = realId WHERE player_id = 'ticket_xxx').
@@ -246,7 +246,7 @@ export async function createTicketForEntry(entryId, itemType, context) {
       clubPaymentMethodId,
       paymentReference: order.payment_reference ?? `campaign_entry_${entryId}`,
       ticketId,
-      // Already confirmed — club has verified or Stripe/crypto auto-confirmed
+      // Already confirmed - club has verified or Stripe/crypto auto-confirmed
       status:           'confirmed',
       claimedAt:        now,
       confirmedAt:      now,
@@ -259,12 +259,12 @@ export async function createTicketForEntry(entryId, itemType, context) {
         entryId,
         campaignId:       order.campaign_id,
         paymentCategory:  order.payment_method_category,
-        // Admin note for reconciliation — visible in ledger reports
+        // Admin note for reconciliation - visible in ledger reports
         adminNote:        `Campaign product order ${orderId}`,
       },
     });
 
-    // Attach ledger_id to ticket — same as quizTicketService does
+    // Attach ledger_id to ticket - same as quizTicketService does
     if (ledgerId) {
       await connection.execute(
         `UPDATE ${T_TICKETS} SET ledger_id = ? WHERE ticket_id = ?`,
@@ -274,7 +274,7 @@ export async function createTicketForEntry(entryId, itemType, context) {
 
     console.log(`[TicketBridge] 📒 Ledger entry ${ledgerId} created for ticket ${ticketId} (${paymentMethod} / ${paymentSource})`);
   } catch (ledgerErr) {
-    // Non-fatal — ticket and entry are already committed
+    // Non-fatal - ticket and entry are already committed
     console.error(`[TicketBridge] ⚠️ Ledger entry failed (non-fatal): ${ledgerErr.message}`);
   }
 

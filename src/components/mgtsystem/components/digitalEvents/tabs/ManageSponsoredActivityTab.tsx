@@ -130,7 +130,7 @@ export default function ManageSponsoredActivityTab({
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-xs text-[#8a9bab]">Activity</dt>
-            <dd className="font-semibold capitalize text-[#102532]">{activityLabel || '—'}</dd>
+            <dd className="font-semibold capitalize text-[#102532]">{activityLabel || '-'}</dd>
           </div>
           <div>
             <dt className="text-xs text-[#8a9bab]">Currency</dt>
@@ -139,7 +139,7 @@ export default function ManageSponsoredActivityTab({
           <div>
             <dt className="text-xs text-[#8a9bab]">Suggested amounts</dt>
             <dd className="font-semibold text-[#102532]">
-              {(config?.suggestedAmounts || []).join(', ') || '—'}
+              {(config?.suggestedAmounts || []).join(', ') || '-'}
             </dd>
           </div>
           <div>

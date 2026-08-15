@@ -16,12 +16,12 @@ interface PlayerDetailsFormProps {
   currencySymbol: string;
   extrasTotal?: number;
   entryFee?: number;
-  /** When true: hides the amount summary — donation amount isn't known at this step */
+  /** When true: hides the amount summary - donation amount isn't known at this step */
   isDonationRoom?: boolean;
   /** When true: shows a two-column layout on desktop to avoid scrolling */
   wideLayout?: boolean;
   /**
-   * When true: hides the player name field — ticketed events don't have a
+   * When true: hides the player name field - ticketed events don't have a
    * game leaderboard so a display name is irrelevant. playerName will be
    * auto-filled from purchaserName before the ticket is created.
    */
@@ -167,7 +167,7 @@ const summary = shouldShowSummary ? (
             />
           </div>
 
-          {/* Player name column — hidden for ticketed events */}
+          {/* Player name column - hidden for ticketed events */}
           {!isTicketedEvent && (
             <div className="mt-4 space-y-4 sm:mt-0">
               <InputWithIcon
@@ -219,7 +219,7 @@ const summary = shouldShowSummary ? (
           </>
         )}
 
-        {/* Player name — hidden for ticketed events */}
+        {/* Player name - hidden for ticketed events */}
         {!isTicketedEvent && (
           <InputWithIcon
             label="Player name"

@@ -3,7 +3,7 @@
 // Interval-based background job that sweeps expired Stripe checkout records.
 // Safe for Railway / Render (no native cron daemon needed).
 //
-// Usage — call startStripeCleanupJob() once at server startup:
+// Usage - call startStripeCleanupJob() once at server startup:
 //
 //   import { startStripeCleanupJob } from './stripe/stripeCleanupJob.js';
 //   startStripeCleanupJob();
@@ -23,14 +23,14 @@ async function runSweep() {
     const result = await sweepExpiredTickets();
     // console.log('[CleanupJob] ✅ Sweep complete:', result);
   } catch (err) {
-    // Never crash the server — just log and wait for next interval
+    // Never crash the server - just log and wait for next interval
     console.error('[CleanupJob] ❌ Sweep failed (will retry next interval):', err.message);
   }
 }
 
 /**
  * Start the background cleanup job.
- * Safe to call multiple times — only one job will run.
+ * Safe to call multiple times - only one job will run.
  */
 export function startStripeCleanupJob() {
   if (jobTimer) {
@@ -38,7 +38,7 @@ export function startStripeCleanupJob() {
     return;
   }
 
-  // console.log(`[CleanupJob] 🚀 Starting — interval: ${INTERVAL_MS / 1000}s`);
+  // console.log(`[CleanupJob] 🚀 Starting - interval: ${INTERVAL_MS / 1000}s`);
 
   // Run immediately on startup to clear anything that expired while the server was down
   runSweep();

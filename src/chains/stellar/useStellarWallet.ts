@@ -231,7 +231,7 @@ export const useStellarWallet = () => {
 const addressResult = await walletKitRef.current.getAddress();
 
 if (addressResult.address) {
-  // try getNetwork, but WalletConnect doesn't support it — fall back to config
+  // try getNetwork, but WalletConnect doesn't support it - fall back to config
   let networkResult: any;
   try {
     networkResult = await walletKitRef.current.getNetwork();

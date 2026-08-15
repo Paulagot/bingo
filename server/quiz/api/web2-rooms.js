@@ -207,10 +207,10 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'invalid_room_caps_json' });
     }
 
-    // Payment methods — separate from config_json/room_caps_json, written
+    // Payment methods - separate from config_json/room_caps_json, written
     // via the same validated QuizPaymentMethodsService.updateLinkedPaymentMethods
     // call eliminationMgmtService uses, so method-ID ownership checks stay
-    // in one place. Left undefined if not sent — undefined means "don't
+    // in one place. Left undefined if not sent - undefined means "don't
     // touch payment methods", [] means "clear all selections". Defaulting
     // to [] here would wrongly wipe out existing selections on every edit
     // that doesn't touch the payment step (e.g. just changing the entry fee).
@@ -242,7 +242,7 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       params.push(roomCapsJson === null ? null : roomCapsJson);
     }
 
-    // A payment-methods-only edit is still a valid update — don't reject
+    // A payment-methods-only edit is still a valid update - don't reject
     // it just because `sets` (the column-based fields) happens to be empty.
     if (sets.length === 0 && !hasPaymentMethodsUpdate) {
       return res.status(400).json({ error: 'no_fields_to_update' });
@@ -266,7 +266,7 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       }
     }
 
-    // ── Payment methods — separate write, separate from the column UPDATE above ──
+    // ── Payment methods - separate write, separate from the column UPDATE above ──
     if (hasPaymentMethodsUpdate) {
       try {
         await paymentMethodsService.updateLinkedPaymentMethods({
@@ -280,7 +280,7 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       }
 
       // Editing payment methods on an already-linked room must also refresh
-      // the event's denormalized copy — otherwise the event silently goes
+      // the event's denormalized copy - otherwise the event silently goes
       // stale the moment someone changes methods after the initial link.
       // Same fix already applied to updateEliminationRoom.
       await eventIntegrationsService.syncRoomPaymentMethodsToLinkedEvents({ roomId, clubId });

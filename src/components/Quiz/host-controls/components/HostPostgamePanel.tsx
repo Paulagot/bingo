@@ -59,7 +59,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   // ✅ HOOK #1
   const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
 
-  // ✅ HOOK #2 — stores charity/prize info as it arrives
+  // ✅ HOOK #2 - stores charity/prize info as it arrives
   const [charityData, setCharityData] = React.useState<PrizeDistributionData | null>(null);
 
   const isComplete = phase === 'complete';
@@ -71,7 +71,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
     typeof totalRounds === 'number' &&
     currentRound >= totalRounds;
 
-  // ✅ HOOK #3 — rehydrate charityData from localStorage on mount (survives remounts)
+  // ✅ HOOK #3 - rehydrate charityData from localStorage on mount (survives remounts)
   useEffect(() => {
     if (!roomId) return;
     try {
@@ -87,7 +87,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
     } catch { /* ignore */ }
   }, [roomId]);
 
-  // ✅ HOOK #4 — persist charityData to localStorage whenever it changes
+  // ✅ HOOK #4 - persist charityData to localStorage whenever it changes
   useEffect(() => {
     if (!roomId || !charityData) return;
     try {
@@ -95,7 +95,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
     } catch { /* ignore */ }
   }, [charityData, roomId]);
 
-  // ✅ HOOK #5 — cleanup timer after successful distribution
+  // ✅ HOOK #5 - cleanup timer after successful distribution
   useEffect(() => {
     if (!prizeDistributionComplete || !isWeb3Flow) return;
     console.log('🎯 Prizes distributed successfully. Starting cleanup timer...');
@@ -121,7 +121,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
 
   if ((isComplete || isDistributing) && !isFinalRound) {
     console.warn(
-      '[HostPostgamePanel] Not on final round — hiding post-game panel.',
+      '[HostPostgamePanel] Not on final round - hiding post-game panel.',
       { phase, currentRound, totalRounds, isFinalRound }
     );
     return null;
@@ -221,9 +221,9 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
             <div>allRoundsStats length: {allRoundsStats.length}</div>
             <div>Web3 Flow: {isWeb3Flow ? '✅' : '❌'}</div>
             <div>Prize Distribution Complete: {prizeDistributionComplete ? '✅' : '❌'}</div>
-            <div>Charity Name: {charityData?.charityName ?? '—'}</div>
+            <div>Charity Name: {charityData?.charityName ?? '-'}</div>
             <div>
-              Display Amount: {displayAmount ?? '—'} {displayCurrency}
+              Display Amount: {displayAmount ?? '-'} {displayCurrency}
             </div>
             <div>Confirmed: {charityConfirmed ? '✅' : '❌'}</div>
           </div>
@@ -257,7 +257,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
           />
         </div>
       )}
-          {/* Charity Impact Banner — amber preview while distributing, green when confirmed */}
+          {/* Charity Impact Banner - amber preview while distributing, green when confirmed */}
       {isWeb3Flow && charityData?.charityName && (
         <div
           className={`rounded-xl border-2 p-5 ${
@@ -297,7 +297,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
                     from this quiz
                   </>
                 ) : (
-                  ' — calculating amount...'
+                  ' - calculating amount...'
                 )}
               </p>
             </div>
@@ -313,7 +313,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
         </div>
       )}
 
-      {/* Return to Dashboard — non-web3 */}
+      {/* Return to Dashboard - non-web3 */}
       {!isWeb3Flow && isComplete && (
         <div className="mt-8 text-center">
           {isOperator ? (
@@ -336,7 +336,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
         </div>
       )}
 
-      {/* Auto-cleanup countdown — web3 post-distribution */}
+      {/* Auto-cleanup countdown - web3 post-distribution */}
       {isWeb3Flow && prizeDistributionComplete && (
         <div className="mt-6 rounded-xl border-2 border-blue-200 bg-blue-50 p-6 text-center">
           <div className="mb-2 text-4xl">⏳</div>

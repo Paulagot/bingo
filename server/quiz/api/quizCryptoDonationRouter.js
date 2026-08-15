@@ -71,7 +71,7 @@ router.post('/confirm', limiter, async (req, res) => {
 
     if (donationFiat <= 0) {
       console.warn(
-        '[CryptoDonation] ⚠️ Fiat conversion returned zero/null — recording ledger as 0.00',
+        '[CryptoDonation] ⚠️ Fiat conversion returned zero/null - recording ledger as 0.00',
         { roomId, playerId, txHash, tokenCode, displayAmount, donationCurrency, donationFiat }
       );
     }

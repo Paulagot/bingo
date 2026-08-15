@@ -4,7 +4,7 @@ import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
 // NOTE: QuizPaymentMethodsService is no longer imported here. Payment methods
 // are now set at the ACTIVITY level (scheduleEliminationRoom / quiz equivalent)
-// and flow UP to the event via EventIntegrationsService.addIntegration —
+// and flow UP to the event via EventIntegrationsService.addIntegration -
 // this file no longer pushes payment methods DOWN to rooms.
 
 function getComputedEventStatus(event) {
@@ -63,14 +63,14 @@ class EventService {
    * Payment methods are NO LONGER synced here. The activity (room) is now
    * the source of truth for its own payment methods, set once at the point
    * it's scheduled (see eliminationMgmtService.scheduleEliminationRoom and
-   * the quiz/ticketed-event equivalents). The value flows the other way —
-   * room → event — handled in EventIntegrationsService.addIntegration,
+   * the quiz/ticketed-event equivalents). The value flows the other way -
+   * room → event - handled in EventIntegrationsService.addIntegration,
    * purely so the event keeps a denormalized copy for display/reporting.
    * Editing the event afterward must never overwrite what was chosen at
    * the activity level, which is why this method no longer touches
    * linked_payment_methods_json at all.
    *
-   * Only fields present in `changes` are synced — so a title-only edit
+   * Only fields present in `changes` are synced - so a title-only edit
    * won't touch the quiz room at all.
    */
   async _syncLinkedRooms(eventId, clubId, changes) {
@@ -295,7 +295,7 @@ time_zone || null,
     if (result.affectedRows === 0) throw new Error('Event not found or no changes made');
 
     // ── Sync scheduling to any linked quiz/elimination rooms (payment
-    //    methods are no longer synced from here — see _syncLinkedRooms) ──────
+    //    methods are no longer synced from here - see _syncLinkedRooms) ──────
     await this._syncLinkedRooms(eventId, clubId, updateData);
 
     return await this.getEventById(eventId, clubId);

@@ -1,7 +1,7 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/OverviewTabDrop.tsx
 //
 // Overview tab for Puzzle Drop. Fetches its own detail via
-// puzzleDropMgmtService.getDrop (room + items + pricingTiers combined) —
+// puzzleDropMgmtService.getDrop (room + items + pricingTiers combined) -
 // Drop's real setup data lives across those three pieces, not in
 // config_json the way quiz/elimination/ticketed events store theirs, so
 // unlike those OverviewTab variants this one can't just read `config`
@@ -35,7 +35,7 @@ function money(sym: string, value: number | string | null | undefined, decimals 
 }
 
 function titleCase(value: string | null | undefined) {
-  if (!value) return '—';
+  if (!value) return '-';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -178,7 +178,7 @@ export default function OverviewTabDrop({ roomId, stats, linkedEventTitle }: Pro
     const min = Math.min(...prices), max = Math.max(...prices);
     return min === max ? money(sym, min) : `${money(sym, min)} – ${money(sym, max)}`;
   })();
-  const statIncome = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '—';
+  const statIncome = typeof stats?.totalIncome === 'number' ? money(sym, stats.totalIncome) : '-';
 
   return (
     <div className="space-y-5 p-5">
@@ -214,7 +214,7 @@ export default function OverviewTabDrop({ roomId, stats, linkedEventTitle }: Pro
           helper={priceRange || 'No tiers configured'} tone="purple" />
         <StatCard icon={<CircleDollarSign className="h-5 w-5" />} label="Income" value={statIncome}
           helper="Confirmed purchases" tone="green" />
-        <StatCard icon={<Users className="h-5 w-5" />} label="Buyers" value={stats?.uniquePlayers ?? '—'}
+        <StatCard icon={<Users className="h-5 w-5" />} label="Buyers" value={stats?.uniquePlayers ?? '-'}
           helper="Unique confirmed buyers" tone="blue" />
       </div>
 
@@ -266,7 +266,7 @@ export default function OverviewTabDrop({ roomId, stats, linkedEventTitle }: Pro
           subtitle={itemCount ? `${itemCount} puzzle${itemCount !== 1 ? 's' : ''} configured.` : 'No puzzles configured yet.'} />
         {itemCount === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center text-sm text-gray-500">
-            No puzzles added yet — use the Setup tab to add some.
+            No puzzles added yet - use the Setup tab to add some.
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">

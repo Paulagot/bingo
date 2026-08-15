@@ -99,7 +99,7 @@ const { distributePrizes } = useContractActions(chainConfig);
     [roomId]
   );
 
-  // ✅ Calls onStatusChange directly and synchronously — also persists to
+  // ✅ Calls onStatusChange directly and synchronously - also persists to
   // localStorage immediately so data survives remounts
   const notifyParent = React.useCallback(
     (status: PrizeRouterStatus, data?: PrizeDistributionData) => {

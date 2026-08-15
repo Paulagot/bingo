@@ -102,7 +102,7 @@ export const MidpointSplitRound: React.FC<Props> = ({
         </defs>
         <rect width="100" height="100" fill={`url(#mpgrid-${roundId})`} />
 
-        {/* Connecting line — bold, solid, clearly visible */}
+        {/* Connecting line - bold, solid, clearly visible */}
         <line
           x1={ax} y1={ay} x2={bx} y2={by}
           stroke={palette.stroke}

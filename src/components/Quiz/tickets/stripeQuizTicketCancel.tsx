@@ -1,13 +1,13 @@
 // src/components/Quiz/tickets/stripeQuizTicketCancel.tsx
 // (filename typo fixed: was stripeQuizTicketCancl.tsx in the header
-// comment of the original file — the actual filename was already
+// comment of the original file - the actual filename was already
 // correct, just the comment inside it wasn't.)
 //
 // UPDATED: for the embedded new-tab flow, broadcasts a 'cancelled'
 // message so the original iframe (sitting in TicketPurchaseFlow's
 // 'awaiting-stripe-payment' step) can return to payment-method
 // immediately, instead of only finding out after its 5-minute poll
-// timeout. See ticketCheckoutChannel.ts for the trust model — a
+// timeout. See ticketCheckoutChannel.ts for the trust model - a
 // 'cancelled' message grants nothing, so it's safe to act on directly
 // with no backend verification, unlike a 'confirmed' message.
 //
@@ -33,7 +33,7 @@ export const StripeQuizTicketCancel: React.FC = () => {
 
   const isEmbeddedNewTab = searchParams.get('embed') === '1';
 
-  // Unstick the original iframe immediately. Safe to trust directly —
+  // Unstick the original iframe immediately. Safe to trust directly -
   // this message grants nothing, worst case it's lost and the buyer
   // just waits out the existing poll timeout instead.
   useEffect(() => {
@@ -61,13 +61,13 @@ export const StripeQuizTicketCancel: React.FC = () => {
         <div className="text-6xl mb-4">❌</div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment cancelled</h2>
         <p className="text-gray-600 mb-6">
-          No worries — your ticket has not been confirmed and you have not been charged.
+          No worries - your ticket has not been confirmed and you have not been charged.
         </p>
 
         {isEmbeddedNewTab ? (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              This tab will close automatically — you can try again on the page you were on.
+              This tab will close automatically - you can try again on the page you were on.
             </p>
             <button
               onClick={() => { try { window.close(); } catch {} }}

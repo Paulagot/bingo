@@ -232,7 +232,7 @@ const VideoSection: React.FC<{
 const Web3QuizPage: React.FC = () => {
   const navigate = useNavigate();
 
-  /* ── Wizard state — only used when arriving via ?action=host from event card ── */
+  /* ── Wizard state - only used when arriving via ?action=host from event card ── */
 const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null);
 const [showWizard, setShowWizard] = useState(false);
 const [fullscreen, setFullscreen] = useState<VideoKey | null>(null);
@@ -272,7 +272,7 @@ useEffect(() => {
     solanaCluster:  'mainnet',
   };
 
-  // Charity prefill — handle both direct (id=0) and TGB charities
+  // Charity prefill - handle both direct (id=0) and TGB charities
   if (event.charity_id === 0 && event.charity_name) {
     prefill.web3CharityOrgId    = null;
     prefill.web3CharityName     = event.charity_name;
@@ -300,7 +300,7 @@ useEffect(() => {
     setSelectedChain(null);
   }, []);
 
-  /* ── Auth — used by marketing page buttons only ── */
+  /* ── Auth - used by marketing page buttons only ── */
   const { stage, error: authError, startConnect } = useWeb3FundraiserAuth({
     onVerified: () => {
       navigate('/web3/fundraisersdashboard?tab=events');
@@ -392,7 +392,7 @@ useEffect(() => {
           name: 'Do I need blockchain experience to host a quiz?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'No. Connect your wallet, list your event on the dashboard, and the setup wizard walks you through everything — chain choice, charity, entry fee, and contract deployment.',
+            text: 'No. Connect your wallet, list your event on the dashboard, and the setup wizard walks you through everything - chain choice, charity, entry fee, and contract deployment.',
           },
         },
       ],
@@ -1063,7 +1063,7 @@ useEffect(() => {
                 },
                 {
                   q: 'Do I need blockchain knowledge to host one?',
-                  a: 'No. Connect your wallet, list your event on the dashboard, and the setup wizard walks you through everything — chain choice, charity, entry fee, and contract deployment.',
+                  a: 'No. Connect your wallet, list your event on the dashboard, and the setup wizard walks you through everything - chain choice, charity, entry fee, and contract deployment.',
                 },
               ].map(({ q, a }) => (
                 <W3Card key={q}>

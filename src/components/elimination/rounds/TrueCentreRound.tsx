@@ -153,7 +153,7 @@ export const TrueCentreRound: React.FC<Props> = ({
         <g style={{
           animation: pulsing ? 'shapePulse 2s ease-in-out infinite' : 'none',
         }}>
-          {/* Gradient fill layer — uses same ngon helper */}
+          {/* Gradient fill layer - uses same ngon helper */}
           <g>
             {shapeType === 'circle' && (
               <ellipse cx={cx} cy={cy} rx={w/2} ry={h/2}

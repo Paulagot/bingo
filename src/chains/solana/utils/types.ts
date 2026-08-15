@@ -57,7 +57,7 @@ export interface CreatePoolRoomParams {
   roomId:       string;
   currency:     SolanaTokenCode;
   entryFee:     number;
-  // Optional — used by EVM, ignored by new Solana contract
+  // Optional - used by EVM, ignored by new Solana contract
   maxPlayers?:   number;
   hostFeePct?:   number;
   prizePoolPct?: number;

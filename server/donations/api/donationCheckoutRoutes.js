@@ -1,20 +1,20 @@
 // server/donations/api/donationCheckoutRoutes.js
 //
 // POST /donations/:clubId/checkout is PUBLIC/unauthenticated, per spec
-// section 8 — the supporter is never logged in. Rate-limited per spec
+// section 8 - the supporter is never logged in. Rate-limited per spec
 // section 11.6 (first public write endpoint of its kind in this area).
 //
-// GET /donations/:clubId/list is authenticated — club admin only, same
+// GET /donations/:clubId/list is authenticated - club admin only, same
 // pattern as donation-buttons/:clubId/manage.
 //
-// GET /donations/:clubId/config is PUBLIC/unauthenticated — fetched by
-// the embed page on load. Now rate-limited (configLimiter, below) —
+// GET /donations/:clubId/config is PUBLIC/unauthenticated - fetched by
+// the embed page on load. Now rate-limited (configLimiter, below) -
 // previously had no limiter at all, which meant anyone could hammer it
 // to scrape club config or enumerate club ids at will. Low severity
 // (the response is just branding/preset amounts, nothing sensitive)
 // but cheap to close.
 //
-// GET /donations/:clubId/domain-check is PUBLIC/unauthenticated — called
+// GET /donations/:clubId/domain-check is PUBLIC/unauthenticated - called
 // by donate.js before it renders a club's button, to confirm the
 // current page's hostname is one the club registered. See
 // DonationButtonService.isHostnameAllowed.
@@ -64,7 +64,7 @@ function mapErrorToStatus(message) {
 
 /**
  * GET /donations/:clubId/config
- * Public — no auth. Fetched by the embed page on load to render the
+ * Public - no auth. Fetched by the embed page on load to render the
  * amount picker and know which method(s) this button is wired to.
  */
 router.get('/donations/:clubId/config', donationConfigLimiter, async (req, res) => {
@@ -81,10 +81,10 @@ router.get('/donations/:clubId/config', donationConfigLimiter, async (req, res) 
 
 /**
  * GET /donations/:clubId/domain-check?hostname=clubsite.com
- * Public — no auth. Called by donate.js before it renders the donate
+ * Public - no auth. Called by donate.js before it renders the donate
  * button, to confirm the page it's running on is one this club has
  * registered. Always returns 200 with { ok: true, allowed: boolean }
- * — an unregistered hostname is a normal "no," not an error status,
+ * - an unregistered hostname is a normal "no," not an error status,
  * since this is queried for arbitrary club/hostname pairs by design
  * (donate.js can't know in advance whether it'll pass).
  */
@@ -102,7 +102,7 @@ router.get('/donations/:clubId/domain-check', donationDomainCheckLimiter, async 
   } catch (err) {
     console.error('[donations] GET domain-check error:', err);
     // Fail CLOSED on unexpected errors (club not found, DB hiccup,
-    // etc.) — a widget that can't confirm its domain is allowed should
+    // etc.) - a widget that can't confirm its domain is allowed should
     // not render, rather than defaulting open on any backend error.
     return res.status(200).json({ ok: false, allowed: false });
   }
@@ -111,7 +111,7 @@ router.get('/donations/:clubId/domain-check', donationDomainCheckLimiter, async 
 /**
  * POST /donations/:clubId/checkout
  * Body: { clubPaymentMethodId, amount, donorName?, donorEmail? }
- * Public — no auth. currency is never accepted from the client; the
+ * Public - no auth. currency is never accepted from the client; the
  * service derives it from the club's reporting_currency.
  */
 router.post('/donations/:clubId/checkout', checkoutLimiter, async (req, res) => {

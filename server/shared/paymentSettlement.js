@@ -2,7 +2,7 @@
 //
 // Decides whether a human is capable of verifying a payment.
 //
-// Keyed on method_category from fundraisely_club_payment_methods — NOT
+// Keyed on method_category from fundraisely_club_payment_methods - NOT
 // provider_name, which is club-editable free text ("Revolut - Main Account",
 // "Donate") and carries no settlement semantics. Every provider under
 // instant_payment (cash, card_tap, revolut, bank_transfer, paypal, sumup,
@@ -47,7 +47,7 @@ export function settlementModeFor(input) {
   const config = isObj ? parseConfig(input.methodConfig ?? input.method_config) : {};
   const vMode  = String(config.verificationMode || '').trim().toLowerCase();
 
-  // 1. Explicit verificationMode wins — it's the club's own declaration.
+  // 1. Explicit verificationMode wins - it's the club's own declaration.
   if (vMode && AUTO_VERIFICATION_MODES.has(vMode))   return 'auto';
   if (vMode && MANUAL_VERIFICATION_MODES.has(vMode)) return 'manual';
 
@@ -55,10 +55,10 @@ export function settlementModeFor(input) {
   if (AUTO_SETTLED_CATEGORIES.has(category))   return 'auto';
   if (MANUAL_SETTLED_CATEGORIES.has(category)) return 'manual';
 
-  // 3. ⚠️ 'card' lands here — see note below. Unknown defaults to manual:
+  // 3. ⚠️ 'card' lands here - see note below. Unknown defaults to manual:
   //    a false block strands a real guest at the door, which is worse than
   //    a false allow on a category we don't recognise.
-  console.warn(`[paymentSettlement] ⚠️ Unclassified method_category: "${category}" — defaulting to manual`);
+  console.warn(`[paymentSettlement] ⚠️ Unclassified method_category: "${category}" - defaulting to manual`);
   return 'manual';
 }
 
