@@ -6,7 +6,7 @@ import ErrorBoundary from './components/bingo/ErrorBoundary';
 import { Game } from './pages/Game';
 
 
-import BlogPost from './pages/BlogPost';
+
 
 import ConfirmPasswordReset from './components/auth/ConfirmPasswordReset';
 import RequestPasswordReset from './components/auth/RequestPasswordReset';
@@ -18,7 +18,6 @@ import Web3Features from './pages/web3/features';
 import Web3Testimonials from './pages/web3/testimonials';
 import Web3Partners from './pages/web3/partners';
 
-import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
 import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
 import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
 import { EliminationDevPage } from './components/elimination/EliminationDevPage';
@@ -203,10 +202,7 @@ const FundraisersDashboardPage = lazy(() => import('./pages/web3/FundraisersDash
 const Web3HostPage = lazy(() => import('./pages/web3/host'));
 const Web3CausesPage = lazy(() => import('./pages/web3/causes'));
 const BonkBfpPubQuizPage = lazy(() => import('./pages/events/BonkBfpPubQuizPage'));
-const CampaignProductsPage = lazy(() => import('./pages/campaigns/CampaignProductsPage'));
-const CampaignSupportPage = lazy(() => import('./pages/campaigns/CampaignSupportPage'));
-const CampaignStripeSuccess = lazy(() => import('./pages/campaigns/CampaignStripeSuccess'));
-const CampaignSellerPage = lazy(() => import('./pages/campaigns/CampaignSellerPage'));
+
 
 // Peer-to-Peer Fundraising
 const PeerDashboard = lazy(() => import('./pages/peer/PeerDashboard'));
@@ -398,15 +394,6 @@ export default function App() {
         <Route path="/reset-password" element={<ConfirmPasswordReset />} />
         <Route path="/forgot-password" element={<RequestPasswordReset />} />
 
-        {/* Blog posts */}
-        <Route
-          path="/blog/:slug"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Loading blog post" />}>
-              <BlogPost />
-            </Suspense>
-          }
-        />
 
         {/* Peer-to-Peer public supporter routes */}
         <Route
@@ -436,44 +423,6 @@ export default function App() {
           }
         />
 
-        {/* Campaign routes */}
-        <Route path="/campaigns/clubs-league" element={<ClubsLeaguePage />} />
-
-        <Route
-          path="/campaigns/:campaignId/products"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Loading Product Builder" />}>
-              <CampaignProductsPage />
-            </Suspense>
-          }
-        />
-
-        <Route
-          path="/campaigns/:campaignId/support"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Loading Campaign" />}>
-              <CampaignSupportPage />
-            </Suspense>
-          }
-        />
-
-        <Route
-          path="/campaigns/:campaignId/order-success"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Confirming payment..." />}>
-              <CampaignStripeSuccess />
-            </Suspense>
-          }
-        />
-
-        <Route
-          path="/campaigns/:campaignId/sellers/:sellerId"
-          element={
-            <Suspense fallback={<LoadingSpinner message="Loading seller page..." />}>
-              <CampaignSellerPage />
-            </Suspense>
-          }
-        />
 
         {/* ────────────────────────────────────────────────────────────────
             AUTHENTICATED DASHBOARDS
