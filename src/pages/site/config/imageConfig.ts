@@ -66,6 +66,9 @@ export type ImageKey =
   | "productdashboard"
   | "tradationaldigital"
   | "paymentsDonations"
+  | "cryptoHero"
+  | "donationsHero"
+  | "donationsBottom"
   | "puzzels"
   | "doorToDoorScreenshot";
 
@@ -439,9 +442,23 @@ export const images: Record<ImageKey, SiteImage> = {
     src: "/images/screenshots/paymentdonations.png",
     alt: "FundRaisely digital tradational events.",
   },
+    donationsHero: {
+    src: "/images/screenshots/donate1.png",
+    alt: "FundRaisely digital tradational events.",
+  },
+
+  donationsBottom: {
+    src: "/images/screenshots/donate3.png",
+    alt: "FundRaisely donations widget.",
+  },
+
+  cryptoHero: {
+    src: "/images/screenshots/crypto.png",
+    alt: "FundRaisely digital crypto events.",
+  },
 
   puzzels: {
     src: "/images/screenshots/puzzle.png",
-    alt: "FundRaisely digital tradational events.",
+    alt: "FundRaisely digital puzzel events.",
   },
 };

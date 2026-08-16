@@ -20,7 +20,7 @@ const seoTitle =
   'Donations Widget for Clubs, Charities and Community Groups | FundRaisely';
 
 const seoDescription =
-  'Add a FundRaisely donation button to any website, campaign page or club site. Accept card payments via Stripe, instant payments, and crypto donations in Solana directly to your own wallet — no intermediary holding your funds.';
+  'Add a FundRaisely donation button to any website, campaign page or club site. Accept card payments via Stripe, instant payments, and crypto donations in Solana directly to your own wallet - no intermediary holding your funds.';
 
 const h1 = 'A donate button that works on any page and accepts crypto directly to your wallet';
 
@@ -30,7 +30,7 @@ const faqs = [
   {
     question: 'What is the FundRaisely Donations Widget?',
     answer:
-      'The Donations Widget is an embeddable donate button that organisations can add to any website or page. When a supporter clicks it, a donation flow opens without leaving the page. The organisation receives the donation directly through their configured payment method — card via Stripe, instant payment, or crypto to their own Solana wallet.',
+      'The Donations Widget is an embeddable donate button that organisations can add to any website or page. When a supporter clicks it, a donation flow opens without leaving the page. The organisation receives the donation directly through their configured payment method - card via Stripe, instant payment, or crypto to their own Solana wallet.',
   },
   {
     question: 'What payment methods does it accept?',
@@ -40,7 +40,7 @@ const faqs = [
   {
     question: 'How does the crypto donation work?',
     answer:
-      'Crypto donations on Solana go directly to the organisation\'s own connected Solana wallet. FundRaisely does not hold the funds — the organisation connects their own wallet address and donations are sent directly to it. This is particularly meaningful for the Web3 community where donors may prefer to give in crypto.',
+      'Crypto donations on Solana go directly to the organisation\'s own connected Solana wallet. FundRaisely does not hold the funds - the organisation connects their own wallet address and donations are sent directly to it. This is particularly meaningful for the Web3 community where donors may prefer to give in crypto.',
   },
   {
     question: 'Does the organisation need to use the FundRaisely payment infrastructure for crypto?',
@@ -55,12 +55,12 @@ const faqs = [
   {
     question: 'Can the organisation set preset donation amounts?',
     answer:
-      'Yes. Organisations can configure preset amounts that appear as options in the donation flow — for example €5, €10, €20. Donors can also choose to enter their own amount if the organiser enables that option.',
+      'Yes. Organisations can configure preset amounts that appear as options in the donation flow - for example €5, €10, €20. Donors can also choose to enter their own amount if the organiser enables that option.',
   },
   {
     question: 'Is the widget secure on a third-party website?',
     answer:
-      'Yes. The widget includes a domain check — it only renders on domains the organisation has registered in their FundRaisely account. This prevents the widget from being embedded on unauthorised sites.',
+      'Yes. The widget includes a domain check - it only renders on domains the organisation has registered in their FundRaisely account. This prevents the widget from being embedded on unauthorised sites.',
   },
   {
     question: 'Are donations tracked and recorded?',
@@ -103,7 +103,7 @@ const coreFeatureItems = [
   },
   {
     title: 'Preset donation amounts',
-    text: 'Configure suggested amounts that appear as options in the widget — such as €5, €10 or €25 — to guide supporters toward a typical giving level.',
+    text: 'Configure suggested amounts that appear as options in the widget - such as €5, €10 or €25 - to guide supporters toward a typical giving level.',
   },
   {
     title: 'Domain security check',
@@ -114,11 +114,11 @@ const coreFeatureItems = [
 const cryptoItems = [
   {
     title: 'Donations go directly to your Solana wallet',
-    text: 'The organisation connects their own Solana wallet address. Crypto donations go from the donor straight to that wallet — no intermediary, no holding period.',
+    text: 'The organisation connects their own Solana wallet address. Crypto donations go from the donor straight to that wallet - no intermediary, no holding period.',
   },
   {
     title: 'No crypto infrastructure needed',
-    text: 'FundRaisely handles the payment flow and user experience. The organisation just needs a Solana wallet address — they do not need to build any crypto payment infrastructure.',
+    text: 'FundRaisely handles the payment flow and user experience. The organisation just needs a Solana wallet address - they do not need to build any crypto payment infrastructure.',
   },
   {
     title: 'Relevant for Web3-native communities',
@@ -130,7 +130,7 @@ const cryptoItems = [
   },
   {
     title: 'Alongside traditional payment methods',
-    text: 'Crypto is one option alongside Stripe and instant payments. Donors choose the method that works for them. The organisation does not have to choose crypto over card — they can offer both.',
+    text: 'Crypto is one option alongside Stripe and instant payments. Donors choose the method that works for them. The organisation does not have to choose crypto over card - they can offer both.',
   },
   {
     title: 'Recorded in the organisation dashboard',
@@ -161,14 +161,14 @@ const deploymentItems = [
   },
   {
     title: 'Linked from social media',
-    text: 'The widget page URL can also be shared as a standalone link — useful for social media posts or WhatsApp shares where embedding is not possible.',
+    text: 'The widget page URL can also be shared as a standalone link - useful for social media posts or WhatsApp shares where embedding is not possible.',
   },
 ];
 
 const processSteps = [
   {
     title: 'Set up your FundRaisely account',
-    text: 'Connect your payment methods in FundRaisely — Stripe for card payments, and your Solana wallet address for crypto donations.',
+    text: 'Connect your payment methods in FundRaisely - Stripe for card payments, and your Solana wallet address for crypto donations.',
   },
   {
     title: 'Configure the widget',
@@ -188,7 +188,7 @@ const processSteps = [
   },
   {
     title: 'All donations recorded in FundRaisely',
-    text: 'Every donation is logged in your FundRaisely dashboard, with payment method, amount and status — giving you a complete record.',
+    text: 'Every donation is logged in your FundRaisely dashboard, with payment method, amount and status - giving you a complete record.',
   },
 ];
 
@@ -231,10 +231,10 @@ export default function DonationsWidgetPage() {
       <Hero
         eyebrow="Donations widget"
         title={h1}
-        description="The FundRaisely Donations Widget puts a donate button on any page of your website. Supporters click it, choose their amount, pick their payment method — card, instant payment or Solana crypto — and complete the donation without leaving your site. Card and instant payments go to your connected accounts. Crypto donations go directly to your own Solana wallet. No intermediary. No holding period."
+        description="The FundRaisely Donations Widget puts a donate button on any page of your website. Supporters click it, choose their amount, pick their payment method - card, instant payment or Solana crypto - and complete the donation without leaving your site. Card and instant payments go to your connected accounts. Crypto donations go directly to your own Solana wallet. No intermediary. No holding period."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore features', to: '/features' }}
-        image={images.paymentsDonations}
+        image={images.donationsHero}
         status="Card, instant payment and crypto on Solana"
         variant="standard"
       />
@@ -245,7 +245,7 @@ export default function DonationsWidgetPage() {
             <p className="eyebrow">Problem</p>
             <h2>Most donation buttons send supporters away from your site to complete the gift</h2>
             <p>
-              A supporter who visits your club or charity website, reads about your work and decides to donate should be able to do so immediately, on the page they are already on. Instead, most donation tools redirect them to a third-party page, create an account, ask for information that was not needed, and deliver the money to the platform first — not to your organisation.
+              A supporter who visits your club or charity website, reads about your work and decides to donate should be able to do so immediately, on the page they are already on. Instead, most donation tools redirect them to a third-party page, create an account, ask for information that was not needed, and deliver the money to the platform first - not to your organisation.
             </p>
             <p>
               For organisations with a Web3-native supporter base, the problem is compounded. Those supporters may hold Solana or other crypto but have no straightforward way to donate it to a community group or charity without the funds passing through a centralised intermediary first.
@@ -254,12 +254,12 @@ export default function DonationsWidgetPage() {
 
           <article>
             <p className="eyebrow">Solution</p>
-            <h2>An embeddable widget that accepts card and crypto — donations go straight to you</h2>
+            <h2>An embeddable widget that accepts card and crypto - donations go straight to you</h2>
             <p>
-              The FundRaisely Donations Widget embeds directly on your website. The donation flow happens on your page, in your branding context, without redirecting the supporter anywhere else. Card payments go to your Stripe account. Crypto donations in Solana go directly to your own wallet address — no intermediary, no holding.
+              The FundRaisely Donations Widget embeds directly on your website. The donation flow happens on your page, in your branding context, without redirecting the supporter anywhere else. Card payments go to your Stripe account. Crypto donations in Solana go directly to your own wallet address - no intermediary, no holding.
             </p>
             <p>
-              For the Web3 community, where direct wallet-to-wallet transactions are a natural part of how value moves, this is not a workaround — it is the expected model. For traditional clubs and charities, it simply means a donate button that works on their site without sending supporters away.
+              For the Web3 community, where direct wallet-to-wallet transactions are a natural part of how value moves, this is not a workaround - it is the expected model. For traditional clubs and charities, it simply means a donate button that works on their site without sending supporters away.
             </p>
           </article>
         </div>
@@ -274,7 +274,7 @@ export default function DonationsWidgetPage() {
 
       <SplitSection
         eyebrow="Crypto donations"
-        title="Solana donations go directly to your wallet — no intermediary"
+        title="Solana donations go directly to your wallet - no intermediary"
         text="For organisations connected to the Web3 community, the ability to Accept Digital Assets donations without funds passing through a third-party platform is significant. FundRaisely connects to the organisation's own wallet address. When a supporter chooses to donate in crypto, the transaction goes directly from their wallet to yours. FundRaisely handles the user experience; the funds go directly to where they belong."
         bullets={[
           'Donate in Solana directly to the organisation\'s own wallet',
@@ -282,9 +282,9 @@ export default function DonationsWidgetPage() {
           'FundRaisely connects to any Solana wallet address',
           'Crypto donation recorded in the FundRaisely dashboard',
           'Sits alongside card and instant payment options',
-          'Transparent destination — the wallet address is clear to the donor',
+          'Transparent destination - the wallet address is clear to the donor',
         ]}
-        image={images.paymentsDonations}
+        image={images.donationsBottom}
         reverse={false}
       />
 
@@ -334,7 +334,7 @@ export default function DonationsWidgetPage() {
 
       <CTASection
         title="Put a donate button on your site that actually works for your supporters"
-        text="Book a demo to see how the FundRaisely Donations Widget accepts card, instant payment and crypto on Solana donations directly — without sending your supporters away from your site."
+        text="Book a demo to see how the FundRaisely Donations Widget accepts card, instant payment and crypto on Solana donations directly - without sending your supporters away from your site."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore all features', to: '/features' }}
       />
