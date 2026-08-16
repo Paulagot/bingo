@@ -25,7 +25,7 @@ export default function GenericMarketingPage({ path, seoTitle, seoDescription, e
       cards={cards ?? [
         { title: 'Platform overview', text: 'Use this section to add final copy, links and screenshots for this page.', to: '/features' },
         { title: 'Quiz fundraisers', text: 'Link visitors towards the most mature product area.', to: '/event-formats/quiz' },
-        { title: 'Practical reports', text: 'Show how FundRaisely supports after-event review.', to: '/features/reports' },
+        { title: 'Practical reports', text: 'Show how FundRaisely supports after-event review.', to: '/features/financial-records' },
       ]}
       steps={[
         { title: 'Explain the page purpose', text: 'Use the hero to make the page intent clear in one short paragraph.' },

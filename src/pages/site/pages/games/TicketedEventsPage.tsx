@@ -167,12 +167,12 @@ const relatedLinks = [
   },
   {
     label: 'Payments',
-    to: '/features/payments',
+    to: '/features/financial-records',
     text: 'See how payment options can fit around real-world fundraising events.',
   },
   {
     label: 'Reports',
-    to: '/features/reports',
+    to: '/features/financial-records',
     text: 'See how FundRaisely turns event activity into clearer records and follow-up.',
   },
 ];

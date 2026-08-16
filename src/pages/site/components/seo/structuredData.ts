@@ -1,3 +1,4 @@
+//src/pages/site/components/seo/structuredData.ts
 import type { FAQItem } from "../sections/FAQSection";
 import type { LinkItem, VideoSlot } from "../../content/types";
 import { getMarketConfig } from "../../config/marketConfig";

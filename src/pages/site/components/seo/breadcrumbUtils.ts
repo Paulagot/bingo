@@ -1,12 +1,14 @@
+//src/pages/site/components/seo/breadcrumbUtils.ts
+
 import type { BreadcrumbItem } from './SEO';
 
 const segmentLabels: Record<string, string> = {
   features: 'Features',
   'event-formats': 'Event Formats',
   quiz: 'Quiz',
-  demo: 'Demo',
+
   pricing: 'Pricing',
-  'how-it-works': 'How it works',
+ 
   about: 'About',
   contact: 'Contact',
   'use-cases': 'Use cases',
@@ -16,19 +18,27 @@ const segmentLabels: Record<string, string> = {
   'community-groups': 'Community groups',
   resources: 'Resources',
   blog: 'Blog',
-  'fundraising-ideas': 'Fundraising ideas',
-  guides: 'Guides',
+
   legal: 'Legal',
   privacy: 'Privacy policy',
   terms: 'Terms',
   cookies: 'Cookie policy',
   dashboard: 'Dashboard',
   'event-manager': 'Event Manager',
-  payments: 'Payments',
+
   ticketing: 'Ticketing',
-  reports: 'Reports',
+
   compliance: 'Compliance',
   elimination: 'Elimination game',
+  'weekly-puzzle-challenge': 'Weekly Puzzle Challenge',
+'puzzle-drop': 'Puzzle Drop',
+'sponsored-events': 'Sponsored Events',
+'peer-fundraising': 'Peer Fundraising',
+'donations-widget': 'Donations Widget',
+'ticketed-events': 'Ticketed Events',
+'impact-reports': 'Impact Reports',
+'ai-prize-finder': 'AI Prize Finder',
+'financial-records': 'Payments and Reports',
 };
 
 export function breadcrumbsForPath(path: string, currentLabel?: string): BreadcrumbItem[] {

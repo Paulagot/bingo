@@ -1,17 +1,11 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
-import { Header } from './components/GeneralSite2/Header';
+
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import { Game } from './pages/Game';
 
-import { Landing } from './pages/Landing';
-import WhatsNew from './pages/WhatsNew';
-import FreeTrial from './pages/FreeTrial';
-import OldPricing from './pages/PricingPage';
-import TestimonialsPage from './pages/TestimonialsPage';
-import ContactForm from './components/GeneralSite2/ContactForm';
-import FoundingPartnersPage from './pages/FoundingPartners';
+
 import BlogPost from './pages/BlogPost';
 
 import ConfirmPasswordReset from './components/auth/ConfirmPasswordReset';
@@ -23,10 +17,7 @@ import Signup from './pages/Signup';
 import Web3Features from './pages/web3/features';
 import Web3Testimonials from './pages/web3/testimonials';
 import Web3Partners from './pages/web3/partners';
-import TermsOfUse from './pages/nonseo/terms';
-import PrivacyPolicy from './pages/nonseo/privacy';
-import AboutFundRaisely from './pages/nonseo/aboutus';
-import BlogAndResources from './pages/blog';
+
 import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
 import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
 import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
@@ -50,7 +41,7 @@ import { SiteLayout } from './pages/site/components/layout/SiteLayout';
 import SiteHomePage from './pages/site/pages/HomePage';
 
 import SitePricingPage from './pages/site/pages/PricingPage';
-import SiteHowItWorksPage from './pages/site/pages/HowItWorksPage';
+
 import SiteAboutPage from './pages/site/pages/AboutPage';
 import SiteContactPage from './pages/site/pages/ContactPage';
 import SiteNotFoundPage from './pages/site/pages/NotFoundPage';
@@ -63,15 +54,18 @@ import SiteTicketedEventsPage from './pages/site/pages/games/TicketedEventsPage'
 import SiteEscapeRoomPage from './pages/site/pages/games/EscapeRoomPage';
 import SiteTreasureHuntPage from './pages/site/pages/games/TreasureHuntPage';
 
+
+
 import SiteFeaturesIndexPage from './pages/site/pages/features/FeaturesIndexPage';
 import SiteCampaignManagerPage from './pages/site/pages/features/CampaignManagerPage';
 import SiteEventManagerPage from './pages/site/pages/features/EventManagerPage';
-import SitePaymentsPage from './pages/site/pages/features/PaymentsPage';
+
 import SiteTicketingPage from './pages/site/pages/features/TicketingPage';
-import SiteReportsPage from './pages/site/pages/features/ReportsPage';
+
 import SiteImpactReportsPage from './pages/site/pages/features/ImpactReportsPage';
 import SiteCrmPage from './pages/site/pages/features/CrmPage';
 import SiteAiPrizeFinderPage from './pages/site/pages/features/AiPrizeFinderPage';
+
 
 import SiteUseCasesIndexPage from './pages/site/pages/useCases/UseCasesIndexPage';
 import SiteSportsClubsPage from './pages/site/pages/useCases/SportsClubsPage';
@@ -81,8 +75,7 @@ import SiteCommunityGroupsPage from './pages/site/pages/useCases/CommunityGroups
 
 import SiteBlogIndexPage from './pages/site/pages/resources/BlogIndexPage';
 import SiteResourcesIndexPage from './pages/site/pages/resources/ResourcesIndexPage';
-import SiteFundraisingIdeasPage from './pages/site/pages/resources/FundraisingIdeasPage';
-import SiteGuidesPage from './pages/site/pages/resources/GuidesPage';
+
 
 import SitePrivacyPage from './pages/site/pages/legal/PrivacyPage';
 import SiteTermsPage from './pages/site/pages/legal/TermsPage';
@@ -98,6 +91,9 @@ const TicketEmbedPage = lazy(() => import('./components/embed/TicketEmbedPage'))
 
 const WalletIframeTestPage = lazy(() => import('./pages/WalletIframeTestPage'));
 const CryptoDonationCheckoutPage = lazy(() => import('./pages/donations/CryptoDonationCheckoutPage'));
+const CryptoDonationsPage = lazy(() => import('./pages/site/pages/features/CryptoDonationsPage'));
+
+const FinancialRecordsPage = lazy(() => import('./pages/site/pages/features/FinancialRecordsPage'));
 
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -173,6 +169,12 @@ const WalkinPage = lazy(() =>
     default: m.default,
   }))
 );
+
+const WeeklyPuzzleChallengePage = lazy(() => import('./pages/site/pages/games/WeeklyPuzzleChallengePage'));
+const PuzzleDropPage = lazy(() => import('./pages/site/pages/games/PuzzleDropPage'));
+const SponsoredEventsPage = lazy(() => import('./pages/site/pages/games/SponsoredEventsPage'));
+const PeerFundraisingPage = lazy(() => import('./pages/site/pages/features/PeerFundraisingPage'));
+const DonationsWidgetPage = lazy(() => import('./pages/site/pages/features/DonationsWidgetPage'));
 
 const PlayerOverallLeaderboardPage = lazy(() => import('./components/puzzles/pages/PlayerOverallLeaderboardPage'));
 
@@ -288,7 +290,7 @@ export default function App() {
           <Route path="/" element={<SiteHomePage />} />
 
           <Route path="/pricing" element={<SitePricingPage />} />
-          <Route path="/how-it-works" element={<SiteHowItWorksPage />} />
+        
           <Route path="/about" element={<SiteAboutPage />} />
           <Route path="/contact" element={<SiteContactPage />} />
 
@@ -300,15 +302,74 @@ export default function App() {
           <Route path="/event-formats/escape-room" element={<SiteEscapeRoomPage />} />
           <Route path="/event-formats/treasure-hunt" element={<SiteTreasureHuntPage />} />
 
+     <Route
+  path="/event-formats/weekly-puzzle-challenge"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <WeeklyPuzzleChallengePage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/event-formats/puzzle-drop"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleDropPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/event-formats/sponsored-events"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <SponsoredEventsPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/features/peer-fundraising"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PeerFundraisingPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/features/donations-widget"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <DonationsWidgetPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/features/crypto-donations"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <CryptoDonationsPage />
+    </Suspense>
+  }
+/>
+
           <Route path="/features" element={<SiteFeaturesIndexPage />} />
           <Route path="/features/campaign-manager" element={<SiteCampaignManagerPage />} />
           <Route path="/features/event-manager" element={<SiteEventManagerPage />} />
-          <Route path="/features/payments" element={<SitePaymentsPage />} />
+         
           <Route path="/features/ticketing" element={<SiteTicketingPage />} />
-          <Route path="/features/reports" element={<SiteReportsPage />} />
+         
           <Route path="/features/impact-reports" element={<SiteImpactReportsPage />} />
           <Route path="/features/crm" element={<SiteCrmPage />} />
           <Route path="/features/ai-prize-finder" element={<SiteAiPrizeFinderPage />} />
+          <Route path="/features/payments" element={<Navigate to="/features/financial-records" replace />} />
+<Route path="/features/reports" element={<Navigate to="/features/financial-records" replace />} />
+          <Route
+  path="/features/financial-records"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <FinancialRecordsPage />
+    </Suspense>
+  }
+/>
 
           <Route path="/use-cases" element={<SiteUseCasesIndexPage />} />
           <Route path="/use-cases/sports-clubs" element={<SiteSportsClubsPage />} />
@@ -318,8 +379,7 @@ export default function App() {
 
           <Route path="/blog" element={<SiteBlogIndexPage />} />
           <Route path="/resources" element={<SiteResourcesIndexPage />} />
-          <Route path="/resources/fundraising-ideas" element={<SiteFundraisingIdeasPage />} />
-          <Route path="/resources/guides" element={<SiteGuidesPage />} />
+      
 
           <Route path="/legal/privacy" element={<SitePrivacyPage />} />
           <Route path="/legal/terms" element={<SiteTermsPage />} />
@@ -328,130 +388,8 @@ export default function App() {
           <Route path="/site-404-preview" element={<SiteNotFoundPage />} />
         </Route>
 
-        {/* ────────────────────────────────────────────────────────────────
-            OLD MARKETING PAGES (kept while migrating)
-        ──────────────────────────────────────────────────────────────── */}
-        <Route
-          path="/old"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <Landing />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/whats-new"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <WhatsNew />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/free-trial"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <FreeTrial />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/pricing"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <OldPricing />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/testimonials"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <TestimonialsPage />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/about"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <AboutFundRaisely />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/blog"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <BlogAndResources />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/contact"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <ContactForm />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/legal/privacy"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <PrivacyPolicy />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/legal/terms"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <TermsOfUse />
-              </main>
-            </div>
-          }
-        />
-        <Route
-          path="/old/founding-partners"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-              <Header />
-              <main className="pt-16">
-                <FoundingPartnersPage />
-              </main>
-            </div>
-          }
-        />
+    
+ 
 
         {/* Auth routes */}
         <Route path="/signup" element={<Signup />} />

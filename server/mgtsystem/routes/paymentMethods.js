@@ -60,11 +60,11 @@ router.get('/:clubId', async (req, res) => {
       });
     }
     
-    console.log(`📋 Fetching enabled payment methods for club: ${clubId}`);
+    // console.log(`📋 Fetching enabled payment methods for club: ${clubId}`);
     
     const paymentMethods = await getClubPaymentMethods(clubId);
     
-    console.log(`✅ Found ${paymentMethods.length} enabled payment methods for club ${clubId}`);
+    // console.log(`✅ Found ${paymentMethods.length} enabled payment methods for club ${clubId}`);
     
     res.json({ 
       ok: true, 
@@ -99,11 +99,11 @@ router.get('/:clubId/manage', authenticateToken, async (req, res) => {
 
     await requireQuizPaymentsFeature(clubId);
     
-    console.log(`📋 Fetching all payment methods for club management: ${clubId}`);
+    // console.log(`📋 Fetching all payment methods for club management: ${clubId}`);
     
     const paymentMethods = await getAllClubPaymentMethods(clubId);
     
-    console.log(`✅ Found ${paymentMethods.length} total payment methods for club ${clubId}`);
+    // console.log(`✅ Found ${paymentMethods.length} total payment methods for club ${clubId}`);
     
     res.json({ 
       ok: true, 
@@ -164,7 +164,7 @@ router.post('/:clubId', authenticateToken, async (req, res) => {
       });
     }
     
-    console.log(`➕ Creating payment method for club ${clubId}:`, methodLabel);
+    // console.log(`➕ Creating payment method for club ${clubId}:`, methodLabel);
     
     const newId = await createPaymentMethod({
       clubId,
@@ -179,7 +179,7 @@ router.post('/:clubId', authenticateToken, async (req, res) => {
       isOfficialClubAccount: isOfficialClubAccount !== undefined ? isOfficialClubAccount : true,
     });
     
-    console.log(`✅ Created payment method with ID: ${newId}`);
+    // console.log(`✅ Created payment method with ID: ${newId}`);
     
     const created = await getPaymentMethodById(newId, clubId);
     
@@ -241,7 +241,7 @@ router.put('/:clubId/:methodId', authenticateToken, async (req, res) => {
       });
     }
     
-    console.log(`✏️ Updating payment method ${methodId} for club ${clubId}`);
+    // console.log(`✏️ Updating payment method ${methodId} for club ${clubId}`);
     
     const updated = await updatePaymentMethod({
       id: methodId,
@@ -264,7 +264,7 @@ router.put('/:clubId/:methodId', authenticateToken, async (req, res) => {
       });
     }
     
-    console.log(`✅ Updated payment method ${methodId}`);
+    // console.log(`✅ Updated payment method ${methodId}`);
     
     // Fetch updated method to return full data
     const updatedMethod = await getPaymentMethodById(methodId, clubId);
@@ -302,7 +302,7 @@ router.delete('/:clubId/:methodId', authenticateToken, async (req, res) => {
     }
     await requireQuizPaymentsFeature(clubId);
     
-    console.log(`🗑️ Deleting payment method ${methodId} for club ${clubId}`);
+    // console.log(`🗑️ Deleting payment method ${methodId} for club ${clubId}`);
     
     const deleted = await deletePaymentMethod(clubId, methodId);
     
@@ -313,7 +313,7 @@ router.delete('/:clubId/:methodId', authenticateToken, async (req, res) => {
       });
     }
     
-    console.log(`✅ Deleted payment method ${methodId}`);
+    // console.log(`✅ Deleted payment method ${methodId}`);
     
     res.json({ 
       ok: true, 
@@ -356,11 +356,11 @@ router.patch('/:clubId/reorder', authenticateToken, async (req, res) => {
       });
     }
     
-    console.log(`🔄 Reordering ${orders.length} payment methods for club ${clubId}`);
+    // console.log(`🔄 Reordering ${orders.length} payment methods for club ${clubId}`);
     
     await updateDisplayOrders(clubId, orders);
     
-    console.log(`✅ Reordered payment methods`);
+    // console.log(`✅ Reordered payment methods`);
     
     res.json({ 
       ok: true, 

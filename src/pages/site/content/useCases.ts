@@ -54,13 +54,13 @@ export const useCasePages: Record<string, TemplateContent> = {
         title: 'Track payments without spreadsheet chaos',
         text:
           'Keep expected, claimed, confirmed, late and written-off payments easier to review across card, cash, bank transfer and instant payment methods.',
-        to: '/features/payments',
+        to: '/features/financial-records',
       },
       {
         title: 'Give committees clearer reports',
         text:
           'After the event, review totals, participation, payment decisions, prizes and notes in a format that is easier to explain.',
-        to: '/features/reports',
+        to: '/features/financial-records',
       },
       {
         title: 'Support sponsors and prize-led fundraising',
@@ -249,7 +249,7 @@ export const useCasePages: Record<string, TemplateContent> = {
       },
       {
         label: 'Payments',
-        to: '/features/payments',
+        to: '/features/financial-records',
         description:
           'See how clubs can track manual and online payments without spreadsheet chaos.',
       },
@@ -261,7 +261,7 @@ export const useCasePages: Record<string, TemplateContent> = {
       },
       {
         label: 'Reports',
-        to: '/features/reports',
+        to: '/features/financial-records',
         description:
           'Review totals and after-event records for committees.',
       },
@@ -321,13 +321,13 @@ export const useCasePages: Record<string, TemplateContent> = {
       title: 'Track school payment methods',
       text:
         'Keep expected, claimed, confirmed, late and written-off payments easier to review across card, cash, bank transfer and instant payment methods.',
-      to: '/features/payments',
+      to: '/features/financial-records',
     },
     {
       title: 'Give treasurers clearer reports',
       text:
         'Help PTA treasurers and school committees review ticket sales, payment decisions, prizes and fundraiser totals after the event.',
-      to: '/features/reports',
+      to: '/features/financial-records',
     },
     {
       title: 'Support prizes and local sponsors',
@@ -521,7 +521,7 @@ export const useCasePages: Record<string, TemplateContent> = {
     },
     {
       label: 'Payments',
-      to: '/features/payments',
+      to: '/features/financial-records',
       description:
         'See how schools and PTAs can track manual and online payments without spreadsheet chaos.',
     },
@@ -533,7 +533,7 @@ export const useCasePages: Record<string, TemplateContent> = {
     },
     {
       label: 'Reports',
-      to: '/features/reports',
+      to: '/features/financial-records',
       description:
         'Review totals and after-event records for committees.',
     },
@@ -593,13 +593,13 @@ charities: {
       title: 'Track mixed payment methods',
       text:
         'Keep expected, claimed, confirmed, late and written-off payments easier to review across card, cash, bank transfer and instant payment methods.',
-      to: '/features/payments',
+      to: '/features/financial-records',
     },
     {
       title: 'Prepare clearer event reports',
       text:
         'Review ticket sales, payment decisions, participation, prizes and sponsor notes after the fundraiser.',
-      to: '/features/reports',
+      to: '/features/financial-records',
     },
     {
       title: 'Support prizes and sponsors',
@@ -793,7 +793,7 @@ charities: {
     },
     {
       label: 'Payments',
-      to: '/features/payments',
+      to: '/features/financial-records',
       description:
         'See how charities can track manual and online payments without spreadsheet chaos.',
     },
@@ -805,7 +805,7 @@ charities: {
     },
     {
       label: 'Reports',
-      to: '/features/reports',
+      to: '/features/financial-records',
       description:
         'Review totals and after-event records for committees, treasurers and grant files.',
     },
@@ -872,13 +872,13 @@ function useCase(
         title: 'Payment tracking',
         text:
           'Know who has paid, what is outstanding and what needs checking.',
-        to: '/features/payments',
+        to: '/features/financial-records',
       },
       {
         title: 'Committee reports',
         text:
           'Prepare clearer totals and records after the fundraiser.',
-        to: '/features/reports',
+        to: '/features/financial-records',
       },
     ],
 
@@ -965,7 +965,7 @@ function useCase(
       },
       {
         label: 'Reports',
-        to: '/features/reports',
+        to: '/features/financial-records',
       },
     ],
   };

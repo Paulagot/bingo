@@ -82,9 +82,9 @@ const Web3Provider = lazy(() =>
 const PEER_FUNDRAISER_ID = "60AgXlG9-go1nEAvinmXh";
 
 // Pack IDs - from fundraisely_peer_packs for the above fundraiser
-const PACK_BOTH_ID     = "3n9bpfN_XcZ2blwoBZwl4"; // Both games - €16
-const PACK_GAME_ONE_ID = "VPnTbQo6aPtiEIADRRvoO"; // Game One - €10
-const PACK_GAME_TWO_ID = "0R38c9lye2XLChGVhrgY4"; // Game Two - €10
+const PACK_BOTH_ID     = "KqeRPYMJVHtO_71EcQq48"; // Both games - €16
+const PACK_GAME_ONE_ID = "5848007CBBD44647"; // Game One - €10
+const PACK_GAME_TWO_ID = "2A5D2A2B9FA3465F"; // Game Two - €10
 
 const BUNDLE_PRICE   = "€16";
 const GAME_PRICE     = "€10";
@@ -1467,4 +1467,4 @@ function formatNumber(value: number | null | undefined) {
 }
 
 // Needed for crypto steps - roomId anchor for quote endpoint
-const GAME_ONE_ROOM_ID = "361798C515F347BE";
+const GAME_ONE_ROOM_ID = "5848007CBBD44647";

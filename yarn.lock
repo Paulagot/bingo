@@ -5132,6 +5132,11 @@
   dependencies:
     "@types/node" "*"
 
+"@types/gtag.js@^0.0.20":
+  version "0.0.20"
+  resolved "https://registry.npmjs.org/@types/gtag.js/-/gtag.js-0.0.20.tgz"
+  integrity sha512-wwAbk3SA2QeU67unN7zPxjEHmPmlXwZXZvQEpbEUQuMCRGgKyE1m6XDuTUA9b6pCGb/GqJmdfMOY5LuDjJSbbg==
+
 "@types/http-proxy@^1.17.15":
   version "1.17.17"
   resolved "https://registry.npmjs.org/@types/http-proxy/-/http-proxy-1.17.17.tgz"

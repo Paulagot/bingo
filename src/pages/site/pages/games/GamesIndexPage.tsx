@@ -1,3 +1,4 @@
+//src/pages/site/pages/games/GamesIndexPage.tsx
 import { IndexPageTemplate } from '../../components/templates/IndexPageTemplate';
 
 export default function GamesIndexPage() {
