@@ -9,7 +9,7 @@ const standardRelated = [
   },
   {
     label: "Reports",
-    to: "/features/reports",
+    to: "/features/financial-records",
     description: "Review totals and after-event records.",
   },
   {
@@ -514,7 +514,7 @@ export const featurePages: Record<string, TemplateContent> = {
       },
       {
         label: "Reports",
-        to: "/features/reports",
+        to: "/features/financial-records",
         description:
           "Open audit-ready event reports and after-event summaries from completed events.",
       },
@@ -766,13 +766,13 @@ export const featurePages: Record<string, TemplateContent> = {
       },
       {
         label: "Payments",
-        to: "/features/payments",
+        to: "/features/financial-records",
         description:
           "Choose payment methods and track how supporters pay for event tickets.",
       },
       {
         label: "Reports",
-        to: "/features/reports",
+        to: "/features/financial-records",
         description:
           "Turn event activity, tickets and payment records into committee-ready reports.",
       },
@@ -791,17 +791,17 @@ export const featurePages: Record<string, TemplateContent> = {
   }),
   payments: feature({
     slug: "payments",
-    path: "/features/payments",
+    path: "/features/financial-records",
     h1: "Payment tracking without the spreadsheet chaos",
     eyebrow: "Payments",
     intro:
-      "Track who has paid, who still needs follow-up and which payments need manual confirmation across card, Stripe, cash, bank transfer, Revolut and Solana crypto payments - while funds go directly to the club, charity or non-profit.",
+      "Track who has paid, who still needs follow-up and which payments need manual confirmation across card, Stripe, cash, bank transfer, Revolut and crypto on Solana payments - while funds go directly to the club, charity or non-profit.",
     imageKey: "paymentsHeroScreenshot",
     emphasis: "screenshot_heavy",
     seoTitle:
       "Fundraising Payment Tracking for Clubs, Charities and Non-profits | FundRaisely",
     seoDescription:
-      "Track fundraiser payments across card, Stripe, cash, bank transfer, Revolut and Solana crypto without FundRaisely holding funds or taking a percentage.",
+      "Track fundraiser payments across card, Stripe, cash, bank transfer, Revolut and crypto on Solana without FundRaisely holding funds or taking a percentage.",
     problemTitle: "Fundraising payments rarely arrive in one tidy place",
     problemText:
       "Community fundraisers often collect money in several different ways. One supporter pays by card, another sends Revolut, someone pays cash on the night, a parent uses bank transfer, and a digital supporter may pay by crypto. Clubs, charities and non-profits need a shared record without giving up control of where the money lands.",
@@ -1010,7 +1010,7 @@ export const featurePages: Record<string, TemplateContent> = {
       },
       {
         label: "Reports",
-        to: "/features/reports",
+        to: "/features/financial-records",
         description:
           "Review payment totals, reconciliation notes and after-event summaries.",
       },
@@ -1251,7 +1251,7 @@ ticketing: feature({
       },
       secondaryCta: {
         label: "See payments",
-        to: "/features/payments",
+        to: "/features/financial-records",
       },
     },
   },
@@ -1377,13 +1377,13 @@ ticketing: feature({
     },
     {
       label: "Payments",
-      to: "/features/payments",
+      to: "/features/financial-records",
       description:
         "Track Stripe, instant payments, supported crypto, cash and card tap payments.",
     },
     {
       label: "Reports",
-      to: "/features/reports",
+      to: "/features/financial-records",
       description:
         "Review ticket sales, player entry, payment totals and after-event reconciliation records.",
     },
@@ -1402,7 +1402,7 @@ ticketing: feature({
   }),
   reports: feature({
     slug: "reports",
-    path: "/features/reports",
+    path: "/features/financial-records",
     h1: "Fundraising reports ready for committees and audits",
     eyebrow: "Reports",
     intro:
@@ -1553,7 +1553,7 @@ ticketing: feature({
         },
         secondaryCta: {
           label: "See payments",
-          to: "/features/payments",
+          to: "/features/financial-records",
         },
       },
     },
@@ -1614,7 +1614,7 @@ ticketing: feature({
     relatedLinks: [
       {
         label: "Payments",
-        to: "/features/payments",
+        to: "/features/financial-records",
         description:
           "Track cash, instant payments, card, Stripe and crypto payments before they feed into reports.",
       },
@@ -1825,7 +1825,7 @@ featurePages['campaign-manager'] = feature({
   relatedLinks: [
     { label: 'Event Manager', to: '/features/event-manager', description: 'Plan and manage the events attached to a campaign.' },
     { label: 'Event formats', to: '/event-formats', description: 'Explore ready-to-run fundraisers that can support a campaign.' },
-    { label: 'Reports', to: '/features/reports', description: 'Review the records created by campaign and event activity.' },
+    { label: 'Reports', to: '/features/financial-records', description: 'Review the records created by campaign and event activity.' },
   ],
   sections: {
     benefits: {
@@ -1950,7 +1950,7 @@ featurePages['impact-reports'] = feature({
     },
   ],
   relatedLinks: [
-    { label: 'Reports', to: '/features/reports', description: 'Review financial and audit-ready fundraiser records.' },
+    { label: 'Reports', to: '/features/financial-records', description: 'Review financial and audit-ready fundraiser records.' },
     { label: 'Campaign Manager', to: '/features/campaign-manager', description: 'Connect impact back to the campaign goal.' },
     { label: 'CRM', to: '/features/crm', description: 'Use supporter records to bring people back.' },
   ],

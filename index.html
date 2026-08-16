@@ -42,6 +42,16 @@
          the LCP hint for the homepage specifically, add it via buildHeadTags
          in seoMap.js for the / route only. -->
 
+    <!-- Google Analytics -->
+    <!-- Replace G-XXXXXXXXXX with your GA4 measurement ID in both places below -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z3MM06V1HZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-Z3MM06V1HZ', { send_page_view: false });
+    </script>
+
     <title>Fundraisely – Community Fundraising Made Simple</title>
     <meta name="description" content="Fundraisely helps communities raise funds easily. Run quizzes, events, and campaigns to support causes you care about." />
   </head>

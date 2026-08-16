@@ -301,12 +301,12 @@ const relatedLinks = [
   },
   {
     label: 'Payments',
-    to: '/features/payments',
+    to: '/features/financial-records',
     text: 'Track cash, instant payments, card payments and outstanding amounts in one event record.',
   },
   {
     label: 'Reports',
-    to: '/features/reports',
+    to: '/features/financial-records',
     text: 'Give committees and treasurers clearer after-event records.',
   },
 ];

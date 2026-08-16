@@ -2,9 +2,7 @@ User-agent: *
 
 # ALLOW - Public marketing pages
 Allow: /
-Allow: /demo
 Allow: /pricing
-Allow: /how-it-works
 Allow: /about
 Allow: /contact
 Allow: /features
@@ -13,23 +11,15 @@ Allow: /event-formats
 Allow: /event-formats/
 Allow: /use-cases
 Allow: /use-cases/
-Allow: /blog
-Allow: /resources
-Allow: /resources/
 
 # ALLOW - Public Web3 pages
 Allow: /web3
 Allow: /web3/
-Allow: /web3/features
-Allow: /web3/partners
-Allow: /web3/events
-Allow: /web3/host
-Allow: /web3/causes
-Allow: /web3/elimination
-Allow: /web3/quiz
 
-# ALLOW - Public campaign pages
+# ALLOW - Public campaign and event pages
 Allow: /campaigns/clubs-league
+Allow: /events/colombia-earthquake-relief
+Allow: /events/safe-streets-ireland-padel
 
 # BLOCK - Old, private, app and system routes
 Disallow: /old/
@@ -56,6 +46,18 @@ Disallow: /api/
 Disallow: /mgmt/
 Disallow: /socket.io/
 Disallow: /debug/
+Disallow: /peer-dashboard/
+Disallow: /event-dashboard/
+Disallow: /fundraise/
+Disallow: /puzzle-drop/
+Disallow: /puzzle-auth
+Disallow: /puzzle-check-email
+Disallow: /puzzle-notify
+Disallow: /leaderboards/
+Disallow: /donate-now/
+Disallow: /embed/
+Disallow: /sponsor/
+Disallow: /dev/
 
 # Sitemap for THIS domain only
 Sitemap: https://fundraisely.co.uk/sitemap.xml

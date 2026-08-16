@@ -385,7 +385,7 @@ export default function PricingPage() {
           },
           {
             label: 'Payments',
-            to: '/features/payments',
+            to: '/features/financial-records',
             description: 'See how FundRaisely supports direct-to-organisation payment tracking.',
           },
         ]}

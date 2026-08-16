@@ -4,34 +4,40 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 // PUBLIC PAGES YOU WANT INDEXED.
+// Only include pages that have real content and active routes.
 // No trailing slash for canonical consistency.
 const publicPages = [
   { path: '/', priority: 1.0, changefreq: 'weekly' },
-  { path: '/demo', priority: 0.8, changefreq: 'monthly' },
   { path: '/pricing', priority: 0.8, changefreq: 'monthly' },
-  { path: '/how-it-works', priority: 0.8, changefreq: 'monthly' },
   { path: '/about', priority: 0.6, changefreq: 'monthly' },
   { path: '/contact', priority: 0.6, changefreq: 'monthly' },
 
-  // Features
+  // Features — only pages with real content and active routes
   { path: '/features', priority: 0.9, changefreq: 'monthly' },
-  { path: '/features/dashboard', priority: 0.8, changefreq: 'monthly' },
-  { path: '/features/campaign-manager', priority: 0.7, changefreq: 'monthly' },
   { path: '/features/event-manager', priority: 0.8, changefreq: 'monthly' },
   { path: '/features/ticketing', priority: 0.9, changefreq: 'monthly' },
-  { path: '/features/payments', priority: 0.9, changefreq: 'monthly' },
-  { path: '/features/reports', priority: 0.8, changefreq: 'monthly' },
+  { path: '/features/financial-records', priority: 0.9, changefreq: 'monthly' },
+  { path: '/features/peer-fundraising', priority: 0.8, changefreq: 'monthly' },
+  { path: '/features/donations-widget', priority: 0.8, changefreq: 'monthly' },
+  { path: '/features/crypto-donations', priority: 0.8, changefreq: 'monthly' },
   { path: '/features/impact-reports', priority: 0.7, changefreq: 'monthly' },
-  { path: '/features/crm', priority: 0.6, changefreq: 'monthly' },
-  { path: '/features/ai-prize-finder', priority: 0.7, changefreq: 'monthly' },
 
-  // Event formats
+  // Coming soon — include at lower priority so they're crawlable
+  // but don't waste crawl budget on pages with no real content yet.
+  // Uncomment when pages have real content:
+  // { path: '/features/dashboard', priority: 0.7, changefreq: 'monthly' },
+  // { path: '/features/campaign-manager', priority: 0.6, changefreq: 'monthly' },
+  // { path: '/features/crm', priority: 0.6, changefreq: 'monthly' },
+  // { path: '/features/ai-prize-finder', priority: 0.6, changefreq: 'monthly' },
+
+  // Event formats — only active pages
   { path: '/event-formats', priority: 0.9, changefreq: 'monthly' },
   { path: '/event-formats/quiz', priority: 0.9, changefreq: 'monthly' },
-  { path: '/event-formats/elimination', priority: 0.7, changefreq: 'monthly' },
-  { path: '/event-formats/puzzle-challenges', priority: 0.7, changefreq: 'monthly' },
-  { path: '/event-formats/escape-room', priority: 0.6, changefreq: 'monthly' },
-  { path: '/event-formats/treasure-hunt', priority: 0.6, changefreq: 'monthly' },
+  { path: '/event-formats/elimination', priority: 0.8, changefreq: 'monthly' },
+  { path: '/event-formats/ticketed-events', priority: 0.8, changefreq: 'monthly' },
+  { path: '/event-formats/weekly-puzzle-challenge', priority: 0.8, changefreq: 'monthly' },
+  { path: '/event-formats/puzzle-drop', priority: 0.8, changefreq: 'monthly' },
+  { path: '/event-formats/sponsored-events', priority: 0.8, changefreq: 'monthly' },
 
   // Use cases
   { path: '/use-cases', priority: 0.8, changefreq: 'monthly' },
@@ -39,12 +45,6 @@ const publicPages = [
   { path: '/use-cases/schools-ptas', priority: 0.8, changefreq: 'monthly' },
   { path: '/use-cases/charities', priority: 0.8, changefreq: 'monthly' },
   { path: '/use-cases/community-groups', priority: 0.8, changefreq: 'monthly' },
-
-  // Resources
-  { path: '/blog', priority: 0.7, changefreq: 'weekly' },
-  { path: '/resources', priority: 0.7, changefreq: 'monthly' },
-  { path: '/resources/fundraising-ideas', priority: 0.7, changefreq: 'monthly' },
-  { path: '/resources/guides', priority: 0.7, changefreq: 'monthly' },
 
   // Web3 public/searchable pages
   { path: '/web3', priority: 0.8, changefreq: 'monthly' },
@@ -56,18 +56,22 @@ const publicPages = [
   { path: '/web3/elimination', priority: 0.8, changefreq: 'monthly' },
   { path: '/web3/quiz', priority: 0.8, changefreq: 'monthly' },
 
-  // Existing public campaign page
+  // Public campaign and event pages
   { path: '/campaigns/clubs-league', priority: 0.7, changefreq: 'monthly' },
+  { path: '/events/colombia-earthquake-relief', priority: 0.7, changefreq: 'weekly' },
+  { path: '/events/safe-streets-ireland-padel', priority: 0.7, changefreq: 'monthly' },
 ];
 
 const lastmodMap = {
-  // Add manual dates here if needed:
-  // '/features/payments': '2026-05-30',
+  // Add manual dates here when a page has a known publish or update date.
+  // Format: 'YYYY-MM-DD'
+  // '/features/financial-records': '2026-08-16',
 };
 
 const UK_HOST = 'fundraisely.co.uk';
 const IE_HOST = 'fundraisely.ie';
 
+// Change to 'fundraisely.co.uk' if UK should be the x-default domain.
 const DEFAULT_DOMAIN = 'fundraisely.ie';
 
 function dateFor(path) {
@@ -111,9 +115,7 @@ function generateRobotsTxt(domain) {
 
 # ALLOW - Public marketing pages
 Allow: /
-Allow: /demo
 Allow: /pricing
-Allow: /how-it-works
 Allow: /about
 Allow: /contact
 Allow: /features
@@ -122,23 +124,15 @@ Allow: /event-formats
 Allow: /event-formats/
 Allow: /use-cases
 Allow: /use-cases/
-Allow: /blog
-Allow: /resources
-Allow: /resources/
 
 # ALLOW - Public Web3 pages
 Allow: /web3
 Allow: /web3/
-Allow: /web3/features
-Allow: /web3/partners
-Allow: /web3/events
-Allow: /web3/host
-Allow: /web3/causes
-Allow: /web3/elimination
-Allow: /web3/quiz
 
-# ALLOW - Public campaign pages
+# ALLOW - Public campaign and event pages
 Allow: /campaigns/clubs-league
+Allow: /events/colombia-earthquake-relief
+Allow: /events/safe-streets-ireland-padel
 
 # BLOCK - Old, private, app and system routes
 Disallow: /old/
@@ -165,6 +159,18 @@ Disallow: /api/
 Disallow: /mgmt/
 Disallow: /socket.io/
 Disallow: /debug/
+Disallow: /peer-dashboard/
+Disallow: /event-dashboard/
+Disallow: /fundraise/
+Disallow: /puzzle-drop/
+Disallow: /puzzle-auth
+Disallow: /puzzle-check-email
+Disallow: /puzzle-notify
+Disallow: /leaderboards/
+Disallow: /donate-now/
+Disallow: /embed/
+Disallow: /sponsor/
+Disallow: /dev/
 
 # Sitemap for THIS domain only
 Sitemap: https://${domain}/sitemap.xml

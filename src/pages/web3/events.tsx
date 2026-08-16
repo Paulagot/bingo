@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SEO } from '../../components/SEO';
-import { Web3Header } from '../../components/GeneralSite2/Web3Header';
+import { Web3Header } from '../../components/GeneralSite2/Web3Header'
 import {
   Trophy,
   Crosshair,

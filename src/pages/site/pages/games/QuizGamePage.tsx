@@ -406,12 +406,12 @@ const relatedLinks = [
   },
   {
     label: 'Payments',
-    to: '/features/payments',
+    to: '/features/financial-records',
     text: 'Track confirmed, claimed, manual, late and outstanding payments for fundraising events.',
   },
   {
     label: 'Reports',
-    to: '/features/reports',
+    to: '/features/financial-records',
     text: 'Turn quiz participation, payment records and event outcomes into clearer after-event reports.',
   },
   {

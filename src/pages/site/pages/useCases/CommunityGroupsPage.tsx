@@ -341,7 +341,7 @@ const relatedLinks = [
   },
   {
     label: 'Reports',
-    to: '/features/reports',
+    to: '/features/financial-records',
     text: 'Turn participation, payments and outcomes into clearer after-event records.',
   },
 ];
