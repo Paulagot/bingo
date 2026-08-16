@@ -261,7 +261,7 @@ export default function CryptoDonationsPage() {
         description="Whether a supporter is buying a quiz ticket, entering an elimination game, paying for a puzzle challenge or simply making a donation - they can do it on Solana. On-chain verification, same dashboard recording. You add your wallet address once. The rest works like any other payment method."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore features', to: '/features' }}
-        image={images.paymentsDonations}
+        image={images.cryptoHero}
         status="Solana payments and donations. Your wallet. Your dashboard."
         variant="standard"
       />
