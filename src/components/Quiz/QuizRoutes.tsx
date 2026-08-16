@@ -8,14 +8,11 @@ import AdminJoinPage from './game/AdminJoinPage';
 import HostControlsPage from './game/HostControlsPage';
 import OperatorPage from './game/OperatorPage';
 import JoinRoomPage from './joinroom/JoinRoomPage';
-import DemoPage from '../../pages/QuizDemo';
-import QuizFeaturesPage from '../../pages/QuizFeaturesPage';
-import QuizUseCasesPage from '../../pages/QuizUseCasesPage';
-import UsecaseSchoolPage from '../../pages/usecases/UsecaseSchoolPage';
-import UsecaseClubsPage from '../../pages/usecases/UsecaseClubsPage';
-import UsecaseCharitiesPage from '../../pages/usecases/UsecaseCharitiesPage';
-import UsecaseCommunityGroupsPage from '../../pages/usecases/UsecaseCommunityGroupsPage';
-import HowItWorksPage from '../../pages/HowItWorks';
+
+
+
+
+
 import QuizEventDashboard from '../mgtsystem/components/dashboard/QuizEventDashboard';
 
 export default function QuizRoutes() {
@@ -31,15 +28,7 @@ export default function QuizRoutes() {
       <Route path="operate/:roomId" element={<OperatorPage />} />
       <Route path="eventdashboard" element={<QuizEventDashboard />} />
 
-      {/* marketing pages under /quiz/ */}
-      <Route path="demo" element={<DemoPage />} />
-      <Route path="features" element={<QuizFeaturesPage />} />
-      <Route path="use-cases" element={<QuizUseCasesPage />} />
-      <Route path="use-cases/schools" element={<UsecaseSchoolPage />} />
-      <Route path="use-cases/clubs" element={<UsecaseClubsPage />} />
-      <Route path="use-cases/charities" element={<UsecaseCharitiesPage />} />
-      <Route path="use-cases/community-groups" element={<UsecaseCommunityGroupsPage />} />
-      <Route path="how-it-works" element={<HowItWorksPage />} />
+  
     </Routes>
   );
 }
