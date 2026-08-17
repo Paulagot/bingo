@@ -8,18 +8,10 @@ import { createPuzzleAccessForPeerEntry } from './peerPuzzleAccessService.js';
 
 const O=`${TABLE_PREFIX}peer_orders`, OI=`${TABLE_PREFIX}peer_order_items`, PI=`${TABLE_PREFIX}peer_pack_items`;
 const E=`${TABLE_PREFIX}peer_entries`, R=`${TABLE_PREFIX}web2_quiz_rooms`;
+const T=`${TABLE_PREFIX}quiz_tickets`;
+
 const parseJson=(v,f={})=>{if(!v)return f;if(typeof v==='object')return v;try{return JSON.parse(v)}catch{return f}};
 
-// Previously only looked up config_json (for entryFee, used in fee
-// apportionment) and skipped the room query entirely for single-item
-// packs. Now always fetches game_type too, since that's what lets us
-// self-heal a pack item whose stored item_type doesn't actually match
-// its target room (e.g. a pack item saved as 'quiz_individual_ticket'
-// pointing at a room that is actually an elimination room — this exact
-// mismatch happened because the pack editor never cross-validated the
-// two, and it silently produced wrong join links and wrong button labels
-// downstream, since everything trusted the stored item_type instead of
-// the room's own real game_type).
 async function apportionAndRoomTypes(items, packPrice) {
   const ids=[...new Set(items.map(i=>i.target_room_id))],ph=ids.map(()=>'?').join(',');
   const [rows]=await connection.execute(
@@ -57,11 +49,6 @@ async function apportionAndRoomTypes(items, packPrice) {
   return {feeMap,gameTypeBy};
 }
 
-// Corrects a pack item's stored item_type against its room's actual
-// game_type. The room is the source of truth — a pack item's item_type
-// is only ever set once, manually, at pack-build time, and nothing
-// previously stopped it from being wrong (or drifting out of sync if the
-// room's own game_type ever changed after the pack was built).
 function correctEntryType(originalItemType, roomGameType) {
   if (roomGameType === 'quiz') return 'game_entry';
   if (roomGameType === 'elimination') return 'elimination_entry';
@@ -73,36 +60,24 @@ function correctEntryType(originalItemType, roomGameType) {
 export async function expandPeerOrder(orderId) {
   const conn=await connection.getConnection();
   const created=[];
-  let order; // hoisted so it's still in scope for the ticket-creation loop below
+  let order;
 
   try{
     await conn.beginTransaction();
 
-    // Locking the order row here is what actually closes the race that
-    // caused "Duplicate entry ... uq_peer_entry_source" and, worse, silently
-    // dropped tickets for some items in a bundle. Stripe fires BOTH
-    // checkout.session.completed AND payment_intent.succeeded for every
-    // Checkout Session payment, and stripeWebhooks.js calls confirmPeerOrder
-    // from both — meaning expandPeerOrder could genuinely be invoked twice,
-    // nearly simultaneously, for the same order. Previously the "does this
-    // order already have entries?" check ran on a plain pooled connection,
-    // outside any transaction — two concurrent calls could both see zero
-    // entries before either had inserted anything, both proceed to insert,
-    // and only the unique constraint stopped the literal duplicate row —
-    // but the failing call's WHOLE transaction (including any of ITS OWN
-    // non-duplicate inserts for other items in the same bundle) rolled back
-    // when it hit that constraint. FOR UPDATE here forces a second
-    // concurrent call to wait for the first to fully commit, then correctly
-    // see the already-created entries and return {duplicate:true} instead
-    // of racing.
-    const [orders]=await conn.execute(`SELECT * FROM ${O} WHERE id=? LIMIT 1 FOR UPDATE`,[orderId]);
+    const [orders]=await conn.execute(
+      `SELECT * FROM ${O} WHERE id=? LIMIT 1 FOR UPDATE`,
+      [orderId],
+    );
     order=orders[0];
     if(!order){ await conn.rollback(); throw new Error('peer_order_not_found'); }
     if(order.payment_status!=='confirmed'){ await conn.rollback(); throw new Error('peer_order_not_confirmed'); }
 
+    // ── Fix 1: alias e.id and explicitly select e.order_item_id ─────────
     const [existingEntries]=await conn.execute(
       `SELECT
-         e.id,
+         e.id            AS entry_id,
+         e.order_item_id,
          e.entry_type,
          e.status,
          e.pack_item_id,
@@ -121,18 +96,22 @@ export async function expandPeerOrder(orderId) {
         if(existing.status!=='pending_payment') continue;
 
         const entryMetadata=parseJson(existing.metadata_json,{});
+        // ── Fix 2: use entry_id not id (pi.* overwrites id) ─────────────
         created.push({
-          entryId:existing.id,
-          packItem:existing,
-          fee:Number(entryMetadata.apportionedFee||0),
-          correctedType:existing.entry_type,
-          packItemMetadata:parseJson(existing.metadata_json_pack_item ?? existing.metadata_json,{}),
+          entryId:          existing.entry_id,
+          orderItemId:      existing.order_item_id,
+          packItem:         existing,
+          fee:              Number(entryMetadata.apportionedFee||0),
+          correctedType:    existing.entry_type,
+          packItemMetadata: parseJson(
+            existing.metadata_json_pack_item ?? existing.metadata_json, {}
+          ),
         });
       }
 
-      // The SELECT contains both e.metadata_json and pi.metadata_json with
-      // the same name in some MySQL drivers. Reload pack metadata explicitly
-      // so a retry always has the original option snapshot.
+      // Reload pack metadata explicitly so a retry always has the
+      // original option snapshot. pi.* in the SELECT above can have
+      // metadata_json collide with e.metadata_json in some MySQL drivers.
       for(const item of created){
         const [packRows]=await conn.execute(
           `SELECT * FROM ${PI} WHERE id=? LIMIT 1`,
@@ -141,50 +120,107 @@ export async function expandPeerOrder(orderId) {
         const packItem=packRows[0];
         if(packItem){
           item.packItem=packItem;
-          item.packItemMetadata=parseJson(
-            packItem.metadata_json,
-            {},
-          );
+          item.packItemMetadata=parseJson(packItem.metadata_json,{});
         }
       }
+
+      // ── Fix 3: recalculate apportioned fees from order items ──────────
+      // Capacity reservation entries are created before payment so
+      // apportionedFee is never written to metadata_json at reservation
+      // time. Recalculate here using the same apportionAndRoomTypes logic
+      // as the non-reservation path so bundle discounts are correctly
+      // split at confirmation time.
+      const byOrderItemId = new Map();
+      for(const item of created){
+        const oiId = item.orderItemId;
+        if(!oiId) continue;
+        if(!byOrderItemId.has(oiId)) byOrderItemId.set(oiId,[]);
+        byOrderItemId.get(oiId).push(item);
+      }
+
+      for(const [oiId, items] of byOrderItemId){
+        const [oiRows] = await conn.execute(
+          `SELECT * FROM ${OI} WHERE id=? LIMIT 1`,
+          [oiId],
+        );
+        const oi = oiRows[0];
+        if(!oi) continue;
+
+        const packItems = items.map(item => item.packItem);
+        const { feeMap } = await apportionAndRoomTypes(
+          packItems,
+          Number(oi.unit_price),
+        );
+        for(const item of items){
+          item.fee = feeMap.get(item.packItem.id) ?? item.fee;
+        }
+      }
+
+          console.log('[ExpandPeerOrder] created items after fee recalc:', 
+        created.map(item => ({
+          entryId:     item.entryId,
+          orderItemId: item.orderItemId,
+          fee:         item.fee,
+          packItemId:  item.packItem?.id,
+        }))
+      );
+      // ── End Fix 3 ─────────────────────────────────────────────────────
 
       await conn.commit();
 
       if(!created.length){
         return {duplicate:true,createdCount:0};
       }
+
     } else {
-      const [orderItems]=await conn.execute(`SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,[orderId]);
+      const [orderItems]=await conn.execute(
+        `SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,
+        [orderId],
+      );
 
       for(const oi of orderItems){
-      const [packItems]=await conn.execute(`SELECT * FROM ${PI} WHERE pack_id=? ORDER BY created_at`,[oi.pack_id]);
-      const { feeMap, gameTypeBy } = await apportionAndRoomTypes(packItems,Number(oi.unit_price));
-      for(let orderQty=0;orderQty<Number(oi.quantity);orderQty++){
-        for(const pi of packItems){
-          const correctedType = correctEntryType(pi.item_type, gameTypeBy[pi.target_room_id]);
-          for(let q=0;q<Number(pi.quantity);q++){
-            const entryId=nanoid(21);
-            await conn.execute(
-              `INSERT INTO ${E}
-               (id,peer_fundraiser_id,club_id,room_id,order_id,order_item_id,pack_id,pack_item_id,
-                order_quantity_index,pack_item_quantity_index,
-                participant_id,supporter_name,supporter_email,entry_type,status,metadata_json)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'pending_payment',?)`,
-              [entryId,order.peer_fundraiser_id,order.club_id,pi.target_room_id,order.id,oi.id,oi.pack_id,pi.id,
-               orderQty,q,
-               order.participant_id,order.supporter_name,order.supporter_email,correctedType,
-               JSON.stringify({
-                 apportionedFee:feeMap.get(pi.id),
-                 // Kept for visibility/debugging — shows when a pack was
-                 // built with a mismatched item_type that got corrected here.
-                 originalItemType: pi.item_type !== correctedType ? pi.item_type : undefined,
-               })]
-            );
-            created.push({entryId,packItem:pi,fee:feeMap.get(pi.id),correctedType,packItemMetadata:parseJson(pi.metadata_json,{})});
+        const [packItems]=await conn.execute(
+          `SELECT * FROM ${PI} WHERE pack_id=? ORDER BY created_at`,
+          [oi.pack_id],
+        );
+        const { feeMap, gameTypeBy } = await apportionAndRoomTypes(
+          packItems,
+          Number(oi.unit_price),
+        );
+        for(let orderQty=0;orderQty<Number(oi.quantity);orderQty++){
+          for(const pi of packItems){
+            const correctedType = correctEntryType(pi.item_type, gameTypeBy[pi.target_room_id]);
+            for(let q=0;q<Number(pi.quantity);q++){
+              const entryId=nanoid(21);
+              await conn.execute(
+                `INSERT INTO ${E}
+                 (id,peer_fundraiser_id,club_id,room_id,order_id,order_item_id,pack_id,pack_item_id,
+                  order_quantity_index,pack_item_quantity_index,
+                  participant_id,supporter_name,supporter_email,entry_type,status,metadata_json)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending_payment',?)`,
+                [
+                  entryId,order.peer_fundraiser_id,order.club_id,pi.target_room_id,
+                  order.id,oi.id,oi.pack_id,pi.id,
+                  orderQty,q,
+                  order.participant_id,order.supporter_name,order.supporter_email,correctedType,
+                  JSON.stringify({
+                    apportionedFee: feeMap.get(pi.id),
+                    originalItemType: pi.item_type !== correctedType ? pi.item_type : undefined,
+                  }),
+                ],
+              );
+              created.push({
+                entryId,
+                orderItemId:      oi.id,
+                packItem:         pi,
+                fee:              feeMap.get(pi.id),
+                correctedType,
+                packItemMetadata: parseJson(pi.metadata_json,{}),
+              });
+            }
           }
         }
       }
-    }
       await conn.commit();
     }
   }catch(e){await conn.rollback();throw e;}finally{conn.release();}
@@ -200,45 +236,75 @@ export async function expandPeerOrder(orderId) {
         itemType==='elimination_entry' ||
         itemType==='event_ticket'
       ){
-        const [entryRows]=await connection.execute(`SELECT linked_ticket_id FROM ${E} WHERE id=? LIMIT 1`,[x.entryId]);
+        const [entryRows]=await connection.execute(
+          `SELECT linked_ticket_id FROM ${E} WHERE id=? LIMIT 1`,
+          [x.entryId],
+        );
+
+        console.log('[ExpandPeerOrder] updating ticket fee:', {
+  entryId:          x.entryId,
+  existingTicketId,
+  fee:              x.fee,
+});
+
         if(entryRows[0]?.linked_ticket_id){
+          const existingTicketId = entryRows[0].linked_ticket_id;
+
+          // Correct ticket fee to apportioned amount.
+          // Capacity reservation tickets are created at the room's full
+          // entry_fee before payment. At confirmation we correct to the
+          // pro-rata share of the actual pack price paid.
+          // For single-pack purchases where fee === entry_fee this is a no-op.
+          await connection.execute(
+            `UPDATE ${T}
+             SET entry_fee    = ?,
+                 total_amount = ? + extras_total,
+                 updated_at   = UTC_TIMESTAMP()
+             WHERE ticket_id  = ?`,
+            [x.fee, x.fee, existingTicketId],
+          );
+
+          // Correct the ledger entry to match.
+          await connection.execute(
+            `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+             SET amount     = ?,
+                 updated_at = UTC_TIMESTAMP()
+             WHERE ticket_id  = ?
+               AND ledger_type = 'entry_fee'`,
+            [x.fee, existingTicketId],
+          );
+
           await connection.execute(
             `UPDATE ${E}
              SET status='confirmed',
-                 confirmed_at=COALESCE(
-                   confirmed_at,
-                   UTC_TIMESTAMP()
-                 )
+                 confirmed_at=COALESCE(confirmed_at, UTC_TIMESTAMP())
              WHERE id=?`,
             [x.entryId],
           );
 
-          // Capacity reservations already have a ticket, so ticket creation
-          // is skipped. Email delivery must still happen here.
           await sendPeerEntryTicketEmail(x.entryId);
+
         } else {
           await createTicketForPeerEntry(
-          x.entryId,
-          {
-            order,
-            packItem:x.packItem,
-            packItemMetadata:x.packItemMetadata,
-            apportionedFee:x.fee,
-            clubPaymentMethodId:
-              order.club_payment_method_id,
-          },
-        );
+            x.entryId,
+            {
+              order,
+              packItem:         x.packItem,
+              packItemMetadata: x.packItemMetadata,
+              apportionedFee:   x.fee,
+              clubPaymentMethodId: order.club_payment_method_id,
+            },
+          );
         }
       } else if(itemType==='puzzle_entry'){
         await createPuzzleAccessForPeerEntry(
           x.entryId,
           {
             order,
-            packItem:x.packItem,
-            packItemMetadata:x.packItemMetadata,
-            apportionedFee:x.fee,
-            clubPaymentMethodId:
-              order.club_payment_method_id,
+            packItem:         x.packItem,
+            packItemMetadata: x.packItemMetadata,
+            apportionedFee:   x.fee,
+            clubPaymentMethodId: order.club_payment_method_id,
           },
         );
       } else {
@@ -265,11 +331,12 @@ export async function expandPeerOrder(orderId) {
          WHERE id=?`,
         [x.entryId],
       );
+
     } catch (error) {
       failures.push({
-        entryId:x.entryId,
+        entryId: x.entryId,
         itemType,
-        message:error.message,
+        message: error.message,
       });
 
       await connection.execute(
@@ -280,7 +347,7 @@ export async function expandPeerOrder(orderId) {
            '$.expansionFailedAt', UTC_TIMESTAMP()
          )
          WHERE id=?`,
-        [error.message,x.entryId],
+        [error.message, x.entryId],
       );
     }
   }
@@ -288,9 +355,7 @@ export async function expandPeerOrder(orderId) {
   if(failures.length){
     const error=new Error(
       `peer_fulfilment_failed:${failures
-        .map(failure=>
-          `${failure.itemType}:${failure.message}`
-        )
+        .map(failure=>`${failure.itemType}:${failure.message}`)
         .join('|')}`
     );
     error.failures=failures;
