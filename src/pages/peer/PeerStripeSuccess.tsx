@@ -41,7 +41,15 @@ export default function PeerStripeSuccess() {
     let attempts = 0;
     const maxAttempts = 15; // ~30 seconds — extra buffer for slow webhooks
     let confirmedAttempts = 0;
-    const maxConfirmedGraceAttempts = 8; // ~16 more seconds once confirmed, waiting for entries
+    const maxConfirmedGraceAttempts = 8; // ~16 more seconds once confirmed, waiting for ready entries
+
+    // Entries exist in the DB as 'pending_payment' during reservation, before
+    // expandPeerOrder runs and sets them to 'confirmed' with a join_url.
+    // Checking entries.length alone stops polling too early and renders
+    // PeerOrderThankYou with no join links. Only stop once we have at least
+    // one entry that is confirmed with a join URL.
+    const hasReadyEntries = (data: any) =>
+      (data.entries || []).some((e: any) => e.status === 'confirmed' && e.join_url);
 
     const poll = async () => {
       if (cancelled) return;
@@ -53,9 +61,7 @@ export default function PeerStripeSuccess() {
         setEntries(data.entries || []);
 
         if (data.order.paymentStatus === 'confirmed') {
-          // Order is confirmed — wait for entries to appear (expandPeerOrder
-          // may still be running server-side when we get the first confirmed poll)
-          if ((data.entries || []).length > 0 || confirmedAttempts >= maxConfirmedGraceAttempts) {
+          if (hasReadyEntries(data) || confirmedAttempts >= maxConfirmedGraceAttempts) {
             setStatus('confirmed');
             return;
           }
@@ -65,12 +71,9 @@ export default function PeerStripeSuccess() {
         }
 
         // Still pending — keep polling up to maxAttempts.
-        // On the final attempt, do one last check rather than immediately
-        // giving up — catches the case where the webhook arrived between
-        // our last two polls.
         attempts += 1;
         if (attempts >= maxAttempts) {
-          if (data.order.paymentStatus === 'confirmed' && (data.entries || []).length > 0) {
+          if (data.order.paymentStatus === 'confirmed' && hasReadyEntries(data)) {
             setStatus('confirmed');
           } else {
             // Show timeout but keep order/entries in state so the fallback
@@ -108,7 +111,10 @@ export default function PeerStripeSuccess() {
         const data = await api.getOrderSummary(orderId);
         if (cancelled) return;
 
-        if (data.order.paymentStatus === 'confirmed' && (data.entries || []).length > 0) {
+        const readyEntries = (data.entries || []).filter(
+          (e: any) => e.status === 'confirmed' && e.join_url,
+        );
+        if (data.order.paymentStatus === 'confirmed' && readyEntries.length > 0) {
           setOrder(data.order);
           setEntries(data.entries || []);
           setStatus('confirmed');
@@ -124,7 +130,6 @@ export default function PeerStripeSuccess() {
       }
     };
 
-    // Start background polling after a short delay
     const timer = window.setTimeout(backgroundPoll, 4000);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [status, orderId]);
@@ -156,8 +161,9 @@ export default function PeerStripeSuccess() {
     );
   }
 
-  // Show the proper thank-you screen if we have a confirmed order with entries,
-  // regardless of whether we got here via 'confirmed' or late-resolving 'timeout'.
+  // Show the proper thank-you screen as soon as we have order data —
+  // PeerOrderThankYou handles the case where entries aren't ready yet
+  // (shows the email message instead of join links).
   if ((status === 'confirmed' || status === 'timeout') && order) {
     return (
       <main className="min-h-screen p-4 py-8" style={{ background: bgColor }}>
@@ -180,7 +186,7 @@ export default function PeerStripeSuccess() {
   }
 
   // Pure fallback — no order data at all, or orderId missing.
-  // Background polling (above) will upgrade this to the thank-you screen
+  // Background polling will upgrade this to the thank-you screen
   // if the webhook arrives while the supporter is still on the page.
   return (
     <main className="grid min-h-screen place-items-center p-6" style={{ background: bgColor }}>
