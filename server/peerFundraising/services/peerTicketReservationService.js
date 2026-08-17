@@ -69,13 +69,27 @@ export async function reservePeerOrderTickets({orderId,paymentCategory,paymentRe
  }catch(e){await conn.rollback();throw e}finally{conn.release()}
 }
 
-export async function confirmPeerOrderReservations({ orderId, paymentReference = null, externalTransactionId = null }) {
+export async function confirmPeerOrderReservations({ orderId, paymentReference = null, externalTransactionId = null } = {}) {
+  console.log('[PeerTicketReservation] confirmPeerOrderReservations called:', {
+    orderId,
+    paymentReference,
+    externalTransactionId,
+  });
+
   const [orderRows] = await connection.execute(
     `SELECT * FROM ${TABLE_PREFIX}peer_orders WHERE id=? LIMIT 1`,
     [orderId],
   );
   const order = orderRows[0];
-  if (!order) throw new Error('peer_order_not_found');
+  if (!order) {
+    console.error('[PeerTicketReservation] Order not found:', { orderId });
+    throw new Error('peer_order_not_found');
+  }
+  console.log('[PeerTicketReservation] Order found:', {
+    orderId,
+    paymentStatus: order.payment_status,
+    clubId: order.club_id,
+  });
 
   const [entries] = await connection.execute(
     `SELECT
@@ -109,6 +123,11 @@ export async function confirmPeerOrderReservations({ orderId, paymentReference =
   let confirmedCount = 0;
 
   for (const entry of entries) {
+    console.log('[PeerTicketReservation] Confirming reservation:', {
+      entryId: entry.id,
+      ticketId: entry.linked_ticket_id,
+      entryType: entry.entry_type,
+    });
     await confirmTicketReservation(entry.linked_ticket_id, order);
     confirmedCount++;
   }

@@ -114,6 +114,7 @@ function calcQuizExtras(fee, packItemMetadata, cfg) {
 }
 
 export async function expandPeerOrder(orderId) {
+  console.log('[ExpandPeerOrder] Starting:', { orderId });
   const conn=await connection.getConnection();
   const created=[];
   let order;
@@ -126,8 +127,15 @@ export async function expandPeerOrder(orderId) {
       [orderId],
     );
     order=orders[0];
-    if(!order){ await conn.rollback(); throw new Error('peer_order_not_found'); }
-    if(order.payment_status!=='confirmed'){ await conn.rollback(); throw new Error('peer_order_not_confirmed'); }
+    if(!order){ console.error('[ExpandPeerOrder] Order not found:', { orderId }); await conn.rollback(); throw new Error('peer_order_not_found'); }
+    if(order.payment_status!=='confirmed'){ console.error('[ExpandPeerOrder] Order not confirmed:', { orderId, paymentStatus: order.payment_status }); await conn.rollback(); throw new Error('peer_order_not_confirmed'); }
+
+    console.log('[ExpandPeerOrder] Order found:', {
+      orderId,
+      paymentStatus: order.payment_status,
+      clubId: order.club_id,
+      supporterEmail: order.supporter_email,
+    });
 
     const [existingEntries]=await conn.execute(
       `SELECT
@@ -145,6 +153,12 @@ export async function expandPeerOrder(orderId) {
        ORDER BY e.created_at`,
       [orderId],
     );
+
+    console.log('[ExpandPeerOrder] Existing entries found:', {
+      orderId,
+      count: existingEntries.length,
+      statuses: existingEntries.map(e => ({ entryId: e.entry_id, status: e.status, entryType: e.entry_type })),
+    });
 
     if(existingEntries.length){
       for(const existing of existingEntries){
@@ -403,7 +417,22 @@ export async function expandPeerOrder(orderId) {
 
           await sendPeerEntryTicketEmail(x.entryId);
 
+          console.log('[ExpandPeerOrder] Existing ticket processed successfully:', {
+            entryId: x.entryId,
+            existingTicketId,
+            gameType,
+            entryFee,
+            extrasCount: extras.length,
+            extrasTotal,
+          });
+
         } else {
+          console.log('[ExpandPeerOrder] No existing ticket — creating fresh:', {
+            entryId: x.entryId,
+            itemType,
+            fee: x.fee,
+            roomId: x.packItem.target_room_id,
+          });
           await createTicketForPeerEntry(
             x.entryId,
             {
@@ -481,5 +510,6 @@ export async function expandPeerOrder(orderId) {
     throw error;
   }
 
+  console.log('[ExpandPeerOrder] Complete:', { orderId, createdCount: created.length });
   return {createdCount:created.length};
 }

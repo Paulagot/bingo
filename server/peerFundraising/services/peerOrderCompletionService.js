@@ -1,4 +1,4 @@
-//servr/peerFundraising/services/peerOrderCompletionServices.js
+//server/peerFundraising/services/peerOrderCompletionServices.js
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { expandPeerOrder } from './peerEntryExpansionService.js';
 import {
@@ -37,22 +37,23 @@ async function completeFulfilmentState(orderId) {
     [fulfilmentStatus,orderId],
   );
 
+  console.log('[PeerOrderCompletion] Fulfilment state complete:', {
+    orderId,
+    fulfilmentStatus,
+    allocationStatus: allocation.status,
+    orderTotal: allocation.orderTotal,
+    ledgerTotal: allocation.ledgerTotal,
+    difference: allocation.difference,
+    ledgerCount: allocation.ledgerCount,
+  });
+
   return allocation;
 }
 
 // ─── Management: confirm a manual (cash/instant) order ───────────────────────
-//
-// Ownership-checked version for the club admin UI. Unlike confirmPeerOrder
-// below (which is called by the Stripe webhook and has no club context to
-// check), this verifies the order actually belongs to the fundraiser + club
-// making the request before touching anything, then expands entries exactly
-// once expansion is safe (payment_status must already be 'claimed' or is set
-// to 'confirmed' here from 'pending'/'claimed').
-//
-// This replaces the old bare status-flip confirmOrder() that used to live in
-// peerCoreService.js — that version never called expandPeerOrder, so cash
-// orders confirmed through the mgmt UI never produced tickets or join links.
 export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
+  console.log('[PeerOrderCompletion] confirmPeerOrderForClub called:', { orderId, fundraiserId, clubId });
+
   const [rows] = await connection.execute(
     `SELECT * FROM ${O} WHERE id=? AND peer_fundraiser_id=? AND club_id=? LIMIT 1`,
     [orderId, fundraiserId, clubId]
@@ -62,6 +63,11 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
   if (order.payment_status !== 'claimed') {
     fail('order_not_confirmable', 400);
   }
+
+  console.log('[PeerOrderCompletion] Reserving tickets for club order:', {
+    orderId,
+    paymentMethodCategory: order.payment_method_category,
+  });
 
   await reservePeerOrderTickets({
     orderId,
@@ -85,21 +91,23 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
     conn.release();
   }
 
-  // expandPeerOrder runs its own transaction internally (see
-  // peerEntryExpansionService.js) and is idempotent — if it fails partway
-  // through, a retry of confirm will skip already-created entries rather
-  // than duplicating them, since it checks existing confirmed/pending counts
-  // first. Keeping it outside the status-update transaction above avoids
-  // holding that transaction open for the duration of ticket/ledger writes.
+  console.log('[PeerOrderCompletion] Order status set to confirmed:', { orderId });
+
   try {
+    console.log('[PeerOrderCompletion] Confirming reservations:', { orderId });
     await confirmPeerOrderReservations({
       orderId,
       paymentReference: order.payment_reference,
       externalTransactionId: order.external_transaction_id,
     });
+
+    console.log('[PeerOrderCompletion] Expanding order:', { orderId });
     await expandPeerOrder(orderId);
+
+    console.log('[PeerOrderCompletion] Retrying missing ticket emails:', { orderId });
     const ticketEmails = await retryMissingPeerTicketEmails(orderId);
-    const allocation=await completeFulfilmentState(orderId);
+
+    const allocation = await completeFulfilmentState(orderId);
 
     const [updated] = await connection.execute(
       `SELECT * FROM ${O} WHERE id=? LIMIT 1`,
@@ -111,6 +119,11 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
       allocation,
     };
   } catch(error) {
+    console.error('[PeerOrderCompletion] Fulfilment failed (club confirm):', {
+      orderId,
+      error: error.message,
+      failures: error.failures || null,
+    });
     await connection.execute(
       `UPDATE ${O}
        SET metadata_json=JSON_SET(
@@ -127,14 +140,9 @@ export async function confirmPeerOrderForClub(orderId, fundraiserId, clubId) {
 }
 
 // ─── Management: reject a manual order ────────────────────────────────────────
-//
-// Mirrors campaignOrderService.rejectOrder for pending/claimed orders, and
-// goes further: peer previously had no way at all to reverse an order that
-// had already been confirmed (real tickets + join links already exist by
-// that point). If the order is 'confirmed', this now blocks every linked
-// ticket via blockTicketForPeerEntry before cancelling the order and its
-// entries, so a mistaken cash confirmation can actually be undone.
 export async function rejectPeerOrder(orderId, fundraiserId, clubId, reason = null) {
+  console.log('[PeerOrderCompletion] rejectPeerOrder called:', { orderId, fundraiserId, clubId, reason });
+
   const [rows] = await connection.execute(
     `SELECT * FROM ${O} WHERE id=? AND peer_fundraiser_id=? AND club_id=? LIMIT 1`,
     [orderId, fundraiserId, clubId]
@@ -145,16 +153,21 @@ export async function rejectPeerOrder(orderId, fundraiserId, clubId, reason = nu
     fail('order_not_rejectable', 400);
   }
 
-  if (order.payment_status === 'claimed') await cancelPeerOrderReservations(orderId);
+  if (order.payment_status === 'claimed') {
+    console.log('[PeerOrderCompletion] Cancelling reservations for claimed order:', { orderId });
+    await cancelPeerOrderReservations(orderId);
+  }
 
   if (order.payment_status === 'confirmed') {
     const [confirmedEntries] = await connection.execute(
       `SELECT id FROM ${E} WHERE order_id=? AND status='confirmed'`,
       [orderId]
     );
+    console.log('[PeerOrderCompletion] Blocking tickets for confirmed order:', {
+      orderId,
+      entryCount: confirmedEntries.length,
+    });
     for (const entry of confirmedEntries) {
-      // No-op for entries with no linked ticket (puzzle/event/custom items) —
-      // blockTicketForPeerEntry just returns early if linked_ticket_id is null.
       await blockTicketForPeerEntry(entry.id);
     }
   }
@@ -181,46 +194,63 @@ export async function rejectPeerOrder(orderId, fundraiserId, clubId, reason = nu
     conn.release();
   }
 
+  console.log('[PeerOrderCompletion] Order rejected:', { orderId, reason });
+
   const [updated] = await connection.execute(`SELECT * FROM ${O} WHERE id=? LIMIT 1`, [orderId]);
   return { order: updated[0] };
 }
 
 // ─── Webhook-facing: confirm by Stripe intent / session (no club context) ────
 export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,externalTransactionId=null,paymentReference=null}){
+  console.log('[PeerOrderCompletion] confirmPeerOrder called:', {
+    orderId,
+    stripePaymentIntentId,
+    externalTransactionId,
+    paymentReference,
+  });
+
   let rows;
   if(orderId)[rows]=await connection.execute(`SELECT * FROM ${O} WHERE id=? LIMIT 1`,[orderId]);
   else [rows]=await connection.execute(`SELECT * FROM ${O} WHERE stripe_payment_intent_id=? OR stripe_checkout_session_id=? LIMIT 1`,[stripePaymentIntentId,stripePaymentIntentId]);
-  const order=rows[0]; if(!order)return null;
+  const order=rows[0];
+  if(!order){
+    console.warn('[PeerOrderCompletion] Order not found:', { orderId, stripePaymentIntentId });
+    return null;
+  }
 
-  // NOTE: Stripe fires BOTH checkout.session.completed AND
-  // payment_intent.succeeded for every Checkout Session payment, and
-  // stripeWebhooks.js calls confirmPeerOrder from both — so this function
-  // WILL genuinely be invoked twice, nearly simultaneously, for the same
-  // order. expandPeerOrder now handles that safely itself (row-level
-  // locking — see peerEntryExpansionService.js), but wrapping it here too
-  // means a failure in expansion can never silently prevent the order-
-  // confirmation email below from firing. Previously this call had no
-  // try/catch at all — if it threw (exactly what the race could cause),
-  // the email code further down never ran, even though the order's status
-  // itself was already correctly set.
+  console.log('[PeerOrderCompletion] Order located:', {
+    orderId: order.id,
+    paymentStatus: order.payment_status,
+    supporterEmail: order.supporter_email,
+  });
+
   if(order.payment_status==='confirmed'){
+    console.log('[PeerOrderCompletion] Reprocessing already-confirmed order:', { orderId: order.id });
     try {
-      console.log('[PeerOrderCompletion] Reprocessing already-confirmed order:',{orderId:order.id});
-      const reservationResult=await confirmPeerOrderReservations({
+      const reservationResult = await confirmPeerOrderReservations({
         orderId: order.id,
         paymentReference,
-        externalTransactionId:
-          externalTransactionId || stripePaymentIntentId,
+        externalTransactionId: externalTransactionId || stripePaymentIntentId,
       });
-      const expansionResult=await expandPeerOrder(order.id);
-      const ticketEmailResult=await retryMissingPeerTicketEmails(order.id);
-      const allocationResult=await completeFulfilmentState(order.id);
-      console.log('[PeerOrderCompletion] Reprocessing complete:',{orderId:order.id,reservationResult,expansionResult,ticketEmailResult,allocationStatus:allocationResult?.status});
+      console.log('[PeerOrderCompletion] Reservations confirmed (reprocess):', { orderId: order.id, reservationResult });
+
+      const expansionResult = await expandPeerOrder(order.id);
+      console.log('[PeerOrderCompletion] Expansion complete (reprocess):', { orderId: order.id, expansionResult });
+
+      const ticketEmailResult = await retryMissingPeerTicketEmails(order.id);
+      console.log('[PeerOrderCompletion] Ticket emails (reprocess):', { orderId: order.id, ticketEmailResult });
+
+      const allocationResult = await completeFulfilmentState(order.id);
+      console.log('[PeerOrderCompletion] Reprocessing complete:', {
+        orderId: order.id,
+        allocationStatus: allocationResult?.status,
+      });
     } catch(expandErr) {
-      console.error(
-        '[PeerOrderCompletion] Re-expansion failed:',
-        expandErr.message,
-      );
+      console.error('[PeerOrderCompletion] Re-expansion failed:', {
+        orderId: order.id,
+        error: expandErr.message,
+        failures: expandErr.failures || null,
+      });
       await connection.execute(
         `UPDATE ${O}
          SET metadata_json=JSON_SET(
@@ -246,27 +276,39 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
      payment_reference=COALESCE(?,payment_reference) WHERE id=?`,
     [stripePaymentIntentId,externalTransactionId,paymentReference,order.id]);
 
+  console.log('[PeerOrderCompletion] Order status set to confirmed:', { orderId: order.id });
+
   try {
-    console.log('[PeerOrderCompletion] Starting confirmed-order fulfilment:',{orderId:order.id,paymentStatusBefore:order.payment_status,stripePaymentIntentId});
-    const reservationResult=await confirmPeerOrderReservations({
+    console.log('[PeerOrderCompletion] Starting fulfilment:', {
+      orderId: order.id,
+      paymentStatusBefore: order.payment_status,
+      stripePaymentIntentId,
+    });
+
+    const reservationResult = await confirmPeerOrderReservations({
       orderId: order.id,
       paymentReference,
-      externalTransactionId:
-        externalTransactionId || stripePaymentIntentId,
+      externalTransactionId: externalTransactionId || stripePaymentIntentId,
     });
-    console.log('[PeerOrderCompletion] Reservations confirmed:',{orderId:order.id,reservationResult});
-    const expansionResult=await expandPeerOrder(order.id);
-    console.log('[PeerOrderCompletion] Entry expansion complete:',{orderId:order.id,expansionResult});
-    const ticketEmailResult=await retryMissingPeerTicketEmails(order.id);
-    console.log('[PeerOrderCompletion] Ticket email stage complete:',{orderId:order.id,ticketEmailResult});
-    const allocationResult=await completeFulfilmentState(order.id);
-    console.log('[PeerOrderCompletion] Fulfilment complete:',{orderId:order.id,allocationStatus:allocationResult?.status});
-  } catch (expandErr) {
-    console.error(
-      '[PeerOrderCompletion] Expansion failed:',
-      expandErr.message,
-    );
+    console.log('[PeerOrderCompletion] Reservations confirmed:', { orderId: order.id, reservationResult });
 
+    const expansionResult = await expandPeerOrder(order.id);
+    console.log('[PeerOrderCompletion] Expansion complete:', { orderId: order.id, expansionResult });
+
+    const ticketEmailResult = await retryMissingPeerTicketEmails(order.id);
+    console.log('[PeerOrderCompletion] Ticket emails:', { orderId: order.id, ticketEmailResult });
+
+    const allocationResult = await completeFulfilmentState(order.id);
+    console.log('[PeerOrderCompletion] Fulfilment complete:', {
+      orderId: order.id,
+      allocationStatus: allocationResult?.status,
+    });
+  } catch (expandErr) {
+    console.error('[PeerOrderCompletion] Expansion failed:', {
+      orderId: order.id,
+      error: expandErr.message,
+      failures: expandErr.failures || null,
+    });
     await connection.execute(
       `UPDATE ${O}
        SET metadata_json=JSON_SET(
@@ -280,36 +322,27 @@ export async function confirmPeerOrder({orderId=null,stripePaymentIntentId=null,
     );
   }
 
-  // Order-confirmation email — peer had no equivalent at all. Fired here,
-  // same reasoning as campaign's confirmOrderByStripeIntent: the webhook
-  // always runs, unlike a frontend-triggered send that depends on the
-  // supporter's tab staying open through the redirect-and-poll cycle.
   try {
     const { sendPeerOrderConfirmationEmail } = await import('./peerOrderEmailService.js');
     await sendPeerOrderConfirmationEmail(order.id);
   } catch (emailErr) {
-    console.error('[PeerOrderCompletion] ⚠️ Stripe order confirmation email failed (non-fatal):', emailErr.message);
+    console.error('[PeerOrderCompletion] ⚠️ Order confirmation email failed (non-fatal):', {
+      orderId: order.id,
+      error: emailErr.message,
+    });
   }
 
   const [updated]=await connection.execute(`SELECT * FROM ${O} WHERE id=?`,[order.id]);
   return updated[0];
 }
 
-export async function retryPeerOrderFulfilment(
-  orderId,
-  fundraiserId,
-  clubId,
-) {
+export async function retryPeerOrderFulfilment(orderId, fundraiserId, clubId) {
+  console.log('[PeerOrderCompletion] retryPeerOrderFulfilment called:', { orderId, fundraiserId, clubId });
+
   const [rows]=await connection.execute(
-    `SELECT *
-     FROM ${O}
-     WHERE id=?
-       AND peer_fundraiser_id=?
-       AND club_id=?
-     LIMIT 1`,
+    `SELECT * FROM ${O} WHERE id=? AND peer_fundraiser_id=? AND club_id=? LIMIT 1`,
     [orderId,fundraiserId,clubId],
   );
-
   const order=rows[0];
   if(!order) fail('peer_order_not_found',404);
   if(order.payment_status!=='confirmed'){
@@ -329,22 +362,37 @@ export async function retryPeerOrderFulfilment(
   );
 
   try {
-    const expansion=await expandPeerOrder(orderId);
-    const ticketEmails=await retryMissingPeerTicketEmails(orderId);
-    const allocation=await completeFulfilmentState(orderId);
+    console.log('[PeerOrderCompletion] Retry: expanding order:', { orderId });
+    const expansion = await expandPeerOrder(orderId);
+
+    console.log('[PeerOrderCompletion] Retry: sending missing ticket emails:', { orderId });
+    const ticketEmails = await retryMissingPeerTicketEmails(orderId);
+
+    const allocation = await completeFulfilmentState(orderId);
 
     const [updated]=await connection.execute(
       `SELECT * FROM ${O} WHERE id=? LIMIT 1`,
       [orderId],
     );
 
+    console.log('[PeerOrderCompletion] Retry complete:', {
+      orderId,
+      expansionCount: expansion?.createdCount,
+      allocationStatus: allocation?.status,
+    });
+
     return {
-      order:updated[0],
+      order: updated[0],
       expansion,
       ticketEmails,
       allocation,
     };
   } catch(error) {
+    console.error('[PeerOrderCompletion] Retry failed:', {
+      orderId,
+      error: error.message,
+      failures: error.failures || null,
+    });
     await connection.execute(
       `UPDATE ${O}
        SET metadata_json=JSON_SET(
@@ -361,9 +409,13 @@ export async function retryPeerOrderFulfilment(
 }
 
 export async function cancelExpiredPeerOrder(orderId,sessionId){
+  console.log('[PeerOrderCompletion] cancelExpiredPeerOrder called:', { orderId, sessionId });
   const [result]=await connection.execute(
     `UPDATE ${O} SET payment_status='cancelled',metadata_json=JSON_SET(COALESCE(metadata_json,'{}'),'$.cancelReason','stripe_session_expired','$.expiredSessionId',?)
      WHERE id=? AND payment_status='pending'`,[sessionId,orderId]);
-  if(result.affectedRows>0) await cancelPeerOrderReservations(orderId);
+  if(result.affectedRows>0) {
+    console.log('[PeerOrderCompletion] Expired order cancelled, cancelling reservations:', { orderId });
+    await cancelPeerOrderReservations(orderId);
+  }
   return {cancelled:result.affectedRows>0};
 }
