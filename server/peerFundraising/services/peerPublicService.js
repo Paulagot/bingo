@@ -264,11 +264,6 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
     }
   }
 
-  // ── Support totals ──────────────────────────────────────────────────────
-  // Compute BOTH the fundraiser-wide total (overall bar) and, when a
-  // participant is in the URL, that participant's own total (personal bar).
-  // summariseSellActivities includes BOTH orders and donations so that
-  // overall.confirmedTotal is the true combined figure for the progress bar.
   const summariseSellActivities = async (participantId) => {
     const [orderRes, donationRes] = await Promise.all([
       connection.execute(
@@ -328,7 +323,6 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
     for (const row of soldRows) soldByPack[row.pack_id] = Number(row.sold || 0);
   }
 
-  // ── Capacity: fetch each room once, reuse across every pack ──────────────
   const capacityRoomIds = [...new Set(
     items
       .filter(i => ['quiz', 'elimination', 'ticketed_event'].includes(i.game_type))
@@ -367,8 +361,6 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
     };
   }));
 
-  // overall.confirmedTotal already includes both orders and donations
-  // (via summariseSellActivities above) — no separate donation query needed.
   return {
     club,
     lifecycle,
@@ -376,7 +368,7 @@ export async function publicPayload(clubSlug, fundraiserSlug, participantSlug = 
       ...fundraiser,
       settings: fundraiserSettings,
       raised_amount: overall.confirmedTotal,
-      raisedAmount: overall.confirmedTotal,          // FIX: was broken (fundraiser.raised_amount doesn't exist as a DB column)
+      raisedAmount: overall.confirmedTotal,
       sponsorship_total: isSponsored ? overall.confirmedTotal : 0,
       sponsor_count: isSponsored ? overall.confirmedCount : 0,
       confirmed_support_count: overall.confirmedCount,
@@ -506,6 +498,8 @@ export async function claimOrder(orderId,b={}) {
 }
 
 export async function getPublicOrderSummary(orderId) {
+  console.log('[PeerOrderSummary] Poll received:', { orderId });
+
   const [orderRows]=await connection.execute(`SELECT * FROM ${O} WHERE id=? LIMIT 1`,[orderId]);
   const order=orderRows[0]; if(!order) fail('order_not_found',404);
 
@@ -535,6 +529,43 @@ export async function getPublicOrderSummary(orderId) {
     [orderId]
   );
 
+  const mappedEntries = entryRows.map(entry=>{
+    const metadata=parseJson(entry.metadata_json,{});
+    const label=
+      entry.ticket_type_name ||
+      metadata.ticketTypeName ||
+      (entry.entry_type==='game_entry'
+        ? 'Quiz Entry + All Extras'
+        : entry.entry_type==='elimination_entry'
+          ? 'Elimination Entry'
+          : entry.entry_type==='event_ticket'
+            ? 'Event Ticket'
+            : entry.entry_type==='puzzle_entry'
+              ? 'Puzzle Drop'
+              : 'Entry');
+
+    return {
+      ...entry,
+      displayLabel:label,
+      expansionError:metadata.expansionError||null,
+    };
+  });
+
+  console.log('[PeerOrderSummary] Poll response:', {
+    orderId,
+    paymentStatus: order.payment_status,
+    fulfilmentStatus: parseJson(order.metadata_json, {}).fulfilmentStatus || null,
+    entryCount: mappedEntries.length,
+    entries: mappedEntries.map(e => ({
+      entryId:       e.id,
+      entryType:     e.entry_type,
+      status:        e.status,
+      hasJoinUrl:    !!e.join_url,
+      hasTicketId:   !!e.linked_ticket_id,
+      expansionError: e.expansionError || null,
+    })),
+  });
+
   return {
     order: {
       id: order.id,
@@ -563,26 +594,6 @@ export async function getPublicOrderSummary(orderId) {
         lineTotal: Number(i.line_total),
       })),
     },
-    entries: entryRows.map(entry=>{
-      const metadata=parseJson(entry.metadata_json,{});
-      const label=
-        entry.ticket_type_name ||
-        metadata.ticketTypeName ||
-        (entry.entry_type==='game_entry'
-          ? 'Quiz Entry + All Extras'
-          : entry.entry_type==='elimination_entry'
-            ? 'Elimination Entry'
-            : entry.entry_type==='event_ticket'
-              ? 'Event Ticket'
-              : entry.entry_type==='puzzle_entry'
-                ? 'Puzzle Drop'
-                : 'Entry');
-
-      return {
-        ...entry,
-        displayLabel:label,
-        expansionError:metadata.expansionError||null,
-      };
-    }),
+    entries: mappedEntries,
   };
 }
