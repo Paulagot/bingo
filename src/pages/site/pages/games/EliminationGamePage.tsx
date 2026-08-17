@@ -1,3 +1,4 @@
+//src/pages/site/pages/games/EliminationGamePage.tsx
 import { SEO } from '../../components/seo/SEO';
 import { Breadcrumbs } from '../../components/seo/Breadcrumbs';
 import { breadcrumbsForPath } from '../../components/seo/breadcrumbUtils';

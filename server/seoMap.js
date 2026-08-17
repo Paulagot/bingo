@@ -72,14 +72,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'fundraising platform, charity fundraising, club fundraising, school fundraising, fundraising events, payment tracking, fundraising reports',
     },
 
-    '/demo': {
-      title: 'Book a FundRaisely Demo | Fundraising event software',
-      description:
-        'Book a demo to see how FundRaisely can support quiz fundraisers, ticketing, payment tracking and reports.',
-      canonical: ABS(hostOrigin, '/demo'),
-      keywords:
-        'fundraising software demo, charity fundraising demo, club fundraising demo, fundraising platform demo',
-    },
+
 
     '/pricing': {
       title: 'FundRaisely Pricing | Fundraising software plans',
@@ -90,14 +83,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'fundraising software pricing, charity fundraising platform pricing, club fundraising software pricing',
     },
 
-    '/how-it-works': {
-      title: 'How FundRaisely Works | Create, share, track and report on fundraisers',
-      description:
-        'Learn how FundRaisely helps organisers create fundraisers, share links, track payments and review reports.',
-      canonical: ABS(hostOrigin, '/how-it-works'),
-      keywords:
-        'how fundraising software works, fundraising event setup, fundraising payment tracking, fundraising reports',
-    },
+
 
     '/about': {
       title: 'About FundRaisely | Community fundraising platform',
@@ -163,23 +149,27 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'fundraising ticketing, charity event tickets, club event ticketing, QR code tickets, event registration',
     },
 
-    '/features/payments': {
-      title: 'Payment Reconciliation for Fundraising Events | FundRaisely',
-      description:
-        'Track expected, claimed, confirmed, late, disputed and written-off payments across cash, card, bank transfer and instant payments.',
-      canonical: ABS(hostOrigin, '/features/payments'),
-      keywords:
-        'payment reconciliation, fundraising payments, charity payment tracking, club payment tracking, event payment tracking',
-    },
+'/features/payments': {
+  title: 'Payment Tracking | FundRaisely',
+  description: 'Payment tracking for fundraising events.',
+  canonical: ABS(hostOrigin, '/features/financial-records'),
+  robots: 'noindex, follow',
+},
 
-    '/features/reports': {
-      title: 'Financial Reports and Fundraising Records | FundRaisely',
-      description:
-        'Give organisers, treasurers and committees clear after-event records without rebuilding everything in a spreadsheet.',
-      canonical: ABS(hostOrigin, '/features/reports'),
-      keywords:
-        'fundraising reports, charity financial reports, club fundraising records, event reports',
-    },
+  '/features/reports': {
+  title: 'Fundraising Reports | FundRaisely',
+  description: 'Fundraising reports and records.',
+  canonical: ABS(hostOrigin, '/features/financial-records'),
+  robots: 'noindex, follow',
+},
+'/features/financial-records': {
+  title: 'Payment Tracking and Fundraising Reports for Clubs, Charities and Community Groups | FundRaisely',
+  description:
+    'Track payments across cash, card, instant payments and crypto. Generate audit-ready reconciliation and committee-ready reports. FundRaisely keeps payment records and financial reports connected.',
+  canonical: ABS(hostOrigin, '/features/financial-records'),
+  keywords:
+    'fundraising payment tracking, fundraising reports, payment reconciliation, audit ready reports, committee reports, charity payment tracking, club financial records',
+},
 
     '/features/impact-reports': {
       title: 'Impact Reports and Fundraising Records | FundRaisely',
@@ -190,23 +180,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'impact reports, charity impact reporting, fundraising impact records, donor reporting',
     },
 
-    '/features/crm': {
-      title: 'CRM and Supporter Management for Fundraising | FundRaisely',
-      description:
-        'Keep supporter, donor, participant, volunteer and sponsor records connected to the fundraisers they helped make happen.',
-      canonical: ABS(hostOrigin, '/features/crm'),
-      keywords:
-        'supporter CRM, charity CRM, fundraising CRM, supporter management, donor records',
-    },
 
-    '/features/ai-prize-finder': {
-      title: 'AI Prize Finder for Fundraising Events | FundRaisely',
-      description:
-        'Help volunteers find, contact and track possible prize donors and local sponsors without spending hours starting from scratch.',
-      canonical: ABS(hostOrigin, '/features/ai-prize-finder'),
-      keywords:
-        'AI prize finder, fundraising sponsors, prize sponsor finder, charity raffle prizes, local sponsors',
-    },
 
     // Event formats
     '/event-formats': {
@@ -245,23 +219,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'puzzle challenge fundraiser, puzzle fundraiser, digital fundraising challenge, prize-led fundraiser',
     },
 
-    '/event-formats/escape-room': {
-      title: 'Escape room fundraisers | FundRaisely',
-      description:
-        'A team-based challenge format for schools, clubs, charities and community groups that want a more immersive fundraiser.',
-      canonical: ABS(hostOrigin, '/event-formats/escape-room'),
-      keywords:
-        'escape room fundraiser, digital escape room fundraiser, team fundraising challenge',
-    },
-
-    '/event-formats/treasure-hunt': {
-      title: 'Treasure hunt fundraisers | FundRaisely',
-      description:
-        'A local challenge format for community trails, family fundraisers and supporter campaigns.',
-      canonical: ABS(hostOrigin, '/event-formats/treasure-hunt'),
-      keywords:
-        'treasure hunt fundraiser, charity treasure hunt, school treasure hunt fundraiser, community trail fundraiser',
-    },
+ 
 
     // Use cases
     '/use-cases': {
@@ -328,23 +286,23 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'fundraising resources, charity fundraising guides, club fundraising ideas, community fundraising',
     },
 
-    '/resources/fundraising-ideas': {
-      title: 'Fundraising Ideas for Clubs, Schools and Community Groups | FundRaisely',
-      description:
-        'Fundraising ideas for clubs, schools, charities and community groups.',
-      canonical: ABS(hostOrigin, '/resources/fundraising-ideas'),
-      keywords:
-        'fundraising ideas, charity fundraising ideas, club fundraising ideas, school fundraising ideas',
-    },
+    // '/resources/fundraising-ideas': {
+    //   title: 'Fundraising Ideas for Clubs, Schools and Community Groups | FundRaisely',
+    //   description:
+    //     'Fundraising ideas for clubs, schools, charities and community groups.',
+    //   canonical: ABS(hostOrigin, '/resources/fundraising-ideas'),
+    //   keywords:
+    //     'fundraising ideas, charity fundraising ideas, club fundraising ideas, school fundraising ideas',
+    // },
 
-    '/resources/guides': {
-      title: 'Fundraising Guides | FundRaisely',
-      description:
-        'Practical fundraising guides for planning, tickets, payments, reports and community events.',
-      canonical: ABS(hostOrigin, '/resources/guides'),
-      keywords:
-        'fundraising guides, charity fundraising guide, fundraising event planning, payment tracking guide',
-    },
+    // '/resources/guides': {
+    //   title: 'Fundraising Guides | FundRaisely',
+    //   description:
+    //     'Practical fundraising guides for planning, tickets, payments, reports and community events.',
+    //   canonical: ABS(hostOrigin, '/resources/guides'),
+    //   keywords:
+    //     'fundraising guides, charity fundraising guide, fundraising event planning, payment tracking guide',
+    // },
 
     // Legal pages - public, but not SEO landing pages.
     '/legal/privacy': {

@@ -1,3 +1,4 @@
+//src/pages/site/config/siteNavigation.ts
 export type NavItem = {
   label: string;
   to: string;
@@ -11,24 +12,23 @@ export type NavGroup = {
 
 export const featureNavItems: NavItem[] = [
   { label: 'All features', to: '/features' },
-  // { label: 'Campaign Manager', to: '/features/campaign-manager' },
-  { label: 'Event Manager', to: '/features/event-manager' },
+  { label: 'Event manager', to: '/features/event-manager' },
+  { label: 'Peer fundraising', to: '/features/peer-fundraising' },
+  { label: 'Crypto payments and donations', to: '/features/crypto-donations' },
+  { label: 'Donations widget', to: '/features/donations-widget' },
   { label: 'Ticketing and registration', to: '/features/ticketing' },
-  { label: 'Payment reconciliation', to: '/features/payments' },
-  { label: 'Financial reports and records', to: '/features/reports' },
+{ label: 'Payments and reports', to: '/features/financial-records' },
   { label: 'Impact reports and records', to: '/features/impact-reports' },
-  // { label: 'CRM and supporter management', to: '/features/crm' },
-  // { label: 'AI Prize Finder', to: '/features/ai-prize-finder' },
 ];
 
 export const eventFormatNavItems: NavItem[] = [
   { label: 'All event formats', to: '/event-formats' },
   { label: 'Quiz fundraisers', to: '/event-formats/quiz' },
   { label: 'Elimination games', to: '/event-formats/elimination' },
-  { label: 'Ticket events', to: '/event-formats/ticketed-events' },
-  // { label: 'Puzzle challenges', to: '/event-formats/puzzle-challenges' },
-  // { label: 'Escape room fundraisers', to: '/event-formats/escape-room' },
-  // { label: 'Treasure hunts', to: '/event-formats/treasure-hunt' },
+  { label: 'Weekly Puzzle Challenge', to: '/event-formats/weekly-puzzle-challenge' },
+  { label: 'Puzzle Drop', to: '/event-formats/puzzle-drop' },
+  { label: 'Sponsored events', to: '/event-formats/sponsored-events' },
+  { label: 'Ticketed events', to: '/event-formats/ticketed-events' },
 ];
 
 export const useCaseNavItems: NavItem[] = [
@@ -40,7 +40,7 @@ export const useCaseNavItems: NavItem[] = [
 ];
 
 export const resourceNavItems: NavItem[] = [
-  { label: 'Resources', to: '/resources' },
+  // { label: 'Resources', to: '/resources' },
   // { label: 'Blog', to: '/blog' },
   // { label: 'Fundraising ideas', to: '/resources/fundraising-ideas' },
   // { label: 'Guides', to: '/resources/guides' },
@@ -71,10 +71,10 @@ export const navGroups: NavGroup[] = [
    * Single-link header item.
    * The SiteHeader can detect groups with one item and render them as direct links.
    */
-  {
-    label: 'Web3 Fundraising',
-    items: [{ label: 'Web3 Fundraising', to: '/web3' }],
-  },
+  // {
+  //   label: 'Web3 Fundraising',
+  //   items: [{ label: 'Web3 Fundraising', to: '/web3' }],
+  // },
 ];
 
 export const footerGroups: NavGroup[] = [

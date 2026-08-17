@@ -312,12 +312,12 @@ const screenshotSlots = [
 const relatedLinks = [
   {
     label: 'Reports',
-    to: '/features/reports',
+    to: '/features/financial-records',
     text: 'Create clearer after-event records, impact summaries and fundraising reports.',
   },
   {
     label: 'Payments',
-    to: '/features/payments',
+    to: '/features/financial-records',
     text: 'Track payment status, outstanding amounts and real-world charity payment flows.',
   },
   {

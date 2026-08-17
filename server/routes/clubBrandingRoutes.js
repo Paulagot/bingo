@@ -7,11 +7,8 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 const PREFIX = process.env.DB_TABLE_PREFIX || 'fundraisely_';
 
-// ← ADD THIS - log every request that hits this router
-router.use((req, res, next) => {
-  console.log('🎨 [BrandingRouter] Hit:', req.method, req.path, '| Full URL:', req.originalUrl);
-  next();
-});
+
+
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 

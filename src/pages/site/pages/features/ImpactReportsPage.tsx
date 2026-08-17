@@ -2,5 +2,6 @@ import { MarketingPageTemplate } from '../../components/templates/MarketingPageT
 import { featurePages } from '../../content/features';
 
 export default function ImpactReportsPage() {
-  return <MarketingPageTemplate content={featurePages['impact-reports']} templateType="feature" />;
+  const content = featurePages['impact-reports'];
+  return <MarketingPageTemplate content={content!} templateType="feature" />;
 }

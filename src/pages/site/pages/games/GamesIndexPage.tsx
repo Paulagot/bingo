@@ -1,3 +1,4 @@
+// src/pages/site/pages/games/GamesIndexPage.tsx
 import { IndexPageTemplate } from '../../components/templates/IndexPageTemplate';
 
 export default function GamesIndexPage() {
@@ -5,107 +6,113 @@ export default function GamesIndexPage() {
     <IndexPageTemplate
       path="/event-formats"
       seoTitle="Ready-to-Run Fundraising Event Formats | FundRaisely"
-      seoDescription="Explore FundRaisely fundraising event formats, including quiz fundraisers, elimination games, puzzle challenges and non-digital ticketed events for dinners, galas, sports days and community fundraisers."
+      seoDescription="Explore FundRaisely fundraising event formats — quiz nights, elimination games, weekly puzzle challenges, puzzle drops, sponsored events and ticketed events for clubs, charities, schools and community groups."
       eyebrow="Event Formats"
-      h1="Ready-to-run fundraising formats"
-      intro="FundRaisely gives organisations something practical to run, not just somewhere to collect money. Use event formats to turn fundraising ideas into activities people can join, share and support, from digital games to ticketed community events."
+      h1="Ready-to-run fundraising formats for clubs, charities and community groups"
+      intro="FundRaisely gives organisations something practical to run, not just somewhere to collect money. Every format includes ticketing, payment tracking and reports. The digital games come with built-in content — no questions to write, no scoring to manage. Pick a format, set a price, press start."
       imageKey="communityQuizNight"
       cards={[
         {
           title: 'Quiz fundraisers',
-          text: 'A familiar, social event format with setup, ticketing, player management, payment tracking, host controls and reports.',
+          text: 'A full digital quiz night with built-in questions, team or individual play, host controls, ticketing, payment tracking and committee-ready reports. Nothing to prepare — the game runs itself.',
           to: '/event-formats/quiz',
         },
         {
           title: 'Elimination games',
-          text: 'A quick last-person-standing fundraiser designed for regular participation, pub nights, club events, campaigns and one clear winner.',
+          text: 'A quick last-person-standing fundraiser for club nights, pub events, family fun days and campaigns. Eight rounds, built-in challenges, one winner. Run it weekly or as a one-off.',
           to: '/event-formats/elimination',
         },
         {
-          title: 'Puzzle challenges (Soon)',
-          text: 'A challenge-based format for supporters who enjoy clues, problem-solving and prize-led fundraising. This format is coming soon.',
-          // to: '/event-formats/puzzle-challenges',
+          title: 'Weekly Puzzle Challenge',
+          text: 'A fixed-season subscription puzzle that generates recurring income. Supporters pay once for the full season, a new puzzle drops each week, and a leaderboard tracks the competition. A legal alternative to a weekly lotto for non-profits where gambling is restricted.',
+          to: '/event-formats/weekly-puzzle-challenge',
         },
         {
-          title: 'Non-digital ticketed events',
-          text: 'Set up dinners, galas, sports events, race nights, awards nights, coffee mornings, family fun days and other ticketed fundraisers with ticket sales, QR check-in, admins, payment tracking and reconciliation.',
+          title: 'Puzzle Drop',
+          text: 'A single standalone puzzle sold via link or QR code. Sell it at a club night, on the doorstep or via WhatsApp. Each Puzzle Drop has its own leaderboard and takes minutes to set up.',
+          to: '/event-formats/puzzle-drop',
+        },
+        {
+          title: 'Sponsored events',
+          text: 'Run sponsored walks, runs, cycles, readathons and challenges. Set up the activity, link it to peer fundraising and every participant gets their own page, target and shareable link to collect sponsorship from their own network.',
+          to: '/event-formats/sponsored-events',
+        },
+        {
+          title: 'Ticketed events',
+          text: 'Set up dinners, galas, sports events, race nights, awards nights, coffee mornings, family fun days and any other in-person fundraiser with ticket sales, QR check-in, payment tracking and reconciliation.',
           to: '/event-formats/ticketed-events',
         },
-        /*
-        {
-          title: 'Escape room fundraisers',
-          text: 'A team-based challenge format for schools, clubs, charities and community groups that want a more immersive fundraiser.',
-          to: '/event-formats/escape-room',
-        },
-        */
-        /*
-        {
-          title: 'Treasure hunts',
-          text: 'A local challenge format for community trails, family fundraisers and supporter campaigns.',
-          to: '/event-formats/treasure-hunt',
-        },
-        */
       ]}
       faqs={[
         {
-          question: 'Why call these Event Formats?',
+          question: 'Do I need to prepare content for the games?',
           answer:
-            'Because FundRaisely is not only a quiz app. Event Formats gives room for digital games, repeatable fundraising activities, campaign activities and non-digital ticketed events that organisations can set up, share, run and report on.',
+            'No. Quiz questions, elimination rounds and puzzle challenges are all built into the platform. You do not need to write questions, manage scoring or prepare a hosting script. Set up the event, set the price, press start.',
         },
         {
           question: 'Which event formats are available now?',
           answer:
-            'FundRaisely is focused on quiz fundraisers, elimination games and ticketed event workflows. Puzzle challenges are planned soon, while other challenge formats can be added later as the platform expands.',
+            'All six formats are live: quiz fundraisers, elimination games, the Weekly Puzzle Challenge, Puzzle Drop, sponsored events and ticketed events. Each has its own setup flow, payment tracking and reports.',
         },
         {
-          question: 'What are non-digital ticketed events?',
+          question: 'What is the Weekly Puzzle Challenge?',
           answer:
-            'Non-digital ticketed events are ordinary fundraising events such as dinners, galas, sports events, race nights, awards nights, coffee mornings, family fun days, concerts, workshops, community evenings and other in-person fundraisers. The activity happens offline, but FundRaisely helps with setup, ticketing, check-in, payment tracking and reconciliation.',
+            'The Weekly Puzzle Challenge is a subscription-based puzzle fundraiser where supporters pay once for a fixed season. A new puzzle drops each week, access is gated to confirmed subscribers, and a leaderboard tracks scores across the season. Because it is skill-based rather than chance-based, it works where gambling regulations prevent running a weekly lotto.',
         },
         {
-          question: 'How do ticketed events work?',
+          question: 'What is a Puzzle Drop?',
           answer:
-            'The host sets up the event, selects ticketed event as the format, adds ticket prices, sponsor details, prize or giveaway details where relevant, and shares the event link. Supporters can buy or reserve tickets, and the organiser can manage attendance and payments through the event flow.',
+            'A Puzzle Drop is a standalone one-off puzzle sold as a single fundraiser. Supporters pay once to access one puzzle and appear on the leaderboard. It is designed to be sold quickly in person — at a club night, on the doorstep or via a QR code — without requiring any event setup or ongoing subscription.',
         },
         {
-          question: 'Can helpers check people in at the event?',
+          question: 'How do sponsored events work?',
           answer:
-            'Yes. Hosts can add admins or helpers to support check-in on the day or night of the event. Admins can scan ticket QR codes on mobile, confirm attendance, help with walk-ins and support payment checks without needing to run the whole event.',
+            'Sponsored events are set up as an activity type first — with a title, fundraising goal, activity type such as walk or cycle, and a sponsorship window. They are then linked in the peer fundraising dashboard, which creates individual participant pages, personal targets and sponsorship tracking. The organiser sets up each participant page and distributes the link for the participant to share with their own network.',
+        },
+        {
+          question: 'What are ticketed events?',
+          answer:
+            'Ticketed events are ordinary in-person fundraisers such as dinners, galas, sports events, race nights, awards nights, coffee mornings and family fun days. The activity happens offline but FundRaisely handles setup, ticketing, QR check-in, payment tracking and reconciliation.',
+        },
+        {
+          question: 'Can helpers check people in at an event?',
+          answer:
+            'Yes. Hosts can add admins or helpers to support check-in on the day or night of the event. Admins can scan ticket QR codes on mobile, confirm attendance, help with walk-ins and support payment checks without needing to manage the whole event.',
         },
         {
           question: 'Can organisations accept payment on the night?',
           answer:
-            'Yes. Ticketed events can support payment on the night as well as pre-event ticket sales, depending on how the organiser wants to run the fundraiser. Payment records can then flow into the same tracking and reconciliation process used across FundRaisely event formats.',
+            'Yes. All event formats support payment on the night as well as pre-event ticket sales, depending on how the organiser wants to run the fundraiser. Cash, card, instant payments and crypto are all supported.',
         },
         {
-          question: 'Can these formats connect to campaigns and reports?',
+          question: 'Do all formats connect to reports?',
           answer:
-            'Yes. Event formats are intended to connect back to campaigns, ticketing, payment tracking, CRM, impact statements and reports so each fundraiser has a clear setup, activity record and outcome record.',
+            'Yes. Every event format connects to payment tracking, reconciliation and reports. After the event, organisers can approve a locked audit-ready reconciliation and download financial and impact reports for the committee.',
         },
         {
-          question: 'Can organisations still run ordinary events?',
+          question: 'Can these formats work alongside peer fundraising?',
           answer:
-            'Yes. FundRaisely supports ordinary ticketed events as well as ready-to-run games and activities. That means an organisation can run a quiz, an elimination game, a campaign activity or a traditional event such as a dinner, gala, sports day or community fundraiser.',
+            'Yes. Sponsored events connect directly to peer fundraising. Activity packs — which can include quiz entries, elimination game entries, puzzle drops and event tickets — can be sold door to door through individual member and player seller links.',
         },
       ]}
       relatedLinks={[
         {
+          label: 'Peer fundraising',
+          to: '/features/peer-fundraising',
+          description: 'Sell activity packs door to door or run sponsored events through your people.',
+        },
+        {
+          label: 'Weekly Puzzle Challenge',
+          to: '/event-formats/weekly-puzzle-challenge',
+          description: 'Generate recurring income with a subscription puzzle season.',
+        },
+        {
           label: 'Features',
           to: '/features',
-          description: 'See the platform tools behind each fundraiser.',
+          description: 'See the platform tools behind every event format.',
         },
         {
-          label: 'Quiz fundraisers',
-          to: '/event-formats/quiz',
-          description: 'Run a digital quiz night for teams or individuals.',
-        },
-        {
-          label: 'Elimination games',
-          to: '/event-formats/elimination',
-          description: 'Run a quick last-person-standing fundraising game.',
-        },
-        {
-          label: 'Book a demo',
+          label: 'Contact',
           to: '/contact',
           description: 'Talk through which formats fit your organisation.',
         },

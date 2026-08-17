@@ -349,12 +349,12 @@ const relatedLinks = [
   },
   {
     label: 'Payments',
-    to: '/features/payments',
+    to: '/features/financial-records',
     text: 'Track real-world school fundraising payments across cash, card, bank transfer and manual methods.',
   },
   {
     label: 'Reports',
-    to: '/features/reports',
+    to: '/features/financial-records',
     text: 'Create clearer records for PTA meetings, treasurers and school committees.',
   },
   {

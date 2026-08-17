@@ -1,3 +1,4 @@
+//src/pages/site/components/seo/Breadcrumbs.tsx
 import { Link } from 'react-router-dom';
 import type { BreadcrumbItem } from './SEO';
 
