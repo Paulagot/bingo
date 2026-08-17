@@ -69,7 +69,7 @@ export async function reservePeerOrderTickets({orderId,paymentCategory,paymentRe
  }catch(e){await conn.rollback();throw e}finally{conn.release()}
 }
 
-export async function confirmPeerOrderReservations(orderId) {
+export async function confirmPeerOrderReservations({ orderId, paymentReference = null, externalTransactionId = null }) {
   const [orderRows] = await connection.execute(
     `SELECT * FROM ${TABLE_PREFIX}peer_orders WHERE id=? LIMIT 1`,
     [orderId],
