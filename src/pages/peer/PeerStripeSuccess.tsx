@@ -39,9 +39,9 @@ export default function PeerStripeSuccess() {
 
     let cancelled = false;
     let attempts = 0;
-    const maxAttempts = 12; // ~24 seconds
+    const maxAttempts = 15; // ~30 seconds — extra buffer for slow webhooks
     let confirmedAttempts = 0;
-    const maxConfirmedGraceAttempts = 5; // ~10 more seconds once confirmed, waiting for entries
+    const maxConfirmedGraceAttempts = 8; // ~16 more seconds once confirmed, waiting for entries
 
     const poll = async () => {
       if (cancelled) return;
@@ -53,6 +53,8 @@ export default function PeerStripeSuccess() {
         setEntries(data.entries || []);
 
         if (data.order.paymentStatus === 'confirmed') {
+          // Order is confirmed — wait for entries to appear (expandPeerOrder
+          // may still be running server-side when we get the first confirmed poll)
           if ((data.entries || []).length > 0 || confirmedAttempts >= maxConfirmedGraceAttempts) {
             setStatus('confirmed');
             return;
@@ -61,8 +63,23 @@ export default function PeerStripeSuccess() {
           window.setTimeout(poll, 2000);
           return;
         }
+
+        // Still pending — keep polling up to maxAttempts.
+        // On the final attempt, do one last check rather than immediately
+        // giving up — catches the case where the webhook arrived between
+        // our last two polls.
         attempts += 1;
-        if (attempts >= maxAttempts) { setStatus('timeout'); return; }
+        if (attempts >= maxAttempts) {
+          if (data.order.paymentStatus === 'confirmed' && (data.entries || []).length > 0) {
+            setStatus('confirmed');
+          } else {
+            // Show timeout but keep order/entries in state so the fallback
+            // screen can upgrade to confirmed if a background poll succeeds.
+            setStatus('timeout');
+          }
+          return;
+        }
+
         window.setTimeout(poll, 2000);
       } catch {
         attempts += 1;
@@ -74,6 +91,43 @@ export default function PeerStripeSuccess() {
     poll();
     return () => { cancelled = true; };
   }, [orderId]);
+
+  // Once we've hit timeout, keep polling slowly in the background.
+  // If the webhook arrives late (e.g. Railway slowdown) the screen
+  // upgrades to the proper confirmed view without needing a page refresh.
+  useEffect(() => {
+    if (status !== 'timeout' || !orderId) return;
+
+    let cancelled = false;
+    let backgroundAttempts = 0;
+    const maxBackgroundAttempts = 15; // another ~60 seconds at 4s intervals
+
+    const backgroundPoll = async () => {
+      if (cancelled) return;
+      try {
+        const data = await api.getOrderSummary(orderId);
+        if (cancelled) return;
+
+        if (data.order.paymentStatus === 'confirmed' && (data.entries || []).length > 0) {
+          setOrder(data.order);
+          setEntries(data.entries || []);
+          setStatus('confirmed');
+          return;
+        }
+      } catch {
+        // non-fatal — just keep trying
+      }
+
+      backgroundAttempts += 1;
+      if (backgroundAttempts < maxBackgroundAttempts) {
+        window.setTimeout(backgroundPoll, 4000);
+      }
+    };
+
+    // Start background polling after a short delay
+    const timer = window.setTimeout(backgroundPoll, 4000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [status, orderId]);
 
   // Derive branding from club data — same logic as PeerSupportPage
   const theme = useMemo(() => getTheme(pageData), [pageData]);
@@ -102,6 +156,8 @@ export default function PeerStripeSuccess() {
     );
   }
 
+  // Show the proper thank-you screen if we have a confirmed order with entries,
+  // regardless of whether we got here via 'confirmed' or late-resolving 'timeout'.
   if ((status === 'confirmed' || status === 'timeout') && order) {
     return (
       <main className="min-h-screen p-4 py-8" style={{ background: bgColor }}>
@@ -123,14 +179,21 @@ export default function PeerStripeSuccess() {
     );
   }
 
+  // Pure fallback — no order data at all, or orderId missing.
+  // Background polling (above) will upgrade this to the thank-you screen
+  // if the webhook arrives while the supporter is still on the page.
   return (
     <main className="grid min-h-screen place-items-center p-6" style={{ background: bgColor }}>
       <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-sm">
-        <div className="text-5xl">🎈</div>
+        <Loader2
+          className="mx-auto h-10 w-10 animate-spin"
+          style={{ color: theme.primary }}
+        />
+        <div className="text-5xl mt-2">🎈</div>
         <h2 className="mt-4 text-2xl font-black text-slate-950">Thank you for your support!</h2>
         <p className="mt-3 text-sm font-semibold text-slate-600">
-          Your payment was received, but the order details are still being activated.
-          Check your email shortly for confirmation.
+          Your payment was received — we're just finishing setting up your entries.
+          This page will update automatically, or check your email shortly.
         </p>
         {orderId && (
           <p className="mt-4 text-xs font-bold text-slate-400">
