@@ -69,21 +69,80 @@ export async function reservePeerOrderTickets({orderId,paymentCategory,paymentRe
  }catch(e){await conn.rollback();throw e}finally{conn.release()}
 }
 
-export async function confirmPeerOrderReservations({orderId,paymentReference=null,externalTransactionId=null}){
- const conn=await connection.getConnection();
- try{
-  await conn.beginTransaction();
-  const [allRows]=await conn.execute(`SELECT id,status,entry_type,linked_ticket_id,room_id,metadata_json FROM ${E} WHERE order_id=? ORDER BY created_at FOR UPDATE`,[orderId]);
-  console.log('[PeerTicketReservation] Confirming reservations:',{orderId,totalEntries:allRows.length,entries:allRows.map(row=>({entryId:row.id,status:row.status,entryType:row.entry_type,linkedTicketId:row.linked_ticket_id,roomId:row.room_id}))});
-  const rows=allRows.filter(row=>row.status==='pending_payment'&&row.linked_ticket_id);
-  console.log('[PeerTicketReservation] Eligible reservations:',{orderId,eligibleCount:rows.length,ticketIds:rows.map(row=>row.linked_ticket_id)});
-  for(const row of rows){
-   await conn.execute(`UPDATE ${T} SET payment_status='payment_confirmed',redemption_status='ready',expires_at=NULL,payment_reference=COALESCE(?,payment_reference),confirmed_at=UTC_TIMESTAMP(),confirmed_by='system',confirmed_by_name='Peer Fundraising',confirmed_by_role='system',updated_at=UTC_TIMESTAMP() WHERE ticket_id=? AND payment_status='payment_claimed'`,[paymentReference,row.linked_ticket_id]);
-   await conn.execute(`UPDATE ${L} SET status='confirmed',payment_reference=COALESCE(?,payment_reference),external_transaction_id=COALESCE(?,external_transaction_id),confirmed_at=UTC_TIMESTAMP(),confirmed_by='system',confirmed_by_name='Peer Fundraising',confirmed_by_role='system',updated_at=UTC_TIMESTAMP() WHERE ticket_id=? AND status IN ('expected','claimed')`,[paymentReference,externalTransactionId,row.linked_ticket_id]);
-   await conn.execute(`UPDATE ${E} SET status='confirmed',confirmed_at=UTC_TIMESTAMP() WHERE id=?`,[row.id]);
+export async function confirmPeerOrderReservations(orderId) {
+  const [orderRows] = await connection.execute(
+    `SELECT * FROM ${TABLE_PREFIX}peer_orders WHERE id=? LIMIT 1`,
+    [orderId],
+  );
+  const order = orderRows[0];
+  if (!order) throw new Error('peer_order_not_found');
+
+  const [entries] = await connection.execute(
+    `SELECT
+       e.id,
+       e.linked_ticket_id,
+       e.room_id,
+       e.entry_type,
+       e.status,
+       e.order_item_id,
+       e.pack_item_id
+     FROM ${TABLE_PREFIX}peer_entries e
+     WHERE e.order_id=?
+       AND e.status='pending_payment'
+       AND e.linked_ticket_id IS NOT NULL`,
+    [orderId],
+  );
+
+  console.log('[PeerTicketReservation] Eligible reservations:', {
+    orderId,
+    eligibleCount: entries.length,
+    ticketIds: entries.map(e => e.linked_ticket_id),
+  });
+
+  if (!entries.length) return { confirmedCount: 0 };
+
+  // Confirm payment status on each reserved ticket.
+  // Fee correction (entry_fee, extras, ledger rows) is intentionally left to
+  // expandPeerOrder, which runs immediately after this and has the full pack
+  // metadata needed to split extras correctly. Doing it here too would race
+  // and potentially overwrite the correct value.
+  let confirmedCount = 0;
+
+  for (const entry of entries) {
+    await confirmTicketReservation(entry.linked_ticket_id, order);
+    confirmedCount++;
   }
-  await conn.commit();console.log('[PeerTicketReservation] Reservation confirmation complete:',{orderId,confirmedCount:rows.length});return {confirmedCount:rows.length};
- }catch(e){await conn.rollback();throw e}finally{conn.release()}
+
+  console.log('[PeerTicketReservation] Reservation confirmation complete:', {
+    orderId,
+    confirmedCount,
+  });
+
+  return { confirmedCount };
+}
+
+async function confirmTicketReservation(ticketId, order) {
+  await connection.execute(
+    `UPDATE ${T}
+     SET payment_status  = 'payment_confirmed',
+         redemption_status = 'ready',
+         confirmed_at    = UTC_TIMESTAMP(),
+         expires_at      = NULL,
+         updated_at      = UTC_TIMESTAMP()
+     WHERE ticket_id     = ?`,
+    [ticketId],
+  );
+
+  await connection.execute(
+    `UPDATE ${L}
+     SET status        = 'confirmed',
+         confirmed_at  = UTC_TIMESTAMP(),
+         updated_at    = UTC_TIMESTAMP()
+     WHERE ticket_id   = ?
+       AND ledger_type = 'entry_fee'
+       AND status IN ('expected','claimed')`,
+    [ticketId],
+  );
 }
 
 export async function cancelPeerOrderReservations(orderId){

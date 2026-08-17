@@ -5,12 +5,16 @@ import {
   sendPeerEntryTicketEmail,
 } from './peerTicketBridgeService.js';
 import { createPuzzleAccessForPeerEntry } from './peerPuzzleAccessService.js';
+import { createExpectedPayment } from '../../mgtsystem/services/quizPaymentLedgerService.js';
 
 const O=`${TABLE_PREFIX}peer_orders`, OI=`${TABLE_PREFIX}peer_order_items`, PI=`${TABLE_PREFIX}peer_pack_items`;
 const E=`${TABLE_PREFIX}peer_entries`, R=`${TABLE_PREFIX}web2_quiz_rooms`;
 const T=`${TABLE_PREFIX}quiz_tickets`;
+const L=`${TABLE_PREFIX}quiz_payment_ledger`;
 
 const parseJson=(v,f={})=>{if(!v)return f;if(typeof v==='object')return v;try{return JSON.parse(v)}catch{return f}};
+const paymentMethod=cat=>({stripe:'stripe',crypto:'crypto',instant_payment:'instant_payment',bank_transfer:'instant_payment',cash_to_participant:'cash',cash:'cash',card:'card',card_tap:'card_tap'}[cat]||'other');
+const paymentSource=cat=>cat==='stripe'?'webhook_auto':cat==='crypto'?'onchain_auto':'admin_assigned';
 
 async function apportionAndRoomTypes(items, packPrice) {
   const ids=[...new Set(items.map(i=>i.target_room_id))],ph=ids.map(()=>'?').join(',');
@@ -57,6 +61,58 @@ function correctEntryType(originalItemType, roomGameType) {
   return originalItemType;
 }
 
+/**
+ * Calculate the apportioned entry fee and extras breakdown for a quiz room.
+ * Mirrors the same logic in createTicketForPeerEntry so both the fresh-ticket
+ * path and the capacity-reservation (existingTicketId) path produce identical
+ * numbers.
+ */
+function calcQuizExtras(fee, packItemMetadata, cfg) {
+  const configuredEntryFee = Number(
+    packItemMetadata.entryFee ?? cfg.entryFee ?? 0,
+  );
+
+  const configuredExtras = Array.isArray(packItemMetadata.includedExtras)
+    ? packItemMetadata.includedExtras
+    : Object.entries(cfg.fundraisingOptions || {})
+        .filter(([, enabled]) => enabled === true)
+        .map(([extraId]) => ({
+          extraId,
+          price: Number(cfg.fundraisingPrices?.[extraId] || 0),
+        }))
+        .filter(extra => extra.price > 0);
+
+  const configuredExtrasTotal = configuredExtras.reduce(
+    (sum, extra) => sum + Number(extra.price || 0), 0,
+  );
+  const configuredTotal = configuredEntryFee + configuredExtrasTotal;
+  const allocationRatio = configuredTotal > 0 ? fee / configuredTotal : 1;
+
+  const entryFee = Number((configuredEntryFee * allocationRatio).toFixed(2));
+
+  let allocatedExtrasUsed = 0;
+  const extras = configuredExtras.map((extra, index) => {
+    const price = index === configuredExtras.length - 1
+      ? Number((fee - entryFee - allocatedExtrasUsed).toFixed(2))
+      : Number((Number(extra.price || 0) * allocationRatio).toFixed(2));
+    allocatedExtrasUsed += price;
+    return {
+      extraId: extra.extraId,
+      label: extra.label || extra.extraId,
+      price,
+      configuredPrice: Number(extra.price || 0),
+      source: 'peer_pack',
+      included: true,
+    };
+  });
+
+  const extrasTotal = Number(
+    extras.reduce((sum, extra) => sum + extra.price, 0).toFixed(2),
+  );
+
+  return { entryFee, extras, extrasTotal };
+}
+
 export async function expandPeerOrder(orderId) {
   const conn=await connection.getConnection();
   const created=[];
@@ -73,7 +129,6 @@ export async function expandPeerOrder(orderId) {
     if(!order){ await conn.rollback(); throw new Error('peer_order_not_found'); }
     if(order.payment_status!=='confirmed'){ await conn.rollback(); throw new Error('peer_order_not_confirmed'); }
 
-    // ── Fix 1: alias e.id and explicitly select e.order_item_id ─────────
     const [existingEntries]=await conn.execute(
       `SELECT
          e.id            AS entry_id,
@@ -96,7 +151,6 @@ export async function expandPeerOrder(orderId) {
         if(existing.status!=='pending_payment') continue;
 
         const entryMetadata=parseJson(existing.metadata_json,{});
-        // ── Fix 2: use entry_id not id (pi.* overwrites id) ─────────────
         created.push({
           entryId:          existing.entry_id,
           orderItemId:      existing.order_item_id,
@@ -109,9 +163,7 @@ export async function expandPeerOrder(orderId) {
         });
       }
 
-      // Reload pack metadata explicitly so a retry always has the
-      // original option snapshot. pi.* in the SELECT above can have
-      // metadata_json collide with e.metadata_json in some MySQL drivers.
+      // Reload pack metadata so a retry always has the original option snapshot.
       for(const item of created){
         const [packRows]=await conn.execute(
           `SELECT * FROM ${PI} WHERE id=? LIMIT 1`,
@@ -124,12 +176,8 @@ export async function expandPeerOrder(orderId) {
         }
       }
 
-      // ── Fix 3: recalculate apportioned fees from order items ──────────
-      // Capacity reservation entries are created before payment so
-      // apportionedFee is never written to metadata_json at reservation
-      // time. Recalculate here using the same apportionAndRoomTypes logic
-      // as the non-reservation path so bundle discounts are correctly
-      // split at confirmation time.
+      // Recalculate apportioned fees from order items so bundle discounts are
+      // correctly split at confirmation time.
       const byOrderItemId = new Map();
       for(const item of created){
         const oiId = item.orderItemId;
@@ -156,7 +204,7 @@ export async function expandPeerOrder(orderId) {
         }
       }
 
-          console.log('[ExpandPeerOrder] created items after fee recalc:', 
+      console.log('[ExpandPeerOrder] created items after fee recalc:',
         created.map(item => ({
           entryId:     item.entryId,
           orderItemId: item.orderItemId,
@@ -164,7 +212,6 @@ export async function expandPeerOrder(orderId) {
           packItemId:  item.packItem?.id,
         }))
       );
-      // ── End Fix 3 ─────────────────────────────────────────────────────
 
       await conn.commit();
 
@@ -241,44 +288,116 @@ export async function expandPeerOrder(orderId) {
           [x.entryId],
         );
 
-        console.log('[ExpandPeerOrder] updating ticket fee:', {
-  entryId:          x.entryId,
-  existingTicketId,
-  fee:              x.fee,
-});
-
         if(entryRows[0]?.linked_ticket_id){
           const existingTicketId = entryRows[0].linked_ticket_id;
 
-          // Correct ticket fee to apportioned amount.
-          // Capacity reservation tickets are created at the room's full
-          // entry_fee before payment. At confirmation we correct to the
-          // pro-rata share of the actual pack price paid.
-          // For single-pack purchases where fee === entry_fee this is a no-op.
+          // Fetch the ticket and room so we can recalculate extras correctly
+          const [[ticketRow]] = await connection.execute(
+            `SELECT t.*, r.game_type, r.config_json
+             FROM ${T} t
+             JOIN ${R} r ON r.room_id = t.room_id
+             WHERE t.ticket_id = ?
+             LIMIT 1`,
+            [existingTicketId],
+          );
+
+          const gameType = ticketRow?.game_type;
+          const cfg = parseJson(ticketRow?.config_json, {});
+          const fee = x.fee;
+
+          let entryFee = fee;
+          let extras = [];
+          let extrasTotal = 0;
+
+          if (gameType === 'quiz') {
+            ({ entryFee, extras, extrasTotal } = calcQuizExtras(
+              fee, x.packItemMetadata, cfg,
+            ));
+          }
+          // elimination and ticketed_event: full fee goes to entry_fee, no extras split
+
+          console.log('[ExpandPeerOrder] correcting existing ticket fee:', {
+            entryId: x.entryId,
+            existingTicketId,
+            gameType,
+            fee,
+            entryFee,
+            extrasTotal,
+            extrasCount: extras.length,
+          });
+
+          // Correct ticket row — entry_fee, extras, extras_total, total_amount
           await connection.execute(
             `UPDATE ${T}
              SET entry_fee    = ?,
-                 total_amount = ? + extras_total,
+                 extras       = ?,
+                 extras_total = ?,
+                 total_amount = ?,
                  updated_at   = UTC_TIMESTAMP()
              WHERE ticket_id  = ?`,
-            [x.fee, x.fee, existingTicketId],
+            [entryFee, JSON.stringify(extras), extrasTotal, fee, existingTicketId],
           );
 
-          // Correct the ledger entry to match.
+          // Correct the entry_fee ledger row
           await connection.execute(
-            `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+            `UPDATE ${L}
              SET amount     = ?,
                  updated_at = UTC_TIMESTAMP()
-             WHERE ticket_id  = ?
+             WHERE ticket_id   = ?
                AND ledger_type = 'entry_fee'`,
-            [x.fee, existingTicketId],
+            [entryFee, existingTicketId],
           );
 
+          // Write extras ledger rows — skip if they already exist (idempotent retry safety)
+          const [existingExtrasLedger] = await connection.execute(
+            `SELECT id FROM ${L}
+             WHERE ticket_id   = ?
+               AND ledger_type = 'extra_purchase'
+             LIMIT 1`,
+            [existingTicketId],
+          );
+
+          if (!existingExtrasLedger.length) {
+            for (const extra of extras) {
+              if (extra.price <= 0) continue;
+              await createExpectedPayment({
+                roomId:               x.packItem.target_room_id,
+                clubId:               order.club_id,
+                playerId:             `ticket_${existingTicketId}`,
+                playerName:           order.supporter_name,
+                ledgerType:           'extra_purchase',
+                amount:               extra.price,
+                currency:             order.currency,
+                paymentMethod:        paymentMethod(order.payment_method_category),
+                paymentSource:        paymentSource(order.payment_method_category),
+                clubPaymentMethodId:  order.club_payment_method_id || null,
+                paymentReference:     order.payment_reference || `peer_order_${order.id}`,
+                externalTransactionId: order.external_transaction_id || null,
+                status:               'confirmed',
+                confirmedAt:          new Date(),
+                confirmedBy:          paymentSource(order.payment_method_category),
+                confirmedByName:      order.payment_method_category === 'stripe' ? 'Stripe'
+                                      : order.payment_method_category === 'crypto' ? 'Solana'
+                                      : 'Club Admin',
+                confirmedByRole:      'system',
+                ticketId:             existingTicketId,
+                extraId:              extra.extraId,
+                extraMetadata: {
+                  ...extra,
+                  peerFundraiserId: order.peer_fundraiser_id,
+                  peerOrderId:      order.id,
+                  peerEntryId:      x.entryId,
+                },
+              });
+            }
+          }
+
+          // Confirm the entry
           await connection.execute(
             `UPDATE ${E}
-             SET status='confirmed',
-                 confirmed_at=COALESCE(confirmed_at, UTC_TIMESTAMP())
-             WHERE id=?`,
+             SET status       = 'confirmed',
+                 confirmed_at = COALESCE(confirmed_at, UTC_TIMESTAMP())
+             WHERE id = ?`,
             [x.entryId],
           );
 
