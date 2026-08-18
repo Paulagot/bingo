@@ -198,31 +198,40 @@ export async function expandPeerOrder(orderId) {
         }
       }
 
-      // Recalculate apportioned fees from order items so bundle discounts
-      // are correctly split at confirmation time.
-      const byOrderItemId = new Map();
+      // ── Single shared feeMap per order item ───────────────────────────────
+      // Crucially, we load ALL pack items for each order item (not just the
+      // ones that have existing entries) so the apportionment ratio is always
+      // calculated across the full bundle. If we only passed the reserved
+      // items, the ratio would be wrong — e.g. splitting €10 between quiz and
+      // elimination only would give them more than their fair share, and the
+      // puzzle (created below in the missing-entry loop) would independently
+      // get a fee that causes the ledger total to exceed the order total.
+      const feeMapByOrderItemId = new Map();
+
+      const [allOrderItems] = await conn.execute(
+        `SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,
+        [orderId],
+      );
+
+      for(const oi of allOrderItems){
+        const [allPackItems] = await conn.execute(
+          `SELECT * FROM ${PI} WHERE pack_id=? ORDER BY created_at`,
+          [oi.pack_id],
+        );
+        const { feeMap, gameTypeBy } = await apportionAndRoomTypes(
+          allPackItems,
+          Number(oi.unit_price),
+        );
+        feeMapByOrderItemId.set(oi.id, { feeMap, gameTypeBy, allPackItems, oi });
+      }
+
+      // Apply correct fees to existing reserved entries
       for(const item of created){
         const oiId = item.orderItemId;
         if(!oiId) continue;
-        if(!byOrderItemId.has(oiId)) byOrderItemId.set(oiId,[]);
-        byOrderItemId.get(oiId).push(item);
-      }
-
-      for(const [oiId, items] of byOrderItemId){
-        const [oiRows] = await conn.execute(
-          `SELECT * FROM ${OI} WHERE id=? LIMIT 1`,
-          [oiId],
-        );
-        const oi = oiRows[0];
-        if(!oi) continue;
-
-        const packItems = items.map(item => item.packItem);
-        const { feeMap } = await apportionAndRoomTypes(
-          packItems,
-          Number(oi.unit_price),
-        );
-        for(const item of items){
-          item.fee = feeMap.get(item.packItem.id) ?? item.fee;
+        const cached = feeMapByOrderItemId.get(oiId);
+        if(cached){
+          item.fee = cached.feeMap.get(item.packItem.id) ?? item.fee;
         }
       }
 
@@ -236,37 +245,26 @@ export async function expandPeerOrder(orderId) {
       );
 
       // ── Find pack items with no entry yet (e.g. puzzle items skipped by
-      // reservation) and create them fresh so mixed bundles are fully handled.
+      // reservation) and create them fresh using the same shared feeMap so
+      // all items in the bundle sum to exactly the pack price.
       const existingPackItemIds = new Set(
         existingEntries.map(e => e.pack_item_id),
       );
 
-      const [orderItems] = await conn.execute(
-        `SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,
-        [orderId],
-      );
-
-      for(const oi of orderItems){
-        const [packItems] = await conn.execute(
-          `SELECT * FROM ${PI} WHERE pack_id=? ORDER BY created_at`,
-          [oi.pack_id],
-        );
-        const { feeMap, gameTypeBy } = await apportionAndRoomTypes(
-          packItems, Number(oi.unit_price),
-        );
-
+      for(const [, { feeMap, gameTypeBy, allPackItems, oi }] of feeMapByOrderItemId){
         for(let orderQty=0; orderQty<Number(oi.quantity); orderQty++){
-          for(const pi of packItems){
+          for(const pi of allPackItems){
             if(existingPackItemIds.has(pi.id)) continue; // already handled above
 
             const correctedType = correctEntryType(pi.item_type, gameTypeBy[pi.target_room_id]);
+            const fee = feeMap.get(pi.id) ?? 0;
 
             console.log('[ExpandPeerOrder] Creating missing entry for pack item:', {
               packItemId: pi.id,
               itemType: pi.item_type,
               correctedType,
               roomId: pi.target_room_id,
-              fee: feeMap.get(pi.id),
+              fee,
             });
 
             for(let q=0; q<Number(pi.quantity); q++){
@@ -282,14 +280,14 @@ export async function expandPeerOrder(orderId) {
                   order.id, oi.id, oi.pack_id, pi.id,
                   orderQty, q,
                   order.participant_id, order.supporter_name, order.supporter_email, correctedType,
-                  JSON.stringify({ apportionedFee: feeMap.get(pi.id) }),
+                  JSON.stringify({ apportionedFee: fee }),
                 ],
               );
               created.push({
                 entryId,
                 orderItemId:      oi.id,
                 packItem:         pi,
-                fee:              feeMap.get(pi.id),
+                fee,
                 correctedType,
                 packItemMetadata: parseJson(pi.metadata_json, {}),
               });
