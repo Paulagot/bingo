@@ -64,8 +64,7 @@ function correctEntryType(originalItemType, roomGameType) {
 /**
  * Calculate the apportioned entry fee and extras breakdown for a quiz room.
  * Mirrors the same logic in createTicketForPeerEntry so both the fresh-ticket
- * path and the capacity-reservation (existingTicketId) path produce identical
- * numbers.
+ * path and the capacity-reservation (existingTicketId) path produce identical numbers.
  */
 function calcQuizExtras(fee, packItemMetadata, cfg) {
   const configuredEntryFee = Number(
@@ -127,8 +126,16 @@ export async function expandPeerOrder(orderId) {
       [orderId],
     );
     order=orders[0];
-    if(!order){ console.error('[ExpandPeerOrder] Order not found:', { orderId }); await conn.rollback(); throw new Error('peer_order_not_found'); }
-    if(order.payment_status!=='confirmed'){ console.error('[ExpandPeerOrder] Order not confirmed:', { orderId, paymentStatus: order.payment_status }); await conn.rollback(); throw new Error('peer_order_not_confirmed'); }
+    if(!order){
+      console.error('[ExpandPeerOrder] Order not found:', { orderId });
+      await conn.rollback();
+      throw new Error('peer_order_not_found');
+    }
+    if(order.payment_status!=='confirmed'){
+      console.error('[ExpandPeerOrder] Order not confirmed:', { orderId, paymentStatus: order.payment_status });
+      await conn.rollback();
+      throw new Error('peer_order_not_confirmed');
+    }
 
     console.log('[ExpandPeerOrder] Order found:', {
       orderId,
@@ -161,6 +168,7 @@ export async function expandPeerOrder(orderId) {
     });
 
     if(existingEntries.length){
+      // Process existing reserved entries (ticket-based items)
       for(const existing of existingEntries){
         if(existing.status!=='pending_payment') continue;
 
@@ -190,8 +198,8 @@ export async function expandPeerOrder(orderId) {
         }
       }
 
-      // Recalculate apportioned fees from order items so bundle discounts are
-      // correctly split at confirmation time.
+      // Recalculate apportioned fees from order items so bundle discounts
+      // are correctly split at confirmation time.
       const byOrderItemId = new Map();
       for(const item of created){
         const oiId = item.orderItemId;
@@ -227,6 +235,69 @@ export async function expandPeerOrder(orderId) {
         }))
       );
 
+      // ── Find pack items with no entry yet (e.g. puzzle items skipped by
+      // reservation) and create them fresh so mixed bundles are fully handled.
+      const existingPackItemIds = new Set(
+        existingEntries.map(e => e.pack_item_id),
+      );
+
+      const [orderItems] = await conn.execute(
+        `SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,
+        [orderId],
+      );
+
+      for(const oi of orderItems){
+        const [packItems] = await conn.execute(
+          `SELECT * FROM ${PI} WHERE pack_id=? ORDER BY created_at`,
+          [oi.pack_id],
+        );
+        const { feeMap, gameTypeBy } = await apportionAndRoomTypes(
+          packItems, Number(oi.unit_price),
+        );
+
+        for(let orderQty=0; orderQty<Number(oi.quantity); orderQty++){
+          for(const pi of packItems){
+            if(existingPackItemIds.has(pi.id)) continue; // already handled above
+
+            const correctedType = correctEntryType(pi.item_type, gameTypeBy[pi.target_room_id]);
+
+            console.log('[ExpandPeerOrder] Creating missing entry for pack item:', {
+              packItemId: pi.id,
+              itemType: pi.item_type,
+              correctedType,
+              roomId: pi.target_room_id,
+              fee: feeMap.get(pi.id),
+            });
+
+            for(let q=0; q<Number(pi.quantity); q++){
+              const entryId = nanoid(21);
+              await conn.execute(
+                `INSERT INTO ${E}
+                 (id,peer_fundraiser_id,club_id,room_id,order_id,order_item_id,pack_id,pack_item_id,
+                  order_quantity_index,pack_item_quantity_index,
+                  participant_id,supporter_name,supporter_email,entry_type,status,metadata_json)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending_payment',?)`,
+                [
+                  entryId, order.peer_fundraiser_id, order.club_id, pi.target_room_id,
+                  order.id, oi.id, oi.pack_id, pi.id,
+                  orderQty, q,
+                  order.participant_id, order.supporter_name, order.supporter_email, correctedType,
+                  JSON.stringify({ apportionedFee: feeMap.get(pi.id) }),
+                ],
+              );
+              created.push({
+                entryId,
+                orderItemId:      oi.id,
+                packItem:         pi,
+                fee:              feeMap.get(pi.id),
+                correctedType,
+                packItemMetadata: parseJson(pi.metadata_json, {}),
+              });
+            }
+          }
+        }
+      }
+
       await conn.commit();
 
       if(!created.length){
@@ -234,6 +305,7 @@ export async function expandPeerOrder(orderId) {
       }
 
     } else {
+      // No existing entries at all — fresh path (crypto, cash without reservation)
       const [orderItems]=await conn.execute(
         `SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,
         [orderId],
@@ -445,6 +517,11 @@ export async function expandPeerOrder(orderId) {
           );
         }
       } else if(itemType==='puzzle_entry'){
+        console.log('[ExpandPeerOrder] Creating puzzle access:', {
+          entryId: x.entryId,
+          fee: x.fee,
+          roomId: x.packItem.target_room_id,
+        });
         await createPuzzleAccessForPeerEntry(
           x.entryId,
           {
