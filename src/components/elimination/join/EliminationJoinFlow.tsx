@@ -20,6 +20,7 @@ import { StepLayout } from '../../Quiz/shared/StepWrapper';
 import { PaymentMethodSelector, type ClubPaymentMethod } from '../../Quiz/shared/PaymentMethodSelector';
 import { PaymentInstructionsContent, PaymentInstructionsFooter } from '../../Quiz/shared/PaymentInstructions';
 import { ActionButtons } from '../../Quiz/shared/ActionButtons';
+import DemoPaymentNotice from '../../demo/DemoPaymentNotice';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -442,6 +443,8 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
   // ── payment-method ─────────────────────────────────────────────────────────
   if (step === 'payment-method') {
     return (
+
+      
       <StepLayout
         mode="modal"
         icon="💳"
@@ -461,6 +464,7 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
           </div>
         ) : (
           <>
+            <DemoPaymentNotice />
             {error && (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
