@@ -64,7 +64,7 @@ const PUZZLE_DROP_URL = '';
 
 const ELIMINATION_URL = '';
 
-const SPONSORED_EVENT_URL = '';
+const SPONSORED_EVENT_URL = `${STAGING_BASE_URL}/fundraise/demo-non-profit/take-on-the-fundraisely-challenge/paula`;
 
 // ─────────────────────────────────────────────────────────────
 // STRIPE TEST DETAILS
@@ -351,12 +351,13 @@ export default function DemoPage() {
                     onClick={() => openDemo(SPONSORED_EVENT_URL)}
                     className="mt-8 inline-flex w-fit items-center gap-2 rounded-xl bg-[#157f85] px-6 py-4 font-black text-white transition hover:opacity-90"
                   >
-                    Try a sponsorship
+                    Check out a sponsorship page
                     <ExternalLink className="h-5 w-5" />
                   </button>
                 ) : (
                   <div className="mt-8 inline-flex w-fit rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-slate-400">
-                    Interactive demo coming shortly
+                      Try the sponsorship demo
+          <ArrowRight className="h-4 w-4" />
                   </div>
                 )}
 
