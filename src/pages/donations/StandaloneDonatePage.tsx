@@ -36,6 +36,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Heart, AlertCircle, Loader2, CheckCircle2, CreditCard, Coins } from 'lucide-react';
+import DemoPaymentNotice from '../../components/demo/DemoPaymentNotice';
 
 import StandaloneDonationService from './services/StandaloneDonationService';
 import type {
@@ -465,6 +466,8 @@ export default function StandaloneDonatePage() {
                   style={{ borderColor: '#dce1df' }}
                 />
               </div>
+
+<DemoPaymentNotice />
 
               <button
                 type="button"

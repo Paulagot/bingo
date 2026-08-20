@@ -53,7 +53,15 @@ export default function PeerStripeSuccess() {
         setEntries(data.entries || []);
 
         if (data.order.paymentStatus === 'confirmed') {
-          if ((data.entries || []).length > 0 || confirmedAttempts >= maxConfirmedGraceAttempts) {
+          // Wait until at least one entry is fully confirmed with a join URL.
+          // Entries exist in the DB as 'pending_payment' during capacity
+          // reservation (before expandPeerOrder runs), so checking
+          // entries.length alone would stop polling too early and render
+          // PeerOrderThankYou with no join links visible.
+          const hasReadyEntries = (data.entries || []).some(
+            (e: any) => e.status === 'confirmed' && e.join_url,
+          );
+          if (hasReadyEntries || confirmedAttempts >= maxConfirmedGraceAttempts) {
             setStatus('confirmed');
             return;
           }

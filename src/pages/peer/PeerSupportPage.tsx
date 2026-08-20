@@ -82,6 +82,7 @@ import ProgressBars from './support/ProgressBars';
 import SupportLayout from './support/SupportLayout';
 import ActivityDetailSheet from './support/ActivityDetailSheet';
 import SavingsBadge from './support/SavingsBadge';
+import DemoPaymentNotice from '../../components/demo/DemoPaymentNotice';
 
 // ── Lazy crypto imports ────────────────────────────────────────────────────────
 
@@ -638,12 +639,21 @@ export default function PeerSupportPage() {
       {step === 'packs' && (
         <>
           <SupportLayout>
-            <header className="mb-3 flex items-center justify-between gap-3 rounded-b-[1.75rem] bg-white/95 px-4 py-3 shadow-sm ring-1 ring-black/5 backdrop-blur">
-              <div className="min-w-0">
-                <p className="truncate text-lg font-black tracking-tight text-slate-950">{title}</p>
-                <p className="text-xs font-bold text-slate-400">Official Peer fundraiser</p>
-              </div>
-            </header>
+        <header className="mb-3 flex items-center justify-between gap-3 rounded-b-[1.75rem] bg-white/95 px-4 py-3 shadow-sm ring-1 ring-black/5 backdrop-blur">
+  <div className="min-w-0 flex-1">
+    <p className="truncate text-lg font-black tracking-tight text-slate-950">{title}</p>
+    <p className="text-xs font-bold text-slate-400">
+      Official Peer fundraiser{data?.club?.name ? ` for ${data.club.name}` : ''}
+    </p>
+  </div>
+  {logoUrl && (
+    <img
+      src={logoUrl}
+      alt={data?.club?.name ?? 'Club logo'}
+      className="h-10 w-10 shrink-0 rounded-full object-contain bg-white ring-1 ring-black/5"
+    />
+  )}
+</header>
 
             <SupporterHero
               clubName={data.club?.name}
@@ -853,6 +863,7 @@ export default function PeerSupportPage() {
           subtitle={`${checkoutMode === 'donation' ? 'Donation' : 'Total to pay'}: ${fmt(payableTotal, currency)}`}
           onBack={() => setStep('details')}
         >
+            <DemoPaymentNotice />
           {methodsLoading && <LoadingState message="Loading payment options…" compact />}
 
           {!methodsLoading && methodsError && (

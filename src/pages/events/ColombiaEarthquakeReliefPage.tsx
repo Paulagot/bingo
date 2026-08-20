@@ -79,12 +79,17 @@ const Web3Provider = lazy(() =>
 // EVENT CONFIG - update these per environment
 // -----------------------------------------------------------------------------
 
-const PEER_FUNDRAISER_ID = "60AgXlG9-go1nEAvinmXh";
+// const PEER_FUNDRAISER_ID = "60AgXlG9-go1nEAvinmXh";
 
-// Pack IDs - from fundraisely_peer_packs for the above fundraiser
-const PACK_BOTH_ID     = "KqeRPYMJVHtO_71EcQq48"; // Both games - €16
-const PACK_GAME_ONE_ID = "5848007CBBD44647"; // Game One - €10
-const PACK_GAME_TWO_ID = "2A5D2A2B9FA3465F"; // Game Two - €10
+// const PACK_BOTH_ID     = "3n9bpfN_XcZ2blwoBZwl4"; // Both games - €16
+// const PACK_GAME_ONE_ID = "VPnTbQo6aPtiEIADRRvoO"; // Game One - €10
+// const PACK_GAME_TWO_ID = "0R38c9lye2XLChGVhrgY4"; // Game Two - €10
+
+const PEER_FUNDRAISER_ID = "KqeRPYMJVHtO_71EcQq48";
+
+const PACK_BOTH_ID     = "qezD2hbL_rz6lliWP2Elr"; // Both games - €16
+const PACK_GAME_ONE_ID = "DPKwcy9yy-J0WuBO5JzUT"; // Game One - €10
+const PACK_GAME_TWO_ID = "WSWoQ9eSg78xRY9eQ-svr"; // Game Two - €10
 
 const BUNDLE_PRICE   = "€16";
 const GAME_PRICE     = "€10";
@@ -106,6 +111,9 @@ const SUPERTEAM_URL     = "https://ie.superteam.fun/";
 const CASTLE_DAO_URL    = "https://castledao.ie/";
 const EVENT_PAGE_URL    = "https://fundraisely.ie/events/colombia-earthquake-relief";
 const EVENT_SOCIAL_IMAGE = "https://fundraisely.ie/social/colombia-earthquake-og.png";
+
+const MATCH_FUND_SPONSOR = "Superteam Ireland";
+const MATCH_FUND_LIMIT   = 1000;
 
 const SHARE_TITLE = "Play for Colombia - Earthquake Relief Fundraiser";
 const SHARE_TEXT  =
@@ -603,11 +611,12 @@ export default function ColombiaEarthquakeReliefPage() {
               <img src={HERO_IMAGE_SRC} alt="Earthquake damage in Colombia" className="h-[280px] w-full rounded-[1.55rem] object-cover sm:h-[430px]" />
               <p className="px-2 pb-1 pt-2 text-[10px] leading-4 text-white/55">Image: RTÉ</p>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
-              <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
-              <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
-              <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
-            </div>
+        <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
+  <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
+  <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
+</div>
             <div className="mt-3 flex justify-center">
               <button type="button" onClick={shareFundraiser} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-black text-white/90 backdrop-blur">
                 <Share2 className="h-4 w-4" />{shareCopied ? "Link copied" : "Share this fundraiser"}
@@ -657,11 +666,12 @@ export default function ColombiaEarthquakeReliefPage() {
                 <img src={HERO_IMAGE_SRC} alt="Earthquake damage in Colombia" className="h-[500px] w-full rounded-[1.55rem] object-cover" />
                 <p className="px-2 pb-1 pt-2 text-[10px] leading-4 text-white/55">Image: RTÉ</p>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
-                <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
-                <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
-                <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
-              </div>
+           <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
+  <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
+  <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
+</div>
               <div className="mt-3 flex justify-end">
                 <button type="button" onClick={shareFundraiser} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-black text-white/90 backdrop-blur">
                   <Share2 className="h-4 w-4" />{shareCopied ? "Link copied" : "Share this fundraiser"}
@@ -708,31 +718,80 @@ export default function ColombiaEarthquakeReliefPage() {
           </SectionCard>
 
           {/* FUNDRAISING PROGRESS */}
-          <section className="overflow-hidden rounded-[2rem] bg-[#006b43] text-white shadow-[0_20px_60px_rgba(0,67,43,0.18)]">
-            <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:p-10">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-white/65">Together so far</p>
-                <div className="mt-2 text-5xl font-black tracking-tight sm:text-6xl">{impactLoading ? "…" : formatCurrency(totalRaised)}</div>
-                <p className="mt-2 text-base text-white/75">raised towards {target !== null ? `${formatCurrency(target)} target` : "our relief target"}</p>
-                <div className="mt-6 h-4 overflow-hidden rounded-full bg-white/15">
-                  <div className="h-full rounded-full bg-[#ffd600] transition-all duration-700" style={{ width: `${progress ?? 0}%` }} />
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs font-bold text-white/65">
-                  <span>{progress !== null ? `${progress}% funded` : "Target pending"}</span>
-                  <span>{formatCurrency(target)}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <ProgressMetric label="Ticket revenue" value={formatCurrency(data?.ticketRevenue)} />
-                <ProgressMetric label="Direct donations" value={formatCurrency(data?.directDonations)} />
-                <ProgressMetric label="Game 1 tickets" value={formatNumber(data?.gameOneTicketsSold)} />
-                <ProgressMetric label="Game 2 tickets" value={formatNumber(data?.gameTwoTicketsSold)} />
-              </div>
-            </div>
-          </section>
+      <section className="overflow-hidden rounded-[2rem] bg-[#006b43] text-white shadow-[0_20px_60px_rgba(0,67,43,0.18)]">
+  {/* Match fund banner */}
+  <div className="flex items-center gap-3 border-b border-white/15 bg-white/10 px-6 py-3 sm:px-8 lg:px-10">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ffd600]">
+      <HeartHandshake className="h-4 w-4 text-[#10251c]" />
+    </div>
+    <p className="text-sm font-black text-white">
+      <span className="text-[#ffd600]">{MATCH_FUND_SPONSOR}</span> will match every euro raised, up to{" "}
+      <span className="text-[#ffd600]">€{MATCH_FUND_LIMIT.toLocaleString()}</span>
+    </p>
+  </div>
+
+  <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:p-10">
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-white/65">Together so far</p>
+      <div className="mt-2 text-5xl font-black tracking-tight sm:text-6xl">
+        {impactLoading ? "…" : formatCurrency(totalRaised)}
+      </div>
+      <p className="mt-2 text-base text-white/75">
+        raised towards {target !== null ? `${formatCurrency(target)} target` : "our relief target"}
+      </p>
+
+      {/* Main progress bar */}
+      <div className="mt-6 h-4 overflow-hidden rounded-full bg-white/15">
+        <div
+          className="h-full rounded-full bg-[#ffd600] transition-all duration-700"
+          style={{ width: `${progress ?? 0}%` }}
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs font-bold text-white/65">
+        <span>{progress !== null ? `${progress}% funded` : "Target pending"}</span>
+        <span>{formatCurrency(target)}</span>
+      </div>
+
+      {/* Match fund progress bar */}
+      <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-white/70">
+            {MATCH_FUND_SPONSOR} match
+          </p>
+          <p className="text-xs font-black text-[#ffd600]">
+            {impactLoading ? "…" : formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))}
+            {" "}<span className="text-white/50">/ {formatCurrency(MATCH_FUND_LIMIT)}</span>
+          </p>
+        </div>
+        <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/15">
+          <div
+            className="h-full rounded-full bg-[#ffd600]/70 transition-all duration-700"
+            style={{
+              width: `${totalRaised !== null ? Math.min(100, Math.round((totalRaised / MATCH_FUND_LIMIT) * 100)) : 0}%`
+            }}
+          />
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-white/55">
+          For every euro you raise, {MATCH_FUND_SPONSOR} adds another — up to €{MATCH_FUND_LIMIT.toLocaleString()} total.
+        </p>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-3">
+      <ProgressMetric label="Ticket revenue" value={formatCurrency(data?.ticketRevenue)} />
+      <ProgressMetric label="Direct donations" value={formatCurrency(data?.directDonations)} />
+      <ProgressMetric label="Game 1 tickets" value={formatNumber(data?.gameOneTicketsSold)} />
+      <ProgressMetric label="Game 2 tickets" value={formatNumber(data?.gameTwoTicketsSold)} />
+    </div>
+  </div>
+</section>
 
           {/* PLAY / TICKETS - now with bundle option */}
-          <SectionCard eyebrow="Play for Colombia" title="Two games. Two chances. One great cause." intro="Buy a ticket for Game One, Game Two, or both in a single transaction at a saving.">
+          <SectionCard
+  eyebrow="Play for Colombia"
+  title="Two games. Two chances. One great cause."
+  intro={`Buy a ticket for Game One, Game Two, or both in a single transaction at a saving. Every ticket purchased is matched by ${MATCH_FUND_SPONSOR} — up to €${MATCH_FUND_LIMIT.toLocaleString()} in total.`}
+>
             <div className="grid gap-4 lg:grid-cols-3">
               {/* Bundle */}
               <div className="relative overflow-hidden rounded-[1.75rem] border-2 border-[#006b43] bg-[#f0f8f4] p-5 sm:p-6">
@@ -1353,11 +1412,15 @@ function HeroFact({ icon, label, value, compact = false }: { icon: React.ReactNo
   );
 }
 
-function HeroMetric({ value, label, loading }: { value: string; label: string; loading?: boolean }) {
+function HeroMetric({ value, label, loading, highlight = false }: { value: string; label: string; loading?: boolean; highlight?: boolean }) {
   return (
-    <div className="min-w-0 rounded-xl bg-black/10 px-2 py-3 text-center">
-      <div className="truncate text-lg font-black sm:text-xl">{loading ? "…" : value}</div>
-      <div className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/55">{label}</div>
+    <div className={`min-w-0 rounded-xl px-2 py-3 text-center ${highlight ? "bg-[#ffd600]/20 ring-1 ring-[#ffd600]/40" : "bg-black/10"}`}>
+      <div className={`truncate text-lg font-black sm:text-xl ${highlight ? "text-[#ffd600]" : ""}`}>
+        {loading ? "…" : value}
+      </div>
+      <div className={`mt-1 text-[10px] font-black uppercase tracking-[0.12em] ${highlight ? "text-[#ffd600]/70" : "text-white/55"}`}>
+        {label}
+      </div>
     </div>
   );
 }
@@ -1467,4 +1530,5 @@ function formatNumber(value: number | null | undefined) {
 }
 
 // Needed for crypto steps - roomId anchor for quote endpoint
+// const GAME_ONE_ROOM_ID = "361798C515F347BE";
 const GAME_ONE_ROOM_ID = "5848007CBBD44647";

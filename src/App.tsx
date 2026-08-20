@@ -32,6 +32,9 @@ import { sdk } from '@farcaster/miniapp-sdk';
 // ── NEW: shared dashboard shell (top nav + notifications + club drawer) ──
 import DashboardShell from './components/dashboard/DashboardShell';
 
+// ── Global staging demo UI ──
+import DemoBanner from './components/demo/DemoBanner';
+
 /**
  * NEW PUBLIC SITE IMPORTS
  */
@@ -52,6 +55,8 @@ import SitePuzzleChallengesPage from './pages/site/pages/games/PuzzleChallengesP
 import SiteTicketedEventsPage from './pages/site/pages/games/TicketedEventsPage';
 import SiteEscapeRoomPage from './pages/site/pages/games/EscapeRoomPage';
 import SiteTreasureHuntPage from './pages/site/pages/games/TreasureHuntPage';
+
+import SiteDemoPage from './pages/site/pages/DemoPage';
 
 
 
@@ -256,6 +261,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <DemoBanner />
       <Routes>
 
         <Route
@@ -283,6 +289,7 @@ export default function App() {
             NEW PUBLIC MARKETING SITE
         ──────────────────────────────────────────────────────────────── */}
         <Route element={<SiteLayout />}>
+        <Route path="/demo" element={<SiteDemoPage />} />
           <Route path="/" element={<SiteHomePage />} />
 
           <Route path="/pricing" element={<SitePricingPage />} />
