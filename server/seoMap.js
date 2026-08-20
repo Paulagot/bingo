@@ -64,7 +64,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
 
   const byPath = {
     '/': {
-      title: 'Fundraising Platform for Clubs, Schools and Charities | FundRaisely',
+      title: 'Fundraising Platform for Clubs, Schools, Charities and Nonprofits | FundRaisely',
       description:
         'FundRaisely helps clubs, schools, charities, nonprofits and community groups turn fundraising ideas into ready-to-run campaigns, events and games with payment tracking and reporting built in.',
       canonical: ABS(hostOrigin, '/'),
@@ -72,7 +72,16 @@ export function getSeoForPath(reqPath, hostOrigin) {
         'fundraising platform, charity fundraising, club fundraising, school fundraising, fundraising events, payment tracking, fundraising reports',
     },
 
-
+      '/demo': {
+    title: 'Interactive Fundraising Demo | Try FundRaisely',
+    description:
+      'Try FundRaisely yourself. Experience real supporter journeys for peer fundraising, ticketed events, Puzzle Drop, Elimination, sponsored fundraising and donations in our interactive test environment.',
+    canonical: ABS(hostOrigin, '/demo'),
+    keywords:
+      'fundraising software demo, fundraising platform demo, interactive fundraising demo, peer fundraising demo, charity ticketing demo, fundraising ticketing demo, sponsored fundraising demo, puzzle fundraiser demo, elimination fundraiser demo, donation platform demo, FundRaisely demo',
+    type: 'website',
+    robots: 'index, follow',
+  },
 
     '/pricing': {
       title: 'FundRaisely Pricing | Fundraising software plans',

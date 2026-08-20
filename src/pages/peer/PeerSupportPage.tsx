@@ -82,6 +82,7 @@ import ProgressBars from './support/ProgressBars';
 import SupportLayout from './support/SupportLayout';
 import ActivityDetailSheet from './support/ActivityDetailSheet';
 import SavingsBadge from './support/SavingsBadge';
+import DemoPaymentNotice from '../../components/demo/DemoPaymentNotice';
 
 // ── Lazy crypto imports ────────────────────────────────────────────────────────
 
@@ -862,6 +863,7 @@ export default function PeerSupportPage() {
           subtitle={`${checkoutMode === 'donation' ? 'Donation' : 'Total to pay'}: ${fmt(payableTotal, currency)}`}
           onBack={() => setStep('details')}
         >
+            <DemoPaymentNotice />
           {methodsLoading && <LoadingState message="Loading payment options…" compact />}
 
           {!methodsLoading && methodsError && (

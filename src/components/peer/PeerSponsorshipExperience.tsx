@@ -32,6 +32,7 @@ import {
   publicSponsoredActivityService,
 } from '../../services/PublicSponsoredActivityService';
 import YouTubeEmbed from '../../pages/peer/support/YouTubeEmbed';
+import DemoPaymentNotice from '../demo/DemoPaymentNotice';
 
 const Web3Provider = lazy(() =>
   import('../Web3Provider').then(module => ({
@@ -908,32 +909,34 @@ export default function PeerSponsorshipExperience({
               </div>
             )}
 
-            {step === 'payment' && (
-              <div className="space-y-4">
-                <button
-                  type="button"
-                  onClick={() => setStep('details')}
-                  className="text-sm font-black underline"
-                  style={{ color: primary }}
-                >
-                  Back to sponsorship details
-                </button>
+          {step === 'payment' && (
+  <div className="space-y-4">
+    <button
+      type="button"
+      onClick={() => setStep('details')}
+      className="text-sm font-black underline"
+      style={{ color: primary }}
+    >
+      Back to sponsorship details
+    </button>
 
-                <PaymentMethodSelector
-                  paymentMethods={activity.paymentMethods}
-                  onSelect={method =>
-                    void handleMethod(method)
-                  }
-                  loading={submitting}
-                />
+    <DemoPaymentNotice />
 
-                {formError && (
-                  <div className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">
-                    {formError}
-                  </div>
-                )}
-              </div>
-            )}
+    <PaymentMethodSelector
+      paymentMethods={activity.paymentMethods}
+      onSelect={method =>
+        void handleMethod(method)
+      }
+      loading={submitting}
+    />
+
+    {formError && (
+      <div className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">
+        {formError}
+      </div>
+    )}
+  </div>
+)}
 
             {step === 'manual' && selectedMethod && (
               <PaymentInstructions

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { SiteHeader } from './SiteHeader';
 import { SiteFooter } from './SiteFooter';
-
+import DemoStickyCTA from '../demo/DemoStickyCTA';
 export function SiteLayout() {
   const location = useLocation();
 
@@ -21,6 +21,7 @@ export function SiteLayout() {
         <Outlet />
       </main>
       <SiteFooter />
+        <DemoStickyCTA />
     </div>
   );
 }
