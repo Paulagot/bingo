@@ -625,12 +625,12 @@ export default function ColombiaEarthquakeReliefPage() {
             <p className="mt-6 text-base font-medium leading-8 text-white/90">
               On <strong>{EVENT_DATE}</strong>, FundRaisely and Superteam Ireland are bringing the community together at <strong>Castle DAO, Slane Castle</strong> for two live Elimination games in support of families affected by the devastating earthquake in western Colombia.
             </p>
-            <p className="mt-4 text-sm leading-7 text-white/78">
-              This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
-            </p>
-                <p className="mt-4 text-sm leading-7 text-white/78">
-              Alejandro Gutierrez will be matching the first €1000 raised, so participate, donate, or share to double your impact and help families rebuild.
-            </p>
+      <p className="mt-4 text-sm leading-7 text-white/78">
+  This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
+</p>
+<p className="mt-4 text-sm leading-7 text-white/78">
+  Alejandro Gutierrez will be matching the first €1000 raised, so participate, donate, or share to double your impact and help families rebuild.
+</p>
             <div className="mt-6 grid grid-cols-3 gap-2">
               <HeroFact icon={<CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />} label="Date" value="5 Sep 2026" compact />
               <HeroFact icon={<Clock className="h-4 w-4 sm:h-5 sm:w-5" />} label="Time" value={EVENT_TIME} compact />
@@ -647,9 +647,12 @@ export default function ColombiaEarthquakeReliefPage() {
               <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-white/90">
                 On <strong>{EVENT_DATE}</strong>, FundRaisely and Superteam Ireland are bringing the community together at <strong>Castle DAO, Slane Castle</strong> for two live Elimination games in support of families affected by the devastating earthquake in western Colombia.
               </p>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-white/78">
-                This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
-              </p>
+                 <p className="mt-4 text-sm leading-7 text-white/78">
+  This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
+</p>
+<p className="mt-4 text-sm leading-7 text-white/78">
+  Alejandro Gutierrez will be matching the first €1000 raised, so participate, donate, or share to double your impact and help families rebuild.
+</p>
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
                 <HeroFact icon={<CalendarDays className="h-5 w-5" />} label="Date" value="5 September 2026" />
                 <HeroFact icon={<Clock className="h-5 w-5" />} label="Time" value={EVENT_TIME} />
