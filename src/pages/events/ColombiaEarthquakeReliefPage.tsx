@@ -628,9 +628,13 @@ export default function ColombiaEarthquakeReliefPage() {
       <p className="mt-4 text-sm leading-7 text-white/78">
   This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
 </p>
-<p className="mt-4 text-sm leading-7 text-white/78">
-  Alejandro Gutierrez will be matching the first €1000 raised, so participate, donate, or share to double your impact and help families rebuild.
-</p>
+<div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#ffd600]/30 bg-[#ffd600]/10 px-4 py-3">
+  <span className="mt-0.5 text-lg">🤝</span>
+  <p className="text-sm font-semibold leading-7 text-white">
+    <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> will be matching the first{" "}
+    <span className="font-black text-[#ffd600]">€1,000 raised</span> — so participate, donate, or share to double your impact and help families rebuild.
+  </p>
+</div>
             <div className="mt-6 grid grid-cols-3 gap-2">
               <HeroFact icon={<CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />} label="Date" value="5 Sep 2026" compact />
               <HeroFact icon={<Clock className="h-4 w-4 sm:h-5 sm:w-5" />} label="Time" value={EVENT_TIME} compact />
@@ -650,9 +654,13 @@ export default function ColombiaEarthquakeReliefPage() {
                  <p className="mt-4 text-sm leading-7 text-white/78">
   This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
 </p>
-<p className="mt-4 text-sm leading-7 text-white/78">
-  Alejandro Gutierrez will be matching the first €1000 raised, so participate, donate, or share to double your impact and help families rebuild.
-</p>
+<div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#ffd600]/30 bg-[#ffd600]/10 px-4 py-3">
+  <span className="mt-0.5 text-lg">🤝</span>
+  <p className="text-sm font-semibold leading-7 text-white">
+    <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> will be matching the first{" "}
+    <span className="font-black text-[#ffd600]">€1,000 raised</span> — so participate, donate, or share to double your impact and help families rebuild.
+  </p>
+</div>
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
                 <HeroFact icon={<CalendarDays className="h-5 w-5" />} label="Date" value="5 September 2026" />
                 <HeroFact icon={<Clock className="h-5 w-5" />} label="Time" value={EVENT_TIME} />
