@@ -101,7 +101,7 @@ const CURRENCY       = "EUR";
 
 const EVENT_NAME         = "Colombia Earthquake Relief at Slane Castle";
 const EVENT_DATE         = "Saturday 5 September 2026";
-const EVENT_TIME         = "Time TBC";
+const EVENT_TIME         = "4pm (Irish time)";
 const EVENT_LOCATION     = "Slane Castle";
 const EVENT_ADDRESS      = "Slane, Co. Meath, Ireland";
 const EVENT_FULL_ADDRESS = `${EVENT_LOCATION}, ${EVENT_ADDRESS}`;
@@ -112,7 +112,7 @@ const CASTLE_DAO_URL    = "https://castledao.ie/";
 const EVENT_PAGE_URL    = "https://fundraisely.ie/events/colombia-earthquake-relief";
 const EVENT_SOCIAL_IMAGE = "https://fundraisely.ie/social/colombia-earthquake-og.png";
 
-const MATCH_FUND_SPONSOR = "Superteam Ireland";
+const MATCH_FUND_SPONSOR = "Alejandro Gutierrez";
 const MATCH_FUND_LIMIT   = 1000;
 
 const SHARE_TITLE = "Play for Colombia - Earthquake Relief Fundraiser";
@@ -120,10 +120,10 @@ const SHARE_TEXT  =
   "Help us support families affected by the earthquake in western Colombia. Join our FundRaisely Elimination fundraiser at Slane Castle, play from anywhere, donate, or simply share.";
 
 const EARTHQUAKE_IMPACT = {
-  deaths:       "250+",
-  injured:      "3,500+",
+  deaths:       "300+",
+  injured:      "4,500+",
   missing:      "400+",
-  homesAffected:"86,000+",
+  homesAffected:"164,000+",
 };
 
 const SUPERTEAM_LOGO   = "/partner/superteam_ireland_logo.jpeg";
@@ -625,9 +625,16 @@ export default function ColombiaEarthquakeReliefPage() {
             <p className="mt-6 text-base font-medium leading-8 text-white/90">
               On <strong>{EVENT_DATE}</strong>, FundRaisely and Superteam Ireland are bringing the community together at <strong>Castle DAO, Slane Castle</strong> for two live Elimination games in support of families affected by the devastating earthquake in western Colombia.
             </p>
-            <p className="mt-4 text-sm leading-7 text-white/78">
-              This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
-            </p>
+      <p className="mt-4 text-sm leading-7 text-white/78">
+  This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
+</p>
+<div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#ffd600]/30 bg-[#ffd600]/10 px-4 py-3">
+  <span className="mt-0.5 text-lg">🤝</span>
+  <p className="text-sm font-semibold leading-7 text-white">
+    <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> will be matching the first{" "}
+    <span className="font-black text-[#ffd600]">€1,000 raised</span> — so participate, donate, or share to double your impact and help families rebuild.
+  </p>
+</div>
             <div className="mt-6 grid grid-cols-3 gap-2">
               <HeroFact icon={<CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />} label="Date" value="5 Sep 2026" compact />
               <HeroFact icon={<Clock className="h-4 w-4 sm:h-5 sm:w-5" />} label="Time" value={EVENT_TIME} compact />
@@ -644,9 +651,16 @@ export default function ColombiaEarthquakeReliefPage() {
               <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-white/90">
                 On <strong>{EVENT_DATE}</strong>, FundRaisely and Superteam Ireland are bringing the community together at <strong>Castle DAO, Slane Castle</strong> for two live Elimination games in support of families affected by the devastating earthquake in western Colombia.
               </p>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-white/78">
-                This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
-              </p>
+                 <p className="mt-4 text-sm leading-7 text-white/78">
+  This one is personal. Superteam Ireland&apos;s founder is Colombian, and while our founder community is gathered in Ireland, families thousands of kilometres away are facing the loss of homes, livelihoods and loved ones.
+</p>
+<div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#ffd600]/30 bg-[#ffd600]/10 px-4 py-3">
+  <span className="mt-0.5 text-lg">🤝</span>
+  <p className="text-sm font-semibold leading-7 text-white">
+    <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> will be matching the first{" "}
+    <span className="font-black text-[#ffd600]">€1,000 raised</span> — so participate, donate, or share to double your impact and help families rebuild.
+  </p>
+</div>
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
                 <HeroFact icon={<CalendarDays className="h-5 w-5" />} label="Date" value="5 September 2026" />
                 <HeroFact icon={<Clock className="h-5 w-5" />} label="Time" value={EVENT_TIME} />
