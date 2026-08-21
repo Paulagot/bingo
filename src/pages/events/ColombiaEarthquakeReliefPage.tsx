@@ -101,7 +101,7 @@ const CURRENCY       = "EUR";
 
 const EVENT_NAME         = "Colombia Earthquake Relief at Slane Castle";
 const EVENT_DATE         = "Saturday 5 September 2026";
-const EVENT_TIME         = "4pm (Irish time)";
+const EVENT_TIME         = "5pm (Irish time)";
 const EVENT_LOCATION     = "Slane Castle";
 const EVENT_ADDRESS      = "Slane, Co. Meath, Ireland";
 const EVENT_FULL_ADDRESS = `${EVENT_LOCATION}, ${EVENT_ADDRESS}`;

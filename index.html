@@ -22,18 +22,25 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
     <!-- Non-blocking Google Fonts load -->
-    <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap"
-      onload="this.onload=null;this.rel='stylesheet'"
-    />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap"
-      />
-    </noscript>
+<!-- Non-blocking Google Fonts load -->
+<link
+  rel="preload"
+  as="style"
+  id="google-fonts-preload"
+  href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap"
+/>
+<noscript>
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap"
+  />
+</noscript>
+<script>
+  (function() {
+    var el = document.getElementById('google-fonts-preload');
+    if (el) el.rel = 'stylesheet';
+  })();
+</script>
 
     <!-- Hero image preload removed — it was unconditionally preloading on every
          page including ones that never render the hero, wasting bandwidth and
