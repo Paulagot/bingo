@@ -197,10 +197,10 @@ function useEventImpact() {
         if (!result.ok) return;
         // Map roomBreakdown to game-specific counts using known room IDs
         const game1 = result.roomBreakdown?.find(
-          (r: any) => r.roomId === '361798C515F347BE'
+          (r: any) => r.roomId === '5848007CBBD44647'
         )?.ticketsSold ?? null;
         const game2 = result.roomBreakdown?.find(
-          (r: any) => r.roomId === 'BAF2ACC739D446E0'
+          (r: any) => r.roomId === '2A5D2A2B9FA3465F'
         )?.ticketsSold ?? null;
         setData({
           totalRaised:        result.totalRaised,
@@ -612,7 +612,7 @@ export default function ColombiaEarthquakeReliefPage() {
               <p className="px-2 pb-1 pt-2 text-[10px] leading-4 text-white/55">Image: RTÉ</p>
             </div>
         <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
-  <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(totalRaised)} label="Raised (donations and tickets)" loading={impactLoading} />
   <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
   <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
   <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
@@ -681,7 +681,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 <p className="px-2 pb-1 pt-2 text-[10px] leading-4 text-white/55">Image: RTÉ</p>
               </div>
            <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
-  <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(totalRaised)} label="Raised (donations and tickets)" loading={impactLoading} />
   <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
   <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
   <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
