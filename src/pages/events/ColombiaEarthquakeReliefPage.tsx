@@ -612,7 +612,7 @@ export default function ColombiaEarthquakeReliefPage() {
               <p className="px-2 pb-1 pt-2 text-[10px] leading-4 text-white/55">Image: RTÉ</p>
             </div>
         <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
-  <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(totalRaised)} label="Raised (donations and tickets)" loading={impactLoading} />
   <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
   <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
   <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
@@ -681,7 +681,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 <p className="px-2 pb-1 pt-2 text-[10px] leading-4 text-white/55">Image: RTÉ</p>
               </div>
            <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
-  <HeroMetric value={formatCurrency(totalRaised)} label="Raised" loading={impactLoading} />
+  <HeroMetric value={formatCurrency(totalRaised)} label="Raised (donations and tickets)" loading={impactLoading} />
   <HeroMetric value={formatNumber(data?.totalTicketsSold)} label="Tickets" loading={impactLoading} />
   <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
   <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
