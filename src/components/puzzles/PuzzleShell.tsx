@@ -1,3 +1,4 @@
+//src/components/puzzles/PuzzleShell.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { PuzzlePageState, PuzzleShellProps } from './puzzleTypes';
 import PuzzleHeader from './PuzzleHeader';

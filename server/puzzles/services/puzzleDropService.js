@@ -782,15 +782,25 @@ export async function confirmDropPurchase({
     confirmedIds.push(ent.id);
   }
 
-  const ledgerPlayerId = `dropentitlement_${siblings[0].id}`;
+const [[ledgerRow]] = await database.connection.execute(
+  `SELECT player_id
+   FROM fundraisely_quiz_payment_ledger
+   WHERE id = ?
+   LIMIT 1`,
+  [entitlement.ledger_id]
+);
 
-  await confirmLedgerPayment({
-    roomId: entitlement.drop_room_id,
-    playerId: ledgerPlayerId,
-    confirmedBy,
-    confirmedByName,
-    confirmedByRole,
-  });
+if (!ledgerRow) {
+  throw new Error('ledger_not_found');
+}
+
+await confirmLedgerPayment({
+  roomId: entitlement.drop_room_id,
+  playerId: ledgerRow.player_id,
+  confirmedBy,
+  confirmedByName,
+  confirmedByRole,
+});
 
   /*
    * Payment is already committed at this point.
