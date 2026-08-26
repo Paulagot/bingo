@@ -1,3 +1,4 @@
+//server/elimination/routes/eliminationRoutes.js
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { syncEliminationImpactToDb } from '../services/syncEliminationImpactToDb.js';

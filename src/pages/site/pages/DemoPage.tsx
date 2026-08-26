@@ -54,7 +54,7 @@ const STAGING_BASE_URL =
   'https://fundraisely-staging.up.railway.app';
 
 const PEER_FUNDRAISER_URL =
-  ``;
+  `${STAGING_BASE_URL}/fundraise/demo-non-profit/demo-non-profits-peer-fundraisng-for-activities/paula`;
 
 const TICKETED_EVENT_URL =
   `${STAGING_BASE_URL}/tickets/buy/8C57E75119A94777`;

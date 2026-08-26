@@ -147,7 +147,7 @@ const handleStart = useCallback(() => {
             fontSize: 'clamp(20px, 5vmin, 28px)',
             letterSpacing: '0.12em',
             boxShadow: `0 0 24px ${colour}44`,
-            animation: 'pulse 1s ease-in-out infinite alternate',
+            animation: 'pulse 1.7s ease-in-out infinite alternate',
           }}
         >
           TAP NOW
@@ -166,7 +166,7 @@ const handleStart = useCallback(() => {
           fontSize: 'clamp(13px, 2vmin, 15px)',
           fontWeight: 600,
         }}>
-          ✓ Tapped - answer locked
+          ✓ Locked in — waiting for other players
         </div>
       )}
 

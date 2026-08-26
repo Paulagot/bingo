@@ -1,3 +1,4 @@
+//src/components/elimination/rounds/FlashMathsRound.tsx
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { FlashMathsConfig, FlashMathsSubmission } from '../types/elimination';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';
@@ -33,7 +34,6 @@ export const FlashMathsRound: React.FC<Props> = ({
     setLocked(false);
     const t = setTimeout(() => {
       setShowNumbers(false);
-      // Auto-focus keyboard on mobile after numbers hide
       setTimeout(() => inputRef.current?.focus(), 100);
     }, config.displayDurationMs);
     return () => clearTimeout(t);
@@ -132,92 +132,76 @@ export const FlashMathsRound: React.FC<Props> = ({
       {!showNumbers && (
         <div className="w-full flex flex-col items-center gap-4" style={{ maxWidth: '300px' }}>
 
-          {/* Number input */}
-          <input
-            ref={inputRef}
-            type="number"
-            value={value}
-            onChange={e => setValue(e.target.value.replace(/[^0-9]/g, ''))}
-            onKeyDown={handleKeyDown}
-            disabled={locked || hasSubmitted}
-            placeholder="0"
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              background: 'rgba(255,255,255,0.05)',
-              border: `1px solid ${value ? colour + '66' : 'rgba(255,255,255,0.12)'}`,
-              borderRadius: '10px',
-              color: '#ffffff',
-              fontSize: '32px',
-              fontFamily: "'Bebas Neue', Impact, sans-serif",
-              letterSpacing: '0.08em',
-              textAlign: 'center',
-              outline: 'none',
-              MozAppearance: 'textfield',
-            }}
-          />
+          {!(locked || hasSubmitted) && (
+            <>
+              <input
+                ref={inputRef}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={value}
+                onChange={e => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+                onKeyDown={handleKeyDown}
+                disabled={locked || hasSubmitted}
+                placeholder="0"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${value ? colour + '66' : 'rgba(255,255,255,0.12)'}`,
+                  borderRadius: '10px',
+                  color: '#ffffff',
+                  fontSize: '32px',
+                  fontFamily: "'Bebas Neue', Impact, sans-serif",
+                  letterSpacing: '0.08em',
+                  textAlign: 'center',
+                  outline: 'none',
+                }}
+              />
 
-          {/* +/− nudge buttons */}
-          <div className="flex gap-3 items-center">
-            <button
-              onPointerDown={() => setValue(v => String(Math.max(0, parseInt(v || '0', 10) - 1)))}
-              disabled={locked || hasSubmitted}
-              style={nudgeBtnStyle(colour, locked || hasSubmitted)}
-            >
-              −
-            </button>
-            <span style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter', fontSize: '12px' }}>
-              adjust
-            </span>
-            <button
-              onPointerDown={() => setValue(v => String(parseInt(v || '0', 10) + 1))}
-              disabled={locked || hasSubmitted}
-              style={nudgeBtnStyle(colour, locked || hasSubmitted)}
-            >
-              +
-            </button>
-          </div>
+              <button
+                onPointerDown={handleSubmit}
+                disabled={!canSubmit}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: '10px',
+                  background: canSubmit ? `${colour}22` : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${canSubmit ? colour : 'rgba(255,255,255,0.1)'}`,
+                  color: canSubmit ? colour : 'rgba(255,255,255,0.25)',
+                  fontSize: 'clamp(13px, 2vmin, 15px)',
+                  fontFamily: 'Inter, system-ui',
+                  fontWeight: 700,
+                  letterSpacing: '0.2em',
+                  textTransform: 'uppercase',
+                  cursor: canSubmit ? 'pointer' : 'default',
+                  boxShadow: canSubmit ? `0 0 20px ${colour}22` : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                Lock In
+              </button>
+            </>
+          )}
 
-          {/* Primary submit button */}
-          <button
-            onPointerDown={handleSubmit}
-            disabled={!canSubmit}
-            style={{
-              width: '100%',
-              padding: '16px',
+          {(locked || hasSubmitted) && (
+            <div style={{
+              padding: '16px 32px',
               borderRadius: '10px',
-              background: canSubmit ? `${colour}22` : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${canSubmit ? colour : 'rgba(255,255,255,0.1)'}`,
-              color: canSubmit ? colour : 'rgba(255,255,255,0.25)',
+              background: `${colour}12`,
+              border: `1px solid ${colour}44`,
+              color: colour,
+              fontFamily: 'Inter',
               fontSize: 'clamp(13px, 2vmin, 15px)',
-              fontFamily: 'Inter, system-ui',
-              fontWeight: 700,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              cursor: canSubmit ? 'pointer' : 'default',
-              boxShadow: canSubmit ? `0 0 20px ${colour}22` : 'none',
-              transition: 'all 0.15s',
-            }}
-          >
-            {locked || hasSubmitted ? 'Answer Locked' : 'Submit'}
-          </button>
+              fontWeight: 600,
+              textAlign: 'center',
+            }}>
+              ✓ Locked in — waiting for other players
+            </div>
+          )}
 
         </div>
       )}
     </div>
   );
 };
-
-const nudgeBtnStyle = (colour: string, disabled: boolean): React.CSSProperties => ({
-  width: '40px',
-  height: '40px',
-  borderRadius: '50%',
-  background: disabled ? 'rgba(255,255,255,0.03)' : `${colour}18`,
-  border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : colour + '44'}`,
-  color: disabled ? 'rgba(255,255,255,0.2)' : colour,
-  fontSize: '20px',
-  cursor: disabled ? 'default' : 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-});

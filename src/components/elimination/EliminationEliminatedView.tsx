@@ -31,8 +31,9 @@ export const EliminationEliminatedView: React.FC<Props> = ({
 }) => {
   const [countdown, setCountdown]         = useState(autoLeaveSeconds);
   const [feedbackDone, setFeedbackDone]   = useState(false);
+  const [feedbackReady, setFeedbackReady] = useState(false);
   // Countdown pauses while feedback modal is open
-  const feedbackOpen = gameOver && !!roomId && !feedbackDone;
+const feedbackOpen = gameOver && !!roomId && !feedbackDone && feedbackReady;
 
   useEffect(() => {
     if (!gameOver || !onLeave) return;
@@ -49,6 +50,13 @@ export const EliminationEliminatedView: React.FC<Props> = ({
     }, 1000);
     return () => clearInterval(interval);
   }, [gameOver, onLeave, feedbackOpen]);
+
+  // Delay feedback modal so player can read the result first
+useEffect(() => {
+  if (!gameOver || !roomId || feedbackDone) return;
+  const t = setTimeout(() => setFeedbackReady(true), 4500);
+  return () => clearTimeout(t);
+}, [gameOver, roomId, feedbackDone]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center" style={s.page}>

@@ -1,3 +1,4 @@
+//server/mgtsystem/services/sponsoredActivityPublicService.js
 import Stripe from 'stripe';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { verifySolanaTransfer, normalizeNetwork, normalizeWallet, parseJsonMaybe } from '../../quiz/services/cryptoSolanaPaymentVerificationService.js';
@@ -379,7 +380,8 @@ export async function createSponsoredStripeCheckout(payload) {
     const requestedPath = String(payload.returnPath || '').trim();
     const returnPath = (
       requestedPath.startsWith('/sponsor/') ||
-      requestedPath.startsWith('/peer-support/')
+  requestedPath.startsWith('/peer-support/') ||
+  requestedPath.startsWith('/fundraise/') 
     )
       ? requestedPath
       : `/sponsor/${payload.roomId}`;

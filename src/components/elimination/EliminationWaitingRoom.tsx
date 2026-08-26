@@ -130,7 +130,7 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-6" style={styles.page}>
+   <div className="h-screen flex flex-col p-6 overflow-hidden" style={styles.page}>
       <div className="mb-6" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <div style={styles.eyebrow}>{isHost ? 'Hosting' : 'Waiting Room'}</div>
