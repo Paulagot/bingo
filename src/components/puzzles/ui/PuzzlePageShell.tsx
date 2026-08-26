@@ -1,3 +1,4 @@
+//src/components/puzzles/ui/PuzzlePageShell.tsx
 import React from 'react';
 import PuzzleBrandHeader from './PuzzleBrandHeader';
 import {
