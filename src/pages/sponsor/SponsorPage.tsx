@@ -366,7 +366,7 @@ export default function SponsorPage() {
             </div>
           </div>
 
-          <div className="mt-7 rounded-2xl p-5" style={{ background: `${primary}10` }}>
+           <div className="mt-7 rounded-2xl p-5" style={{ background: `${primary}10` }}>
             <div className="flex gap-3">
               <MessageCircle className="mt-0.5 h-5 w-5 shrink-0" style={{ color: primary }} />
               <div>
@@ -374,7 +374,7 @@ export default function SponsorPage() {
                 <p className="mt-1 text-sm text-gray-600">Your message can be shown with your sponsorship unless you choose to remain anonymous.</p>
               </div>
             </div>
-          </div>
+          </div> 
         </section>
 
         <section className="rounded-[36px] border border-black/10 bg-white p-6 shadow-lg sm:p-8">

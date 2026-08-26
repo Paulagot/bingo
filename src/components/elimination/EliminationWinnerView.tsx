@@ -111,13 +111,14 @@ export const EliminationWinnerView: React.FC<Props> = ({
   const [countdown, setCountdown]       = useState(autoCloseSeconds);
   const [finalized, setFinalized]       = useState(false);
   const [feedbackDone, setFeedbackDone] = useState(false);
+  const [feedbackReady, setFeedbackReady] = useState(false);
 
   const isWinner   = localPlayerId === winnerId;
   const playerMap  = Object.fromEntries(players.map(p => [p.playerId, p]));
   const isWeb3Room = roomData?.paymentMode === 'web3';
 
   // Host never sees the feedback form
-  const showFeedback    = !isHost && !!roomId && !feedbackDone;
+const showFeedback = !isHost && !!roomId && !feedbackDone && feedbackReady;
   const shouldAutoClose = !!onClose && !isHost && !showFeedback;
 
   useEffect(() => {
@@ -130,6 +131,13 @@ export const EliminationWinnerView: React.FC<Props> = ({
     }, 1000);
     return () => clearInterval(interval);
   }, [shouldAutoClose, onClose]);
+
+  // Delay feedback modal so player can read the result first
+useEffect(() => {
+  if (isHost || !roomId || feedbackDone) return;
+  const t = setTimeout(() => setFeedbackReady(true), 4500);
+  return () => clearTimeout(t);
+}, [isHost, roomId, feedbackDone]);
 
   const handleFeedbackClose = () => {
     setFeedbackDone(true);

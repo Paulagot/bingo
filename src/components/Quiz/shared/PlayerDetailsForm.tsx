@@ -171,11 +171,11 @@ const summary = shouldShowSummary ? (
           {!isTicketedEvent && (
             <div className="mt-4 space-y-4 sm:mt-0">
               <InputWithIcon
-                label="Player name"
+                label="Screen name"
                 required
                 icon={<GamepadIcon className="h-full w-full" />}
                 value={formData.playerName ?? ''}
-                placeholder="The Quiz Master"
+                placeholder="Top Dog"
                 onChange={(v) => updateField('playerName', v)}
                 helper="This shows on the leaderboard"
               />
@@ -222,11 +222,11 @@ const summary = shouldShowSummary ? (
         {/* Player name - hidden for ticketed events */}
         {!isTicketedEvent && (
           <InputWithIcon
-            label="Player name"
+            label="Screen name"
             required
             icon={<GamepadIcon className="h-full w-full" />}
             value={formData.playerName ?? ''}
-            placeholder="The Quiz Master"
+            placeholder="Top Dog"
             onChange={(v) => updateField('playerName', v)}
             helper={mode === 'ticket' ? 'This shows on the leaderboard' : undefined}
           />

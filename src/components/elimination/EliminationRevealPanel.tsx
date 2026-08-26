@@ -90,7 +90,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
     // Full-screen backdrop - centres the content column on desktop
     <div style={{
       minHeight: '100svh',
-      background: `radial-gradient(ellipse at 50% 0%, ${rc.tint} 0%, #0a0b0f 55%)`,
+  background: `radial-gradient(ellipse at 50% 0%, ${rc.primary}0d 0%, #0a0b0f 35%)`,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -114,7 +114,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
           <div style={{
             fontSize: '11px',
             letterSpacing: '0.18em',
-            color: 'rgba(255,255,255,0.3)',
+            color: '#4a9fa5',
             textTransform: 'uppercase',
             marginBottom: '4px',
             fontFamily: "'Inter', system-ui, sans-serif",
@@ -133,7 +133,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
         </div>
 
         {/* Visual reveal canvas - natural square size, never stretches */}
-        <div style={{ padding: '0 20px', position: 'relative' }}>
+        <div style={{ padding: '0 10px', position: 'relative' }}>
           <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto', position: 'relative' }}>
             {reveal && activeRound?.config && (
               <RevealCanvas
@@ -154,10 +154,10 @@ export const EliminationRevealPanel: React.FC<Props> = ({
                 gap: '8px',
                 pointerEvents: 'none',
               }}>
-                <span style={{ fontSize: '28px', color: 'rgba(255,255,255,0.25)' }}>-</span>
+                <span style={{ fontSize: '28px', color: '#4a9fa5' }}>-</span>
                 <span style={{
                   fontSize: '14px',
-                  color: 'rgba(255,255,255,0.3)',
+                  color: '#4a9fa5',
                   letterSpacing: '0.06em',
                   fontFamily: "'Inter', system-ui, sans-serif",
                 }}>
@@ -273,7 +273,7 @@ export const EliminationRevealPanel: React.FC<Props> = ({
           >
             See scores →
           </button>
-          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', fontFamily: "'Inter', system-ui, sans-serif" }}>
+          <div style={{ fontSize: '13px', color: '#4a9fa5', fontFamily: "'Inter', system-ui, sans-serif" }}>
             Continuing in <span style={{ color: 'rgba(255,255,255,0.6)' }}>{countdown}s</span>
           </div>
         </div>
@@ -473,7 +473,7 @@ const MovingTargetTapRevealCanvas: React.FC<{
       <line
         x1={reveal.playerTap.x * 100} y1={reveal.playerTap.y * 100}
         x2={reveal.targetPosition.x * 100} y2={reveal.targetPosition.y * 100}
-        stroke="rgba(255,255,255,0.25)" strokeDasharray="1.5 1.5" strokeWidth="0.4"
+        stroke="#4a9fa5" strokeDasharray="1.5 1.5" strokeWidth="0.4"
       />
 
       <text
@@ -745,7 +745,7 @@ const DrawAngleRevealCanvas: React.FC<{
       <circle cx={cx} cy={cy} r="2" fill={colour} style={{ filter: `drop-shadow(0 0 3px ${colour}88)` }} />
 
       {/* Diff label */}
-      <text x="50" y="94" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="3" fontFamily="Inter">
+      <text x="50" y="94" textAnchor="middle" fill="#7dd3d8" fontSize="3" fontFamily="Inter">
         {reveal.difference != null ? `${reveal.difference}° off` : ''}
       </text>
     </svg>
@@ -775,7 +775,7 @@ const QuickCountRevealCanvas: React.FC<{
     </text>
 
     {reveal.playerGuess != null && (
-      <text x="50" y="95" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="3.2" fontFamily="Inter">
+      <text x="50" y="95" textAnchor="middle" fill="#7dd3d8" fontSize="3.2" fontFamily="Inter">
         You guessed {reveal.playerGuess}
         {reveal.difference != null
           ? reveal.difference === 0 ? ' · Perfect!' : ` · off by ${Math.abs(reveal.difference)}`
@@ -810,7 +810,7 @@ const FlashMathsRevealCanvas: React.FC<{
 
     {/* Player answer */}
     {reveal.playerAnswer != null && (
-      <text x="50" y="52" textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="3.5" fontFamily="Inter">
+      <text x="50" y="52" textAnchor="middle" fill="#7dd3d8" fontSize="3.5" fontFamily="Inter">
         You answered {reveal.playerAnswer}{reveal.difference === 0 ? ' · Correct!' : ''}
       </text>
     )}
@@ -868,7 +868,7 @@ const BalancePointRevealCanvas: React.FC<{
       <rect width="100" height="60" fill="rgba(255,255,255,0.01)" />
 
       {/* Beam */}
-      <line x1="5" y1={ly} x2="95" y2={ly} stroke="rgba(255,255,255,0.25)" strokeWidth="0.8" strokeLinecap="round" />
+      <line x1="5" y1={ly} x2="95" y2={ly} stroke="#4a9fa5" strokeWidth="0.8" strokeLinecap="round" />
 
       {/* Weights */}
       {reveal.weights?.map((w, i) => {
@@ -913,7 +913,7 @@ const BalancePointRevealCanvas: React.FC<{
         </>
       )}
 
-      <text x="50" y="57" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="2.8" fontFamily="Inter">
+      <text x="50" y="57" textAnchor="middle" fill="#4a9fa5" fontSize="2.8" fontFamily="Inter">
         {reveal.playerX != null
           ? `${(reveal.errorDistance * 100).toFixed(1)}% off`
           : 'No answer submitted'}
@@ -976,7 +976,7 @@ const FlashGridRevealCanvas: React.FC<{
         );
       })}
 
-      <text x="50" y="98" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="2.8" fontFamily="Inter">
+      <text x="50" y="98" textAnchor="middle" fill="#4a9fa5" fontSize="2.8" fontFamily="Inter">
         Correct cells highlighted · wrong taps marked ✕
       </text>
     </svg>
@@ -1022,7 +1022,7 @@ const PatternAlignRevealCanvas: React.FC<{
 
       {/* Player shape - dashed */}
       {shape(px, py, reveal.playerRotation ?? 0, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.5)', true)}
-      <text x={px} y={py + r + 5} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="2.8" fontFamily="Inter">you</text>
+      <text x={px} y={py + r + 5} textAnchor="middle" fill="#7dd3d8" fontSize="2.8" fontFamily="Inter">you</text>
 
       {/* Target shape - solid */}
       {shape(tx, ty, reveal.targetRotation ?? 0, `${colour}20`, colour, false)}
@@ -1034,7 +1034,7 @@ const PatternAlignRevealCanvas: React.FC<{
           stroke="rgba(255,255,255,0.15)" strokeWidth="0.4" strokeDasharray="1.5,1.5" />
       )}
 
-      <text x="50" y="96" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="2.8" fontFamily="Inter">
+      <text x="50" y="96" textAnchor="middle" fill="#4a9fa5" fontSize="2.8" fontFamily="Inter">
         {reveal.rotationDiff != null ? `${reveal.rotationDiff.toFixed(0)}° rotation off` : ''}
       </text>
     </svg>
@@ -1067,7 +1067,7 @@ const SequenceGapRevealCanvas: React.FC<{
           </div>
         ))}
       </div>
-      <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>
+      <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: '#7dd3d8' }}>
         Missing value was <strong style={{ color: colour }}>{reveal.actualValue}</strong>
         {reveal.playerAnswer != null && ` · You guessed ${reveal.playerAnswer} · off by ${Math.abs(reveal.difference ?? 0)}`}
       </div>
@@ -1094,7 +1094,7 @@ const ColourCountRevealCanvas: React.FC<{
           : <rect key={i} x={cx-r} y={cy-r} width={r*2} height={r*2} rx="1.5" fill={s.hex} opacity={opacity} />;
       })}
     </svg>
-    <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
+    <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: '#7dd3d8', marginTop: '8px' }}>
       <strong style={{ color: reveal.targetHex }}>{reveal.actualCount} {reveal.targetLabel}</strong> shapes
       {reveal.playerAnswer != null && ` · You guessed ${reveal.playerAnswer}`}
     </div>
@@ -1164,7 +1164,7 @@ const CharacterCountRevealCanvas: React.FC<{
         </text>
       ))}
     </svg>
-    <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
+    <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: '#7dd3d8', marginTop: '8px' }}>
       <strong style={{ color: colour }}>{reveal.actualCount}× '{reveal.targetCharacter}'</strong> in the grid
       {reveal.playerAnswer != null && ` · You guessed ${reveal.playerAnswer}`}
     </div>
@@ -1180,7 +1180,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   scoreLabel: {
     fontSize: '13px',
-    color: 'rgba(255,255,255,0.4)',
+    color: '#7dd3d8',
   },
   scoreStat: {
     fontSize: '15px',

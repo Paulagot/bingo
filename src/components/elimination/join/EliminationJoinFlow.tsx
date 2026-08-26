@@ -158,6 +158,7 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
       sessionStorage.setItem(SESSION_PLAYER_ID,   resolvedPlayerId);
       sessionStorage.setItem(SESSION_PLAYER_NAME, assignedName ?? nameRef.current);
       sessionStorage.setItem(SESSION_IS_HOST,     'false');
+      sessionStorage.setItem('elim_just_joined',  'true');
       navigate('/elimination', { replace: true });
     };
 
