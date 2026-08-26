@@ -166,6 +166,12 @@ export const getAllRooms = () => [...rooms.values()];
 /**
  * Build the canonical player object shape used throughout the room manager.
  * Extracted here so addPlayer and addPlayerWithId share identical field sets.
+ *
+ * addedById / addedByName / addedByRole are set when a host or admin manually
+ * adds a player via host_add_player. They are used by writeLedgerEntry to
+ * attribute the confirmation to the correct person rather than defaulting to
+ * the room host. These fields are intentionally NOT included in playerSnapshot
+ * since they are internal ledger metadata, not game state for clients.
  */
 const buildPlayer = ({
   playerId,
@@ -180,12 +186,22 @@ const buildPlayer = ({
   paymentReference  = null,
   clubPaymentMethodId = null,
   addedByHost       = false,
+  // ── Actor info for ledger attribution ─────────────────────────────────
+  // Set by host_add_player when paid:true so writeLedgerEntry knows who
+  // confirmed the payment (host or a named admin helper).
+  addedById         = null,
+  addedByName       = null,
+  addedByRole       = null,
 }) => ({
   playerId,
   name,
   socketId,
   connected:    !addedByHost && socketId !== null,
   addedByHost,
+  // Ledger attribution fields - used by writeLedgerEntry only
+  addedById,
+  addedByName,
+  addedByRole,
   eliminated: false,
   eliminatedInRound: null,
   joinedAt: isoNow(),
@@ -212,6 +228,11 @@ const buildPlayer = ({
  * Web2 players supply payment fields (paid, paymentClaimed, payAtDoor, etc.).
  * Free/no-fee players supply nothing extra - all payment fields default to null/false.
  *
+ * addedById / addedByName / addedByRole are optional and only supplied by the
+ * host_add_player socket handler when a host or admin manually adds a paid player.
+ * They flow through to the player object so writeLedgerEntry can attribute the
+ * confirmation correctly (e.g. "John (admin)" rather than always "Paula (host)").
+ *
  * @returns {{ room: Object, player: Object }} or throws if room full / not waiting.
  */
 export const addPlayer = (roomId, {
@@ -229,6 +250,10 @@ export const addPlayer = (roomId, {
   clubPaymentMethodId = null,
   // ── host-added players (no socket connection of their own) ──
   addedByHost       = false,
+  // ── actor info for ledger attribution (host_add_player only) ──────────
+  addedById         = null,
+  addedByName       = null,
+  addedByRole       = null,
 }) => {
   const room = getRoom(roomId);
   if (!room) throw new Error('Room not found');
@@ -251,6 +276,9 @@ export const addPlayer = (roomId, {
     paymentReference,
     clubPaymentMethodId,
     addedByHost,
+    addedById,
+    addedByName,
+    addedByRole,
   });
 
   room.players[playerId] = player;
@@ -304,7 +332,7 @@ export const addPlayerWithId = (roomId, playerId, {
   const player = buildPlayer({
     playerId,
     name,
-    socketId,       // null - player hasn't connected via socket yet
+    socketId,
     txSignature,
     walletAddress,
     paid,
@@ -314,6 +342,12 @@ export const addPlayerWithId = (roomId, playerId, {
     paymentReference,
     clubPaymentMethodId,
     addedByHost: false,
+    // Stripe webhook adds players directly - always attributed to Stripe,
+    // not a human actor. writeLedgerEntry handles stripe separately so
+    // these can stay null.
+    addedById:   null,
+    addedByName: null,
+    addedByRole: null,
   });
 
   room.players[playerId] = player;
@@ -533,6 +567,8 @@ export const getRoomSnapshot = (roomId) => {
 /**
  * Player snapshot - included in room snapshots sent to all clients.
  * Payment fields are included so the host dashboard can show payment status.
+ * addedById / addedByName / addedByRole are intentionally excluded - they are
+ * internal ledger metadata and should never be sent to clients.
  */
 const playerSnapshot = (p) => ({
   playerId:           p.playerId,

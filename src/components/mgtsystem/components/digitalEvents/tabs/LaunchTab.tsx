@@ -7,19 +7,21 @@
 //
 // Elimination:
 //   1. Hydrate call → DB status: scheduled → open
-//   2. Host joins game tab → socket START_GAME → DB status: open → live
+//      onRoomUpdated() is called so the drawer refreshes to show 'open'.
+//   2. When open, a shareable join link + QR is shown for on-the-night walk-ins.
+//   3. Host joins game tab → socket START_GAME → DB status: open → live
 //
 // Ticketed event:
 //   1. "Open Check-in" → POST /open-checkin → DB status: scheduled → open
 //   2. Opens check-in dashboard in new tab
 //   3. "Close Event" → POST /complete → DB status: open → completed
-//      This triggers reconciliation (same as game end for quiz/elimination)
 
 import { useState } from 'react';
 import {
   Play, Lock, Clock, Loader, AlertCircle,
-  QrCode, CheckCircle, XCircle,
+  QrCode, CheckCircle, XCircle, Copy, ExternalLink, Users,
 } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import eliminationMgmtService from '../../../services/EliminationMgmtService';
 import ticketedEventMgmtService from '../../../services/TicketedEventMgmtService';
@@ -38,7 +40,7 @@ function formatCountdown(mins: number): string {
 interface Props {
   room: Room;
   onLaunchFromHere: () => void;
-  onRoomUpdated?: () => void; // called after status changes so drawer refreshes
+  onRoomUpdated?: () => void;
 }
 
 export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Props) {
@@ -49,11 +51,35 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
   const [closingEvent,   setClosingEvent]   = useState(false);
   const [error,          setError]          = useState<string | null>(null);
   const [closeConfirm,   setCloseConfirm]   = useState(false);
+  const [copiedJoinLink, setCopiedJoinLink] = useState(false);
+  const [showJoinQr,     setShowJoinQr]     = useState(false);
 
   const isAvailable = ['scheduled', 'open', 'live'].includes(room.status);
   const isOpen      = room.status === 'open';
   const mins        = minutesUntil(room.scheduled_at);
   const tooEarly    = room.status === 'scheduled' && mins !== null && mins > 60;
+
+  // The public join URL players use to enter the room on the night
+  const joinUrl = isElimination
+    ? `${window.location.origin}/elimination/join/${room.room_id}`
+    : null;
+
+  // ── Copy join link ────────────────────────────────────────────────────────
+  const copyJoinLink = async () => {
+    if (!joinUrl) return;
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = joinUrl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopiedJoinLink(true);
+    window.setTimeout(() => setCopiedJoinLink(false), 2000);
+  };
 
   // ── Elimination launch ────────────────────────────────────────────────────
   const handleEliminationLaunch = async () => {
@@ -61,6 +87,8 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
     setError(null);
     try {
       const result = await eliminationMgmtService.hydrateRoom(room.room_id);
+      // Refresh the drawer so status shows 'open' immediately
+      onRoomUpdated?.();
       const params = new URLSearchParams({
         roomId: result.roomId,
         hostId: result.hostId,
@@ -80,7 +108,6 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
     setError(null);
     try {
       await ticketedEventMgmtService.openCheckIn(room.room_id);
-      // Open the check-in dashboard in a new tab
       const params = new URLSearchParams({ hostId: room.host_id });
       window.open(`/ticketed-event/checkin/${room.room_id}?${params.toString()}`, '_blank');
       onRoomUpdated?.();
@@ -91,13 +118,11 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
     }
   };
 
-  // ── Ticketed event: open existing check-in dashboard ─────────────────────
   const handleRejoinCheckin = () => {
     const params = new URLSearchParams({ hostId: room.host_id });
     window.open(`/ticketed-event/checkin/${room.room_id}?${params.toString()}`, '_blank');
   };
 
-  // ── Ticketed event: close event + trigger reconciliation ──────────────────
   const handleCloseEvent = async () => {
     setClosingEvent(true);
     setError(null);
@@ -123,6 +148,9 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
         accent:   'text-[#c8423b]',
         lockBg:   'border-[rgba(233,87,79,0.2)] bg-[rgba(233,87,79,0.04)]',
         lockIcon: 'text-[#c8423b]',
+        joinBg:   'border-[rgba(233,87,79,0.2)] bg-[rgba(233,87,79,0.04)]',
+        joinBtn:  'bg-[#e9574f] hover:bg-[#c8423b]',
+        joinOutline: 'border-[rgba(233,87,79,0.3)] text-[#c8423b] hover:bg-[rgba(233,87,79,0.08)]',
       }
     : isTicketedEvent
     ? {
@@ -134,6 +162,9 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
         accent:   'text-[#157f85]',
         lockBg:   'border-[rgba(21,127,133,0.2)] bg-[rgba(21,127,133,0.04)]',
         lockIcon: 'text-[#157f85]',
+        joinBg:   '',
+        joinBtn:  '',
+        joinOutline: '',
       }
     : {
         wrap:     'border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)]',
@@ -144,6 +175,9 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
         accent:   'text-[#157f85]',
         lockBg:   'border-[rgba(21,127,133,0.2)] bg-[rgba(21,127,133,0.04)]',
         lockIcon: 'text-[#157f85]',
+        joinBg:   '',
+        joinBtn:  '',
+        joinOutline: '',
       };
 
   // ── Not available ─────────────────────────────────────────────────────────
@@ -159,12 +193,10 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
     );
   }
 
-  // ── Ticketed event layout ─────────────────────────────────────────────────
+  // ── Ticketed event layout (unchanged) ────────────────────────────────────
   if (isTicketedEvent) {
     return (
       <div className="p-5 space-y-4">
-
-        {/* ── Primary action card ── */}
         <div className={`rounded-xl border p-5 ${theme.wrap}`}>
           <div className="flex items-start gap-3 mb-4">
             <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${theme.iconBg}`}>
@@ -182,7 +214,6 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
             </div>
           </div>
 
-          {/* Status pill */}
           <div className="mb-3 flex items-center gap-2">
             <span className="text-xs text-[#8a9bab] font-medium">Status:</span>
             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -219,7 +250,6 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
               <Lock className="h-4 w-4 text-[#8a9bab] ml-auto flex-shrink-0" />
             </div>
           ) : isOpen ? (
-            // Already open - rejoin check-in dashboard
             <button
               type="button"
               onClick={handleRejoinCheckin}
@@ -232,7 +262,6 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
               Open Check-in Dashboard
             </button>
           ) : (
-            // Scheduled - open check-in
             <button
               type="button"
               onClick={handleOpenCheckin}
@@ -251,7 +280,6 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
           )}
         </div>
 
-        {/* ── Close event card - only shown when check-in is open ── */}
         {isOpen && (
           <div className="rounded-xl border border-[rgba(233,87,79,0.2)] bg-[rgba(233,87,79,0.04)] p-5">
             <div className="flex items-start gap-3 mb-4">
@@ -283,7 +311,7 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
                   Are you sure? This will close check-in and begin reconciliation.
                 </p>
                 <p className="text-xs text-[#52636f]">
-                  Make sure all payments are confirmed before closing. You can still view and approve reconciliation afterwards.
+                  Make sure all payments are confirmed before closing.
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -314,34 +342,36 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
             )}
           </div>
         )}
-
       </div>
     );
   }
 
-  // ── Quiz / Elimination layout (unchanged) ─────────────────────────────────
+  // ── Quiz / Elimination layout ─────────────────────────────────────────────
   return (
     <div className="p-5 space-y-4">
-      <div className={`rounded-xl border p-5 ${theme.wrap}`}>
 
-        {/* Header */}
+      {/* ── Launch / Rejoin card ── */}
+      <div className={`rounded-xl border p-5 ${theme.wrap}`}>
         <div className="flex items-start gap-3 mb-4">
           <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${theme.iconBg}`}>
             <Play className={`h-5 w-5 ${theme.iconTxt}`} />
           </div>
           <div>
             <h3 className={`text-sm font-semibold ${theme.heading}`}>
-              {isElimination ? 'Launch Elimination Game' : 'Open Host Dashboard'}
+              {isElimination
+                ? (isOpen ? 'Game is open — rejoin as host' : 'Launch Elimination Game')
+                : 'Open Host Dashboard'}
             </h3>
             <p className="mt-0.5 text-xs text-[#52636f]">
               {isElimination
-                ? 'Loads the room config, marks the room open, and joins you as host in a new tab. The room goes live once you start the game.'
+                ? isOpen
+                  ? 'The game room is open and accepting players. Click to rejoin the host view and start the game when ready.'
+                  : 'Loads the room config, marks the room open, and joins you as host in a new tab. Players can then join using the link below.'
                 : 'Opens the full host dashboard in a new tab. From there you can start the game, manage players, and run the quiz.'}
             </p>
           </div>
         </div>
 
-        {/* Status pill */}
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xs text-[#8a9bab] font-medium">Status:</span>
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold
@@ -388,19 +418,89 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
             {loading ? (
               <>
                 <Loader className="h-4 w-4 animate-spin" />
-                Loading game…
+                {isOpen ? 'Opening…' : 'Loading game…'}
               </>
             ) : (
               <>
                 <Play className="h-4 w-4" />
                 {isElimination
-                  ? (room.status === 'open' ? 'Rejoin Game' : 'Launch Elimination')
+                  ? (isOpen ? 'Rejoin Game' : 'Launch Elimination')
                   : 'Open Host Dashboard'}
               </>
             )}
           </button>
         )}
       </div>
+
+      {/* ── Join link / QR card — shown for elimination once room is open ── */}
+      {isElimination && isOpen && joinUrl && (
+        <div className={`rounded-xl border p-5 ${theme.joinBg}`}>
+          <div className="flex items-start gap-3 mb-4">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[rgba(233,87,79,0.12)]">
+              <Users className="h-5 w-5 text-[#c8423b]" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[#8b1c1c]">Player join link</h3>
+              <p className="mt-0.5 text-xs text-[#52636f]">
+                Share this link or QR code so players can join on the night. They'll be prompted to enter their name and pay the entry fee.
+              </p>
+            </div>
+          </div>
+
+          <code className="mb-3 block truncate rounded-lg border border-[rgba(233,87,79,0.2)] bg-white px-3 py-2 font-mono text-xs text-gray-700">
+            {joinUrl}
+          </code>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowJoinQr(v => !v)}
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors ${theme.joinOutline}`}
+            >
+              <QrCode className="h-4 w-4" />
+              {showJoinQr ? 'Hide QR' : 'Show QR'}
+            </button>
+            <button
+              type="button"
+              onClick={copyJoinLink}
+              className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+                text-sm font-bold text-white transition-colors ${theme.joinBtn}`}
+            >
+              {copiedJoinLink
+                ? <><CheckCircle className="h-4 w-4" />Copied!</>
+                : <><Copy className="h-4 w-4" />Copy join link</>
+              }
+            </button>
+            <a
+              href={joinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(233,87,79,0.2)] bg-white px-3 py-2.5 text-sm font-semibold text-[#c8423b] transition-colors hover:bg-[rgba(233,87,79,0.06)]"
+              title="Preview join page"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </div>
+
+          {showJoinQr && (
+            <div className="mt-4 flex justify-center">
+              <div className="rounded-xl border border-[rgba(233,87,79,0.2)] bg-white p-4 shadow-sm">
+                <QRCodeCanvas value={joinUrl} size={200} includeMargin />
+                <p className="mt-2 text-center text-xs text-[#8a9bab]">Players scan to join</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Scheduled tip — only for elimination before launch ── */}
+      {isElimination && room.status === 'scheduled' && !tooEarly && (
+        <div className="rounded-xl border border-[#dce1df] bg-[#fbf8f2] p-4">
+          <p className="text-xs text-[#52636f]">
+            <span className="font-semibold">After launching:</span> a shareable join link and QR code will appear here so players can join on the night.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -40,7 +40,7 @@ import { refreshReconciliationStartingTotal } from '../services/eliminationStats
 // Imported here so the socket layer can write to DB without going through
 // the HTTP route. Non-fatal - a DB failure never blocks the game from starting.
 import { markEliminationRoomAsLive } from '../api/eliminationMgmtService.js';
-const DEBUG = false; // set to true to see socket debug logs in server console
+const DEBUG = true; // set to true to see socket debug logs in server console
 
 const getAllPlayers = (roomId) =>
   Object.values(getRoom(roomId)?.players ?? {}).map((p) => ({
@@ -134,9 +134,23 @@ const writeLedgerEntry = async (room, player) => {
       status,
       claimedAt:            isClaimed  ? new Date() : null,
       confirmedAt:          isConfirmed ? new Date() : null,
-      confirmedBy:          isConfirmed ? 'stripe_webhook' : null,
-      confirmedByName:      isConfirmed ? 'Stripe' : null,
-      confirmedByRole:      isConfirmed ? 'admin' : null,
+    confirmedBy: isConfirmed
+  ? (player.paymentMethod === 'stripe'  ? 'stripe_webhook'
+   : player.paymentMethod === 'crypto'  ? 'onchain_verified'
+   : room.hostId)                        // cash/card/manual — host confirmed it
+  : null,
+
+confirmedByName: isConfirmed
+  ? (player.paymentMethod === 'stripe'  ? 'Stripe'
+   : player.paymentMethod === 'crypto'  ? 'On-chain'
+   : room.hostName ?? 'Host')            // Paula, or whatever the host's name is
+  : null,
+
+confirmedByRole: isConfirmed
+  ? (player.paymentMethod === 'stripe'  ? 'admin'
+   : player.paymentMethod === 'crypto'  ? 'system'
+   : 'host')
+  : null,
     });
 
     if (DEBUG) console.log(`[Elimination] Ledger entry written - room: ${room.roomId} player: ${player.playerId} status: ${status}`);
@@ -688,9 +702,11 @@ if (room.paymentMode === 'web2' && room.clubId) {
 
         emitToRoom(roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
 
-        writeLedgerEntry(room, player).catch((err) =>
-          console.error('[Elimination] writeLedgerEntry unhandled error:', err.message)
-        );
+     if (!joinToken) {
+  writeLedgerEntry(room, player).catch((err) =>
+    console.error('[Elimination] writeLedgerEntry unhandled error:', err.message)
+  );
+}
 
         if (joinToken) {
           import('../../mgtsystem/services/quizTicketService.js')
@@ -853,47 +869,77 @@ if (room.paymentMode === 'web2' && room.clubId) {
     // ── HOST ADD PLAYER ───────────────────────────────────────────────────────
     // Emitted by EliminationHostDashboard when the host manually adds a player.
     // Goes through addPlayer() which enforces the maxPlayers cap.
-    socket.on('host_add_player', async ({ roomId, hostId: emittedHostId, player: playerData }) => {
+    socket.on('host_add_player', async ({ roomId, hostId: emittedActorId, player: playerData }) => {
       try {
         const room = getRoom(roomId);
         if (!room) {
           return socket.emit('host_add_player_error', { message: 'Room not found.' });
         }
-        if (room.hostId !== emittedHostId) {
+
+        const isHost     = room.hostId === emittedActorId;
+        const adminEntry = (room.admins ?? []).find(a => a.id === emittedActorId);
+        const isAdmin    = !!adminEntry;
+
+        if (DEBUG) console.log('[host_add_player] emittedActorId:', emittedActorId);
+        if (DEBUG) console.log('[host_add_player] room.hostId:', room.hostId);
+        if (DEBUG) console.log('[host_add_player] room.hostName:', room.hostName);
+        if (DEBUG) console.log('[host_add_player] room.admins:', JSON.stringify(room.admins ?? []));
+        if (DEBUG) console.log('[host_add_player] isHost:', isHost, '| isAdmin:', isAdmin);
+        if (DEBUG) console.log('[host_add_player] adminEntry:', JSON.stringify(adminEntry ?? null));
+
+        if (!isHost && !isAdmin) {
+          if (DEBUG) console.log('[host_add_player] rejected - not authorised');
           return socket.emit('host_add_player_error', { message: 'Not authorised.' });
         }
- 
-        // addPlayer enforces the maxPlayers cap - throws if full
+
+        const actorName = isHost ? (room.hostName ?? 'Host') : (adminEntry?.name ?? 'Admin');
+        const actorRole = isHost ? 'host' : 'admin';
+
+        if (DEBUG) console.log('[host_add_player] resolved actorName:', actorName, '| actorRole:', actorRole);
+
+        // Refresh maxPlayers from DB in case the club owner changed it
+        try {
+          const { getEliminationRoomFromDb } = await import('../api/eliminationMgmtService.js');
+          const dbRoom = await getEliminationRoomFromDb(roomId);
+          const dbMax  = dbRoom?.room_caps_json?.maxPlayers ?? dbRoom?.config_json?.roomCaps?.maxPlayers;
+          if (dbMax && dbMax !== room.maxPlayers) {
+            if (DEBUG) console.log(`[host_add_player] refreshing maxPlayers ${room.maxPlayers} → ${dbMax}`);
+            room.maxPlayers = dbMax;
+          }
+        } catch (refreshErr) {
+          console.warn('[host_add_player] could not refresh maxPlayers from DB:', refreshErr.message);
+        }
+
         const { player } = addPlayer(roomId, {
-          name:               sanitiseName(playerData.name),
-          socketId:           null,   // host-added players have no socket of their own
-          paid:               playerData.paid ?? false,
-          paymentMethod:      playerData.paymentMethod ?? 'pay_admin',
-          paymentReference:   playerData.paymentReference ?? null,
-          payAtDoor:          playerData.payAtDoor ?? true,
-          entryFee:           playerData.entryFee ?? room.entryFee ?? 0,
+          name:                sanitiseName(playerData.name),
+          socketId:            null,
+          paid:                playerData.paid ?? false,
+          paymentMethod:       playerData.paymentMethod ?? null,
+          paymentReference:    playerData.paymentReference ?? null,
+          payAtDoor:           playerData.payAtDoor ?? true,
+          entryFee:            playerData.entryFee ?? room.entryFee ?? 0,
           clubPaymentMethodId: playerData.clubPaymentMethodId ?? null,
-          addedByHost:        true,
+          addedByHost:         true,
+          addedById:           emittedActorId,
+          addedByName:         actorName,
+          addedByRole:         actorRole,
         });
- 
-        // Write ledger entry for the new player (same as organic joins)
+
+        if (DEBUG) console.log('[host_add_player] player created:', player.playerId, '| addedByName:', player.addedByName, '| addedByRole:', player.addedByRole);
+
         writeLedgerEntry(room, player).catch((err) =>
-          console.error('[Elimination] writeLedgerEntry (host_add_player) error:', err.message)
+          console.error('[host_add_player] writeLedgerEntry error:', err.message)
         );
- 
-        // Confirm back to the host with the real server-assigned player object
+
         socket.emit('host_add_player_confirmed', { player });
- 
-        // Broadcast updated player list to everyone in the room
         io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
- 
-        if (DEBUG) console.log(`[Elimination] Host added player "${player.name}" to room ${roomId}`);
+
+        if (DEBUG) console.log(`[host_add_player] ${actorRole} (${actorName}) added player "${player.name}" to room ${roomId}`);
       } catch (err) {
-        console.error(`[Elimination] host_add_player error in room ${roomId}:`, err.message);
+        console.error(`[host_add_player] error in room ${roomId}:`, err.message);
         socket.emit('host_add_player_error', { message: err.message });
       }
     });
-
     socket.on('confirm_player_payment', async (payload) => {
       const { roomId, playerId, confirmedBy, adminNotes, paymentMethod, clubPaymentMethodId } = payload;
 
@@ -902,18 +948,19 @@ if (room.paymentMode === 'web2' && room.clubId) {
       const room = getRoom(roomId);
       if (!room) return;
 
+      // Resolve who is confirming - check admins list first, fall back to host
       const isAdmin = room.admins?.some(a => a.id === confirmedBy?.id);
       const confirmerRole = isAdmin ? 'admin' : (confirmedBy?.role ?? 'host');
       const confirmerName = isAdmin
         ? (room.admins.find(a => a.id === confirmedBy?.id)?.name ?? 'Admin')
-        : (confirmedBy?.name ?? 'Host');
+        : (confirmedBy?.name ?? room.hostName ?? 'Host');
 
       const player = room.players[playerId];
       if (player) {
-        player.paid = true;
-        player.paymentClaimed = false;
-        player.confirmedAt = new Date().toISOString();
-        if (normalisedMethod) player.paymentMethod = normalisedMethod;
+        player.paid            = true;
+        player.paymentClaimed  = false;
+        player.confirmedAt     = new Date().toISOString();
+        if (normalisedMethod)    player.paymentMethod      = normalisedMethod;
         if (clubPaymentMethodId) player.clubPaymentMethodId = clubPaymentMethodId;
       }
 
@@ -921,13 +968,13 @@ if (room.paymentMode === 'web2' && room.clubId) {
         await confirmPayment({
           roomId,
           playerId,
-          confirmedBy:        confirmedBy?.id ?? 'host',
-          confirmedByName:    confirmerName,
-          confirmedByRole:    confirmerRole,
-          adminNotes:         adminNotes ?? null,
-          paymentMethod:      normalisedMethod,
+          confirmedBy:         confirmedBy?.id ?? 'host',
+          confirmedByName:     confirmerName,
+          confirmedByRole:     confirmerRole,
+          adminNotes:          adminNotes ?? null,
+          paymentMethod:       normalisedMethod,
           clubPaymentMethodId: clubPaymentMethodId ?? null,
-          paymentSource:      'admin_assigned',
+          paymentSource:       'admin_assigned',
         });
       } catch (err) {
         console.error('[Elimination] confirmPayment DB error:', err);
@@ -942,6 +989,74 @@ if (room.paymentMode === 'web2' && room.clubId) {
         );
       }
     });
+
+// ─── Also update writeLedgerEntry (earlier in the file) ──────────────────────
+// Replace the existing writeLedgerEntry function with this version.
+
+const writeLedgerEntry = async (room, player) => {
+  if (
+    room.paymentMode !== 'web2' ||
+    !room.entryFee ||
+    !room.clubId
+  ) return;
+
+  try {
+    if (player.paymentMethod === 'stripe') return; // Stripe writes its own ledger via webhook
+
+    const isConfirmed = player.paid;
+    const isClaimed   = player.paymentClaimed && !player.paid;
+    const status      = isConfirmed ? 'confirmed' : isClaimed ? 'claimed' : 'expected';
+
+    // ── Who confirmed? ─────────────────────────────────────────────────────
+    // stripe  → always the Stripe webhook (handled separately, but guarded above)
+    // crypto  → on-chain verification
+    // manual  → whoever added/confirmed this player
+    //           If added by host_add_player with paid:true, actor info is on the player.
+    //           If confirmed later via confirm_player_payment, this entry will be
+    //           null and confirmPayment() will update the row with the real name.
+    let confirmedBy     = null;
+    let confirmedByName = null;
+    let confirmedByRole = null;
+
+    if (isConfirmed) {
+      if (player.paymentMethod === 'crypto') {
+        confirmedBy     = 'onchain_verified';
+        confirmedByName = 'On-chain';
+        confirmedByRole = 'system';
+      } else {
+        // Manual method (cash, card_tap, instant_payment, etc.)
+        // Use actor info written by host_add_player, or fall back to host.
+        confirmedBy     = player.addedById   ?? room.hostId       ?? null;
+        confirmedByName = player.addedByName ?? room.hostName     ?? 'Host';
+        confirmedByRole = player.addedByRole ?? 'host';
+      }
+    }
+
+    await createExpectedPayment({
+      roomId:               room.roomId,
+      clubId:               room.clubId,
+      playerId:             player.playerId,
+      playerName:           player.name,
+      ledgerType:           'entry_fee',
+      amount:               room.entryFee,
+      currency:             room.currency ?? 'EUR',
+      paymentMethod:        player.paymentMethod ?? 'unknown',
+      paymentSource:        player.paymentClaimed ? 'player_claimed' : 'player_selected',
+      clubPaymentMethodId:  player.clubPaymentMethodId ?? null,
+      paymentReference:     player.paymentReference ?? null,
+      status,
+      claimedAt:            isClaimed   ? new Date() : null,
+      confirmedAt:          isConfirmed ? new Date() : null,
+      confirmedBy,
+      confirmedByName,
+      confirmedByRole:      confirmedByRole,
+    });
+
+    if (DEBUG) console.log(`[Elimination] Ledger entry written - room: ${room.roomId} player: ${player.playerId} status: ${status} confirmedByName: ${confirmedByName ?? 'n/a'}`);
+  } catch (err) {
+    console.error('[Elimination] Ledger write failed (non-fatal):', err.message);
+  }
+};
 
     // ── DISCONNECT ─────────────────────────────────────────────────────────────
     socket.on('disconnect', () => {

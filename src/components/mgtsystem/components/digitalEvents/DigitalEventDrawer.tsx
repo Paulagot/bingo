@@ -31,7 +31,6 @@ import LeaderboardTabSubscription from './tabs/LeaderboardTabSubscription';
 import SubscriptionReconciliationTab from './tabs/reconciliation/SubscriptionReconciliationTab';
 import { challengeService, type Challenge, type LeaderboardEntry } from '../../../puzzles/services/ChallengeService';
 
-// ── Puzzle Drop tabs ─────────────────────────────────────────────────────────
 import OverviewTabDrop from './tabs/OverviewTabDrop';
 import SetupTabDrop from './tabs/SetupTabDrop';
 import PurchasesTabDrop from './tabs/PurchasesTabDrop';
@@ -44,6 +43,7 @@ import SponsoredContributionsTab from './tabs/SponsoredContributionsTab';
 import ImpactTabSponsoredActivity from './tabs/ImpactTabSponsoredActivity';
 import ManageSponsoredActivityTab from './tabs/ManageSponsoredActivityTab';
 import SponsoredActivityReconciliationTab from './tabs/reconciliation/SponsoredActivityReconciliationTab';
+import EliminationReconciliationResumeTab from './tabs/reconciliation/EliminationReconciliationResumeTab';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -83,9 +83,9 @@ interface Props {
   hasLinkedPaymentMethods: boolean;
   outstandingCount?: number;
   linkedEventTitle?: string | null;
-  linkedEventId?: string | null;
+  linkedEventId?: string | null;         // ← restored
   linkedEvent?: Event;
-  showEventLinking?: boolean;
+  showEventLinking?: boolean;            // ← restored
   featureAccess?: {
     eventLinking?: boolean;
     quizPayments?: boolean;
@@ -93,15 +93,14 @@ interface Props {
   };
   confirmedBy: string;
   confirmedByName?: string;
-  unlinkLoading?: boolean;
+  unlinkLoading?: boolean;               // ← restored
   onClose: () => void;
   onSaved: () => void;
-  onLinked: () => void;
-  confirmUnlink: () => Promise<void>;
+  onLinked: () => void;                  // ← restored
+  confirmUnlink: () => Promise<void>;    // ← restored
   onLaunchFromHere: () => void;
   onPaymentMethodSuccess: () => void;
   onRefreshRoom?: () => Promise<void>;
-  /** Opens the unified EditFundraiserModal (event + activity together). */
   onEditFundraiser?: () => void;
 }
 
@@ -118,12 +117,17 @@ export default function DigitalEventDrawer({
   hasLinkedPaymentMethods,
   outstandingCount = 0,
   linkedEventTitle,
+  linkedEventId,
   linkedEvent,
+  showEventLinking,
   featureAccess,
   confirmedBy,
   confirmedByName,
+  unlinkLoading,
   onClose,
   onSaved,
+  onLinked,
+  confirmUnlink,
   onLaunchFromHere,
   onPaymentMethodSuccess,
   onRefreshRoom,
@@ -132,7 +136,6 @@ export default function DigitalEventDrawer({
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // ── Audit view ─────────────────────────────────────────────────────────────
   const [auditView, setAuditView]               = useState<any>(null);
   const [auditViewLoading, setAuditViewLoading] = useState(false);
   const [auditViewError, setAuditViewError]     = useState<string | null>(null);
@@ -142,17 +145,19 @@ export default function DigitalEventDrawer({
   const isCancelled     = room?.status === "cancelled";
   const isTicketedEvent = (room as any)?.game_type === 'ticketed_event';
   const isSubscription  = (room as any)?.game_type === 'puzzle_sub';
-  // Drop flag - same pattern as isSubscription/isTicketedEvent above.
   const isDrop          = (room as any)?.game_type === 'puzzle_drop';
   const isSponsored     = (room as any)?.game_type === 'sponsored_activity';
+  const isElimination   = (room as any)?.game_type === 'elimination';
+
+  // Elimination-specific: is reconciliation still pending after game ended?
+  const eliminationReconciliationPending =
+    isElimination &&
+    room?.status === 'completed' &&
+    (room as any)?.reconciliation_status !== 'closed';
+
   const canUseTicketing = featureAccess?.ticketing === true;
   const canUsePayments  = featureAccess?.quizPayments === true;
 
-  // ── Subscription challenge data ─────────────────────────────────────────────
-  // The drawer only ever has a room (room_id, game_type, status) - the
-  // actual challenge (title, schedule, price, player_count) lives in
-  // fundraisely_puzzle_challenges and is fetched once here, the same way
-  // auditView is fetched once and passed down to Report/Approval tabs.
   const [challenge, setChallenge]               = useState<Challenge | null>(null);
   const [challengeLoading, setChallengeLoading] = useState(false);
   const [challengeError, setChallengeError]     = useState<string | null>(null);
@@ -177,7 +182,7 @@ export default function DigitalEventDrawer({
         const board = await challengeService.getLeaderboard(data.id);
         setLeaderboard(board);
       } catch {
-        setLeaderboard([]); // non-critical - Impact/Leaderboard tabs degrade gracefully
+        setLeaderboard([]);
       } finally {
         setLeaderboardLoading(false);
       }
@@ -213,10 +218,7 @@ export default function DigitalEventDrawer({
           if (state?.reconciliation) {
             view = {
               ...view,
-              reconciliation: {
-                ...view.reconciliation,
-                ...state.reconciliation,
-              },
+              reconciliation: { ...view.reconciliation, ...state.reconciliation },
             };
           }
         } catch (e) {
@@ -235,9 +237,9 @@ export default function DigitalEventDrawer({
 
   useEffect(() => {
     if (!open || !room?.room_id) return;
-    // Drop never uses the quiz auditView system - it has its own
-    // reconciliation backend/tab entirely - so skip this fetch for Drop,
-    // same as the isSubscription skip already does.
+    // Drop, Subscription and Sponsored have their own reconciliation systems
+    // and don't use the quiz auditView endpoint.
+    // Elimination and Ticketed DO use it (same as Quiz) - do NOT exclude them.
     if (!isCompleted || isSubscription || isDrop || isSponsored) {
       setAuditView(null);
       lastFetchedRoomId.current = null;
@@ -248,19 +250,18 @@ export default function DigitalEventDrawer({
     }
   }, [open, room?.room_id, room?.status, isCompleted, isSubscription, isDrop, isSponsored, isTicketedEvent, fetchAuditView]);
 
-  // ── Initial tab selection ──────────────────────────────────────────────────
+  // ── Initial tab selection ─────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
       if (isSponsored) {
         setActiveTab(room?.status === 'scheduled' ? 'overview' : 'impact');
       } else if (isDrop) {
-        // Drop has no completed/live reshuffle - Overview first always.
-        // Purchases stays relevant the whole time this is on sale rather
-        // than being a "wind-down" tab like Impact is for the others, so
-        // there's no equivalent of Subscription's isSubscriptionLive jump.
         setActiveTab('overview');
       } else if (isSubscription) {
         setActiveTab(room?.status !== "scheduled" ? 'impact' : 'overview');
+      } else if (isElimination && eliminationReconciliationPending) {
+        // Open straight to reconciliation tab when approval is still pending
+        setActiveTab('reconciliation');
       } else if (room?.status === "completed" && isTicketedEvent) {
         const reconciliationStatus = (room as any).reconciliation_status;
         setActiveTab(reconciliationStatus === 'closed' ? 'impact' : 'reconciliation');
@@ -268,6 +269,7 @@ export default function DigitalEventDrawer({
         setActiveTab(room?.status === "completed" ? "impact" : "overview");
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, room?.room_id]);
 
   useEffect(() => {
@@ -284,6 +286,7 @@ export default function DigitalEventDrawer({
 
   const handleRefresh = useCallback(async () => {
     if (onRefreshRoom) await onRefreshRoom();
+    // Re-fetch auditView for quiz, elimination and ticketed (not drop/sub/sponsored)
     if (room?.room_id && isCompleted && !isSubscription && !isDrop && !isSponsored) {
       lastFetchedRoomId.current = null;
       await fetchAuditView(room.room_id, isTicketedEvent);
@@ -292,9 +295,6 @@ export default function DigitalEventDrawer({
       lastFetchedChallengeRoomId.current = null;
       await fetchChallenge(room.room_id);
     }
-    // Drop has no extra fetch here - each Drop tab (Overview, Setup,
-    // Purchases, Leaderboard, Impact, Reconciliation, Launch) owns and
-    // re-fetches its own data internally when needed.
   }, [onRefreshRoom, room?.room_id, isCompleted, isSubscription, isDrop, isSponsored, fetchAuditView, fetchChallenge, isTicketedEvent]);
 
   if (!open || !room) return null;
@@ -307,7 +307,6 @@ export default function DigitalEventDrawer({
       })
     : null;
 
-  // ── Ticket tab props (quiz/elimination/ticketed only) ──────────────────────
   const ticketTabProps = {
     id: "tickets" as TabId,
     label: "Tickets",
@@ -320,7 +319,6 @@ export default function DigitalEventDrawer({
       : "Add a payment method first (Payments tab)",
   };
 
-  // ── Launch tab label changes for ticketed events ───────────────────────────
   const launchTab = {
     id: "launch" as TabId,
     label: isTicketedEvent ? "Check-in" : "Launch",
@@ -333,46 +331,45 @@ export default function DigitalEventDrawer({
 
   const reconciliationClosed = (room as any).reconciliation_status === 'closed';
 
-  // ── Tab sets ───────────────────────────────────────────────────────────────
-  const overviewTab       = { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> };
-  const setupTab          = { id: "setup" as TabId, label: "Setup", icon: <Settings className="h-3.5 w-3.5" /> };
-  const subscriptionLinkTab = { id: "subscriptionLink" as TabId, label: "Join Link", icon: <Ticket className="h-3.5 w-3.5" /> };
-  const subscriptionLaunchTab = { id: "launch" as TabId, label: "Launch", icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled challenges" };
-  const leaderboardTab    = { id: "leaderboard" as TabId, label: "Leaderboard", icon: <Trophy className="h-3.5 w-3.5" /> };
-  const subReconciliationTab = { id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> };
-  const subImpactTab      = { id: "impact" as TabId, label: "Impact", icon: <Heart className="h-3.5 w-3.5" /> };
+  // ── Shared tab definitions ─────────────────────────────────────────────────
+  const overviewTab           = { id: "overview"         as TabId, label: "Overview",       icon: <Eye className="h-3.5 w-3.5" /> };
+  const setupTab              = { id: "setup"            as TabId, label: "Setup",           icon: <Settings className="h-3.5 w-3.5" /> };
+  const subscriptionLinkTab   = { id: "subscriptionLink" as TabId, label: "Join Link",       icon: <Ticket className="h-3.5 w-3.5" /> };
+  const subscriptionLaunchTab = { id: "launch"           as TabId, label: "Launch",          icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled challenges" };
+  const leaderboardTab        = { id: "leaderboard"      as TabId, label: "Leaderboard",     icon: <Trophy className="h-3.5 w-3.5" /> };
+  const subReconciliationTab  = { id: "reconciliation"   as TabId, label: "Reconciliation",  icon: <Scale className="h-3.5 w-3.5" /> };
+  const subImpactTab          = { id: "impact"           as TabId, label: "Impact",          icon: <Heart className="h-3.5 w-3.5" /> };
 
   const isSubscriptionLive = room.status !== "scheduled";
 
-  // ── Drop tabs ────────────────────────────────────────────────────────────
-  // Purchases/Leaderboard/Impact/Reconciliation/Launch all reuse existing
-  // TabId values ("tickets", "leaderboard", "impact", "reconciliation",
-  // "launch") - label/icon swap only, same trick launchTab already does
-  // for ticketed events' "Check-in" label - so TabId doesn't need
-  // widening, and the content render section below just branches on
-  // isDrop first within each existing activeTab === "..." block.
-  const dropOverviewTab       = { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> };
-  const dropSetupTab          = {
-    id: "setup" as TabId,
-    label: "Setup",
-    icon: <Settings className="h-3.5 w-3.5" />,
-    disabled: room.status !== 'scheduled',
-    disabledReason: "Only editable before this Drop goes on sale",
-  };
-  const dropPurchasesTab      = { id: "tickets" as TabId, label: "Purchases", icon: <ReceiptText className="h-3.5 w-3.5" /> };
-  const dropLeaderboardTab    = { id: "leaderboard" as TabId, label: "Leaderboard", icon: <Trophy className="h-3.5 w-3.5" /> };
-  const dropImpactTab         = { id: "impact" as TabId, label: "Impact", icon: <Heart className="h-3.5 w-3.5" /> };
+  // ── Drop tab definitions ───────────────────────────────────────────────────
+  const dropOverviewTab       = { id: "overview"       as TabId, label: "Overview",     icon: <Eye className="h-3.5 w-3.5" /> };
+  const dropSetupTab          = { id: "setup"          as TabId, label: "Setup",        icon: <Settings className="h-3.5 w-3.5" />, disabled: room.status !== 'scheduled', disabledReason: "Only editable before this Drop goes on sale" };
+  const dropPurchasesTab      = { id: "tickets"        as TabId, label: "Purchases",    icon: <ReceiptText className="h-3.5 w-3.5" /> };
+  const dropLeaderboardTab    = { id: "leaderboard"    as TabId, label: "Leaderboard",  icon: <Trophy className="h-3.5 w-3.5" /> };
+  const dropImpactTab         = { id: "impact"         as TabId, label: "Impact",       icon: <Heart className="h-3.5 w-3.5" /> };
   const dropReconciliationTab = { id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> };
-  const dropLaunchTab         = { id: "launch" as TabId, label: "Launch", icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled Drops" };
+  const dropLaunchTab         = { id: "launch"         as TabId, label: "Launch",       icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled Drops" };
 
-  const sponsoredOverviewTab = { id: 'overview' as TabId, label: 'Overview', icon: <Eye className="h-3.5 w-3.5" /> };
-  const sponsoredContributionsTab = { id: 'tickets' as TabId, label: 'Contributions', icon: <ReceiptText className="h-3.5 w-3.5" /> };
+  // ── Sponsored tab definitions ──────────────────────────────────────────────
+  const sponsoredOverviewTab       = { id: 'overview'       as TabId, label: 'Overview',       icon: <Eye className="h-3.5 w-3.5" /> };
+  const sponsoredContributionsTab  = { id: 'tickets'        as TabId, label: 'Contributions',  icon: <ReceiptText className="h-3.5 w-3.5" /> };
   const sponsoredReconciliationTab = { id: 'reconciliation' as TabId, label: 'Reconciliation', icon: <Scale className="h-3.5 w-3.5" /> };
-  const sponsoredImpactTab = { id: 'impact' as TabId, label: 'Impact', icon: <Heart className="h-3.5 w-3.5" /> };
-  const sponsoredManageTab = { id: 'launch' as TabId, label: 'Manage', icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: 'Not available for cancelled activities' };
-
+  const sponsoredImpactTab         = { id: 'impact'         as TabId, label: 'Impact',         icon: <Heart className="h-3.5 w-3.5" /> };
+  const sponsoredManageTab         = { id: 'launch'         as TabId, label: 'Manage',         icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: 'Not available for cancelled activities' };
   const sponsoredIsScheduled = room.status === 'scheduled';
 
+  // ── Elimination tab definitions ────────────────────────────────────────────
+  const eliminationImpactTab         = { id: "impact"         as TabId, label: "Impact",         icon: <Heart className="h-3.5 w-3.5" /> };
+  const eliminationReportTab         = { id: "report"         as TabId, label: "Report",          icon: <BarChart3 className="h-3.5 w-3.5" /> };
+  const eliminationApprovalTab       = { id: "approval"       as TabId, label: "Approval Totals", icon: <Scale className="h-3.5 w-3.5" /> };
+  const eliminationOverviewTab       = { id: "overview"       as TabId, label: "Overview",        icon: <Eye className="h-3.5 w-3.5" /> };
+  const eliminationSetupTab          = { id: "setup"          as TabId, label: "Setup",           icon: <Settings className="h-3.5 w-3.5" /> };
+  const eliminationLaunchTab         = { id: "launch"         as TabId, label: "Launch",          icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled events" };
+  const eliminationPaymentsTab       = { id: "payments"       as TabId, label: "Payments",        icon: <CreditCard className="h-3.5 w-3.5" /> };
+  const eliminationReconciliationTab = { id: "reconciliation" as TabId, label: "Reconciliation",  icon: <Scale className="h-3.5 w-3.5" /> };
+
+  // ── Tab sets ───────────────────────────────────────────────────────────────
   const tabs: Tab[] = isSponsored
     ? sponsoredIsScheduled
       ? [sponsoredOverviewTab, sponsoredManageTab, sponsoredContributionsTab, sponsoredReconciliationTab, sponsoredImpactTab]
@@ -383,35 +380,65 @@ export default function DigitalEventDrawer({
       ? isSubscriptionLive
         ? [subImpactTab, subscriptionLinkTab, leaderboardTab, subReconciliationTab, overviewTab, subscriptionLaunchTab]
         : [overviewTab, setupTab, subscriptionLinkTab, subscriptionLaunchTab, leaderboardTab, subReconciliationTab, subImpactTab]
-      : isCompleted
-      ? [
-          ...(!isTicketedEvent || reconciliationClosed
-            ? [
-                { id: "impact"   as TabId, label: "Impact",         icon: <Heart className="h-3.5 w-3.5" /> },
-                { id: "report"   as TabId, label: "Report",          icon: <BarChart3 className="h-3.5 w-3.5" /> },
-                { id: "approval" as TabId, label: "Approval Totals", icon: <Scale className="h-3.5 w-3.5" /> },
-              ]
-            : []
-          ),
-          ...(isTicketedEvent
-            ? [{ id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> }]
-            : []
-          ),
-          ...(canUsePayments && outstandingCount > 0 && !isTicketedEvent
-            ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" />, badge: outstandingCount }]
-            : []),
-          { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined },
-          { id: "setup" as TabId, label: "Setup", icon: <Settings className="h-3.5 w-3.5" /> },
-        ]
-      : [
-          { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> },
-          { id: "setup" as TabId, label: "Setup", icon: <Settings className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled events" },
-          ...(canUsePayments || isTicketedEvent
-            ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" /> }]
-            : []),
-          { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined },
-          launchTab,
-        ];
+    : isElimination
+      // ── Elimination tab sets ───────────────────────────────────────────────
+      ? isCompleted
+        ? [
+            // If reconciliation is still pending, show that tab first.
+            // Once closed, show Impact first (same as quiz completed).
+            ...(eliminationReconciliationPending
+              ? [eliminationReconciliationTab, eliminationImpactTab]
+              : [eliminationImpactTab]
+            ),
+            // Report + Approval Totals use the same quiz auditView system
+         eliminationReportTab,
+    eliminationApprovalTab,
+    eliminationOverviewTab,
+    eliminationSetupTab,
+    { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined }, // ← ADD
+    ...(canUsePayments && outstandingCount > 0
+      ? [{ ...eliminationPaymentsTab, badge: outstandingCount }]
+      : canUsePayments ? [eliminationPaymentsTab] : []
+            ),
+          ]
+        : [
+            eliminationOverviewTab,
+    eliminationSetupTab,
+    ...(canUsePayments ? [eliminationPaymentsTab] : []),
+    { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined },
+    eliminationLaunchTab,
+          ]
+    : isCompleted
+    // ── Quiz / default completed tab set ─────────────────────────────────────
+    ? [
+        ...(!isTicketedEvent || reconciliationClosed
+          ? [
+              { id: "impact"   as TabId, label: "Impact",         icon: <Heart className="h-3.5 w-3.5" /> },
+              { id: "report"   as TabId, label: "Report",          icon: <BarChart3 className="h-3.5 w-3.5" /> },
+              { id: "approval" as TabId, label: "Approval Totals", icon: <Scale className="h-3.5 w-3.5" /> },
+            ]
+          : []
+        ),
+        ...(isTicketedEvent
+          ? [{ id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> }]
+          : []
+        ),
+        ...(canUsePayments && outstandingCount > 0 && !isTicketedEvent
+          ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" />, badge: outstandingCount }]
+          : []),
+        { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined },
+        { id: "setup" as TabId, label: "Setup", icon: <Settings className="h-3.5 w-3.5" /> },
+      ]
+    // ── Quiz / default non-completed tab set ──────────────────────────────────
+    : [
+        { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> },
+        { id: "setup"    as TabId, label: "Setup",    icon: <Settings className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled events" },
+        ...(canUsePayments || isTicketedEvent
+          ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" /> }]
+          : []),
+        { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined },
+        launchTab,
+      ];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -435,6 +462,13 @@ export default function DigitalEventDrawer({
                 style={statusBadgeStyle(room.status)}>
                 {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
               </span>
+              {isElimination && (
+                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+                  style={{ background: 'rgba(233,87,79,0.1)', color: '#c8423b', borderColor: 'rgba(233,87,79,0.3)' }}>
+                  <Trophy className="h-3 w-3" />
+                  Elimination
+                </span>
+              )}
               {isTicketedEvent && (
                 <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
                   style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }}>
@@ -516,65 +550,36 @@ export default function DigitalEventDrawer({
             isSponsored
               ? <ImpactTabSponsoredActivity roomId={room.room_id} config={config} />
               : isDrop
-              ? <ImpactTabDrop
-                  roomId={room.room_id}
-                  config={config}
-                  dropTitle={config?.dropTitle}
-                  status={room.status as any}
-                />
+              ? <ImpactTabDrop roomId={room.room_id} config={config} dropTitle={config?.dropTitle} status={room.status as any} />
               : isSubscription
                 ? <ImpactTabSubscription stats={stats} challenge={challenge} challengeLoading={challengeLoading} leaderboard={leaderboard} onRefresh={handleRefresh} />
-                : <ImpactTab room={room} config={config} auditView={auditView}
-                    auditViewLoading={auditViewLoading} auditViewError={auditViewError}
-                    onRefresh={handleRefresh} />
+                : <ImpactTab room={room} config={config} auditView={auditView} auditViewLoading={auditViewLoading} auditViewError={auditViewError} onRefresh={handleRefresh} />
           )}
 
           {activeTab === "leaderboard" && (
             isDrop
               ? <LeaderboardTabDrop roomId={room.room_id} />
-              : <LeaderboardTabSubscription
-                  leaderboard={leaderboard}
-                  leaderboardLoading={leaderboardLoading}
-                  challengeId={challenge?.id}
-                />
+              : <LeaderboardTabSubscription leaderboard={leaderboard} leaderboardLoading={leaderboardLoading} challengeId={challenge?.id} />
           )}
 
           {activeTab === "overview" && (
             isSponsored
               ? <OverviewTabSponsoredActivity room={room} config={config} linkedEventTitle={linkedEventTitle} />
               : isDrop
-              ? <OverviewTabDrop
-                  roomId={room.room_id}
-                  stats={stats}
-                  linkedEventTitle={linkedEventTitle}
-                />
+              ? <OverviewTabDrop roomId={room.room_id} stats={stats} linkedEventTitle={linkedEventTitle} />
               : isSubscription
-                ? <OverviewTabSubscription room={room} challenge={challenge}
-                    challengeLoading={challengeLoading} challengeError={challengeError}
-                    linkedEventTitle={linkedEventTitle} />
+                ? <OverviewTabSubscription room={room} challenge={challenge} challengeLoading={challengeLoading} challengeError={challengeError} linkedEventTitle={linkedEventTitle} />
                 : isTicketedEvent
-                  ? <OverviewTabTicketedEvent room={room} config={config} stats={stats}
-                      linkedEventTitle={linkedEventTitle} />
-                  : <OverviewTab room={room} config={config} stats={stats}
-                      linkedEventTitle={linkedEventTitle} />
+                  ? <OverviewTabTicketedEvent room={room} config={config} stats={stats} linkedEventTitle={linkedEventTitle} />
+                  : <OverviewTab room={room} config={config} stats={stats} linkedEventTitle={linkedEventTitle} />
           )}
 
           {activeTab === "setup" && (
             isDrop
-              ? <SetupTabDrop
-                  roomId={room.room_id}
-                  status={room.status as any}
-                  onEditFundraiser={onEditFundraiser ?? (() => {})}
-                />
+              ? <SetupTabDrop roomId={room.room_id} status={room.status as any} onEditFundraiser={onEditFundraiser ?? (() => {})} />
               : isSubscription
-                ? <SetupTabSubscription challenge={challenge} challengeLoading={challengeLoading}
-                    onEdit={() => onEditFundraiser?.()} />
-                : <SetupTab
-                    room={room}
-                    linkedEvent={linkedEvent}
-                    isTicketedEvent={isTicketedEvent}
-                    onEditFundraiser={onEditFundraiser ?? (() => {})}
-                  />
+                ? <SetupTabSubscription challenge={challenge} challengeLoading={challengeLoading} onEdit={() => onEditFundraiser?.()} />
+                : <SetupTab room={room} linkedEvent={linkedEvent} isTicketedEvent={isTicketedEvent} onEditFundraiser={onEditFundraiser ?? (() => {})} />
           )}
 
           {activeTab === "subscriptionLink" && (
@@ -582,82 +587,57 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "payments" && (
-            <PaymentsTab room={room} config={config}
-              onPaymentMethodSuccess={onPaymentMethodSuccess}
-              confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
+            <PaymentsTab room={room} config={config} onPaymentMethodSuccess={onPaymentMethodSuccess} confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
           )}
 
           {activeTab === "tickets" && (
             isSponsored
               ? <SponsoredContributionsTab roomId={room.room_id} config={config} roomStatus={room.status} />
               : isDrop
-              ? <PurchasesTabDrop
-                  roomId={room.room_id}
-                  config={config}
-                  confirmedBy={confirmedBy}
-                  confirmedByName={confirmedByName}
-                />
+              ? <PurchasesTabDrop roomId={room.room_id} config={config} confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
               : isTicketedEvent
-                ? <TicketsTabTicketedEvent room={room} clubId={clubId} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
-                    canUseTicketing={canUseTicketing}
-                    confirmedBy={confirmedBy} confirmedByName={confirmedByName}
-                    config={config} />
-                : <TicketsTab room={room} clubId={clubId} hasLinkedPaymentMethods={hasLinkedPaymentMethods}
-                    canUseTicketing={canUseTicketing}
-                    confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
+                ? <TicketsTabTicketedEvent room={room} clubId={clubId} hasLinkedPaymentMethods={hasLinkedPaymentMethods} canUseTicketing={canUseTicketing} confirmedBy={confirmedBy} confirmedByName={confirmedByName} config={config} />
+                : <TicketsTab room={room} clubId={clubId} hasLinkedPaymentMethods={hasLinkedPaymentMethods} canUseTicketing={canUseTicketing} confirmedBy={confirmedBy} confirmedByName={confirmedByName} />
           )}
 
           {activeTab === "launch" && (
             isSponsored
               ? <ManageSponsoredActivityTab room={room} config={config} endedAt={(room as any).ended_at ?? null} onEditFundraiser={onEditFundraiser ?? (() => {})} onStatusChanged={handleRefresh} />
               : isDrop
-              ? <LaunchTabDrop
-                  roomId={room.room_id}
-                  status={room.status as any}
-                  scheduledAt={room.scheduled_at}
-                  onStatusChanged={handleRefresh}
-                />
+              ? <LaunchTabDrop roomId={room.room_id} status={room.status as any} scheduledAt={room.scheduled_at} onStatusChanged={handleRefresh} />
               : isSubscription
-                ? <LaunchTabSubscription challenge={challenge} challengeLoading={challengeLoading}
-                    onStatusChanged={handleRefresh} />
-                : <LaunchTab
-                    room={room}
-                    onLaunchFromHere={onLaunchFromHere}
-                    onRoomUpdated={onRefreshRoom}
-                  />
+                ? <LaunchTabSubscription challenge={challenge} challengeLoading={challengeLoading} onStatusChanged={handleRefresh} />
+                : <LaunchTab room={room} onLaunchFromHere={onLaunchFromHere} onRoomUpdated={onRefreshRoom} />
           )}
 
           {activeTab === "report" && (
-            <ReportTab room={room} config={config}
-              auditView={auditView} auditViewLoading={auditViewLoading} />
+            <ReportTab room={room} config={config} auditView={auditView} auditViewLoading={auditViewLoading} />
           )}
 
           {activeTab === "approval" && (
-            <ApprovalTotalsTab room={room} config={config}
-              auditView={auditView} auditViewLoading={auditViewLoading}
-              auditViewError={auditViewError} onRefresh={handleRefresh} />
+            <ApprovalTotalsTab room={room} config={config} auditView={auditView} auditViewLoading={auditViewLoading} auditViewError={auditViewError} onRefresh={handleRefresh} />
           )}
 
           {activeTab === "reconciliation" && (
-            isSponsored
-              ? <SponsoredActivityReconciliationTab roomId={room.room_id} currencySymbol={({ EUR: '€', GBP: '£', USD: '$' } as Record<string,string>)[String(config?.currency || 'EUR').toUpperCase()] ?? '€'} hostName={confirmedByName ?? config?.hostName ?? 'Host'} />
-              : isDrop
-              ? <DropReconciliationTab
+            isElimination
+              ? <EliminationReconciliationResumeTab roomId={room.room_id} hostId={room.host_id} />
+              : isSponsored
+              ? <SponsoredActivityReconciliationTab
                   roomId={room.room_id}
-                  currencySymbol={config?.currencySymbol ?? '€'}
-                  hostName={confirmedByName ?? 'Host'}
+                  currencySymbol={({ EUR: '€', GBP: '£', USD: '$' } as Record<string,string>)[String(config?.currency || 'EUR').toUpperCase()] ?? '€'}
+                  hostName={confirmedByName ?? config?.hostName ?? 'Host'}
                 />
+              : isDrop
+              ? <DropReconciliationTab roomId={room.room_id} currencySymbol={config?.currencySymbol ?? '€'} hostName={confirmedByName ?? 'Host'} />
               : isSubscription
                 ? <SubscriptionReconciliationTab
                     roomId={room.room_id}
                     currencySymbol={({ eur: '€', gbp: '£', usd: '$' } as Record<string, string>)[(config?.currency ?? 'eur').toLowerCase()] ?? '€'}
                     hostName={config?.hostName ?? 'Host'}
                   />
-                : <TicketedEventReconciliationTab
-                    room={room}
-                    onRefreshRoom={handleRefresh}
-                  />
+                : <TicketedEventReconciliationTab room={room} onRefreshRoom={handleRefresh} />
           )}
+
         </div>
       </div>
     </div>

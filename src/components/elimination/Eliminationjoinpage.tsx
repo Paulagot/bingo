@@ -31,6 +31,8 @@ const EliminationJoinInner: React.FC = () => {
 
   // Ticket token from ?ticket= query param
   const ticketToken = searchParams.get('ticket');
+  const prePlayerId  = searchParams.get('playerId');    // ← ADD
+const prePlayerName = searchParams.get('name');       // ← ADD
 
   // Clear stale session on mount
   useState(() => {
@@ -42,6 +44,7 @@ const EliminationJoinInner: React.FC = () => {
   const [roomCode, setRoomCode]     = useState(roomIdFromUrl ?? '');
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
+  const [reconnectLoading, setReconnectLoading] = useState(!!prePlayerId && !ticketToken);
 
   // Room detection
   const [roomData, setRoomData]             = useState<any>(null);
@@ -59,6 +62,8 @@ const EliminationJoinInner: React.FC = () => {
   useEffect(() => { nameRef.current = name; }, [name]);
 
   const resolvedRoomId = (roomIdFromUrl || roomCode || '').trim();
+
+  
 
   // ── Ticket redemption ──────────────────────────────────────────────────────
   // If ?ticket= is present, redeem immediately and join via socket.
@@ -107,11 +112,48 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [ticketToken]); // <-- only ticketToken, not resolvedRoomId
 
+
+useEffect(() => {
+  if (!prePlayerId || ticketToken || !resolvedRoomId) return;
+ 
+  let cancelled = false;
+
+  
+  const socket = getSocket();
+ 
+  // Store the name immediately so the room_state handler can use nameRef
+  const knownName = prePlayerName ?? '';
+  setName(knownName);
+  nameRef.current = knownName;
+ 
+  if (knownName) {
+    sessionStorage.setItem(SESSION_PLAYER_NAME, knownName);
+  }
+ 
+  // Emit join with the existing playerId.
+  // The server's JOIN_ROOM handler sees a playerId and calls reconnectPlayer(),
+  // which looks up the player in the room and reconnects their socket.
+  // On success it emits elimination_room_state → our existing socket handler
+  // stores session data and navigates to /elimination.
+  emitJoinRoom(
+    resolvedRoomId,
+    knownName,
+    prePlayerId,     // playerId - triggers the reconnect path server-side
+    undefined,       // txSignature
+    undefined,       // walletAddress
+    undefined,       // paymentOverrides - not needed, player already exists
+  );
+ 
+  return () => { cancelled = true; };
+ 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [prePlayerId]); // Only fire once on mount
+
   // ── Fetch room when roomId is in URL ────────────────────────────────────────
   // Skip room fetch if we have a ticket - we don't need room data for that path
   useEffect(() => {
     const code = roomIdFromUrl ?? '';
-    if (!code || ticketToken) return;
+   if (!code || ticketToken || prePlayerId) return;
     setRoomLoading(true);
     getRoom(code)
    .then(async({ room }) => {
@@ -197,53 +239,56 @@ if (!isWeb3) {
   }, [roomCode, roomIdFromUrl, ticketToken]);
 
   // ── Socket listeners ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const socket = getSocket();
+useEffect(() => {
+  const socket = getSocket();
 
-    const handleRoomState = (data: any) => {
-      const room: EliminationRoom = data.roomSnapshot ?? data;
-      const assignedPlayerId: string | undefined = data.yourPlayerId;
-      const assignedName: string | undefined     = data.yourName;
+  const handleRoomState = (data: any) => {
+    const room: EliminationRoom = data.roomSnapshot ?? data;
+    const assignedPlayerId: string | undefined = data.yourPlayerId;
+    const assignedName: string | undefined     = data.yourName;
 
-      if (!assignedPlayerId) {
-        const me = room.players.find(
-          p => p.name.toLowerCase() === nameRef.current.toLowerCase().trim()
-        );
-        if (!me) {
-          setLoading(false);
-          setTicketLoading(false);
-          setError('Could not join room. Please try again.');
-          return;
-        }
-        sessionStorage.setItem(SESSION_ROOM_ID,     room.roomId);
-        sessionStorage.setItem(SESSION_PLAYER_ID,   me.playerId);
-        sessionStorage.setItem(SESSION_PLAYER_NAME, me.name);
-        sessionStorage.setItem(SESSION_IS_HOST,     'false');
-        navigate('/elimination', { replace: true });
+    if (!assignedPlayerId) {
+      const me = room.players.find(
+        p => p.name.toLowerCase() === nameRef.current.toLowerCase().trim()
+      );
+      if (!me) {
+        setLoading(false);
+        setTicketLoading(false);
+        setError('Could not join room. Please try again.');
         return;
       }
-
       sessionStorage.setItem(SESSION_ROOM_ID,     room.roomId);
-      sessionStorage.setItem(SESSION_PLAYER_ID,   assignedPlayerId);
-      sessionStorage.setItem(SESSION_PLAYER_NAME, assignedName ?? nameRef.current);
+      sessionStorage.setItem(SESSION_PLAYER_ID,   me.playerId);
+      sessionStorage.setItem(SESSION_PLAYER_NAME, me.name);
       sessionStorage.setItem(SESSION_IS_HOST,     'false');
+      sessionStorage.setItem('elim_just_joined',  'true');
       navigate('/elimination', { replace: true });
-    };
+      return;
+    }
 
-    const handleError = (data: { message: string }) => {
-      setError(data.message);
-      setLoading(false);
-      setTicketLoading(false);
-      setTicketError(data.message);
-    };
+    sessionStorage.setItem(SESSION_ROOM_ID,     room.roomId);
+    sessionStorage.setItem(SESSION_PLAYER_ID,   assignedPlayerId);
+    sessionStorage.setItem(SESSION_PLAYER_NAME, assignedName ?? nameRef.current);
+    sessionStorage.setItem(SESSION_IS_HOST,     'false');
+    sessionStorage.setItem('elim_just_joined',  'true');
+    navigate('/elimination', { replace: true });
+  };
 
-    socket.on('elimination_room_state', handleRoomState);
-    socket.on('elimination_error', handleError);
-    return () => {
-      socket.off('elimination_room_state', handleRoomState);
-      socket.off('elimination_error', handleError);
-    };
-  }, [navigate]);
+  const handleError = (data: { message: string }) => {
+    setError(data.message);
+    setLoading(false);
+    setTicketLoading(false);
+    setTicketError(data.message);
+    setReconnectLoading(false);
+  };
+
+  socket.on('elimination_room_state', handleRoomState);
+  socket.on('elimination_error', handleError);
+  return () => {
+    socket.off('elimination_room_state', handleRoomState);
+    socket.off('elimination_error', handleError);
+  };
+}, [navigate]);
 
   // ── Web3 payment confirmed ──────────────────────────────────────────────────
   const handleWeb3PaymentDone = (txHash: string, walletAddress: string) => {
@@ -276,6 +321,22 @@ if (!isWeb3) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !isWeb3Room && !isWeb2FeeRoom) handleFreeJoin();
   };
+
+  // ── Reconnect: host-added player using their join link ─────────────────
+if (prePlayerId && reconnectLoading && !ticketToken) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={styles.page}>
+      <div style={styles.eyebrow}>FundRaisely</div>
+      <h1 style={styles.title}>JOINING...</h1>
+      <p style={{ ...styles.subtitle, marginTop: '12px' }}>
+        Getting you into the game, please wait…
+      </p>
+      <div style={styles.spinner} />
+      <div style={styles.ring1} />
+      <div style={styles.ring2} />
+    </div>
+  );
+}
 
   // ── Ticket: loading screen ──────────────────────────────────────────────────
   if (ticketToken && ticketLoading) {
@@ -334,7 +395,7 @@ if (roomFull) {
 }
 
   // ── Web2 fee room - delegate to EliminationJoinFlow ─────────────────────────
-  if (isWeb2FeeRoom && roomData && !roomLoading) {
+ if (isWeb2FeeRoom && roomData && !roomLoading && !prePlayerId) {
     return (
       <EliminationJoinFlow
         roomId={resolvedRoomId}

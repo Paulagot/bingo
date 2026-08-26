@@ -1,5 +1,6 @@
+//src/components/elimination/EliminationGamePage.tsx
 import React, { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEliminationGame } from './hooks/useEliminationGame';
 import { useEliminationSocket } from './hooks/useEliminationSocket';
 import { useRoundTimer } from './hooks/useRoundTimer';
@@ -41,6 +42,7 @@ const SESSION_ONCHAIN_ROOM_ID = 'elim_onchain_room_id';
 const SESSION_PAYMENT_MODE    = 'elim_payment_mode';
 const SESSION_RECONCILING     = 'elim_reconciling';
 
+
 const clearEliminationSession = () => {
   [
     SESSION_ROOM_ID, SESSION_PLAYER_ID, SESSION_HOST_ID,
@@ -64,6 +66,7 @@ function getPrizeSponsor(room: any): string | null {
 
 export const EliminationGamePage: React.FC = () => {
   const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
   // ── Session identity ──────────────────────────────────────────────────────
   const [roomId, setRoomId]                   = useState<string | null>(() => sessionStorage.getItem(SESSION_ROOM_ID));
@@ -123,9 +126,10 @@ export const EliminationGamePage: React.FC = () => {
 
   // ── Navigation helpers ────────────────────────────────────────────────────
 
-  const getExitRoute = useCallback(() => {
-    return isWeb3Room(state.room) ? '/web3/elimination' : '/';
-  }, [state.room]);
+ const getExitRoute = useCallback(() => {
+  if (isWeb3Room(state.room)) return '/web3/elimination';
+  return '/event-dashboard';
+}, [state.room]);
 
   const handleCleanupAndNavigate = useCallback(() => {
     const exitRoute = getExitRoute();
@@ -269,33 +273,55 @@ export const EliminationGamePage: React.FC = () => {
   const initialPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID);
   const initialName     = sessionStorage.getItem(SESSION_PLAYER_NAME) ?? '';
 
-  useEffect(() => {
-    const hasHostSession   = initialRoomId && initialIsHost && initialHostId;
-    const hasPlayerSession = initialRoomId && !initialIsHost && initialPlayerId;
-    if (!hasHostSession && !hasPlayerSession) return;
+useEffect(() => {
+  const hasHostSession   = initialRoomId && initialIsHost && initialHostId;
+  const hasPlayerSession = initialRoomId && !initialIsHost && initialPlayerId;
 
-    fetch(`/api/elimination/rooms/${initialRoomId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (!data.success) { clearEliminationSession(); return; }
-        if (hasHostSession) {
-          setIsHost(true);
-          setHostId(initialHostId);
-          setLocalPlayerId(initialHostId!);
-          setLocalPlayerName(initialName);
-          setRoomId(initialRoomId!);
-          emitHostJoin(initialRoomId!, initialHostId!);
+  // Fall back to URL params when session storage is empty (resume from dashboard)
+  const urlRoomId = searchParams.get('roomId');
+  const urlHostId = searchParams.get('hostId');
+  const urlMode   = searchParams.get('mode');
+  const isResumeFromDashboard = !hasHostSession && !hasPlayerSession && !!urlRoomId && !!urlHostId;
 
-          if (sessionStorage.getItem(SESSION_RECONCILING) === 'true') {
-            onEnterReconciliation();
-          }
-        } else if (hasPlayerSession) {
-          emitJoinRoom(initialRoomId!, initialName, initialPlayerId!);
+  if (!hasHostSession && !hasPlayerSession && !isResumeFromDashboard) return;
+
+  const resolvedRoomId = hasHostSession ? initialRoomId! : urlRoomId!;
+  const resolvedHostId = hasHostSession ? initialHostId! : urlHostId!;
+  const resolvedName   = hasHostSession ? initialName : '';
+
+  fetch(`/api/elimination/rooms/${resolvedRoomId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) { clearEliminationSession(); return; }
+
+      if (hasHostSession || isResumeFromDashboard) {
+        setIsHost(true);
+        setHostId(resolvedHostId);
+        setLocalPlayerId(resolvedHostId);
+        setLocalPlayerName(resolvedName);
+        setRoomId(resolvedRoomId);
+
+        // Write session so socket and subsequent navigation work correctly
+        sessionStorage.setItem(SESSION_ROOM_ID,     resolvedRoomId);
+        sessionStorage.setItem(SESSION_HOST_ID,     resolvedHostId);
+        sessionStorage.setItem(SESSION_IS_HOST,     'true');
+        sessionStorage.setItem(SESSION_PLAYER_NAME, resolvedName);
+
+        emitHostJoin(resolvedRoomId, resolvedHostId);
+
+        if (
+          urlMode === 'reconcile' ||
+          sessionStorage.getItem(SESSION_RECONCILING) === 'true'
+        ) {
+          onEnterReconciliation();
         }
-      })
-      .catch(() => clearEliminationSession());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      } else if (hasPlayerSession) {
+        emitJoinRoom(initialRoomId!, initialName, initialPlayerId!);
+      }
+    })
+    .catch(() => clearEliminationSession());
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   // ── Event handlers ────────────────────────────────────────────────────────
   const handleJoined = useCallback((
@@ -355,6 +381,7 @@ export const EliminationGamePage: React.FC = () => {
           currency={(state.room as any)?.currency ?? '€'}
           initialPlayers={waitingPlayers}
           gameEnded={gameEnded}
+        maxPlayers={(state.room as any)?.maxPlayers ?? (state.room as any)?.roomCaps?.maxPlayers}
         />
       )}
     </>

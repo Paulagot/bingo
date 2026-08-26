@@ -107,7 +107,7 @@ export const EliminationHostReveal: React.FC<Props> = ({
   return (
     <div style={{
       minHeight: '100svh',
-      background: `radial-gradient(ellipse at 50% 0%, ${rc.tint} 0%, #0a0b0f 55%)`,
+      background: `radial-gradient(ellipse at 50% 0%, ${rc.tint} 0%, #0a0b0f 30%)`,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

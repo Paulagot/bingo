@@ -1,3 +1,4 @@
+//src/components/elimination/host/EliminationHostDashboard.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EliminationAdminsTab } from '../EliminationAdminsTab';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -57,12 +58,14 @@ interface ClubPaymentMethod {
 interface EliminationHostDashboardProps {
   roomId: string;
   hostId: string;
+  /** Pass adminId when this dashboard is rendered for a helper admin, not the host */
+  adminId?: string;
   socket: any;
   initialPlayers?: any[];
   entryFee?: number;
   currency?: string;
-  /** True once the game has ended and the host is in the reconciliation phase */
   gameEnded?: boolean;
+   maxPlayers?: number; 
 }
 
 // ─── Normalise elimination player shape ───────────────────────────────────────
@@ -222,6 +225,8 @@ interface AddEditModalProps {
     clubPaymentMethodId?: number | null;
   }) => void;
   player?: EliminationPlayer | null;
+  /** Pre-fill the name field when opening for a new player add */
+  prefillName?: string;
   entryFee: number;
   currency: string;
   clubMethods: ClubPaymentMethod[];
@@ -229,40 +234,59 @@ interface AddEditModalProps {
 }
 
 const AddEditModal: React.FC<AddEditModalProps> = ({
-  isOpen, onClose, onSave, player, entryFee, currency, clubMethods, methodsLoading,
+  isOpen, onClose, onSave, player, prefillName, entryFee, currency, clubMethods, methodsLoading,
 }) => {
   const isEditMode = !!player;
-  const [name, setName]                   = useState(player?.name ?? '');
-  const [paid, setPaid]                   = useState(player?.paid ?? false);
-  const [paymentMethod, setPaymentMethod] = useState(player?.paymentMethod ?? '');
-  const [ref, setRef]                     = useState(player?.paymentReference ?? '');
-
+ 
+  // On-night methods only: exclude stripe and crypto (those auto-confirm)
+  const onNightMethods = clubMethods.filter(
+    m => m.methodCategory !== 'stripe' && m.methodCategory !== 'crypto'
+  );
+ 
+  const defaultMethod = onNightMethods[0]?.providerName ?? '';
+ 
+  const [name, setName]                   = useState('');
+  const [paid, setPaid]                   = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [ref, setRef]                     = useState('');
+ 
   useEffect(() => {
     if (isOpen) {
-      setName(player?.name ?? '');
+      // For edit: populate from the existing player
+      // For add:  use prefillName (what the host typed before clicking +)
+      setName(player?.name ?? prefillName ?? '');
       setPaid(player?.paid ?? false);
-      setPaymentMethod(player?.paymentMethod ?? (clubMethods[0]?.providerName ?? 'pay_admin'));
+      setPaymentMethod(
+        player?.paymentMethod ??
+        (onNightMethods[0]?.providerName ?? '')
+      );
       setRef(player?.paymentReference ?? '');
     }
-  }, [isOpen, player, clubMethods]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, player, prefillName]);
+  // Note: onNightMethods is derived from clubMethods which is a stable prop - 
+  // including it in deps would cause re-runs; the effect re-runs when isOpen changes
+  // which is the right trigger.
+ 
   if (!isOpen) return null;
-
+ 
   const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const selectedMethod = clubMethods.find(m => m.providerName === paymentMethod);
+    const selectedMethod = onNightMethods.find(m => m.providerName === paymentMethod);
     onSave({
-      name: trimmed, paid, paymentMethod,
+      name: trimmed,
+      paid,
+      paymentMethod,
       paymentReference: ref.trim(),
       clubPaymentMethodId: selectedMethod?.id ?? null,
     });
     onClose();
   };
-
-  const selectedMethodObj = clubMethods.find(m => m.providerName === paymentMethod);
-  const showReference     = selectedMethodObj?.methodCategory === 'instant_payment';
-
+ 
+  const selectedMethodObj  = onNightMethods.find(m => m.providerName === paymentMethod);
+  const showReference      = selectedMethodObj?.methodCategory === 'instant_payment';
+ 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
@@ -274,13 +298,16 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         </h3>
         <div className="space-y-3">
           <input
-            type="text" placeholder="Player name"
-            value={name} onChange={(e) => setName(e.target.value)}
+            type="text"
+            placeholder="Player name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-indigo-400 focus:outline-none"
           />
           <p className="text-sm text-gray-300">
             Entry fee: <span className="font-semibold text-white">{currency}{entryFee.toFixed(2)}</span>
           </p>
+ 
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-300">
               Payment Method
@@ -289,48 +316,59 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
               <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-500">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading methods…
               </div>
-            ) : clubMethods.length > 0 ? (
+            ) : onNightMethods.length > 0 ? (
               <select
-                value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
                 className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
               >
-                <option value="pay_admin">Pay Host Directly</option>
-                {clubMethods.map(m => (
+                {onNightMethods.map(m => (
                   <option key={m.id} value={m.providerName}>{m.methodLabel}</option>
                 ))}
               </select>
             ) : (
-              <select
-                value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-              >
-                <option value="pay_admin">Pay Host Directly</option>
-                <option value="cash">Cash</option>
-                <option value="card_tap">Card (tap)</option>
-              </select>
+              // Fallback if the API returned nothing - should be rare
+              <div className="rounded-lg border border-yellow-700 bg-yellow-950 px-3 py-2 text-xs text-yellow-300">
+                No on-night payment methods configured for this room.
+                Ask the club owner to add Cash or Card Tap in payment settings.
+              </div>
             )}
           </div>
+ 
           {showReference && (
             <input
-              type="text" placeholder="Payment reference (optional)"
-              value={ref} onChange={(e) => setRef(e.target.value)}
+              type="text"
+              placeholder="Payment reference (optional)"
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
               className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-indigo-400 focus:outline-none"
             />
           )}
+ 
           <label className="flex cursor-pointer items-center gap-3">
             <input
-              type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)}
+              type="checkbox"
+              checked={paid}
+              onChange={(e) => setPaid(e.target.checked)}
               className="h-4 w-4 accent-indigo-500"
             />
             <span className="text-sm text-gray-200">Mark as paid</span>
           </label>
+ 
           <div className="mt-4 flex gap-2">
-            <button type="button" onClick={onClose}
-              className="flex-1 rounded-lg bg-gray-700 py-2 text-sm font-semibold text-white hover:bg-gray-600 transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg bg-gray-700 py-2 text-sm font-semibold text-white hover:bg-gray-600 transition-colors"
+            >
               Cancel
             </button>
-            <button type="button" onClick={handleSave} disabled={!name.trim()}
-              className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!name.trim() || (onNightMethods.length === 0 && !isEditMode)}
+              className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            >
               {isEditMode ? 'Save Changes' : 'Add Player'}
             </button>
           </div>
@@ -497,11 +535,13 @@ const PlayerRow: React.FC<PlayerRowProps> = ({
 export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> = ({
   roomId,
   hostId,
+  adminId,
   socket,
   initialPlayers = [],
   entryFee = 0,
   currency = '€',
   gameEnded = false,
+   maxPlayers,
 }) => {
   const [isOpen, setIsOpen]       = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('players');
@@ -511,6 +551,8 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
   const [newName, setNewName]         = useState('');
   const [clubMethods, setClubMethods] = useState<ClubPaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
+  // actorId: use adminId when rendered for a helper admin, otherwise use hostId
+const actorId = adminId ?? hostId;
 
   // ── Auto-open + switch to Reconcile tab when game ends ───────────────────
   useEffect(() => {
@@ -521,7 +563,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
   useEffect(() => {
     if (!roomId) return;
     setMethodsLoading(true);
-    fetch(`/api/elimination/rooms/${roomId}/available-payment-methods`)
+   fetch(`/api/elimination/rooms/${roomId}/available-payment-methods?context=onnight`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         setClubMethods((data.paymentMethods ?? []).filter(
@@ -593,17 +635,26 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
   const pendingCount    = players.filter(p => !p.paid && (p.paymentClaimed || isPayAtDoorMethod(p))).length;
   const eliminatedCount = players.filter(p => p.eliminated).length;
   const actionRequired  = players.filter(p => !p.paid && (p.paymentClaimed || isPayAtDoorMethod(p)));
+  const isFull = maxPlayers != null && players.length >= maxPlayers;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleConfirmPayment = useCallback((playerId: string) => {
-    if (!socket || !roomId) return;
-    setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, paid: true, paymentClaimed: false } : p));
-    socket.emit('confirm_player_payment', {
-      roomId, playerId,
-      confirmedBy: { id: hostId, role: 'host' },
-      adminNotes: 'Confirmed by host in elimination dashboard',
-    });
-  }, [socket, roomId, hostId]);
+const handleConfirmPayment = useCallback((playerId: string) => {
+  if (!socket || !roomId) return;
+
+  // DEBUG - remove after confirming fix
+  console.log('[ConfirmPayment] actorId:', actorId, 'hostId:', hostId, 'adminId:', adminId);
+
+  setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, paid: true, paymentClaimed: false } : p));
+  socket.emit('confirm_player_payment', {
+    roomId, playerId,
+    confirmedBy: { id: actorId, role: adminId ? 'admin' : 'host' },
+    adminNotes: 'Confirmed in elimination dashboard',
+  });
+
+  // DEBUG
+  console.log('[ConfirmPayment] emitted confirmedBy:', { id: actorId, role: adminId ? 'admin' : 'host' });
+
+}, [socket, roomId, actorId, adminId, hostId]);
 
   const handleEliminate = useCallback((playerId: string) => {
     if (!socket || !roomId) return;
@@ -649,7 +700,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
       }]);
       socket.emit('host_add_player', {
         roomId,
-        hostId,
+        hostId: actorId,
         player: {
           name:                data.name,
           paid:                data.paid,
@@ -661,7 +712,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
         },
       });
     }
-  }, [socket, roomId, addEditModal.player, entryFee, hostId, clubMethods]);
+  }, [socket, roomId, addEditModal.player, entryFee, actorId, clubMethods]);
 
   // ── Payments tab ──────────────────────────────────────────────────────────
   const PaymentsTab = () => (
@@ -871,6 +922,14 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
               {activeTab === 'players' && (
                 <div className="space-y-4">
                   {!gameEnded && (
+                      isFull ? (
+    <div className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-900/20 px-3 py-3 text-sm text-red-300">
+      <XCircle className="h-4 w-4 shrink-0" />
+      <span>
+        Room is full ({players.length}/{maxPlayers} players)
+      </span>
+    </div>
+  ) : (
                     <div className="flex gap-2">
                       <input
                         type="text" placeholder="Player name…"
@@ -886,7 +945,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                         <UserPlus className="h-4 w-4" />
                       </button>
                     </div>
-                  )}
+                  ))}
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
                     <input
@@ -951,14 +1010,17 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
         </div>
       )}
 
-      <AddEditModal
-        isOpen={addEditModal.open}
-        player={addEditModal.player}
-        onClose={() => { setAddEditModal({ open: false, player: null }); setNewName(''); }}
-        onSave={handleAddOrEditSave}
-        entryFee={entryFee} currency={currency}
-        clubMethods={clubMethods} methodsLoading={methodsLoading}
-      />
+<AddEditModal
+  isOpen={addEditModal.open}
+  player={addEditModal.player}
+  prefillName={addEditModal.player ? undefined : newName}
+  onClose={() => { setAddEditModal({ open: false, player: null }); setNewName(''); }}
+  onSave={handleAddOrEditSave}
+  entryFee={entryFee}
+  currency={currency}
+  clubMethods={clubMethods}
+  methodsLoading={methodsLoading}
+/>
     </>
   );
 };

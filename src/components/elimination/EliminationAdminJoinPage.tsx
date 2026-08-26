@@ -128,11 +128,13 @@ export const EliminationAdminJoinPage: React.FC = () => {
       {/* The same dashboard the host uses - floats over the page */}
       <EliminationHostDashboard
         roomId={roomId!}
-        hostId={adminId!}
+        hostId={roomConfig?.hostId ?? adminId!} 
+        adminId={adminId!} 
         socket={getSocket()}
         initialPlayers={waitingPlayers}
         entryFee={Number(roomConfig?.entryFee ?? 0)}
         currency={roomConfig?.currency ?? '€'}
+        maxPlayers={roomConfig?.maxPlayers ?? roomConfig?.roomCaps?.maxPlayers} 
       />
     </div>
   );
