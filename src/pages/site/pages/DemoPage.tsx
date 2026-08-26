@@ -60,7 +60,7 @@ const TICKETED_EVENT_URL =
   `${STAGING_BASE_URL}/tickets/buy/8C57E75119A94777`;
 
 // Add these when the direct demo URLs are ready.
-const PUZZLE_DROP_URL = '';
+const PUZZLE_DROP_URL = `${STAGING_BASE_URL}/puzzle-drop/3192F6C5B1A94594`;
 
 const ELIMINATION_URL = '';
 

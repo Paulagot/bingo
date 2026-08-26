@@ -24,6 +24,7 @@ import { normalizePaymentMethod } from '../../utils/paymentMethods.js';
 import QuizPaymentMethodsService from '../../mgtsystem/services/QuizPaymentMethodsService.js';
 import EventIntegrationsService from '../../mgtsystem/services/EventIntegrationsService.js';
 import { generatePuzzleForDropItem } from './puzzleGenerationService.js';
+import { sendPuzzleDropConfirmationEmail } from './puzzleDropEmailService.js';
 
 const paymentMethodsService = new QuizPaymentMethodsService();
 const eventIntegrationsService = new EventIntegrationsService();
@@ -698,28 +699,63 @@ export async function getEntitlementsBySessionId({ dropRoomId, sessionId }) {
   return getEntitlementsByLedgerId(ledgerRow.id);
 }
 
-export async function confirmDropPurchase({ entitlementId, confirmedBy, confirmedByName, confirmedByRole }) {
+export async function confirmDropPurchase({
+  entitlementId,
+  confirmedBy,
+  confirmedByName,
+  confirmedByRole,
+}) {
   const entitlement = await getEntitlementById(entitlementId);
-  if (!entitlement) throw new Error('entitlement_not_found');
+
+  if (!entitlement) {
+    throw new Error('entitlement_not_found');
+  }
+
   if (entitlement.payment_status === 'confirmed') {
     throw new Error('entitlement_already_confirmed');
   }
+
   if (!entitlement.ledger_id) {
     throw new Error('entitlement_missing_ledger_id');
   }
 
   const siblings = await getEntitlementsByLedgerId(entitlement.ledger_id);
+
   const room = await getDropRoomConfig(entitlement.drop_room_id);
-  if (!room) throw new Error('drop_not_found');
+
+  if (!room) {
+    throw new Error('drop_not_found');
+  }
 
   const now = new Date();
+
   const confirmedIds = [];
+  const emailItems = [];
 
   for (const ent of siblings) {
-    if (ent.payment_status === 'confirmed') continue;
-
     const item = await getDropItemById(ent.item_id);
-    if (!item) continue;
+
+    if (!item) {
+      continue;
+    }
+
+    /*
+     * Build the email item for EVERY entitlement belonging to this
+     * purchase, not just the primary entitlement.
+     *
+     * That gives the purchaser one email containing every puzzle
+     * bought in the Stripe checkout.
+     */
+    emailItems.push({
+      entitlementId: ent.id,
+      itemNumber: item.item_number,
+      puzzleType: item.puzzle_type,
+      accessToken: ent.access_token,
+    });
+
+    if (ent.payment_status === 'confirmed') {
+      continue;
+    }
 
     const instance = await generatePuzzleForDropItem({
       dropRoomId: ent.drop_room_id,
@@ -731,9 +767,16 @@ export async function confirmDropPurchase({ entitlementId, confirmedBy, confirme
 
     await database.connection.execute(
       `UPDATE ${DROP_ENTITLEMENTS_TABLE}
-       SET payment_status = 'confirmed', puzzle_instance_id = ?, granted_at = ?
+       SET
+         payment_status = 'confirmed',
+         puzzle_instance_id = ?,
+         granted_at = ?
        WHERE id = ?`,
-      [instance.id, now, ent.id]
+      [
+        instance.id,
+        now,
+        ent.id,
+      ]
     );
 
     confirmedIds.push(ent.id);
@@ -749,11 +792,49 @@ export async function confirmDropPurchase({ entitlementId, confirmedBy, confirme
     confirmedByRole,
   });
 
-  if (DEBUG) {
-    console.log('[PuzzleDropService] ✅ Purchase confirmed:', { entitlementId, confirmedIds });
+  /*
+   * Payment is already committed at this point.
+   *
+   * Email failure must therefore be non-fatal: log it but do not
+   * undo or fail the confirmed purchase.
+   */
+  try {
+    await sendPuzzleDropConfirmationEmail({
+      clubId: room.clubId,
+      dropRoomId: entitlement.drop_room_id,
+      dropTitle: room.config?.dropTitle || null,
+      buyerEmail: entitlement.buyer_email,
+      buyerName: entitlement.buyer_name,
+      ledgerId: entitlement.ledger_id,
+      items: emailItems,
+    });
+  } catch (emailErr) {
+    console.error(
+      '[PuzzleDropService] ⚠️ Confirmation email failed (non-fatal):',
+      {
+        entitlementId,
+        ledgerId: entitlement.ledger_id,
+        buyerEmail: entitlement.buyer_email,
+        error: emailErr.message,
+      }
+    );
   }
 
-  return { ok: true, confirmedEntitlementIds: confirmedIds };
+  if (DEBUG) {
+    console.log(
+      '[PuzzleDropService] ✅ Purchase confirmed:',
+      {
+        entitlementId,
+        confirmedIds,
+        emailItems: emailItems.length,
+      }
+    );
+  }
+
+  return {
+    ok: true,
+    confirmedEntitlementIds: confirmedIds,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
