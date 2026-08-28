@@ -476,7 +476,7 @@ export default function TotalIncomeReportModal({ clubId, clubName, onClose }: To
                   iconBg={GOLD_BG}
                   label="Other income"
                   total={report.income.other.total}
-                  sub={`${report.income.other.count} payment${report.income.other.count === 1 ? '' : 's'} · on-the-night & walk-ins`}
+                  sub={`${report.income.other.count} payment${report.income.other.count === 1 ? '' : 's'} · non advanced tickets/subscriptions or donations - puzzle drop, walkins, sponsorship payments and at the door receipts `}
                   byMethod={report.income.other.byMethod}
                 />
 
