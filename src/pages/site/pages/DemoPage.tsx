@@ -59,12 +59,13 @@ const PEER_FUNDRAISER_URL =
 const TICKETED_EVENT_URL =
   `${STAGING_BASE_URL}/tickets/buy/8C57E75119A94777`;
 
-// Add these when the direct demo URLs are ready.
-const PUZZLE_DROP_URL = `${STAGING_BASE_URL}/puzzle-drop/3192F6C5B1A94594`;
+const PUZZLE_DROP_URL =
+  `${STAGING_BASE_URL}/puzzle-drop/3192F6C5B1A94594`;
 
 const ELIMINATION_URL = '';
 
-const SPONSORED_EVENT_URL = `${STAGING_BASE_URL}/fundraise/demo-non-profit/take-on-the-fundraisely-challenge/paula`;
+const SPONSORED_EVENT_URL =
+  `${STAGING_BASE_URL}/fundraise/demo-non-profit/take-on-the-fundraisely-challenge/paula`;
 
 // ─────────────────────────────────────────────────────────────
 // STRIPE TEST DETAILS
@@ -123,52 +124,63 @@ export default function DemoPage() {
             HERO
         ───────────────────────────────────────────── */}
 
-        <section className="border-b border-slate-900/10">
-          <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[1.1fr_.9fr] lg:px-8 lg:py-24">
+        <section className="hero hero--standard">
+          <div className="hero__inner site-shell">
 
-            <div className="flex flex-col justify-center">
-              <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-[#157f85]">
-                Interactive product demo
-              </p>
+            {/* HERO COPY */}
 
-              <h1 className="max-w-3xl text-5xl font-black leading-[0.98] tracking-[-0.045em] text-slate-950 sm:text-6xl lg:text-7xl">
+            <div className="hero__content">
+
+              <div className="hero__meta-row">
+                <p className="hero__eyebrow">
+                  Interactive product demo
+                </p>
+
+                <span className="status-pill">
+                  No real payments
+                </span>
+              </div>
+
+              <h1 className="hero__title">
                 Don&apos;t just read about FundRaisely.
                 <br />
                 Try it.
               </h1>
 
-              <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-slate-600">
+              <p className="hero__description">
                 Experience the real FundRaisely supporter journey.
                 Buy an event ticket, support a participant&apos;s fundraiser,
                 play a puzzle, sponsor a challenge or make a donation.
               </p>
 
-              <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-slate-500">
+              <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-white/75">
                 Everything below runs in our isolated demo environment.
                 Card payments use Stripe test mode, so no real card
                 payment will be taken.
               </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-3">
+              <div className="hero__actions">
+
                 <button
                   type="button"
                   onClick={() => openDemo(PEER_FUNDRAISER_URL)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#157f85] px-6 py-4 text-base font-black text-white transition hover:opacity-90"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-4 text-base font-black text-slate-950 transition hover:bg-white/90"
                 >
                   Start the interactive demo
                   <ArrowRight className="h-5 w-5" />
                 </button>
 
-                <span className="text-sm font-bold text-slate-500">
+                <span className="flex items-center text-sm font-bold text-white/70">
                   No signup · No real card payment
                 </span>
+
               </div>
             </div>
 
-            {/* DEMO CARD */}
+            {/* DEMO TEST CARD */}
 
             <div className="flex items-center">
-              <div className="w-full rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+              <div className="w-full rounded-[2rem] border border-white/20 bg-white p-7 shadow-xl sm:p-9">
 
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                   Use this card in the demo
@@ -355,9 +367,9 @@ export default function DemoPage() {
                     <ExternalLink className="h-5 w-5" />
                   </button>
                 ) : (
-                  <div className="mt-8 inline-flex w-fit rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-slate-400">
-                      Try the sponsorship demo
-          <ArrowRight className="h-4 w-4" />
+                  <div className="mt-8 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-slate-400">
+                    Try the sponsorship demo
+                    <ArrowRight className="h-4 w-4" />
                   </div>
                 )}
 

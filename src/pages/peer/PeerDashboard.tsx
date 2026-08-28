@@ -84,7 +84,7 @@ export default function PeerDashboard() {
           onMouseEnter={e => (e.currentTarget.style.background = brand.tealDark)}
           onMouseLeave={e => (e.currentTarget.style.background = brand.teal)}
         >
-          <PlusCircle className="h-4 w-4" /> New Fundraiser
+          <PlusCircle className="h-4 w-4" /> New Peer Fundraiser
         </button>
       </div>
 

@@ -8,6 +8,10 @@
 // DonationModal replaced with peer donation flow so peer_fundraiser_id is
 // recorded on every donation row.
 //
+// UPDATED: Irish Red Cross confirmed as beneficiary. Funds collected by
+// FundRaisely on behalf of Superteam Ireland, then transferred directly to
+// the Irish Red Cross Colombia Appeal after the event closes.
+//
 // ── CONFIG TO CHANGE PER ENVIRONMENT ────────────────────────────────────────
 // PEER_FUNDRAISER_ID - swap for the production peer fundraiser ID before launch
 // PACK_BOTH_ID / PACK_GAME_ONE_ID / PACK_GAME_TWO_ID - swap if packs are
@@ -32,6 +36,7 @@ import {
   Loader2,
   MapPin,
   Share2,
+  Shield,
   Smartphone,
   Sparkles,
   Ticket,
@@ -129,6 +134,8 @@ const EARTHQUAKE_IMPACT = {
 const SUPERTEAM_LOGO   = "/partner/superteam_ireland_logo.jpeg";
 const FUNDRAISELY_LOGO = "/logos/fundraisely-icon.svg";
 const CASTLE_DAO_LOGO  = "/partner/castledao.jpg";
+const IRC_LOGO         = "/partner/redcross.jpg";
+const IRC_APPEAL_URL   = "https://www.redcross.ie/latest-appeals/colombia-appeal/";
 const HERO_IMAGE_SRC   = "https://www.rte.ie/images/0024d35a-642.jpg";
 const SECONDARY_IMAGE_SRC = "https://www.rte.ie/images/0024d32d-642.jpg";
 const SLANE_VIDEO_URL  = "/videos/castle-dao-launch.mp4";
@@ -594,10 +601,10 @@ export default function ColombiaEarthquakeReliefPage() {
             </div>
             <div className="hidden shrink-0 items-center gap-2 sm:flex">
               <button type="button" onClick={() => openTickets("both")} className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-[#006b43] shadow-lg transition hover:-translate-y-0.5">
-                <Ticket className="h-4 w-4" /> Buy tickets
+                <Ticket className="h-4 w-4" /> Buy tickets to Play for Colombia
               </button>
               <button type="button" onClick={openDonate} className="inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/12 px-5 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white/20">
-                <Heart className="h-4 w-4" /> Donate
+                <Heart className="h-4 w-4" /> Donate without playing
               </button>
             </div>
           </div>
@@ -613,16 +620,22 @@ export default function ColombiaEarthquakeReliefPage() {
             </div>
         <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
   <HeroMetric value={formatCurrency(totalRaised)} label="Raised (donations and tickets)" loading={impactLoading} />
- <HeroMetric 
+ <HeroMetric
   value={formatNumber(
     (data?.gameOneTicketsSold ?? 0) + (data?.gameTwoTicketsSold ?? 0) || null
-  )} 
-  label="Tickets" 
-  loading={impactLoading} 
+  )}
+  label="Tickets"
+  loading={impactLoading}
 />
   <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
   <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
 </div>
+            {/* Beneficiary trust badge - mobile */}
+            <a href={IRC_APPEAL_URL} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-black text-white/90 backdrop-blur">
+              <Shield className="h-3.5 w-3.5 text-[#ffd600]" />
+              Funds go to Irish Red Cross Colombia Appeal
+              <ExternalLink className="h-3 w-3 text-white/50" />
+            </a>
             <div className="mt-3 flex justify-center">
               <button type="button" onClick={shareFundraiser} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-black text-white/90 backdrop-blur">
                 <Share2 className="h-4 w-4" />{shareCopied ? "Link copied" : "Share this fundraiser"}
@@ -638,7 +651,7 @@ export default function ColombiaEarthquakeReliefPage() {
   <span className="mt-0.5 text-lg">🤝</span>
   <p className="text-sm font-semibold leading-7 text-white">
     <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> will be matching the first{" "}
-    <span className="font-black text-[#ffd600]">€1,000 raised</span> — so participate, donate, or share to double your impact and help families rebuild.
+    <span className="font-black text-[#ffd600]">€1,000 raised</span> - so participate, donate, or share to double your impact and help families rebuild.
   </p>
 </div>
             <div className="mt-6 grid grid-cols-3 gap-2">
@@ -664,7 +677,7 @@ export default function ColombiaEarthquakeReliefPage() {
   <span className="mt-0.5 text-lg">🤝</span>
   <p className="text-sm font-semibold leading-7 text-white">
     <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> will be matching the first{" "}
-    <span className="font-black text-[#ffd600]">€1,000 raised</span> — so participate, donate, or share to double your impact and help families rebuild.
+    <span className="font-black text-[#ffd600]">€1,000 raised</span> - so participate, donate, or share to double your impact and help families rebuild.
   </p>
 </div>
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -674,7 +687,7 @@ export default function ColombiaEarthquakeReliefPage() {
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
                 <button type="button" onClick={() => openTickets("both")} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#ffd600] px-6 py-4 text-sm font-black text-[#10251c] shadow-xl transition hover:-translate-y-0.5 hover:bg-[#ffe33d]">
-                  <Ticket className="h-5 w-5" /> Buy tickets <ArrowRight className="h-4 w-4" />
+                  <Ticket className="h-5 w-5" /> Buy tickets to Play for Colombia <ArrowRight className="h-4 w-4" />
                 </button>
                 <button type="button" onClick={openDonate} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black text-[#006b43] shadow-xl transition hover:-translate-y-0.5">
                   <Heart className="h-5 w-5" /> Donate without playing
@@ -688,17 +701,23 @@ export default function ColombiaEarthquakeReliefPage() {
               </div>
            <div className="mt-4 grid grid-cols-4 gap-2 rounded-[1.5rem] border border-white/20 bg-white/10 p-3 backdrop-blur">
   <HeroMetric value={formatCurrency(totalRaised)} label="Raised (donations and tickets)" loading={impactLoading} />
-  <HeroMetric 
+  <HeroMetric
   value={formatNumber(
     (data?.gameOneTicketsSold ?? 0) + (data?.gameTwoTicketsSold ?? 0) || null
-  )} 
-  label="Tickets" 
-  loading={impactLoading} 
+  )}
+  label="Tickets"
+  loading={impactLoading}
 />
   <HeroMetric value={formatCurrency(data?.directDonations)} label="Donated" loading={impactLoading} />
   <HeroMetric value={formatCurrency(Math.min(totalRaised ?? 0, MATCH_FUND_LIMIT))} label="Matched" loading={impactLoading} highlight />
 </div>
-              <div className="mt-3 flex justify-end">
+              {/* Beneficiary trust badge - desktop */}
+              <div className="mt-3 flex items-center justify-between">
+                <a href={IRC_APPEAL_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-black text-white/90 backdrop-blur transition hover:bg-white/15">
+                  <Shield className="h-3.5 w-3.5 text-[#ffd600]" />
+                  Funds go to Irish Red Cross Colombia Appeal
+                  <ExternalLink className="h-3 w-3 text-white/50" />
+                </a>
                 <button type="button" onClick={shareFundraiser} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-black text-white/90 backdrop-blur">
                   <Share2 className="h-4 w-4" />{shareCopied ? "Link copied" : "Share this fundraiser"}
                 </button>
@@ -798,7 +817,7 @@ export default function ColombiaEarthquakeReliefPage() {
           />
         </div>
         <p className="mt-2 text-[11px] leading-5 text-white/55">
-          For every euro you raise, {MATCH_FUND_SPONSOR} adds another — up to €{MATCH_FUND_LIMIT.toLocaleString()} total.
+          For every euro you raise, {MATCH_FUND_SPONSOR} adds another - up to €{MATCH_FUND_LIMIT.toLocaleString()} total.
         </p>
       </div>
     </div>
@@ -816,7 +835,7 @@ export default function ColombiaEarthquakeReliefPage() {
           <SectionCard
   eyebrow="Play for Colombia"
   title="Two games. Two chances. One great cause."
-  intro={`Buy a ticket for Game One, Game Two, or both in a single transaction at a saving. Every ticket purchased is matched by ${MATCH_FUND_SPONSOR} — up to €${MATCH_FUND_LIMIT.toLocaleString()} in total.`}
+  intro={`Buy a ticket for Game One, Game Two, or both in a single transaction at a saving. Every ticket purchased is matched by ${MATCH_FUND_SPONSOR} - up to €${MATCH_FUND_LIMIT.toLocaleString()} in total.`}
 >
             <div className="grid gap-4 lg:grid-cols-3">
               {/* Bundle */}
@@ -882,10 +901,10 @@ export default function ColombiaEarthquakeReliefPage() {
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e7f3ec] text-[#006b43]"><HeartHandshake className="h-6 w-6" /></div>
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6b7b72]">Not playing?</p>
                 <h2 className="mt-2 text-3xl font-black tracking-tight text-[#10251c]">You can still make a difference.</h2>
-                <p className="mt-3 max-w-3xl text-base leading-8 text-[#526158]">You do not need to attend Slane Castle or enter the game to support the appeal. Give whatever you can and help families in Colombia facing the loss of homes, livelihoods and loved ones.</p>
+                <p className="mt-3 max-w-3xl text-base leading-8 text-[#526158]">You do not need to attend Slane Castle or enter the game to support the appeal. Give whatever you can and help families in Colombia facing the loss of homes, livelihoods and loved ones. All funds collected will be transferred to the Irish Red Cross Colombia Appeal after the event.</p>
               </div>
               <button type="button" onClick={openDonate} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#006b43] px-7 py-4 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#005737] lg:w-auto">
-                <Heart className="h-5 w-5" /> Donate now
+                <Heart className="h-5 w-5" /> Donate now  - without playing
               </button>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -894,16 +913,53 @@ export default function ColombiaEarthquakeReliefPage() {
             </div>
           </section>
 
-          {/* WHERE SUPPORT GOES */}
-          <SectionCard eyebrow="Where your support goes" title="Emergency help and recovery" intro="Final beneficiary and fund-distribution wording should be confirmed before launch.">
+          {/* WHERE YOUR SUPPORT GOES - Irish Red Cross confirmed beneficiary */}
+          <SectionCard eyebrow="Where your support goes" title="Every euro goes to the Irish Red Cross Colombia Appeal">
+            {/* IRC identity block */}
+            <a
+              href={IRC_APPEAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-6 flex items-center gap-4 rounded-2xl border border-[#e4dbd0] bg-white p-4 transition hover:shadow-sm sm:p-5"
+            >
+              <div className="flex h-16 w-auto shrink-0 items-center justify-center rounded-xl bg-white p-2 ring-1 ring-[#e4dbd0]">
+                <img src={IRC_LOGO} alt="Irish Red Cross" className="h-12 w-auto object-contain" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-base font-black text-[#10251c]">Irish Red Cross - Colombia Appeal</p>
+                <p className="mt-1 text-sm leading-6 text-[#526158]">
+                  Funds are collected by FundRaisely on behalf of Superteam Ireland. After the event closes, the full gross proceeds will be transferred directly to the Irish Red Cross Colombia Appeal.
+                </p>
+                <span className="mt-2 inline-flex items-center gap-1 text-xs font-black text-[#c0392b]">
+                  View the appeal <ExternalLink className="h-3 w-3" />
+                </span>
+              </div>
+            </a>
+
+            {/* How funds are used */}
+            <p className="mb-4 text-sm leading-7 text-[#5b675f]">The Irish Red Cross, through the International Red Cross and Red Crescent Movement, is responding on the ground in Colombia. Your support helps fund:</p>
+
+            {/* Relief categories */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <SupportCard title="Emergency shelter" />
-              <SupportCard title="Food & clean water" />
-              <SupportCard title="Medical support" />
-              <SupportCard title="Recovery assistance" />
+              <SupportCard title="Emergency shelter" detail="Temporary housing and essential supplies for displaced families." />
+              <SupportCard title="Food & clean water" detail="Emergency food parcels and safe drinking water in affected communities." />
+              <SupportCard title="Medical support" detail="First aid, medicines and support for overwhelmed local health services." />
+              <SupportCard title="Family tracing" detail="Helping separated families locate and reconnect with loved ones." />
             </div>
-            <div className="mt-5 rounded-2xl border border-[#e4dbd0] bg-[#fbfaf7] p-5 text-sm leading-7 text-[#62655f]">
-              <strong className="text-[#10251c]">Before launch:</strong> replace this placeholder with the exact trusted partner / beneficiary name, how funds are transferred, and the confirmed relief purpose.
+
+            {/* Transparency commitment */}
+            <div className="mt-6 rounded-2xl border border-[#c8e6c9] bg-[#f1f8f1] p-5">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#006b43] text-white">
+                  <Shield className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-black text-[#10251c]">Our transparency commitment</p>
+                  <p className="mt-2 text-sm leading-7 text-[#526158]">
+                    All funds are collected by FundRaisely on behalf of Superteam Ireland during the event. After the event closes on {EVENT_DATE}, the <strong>full gross proceeds</strong> - every euro from ticket sales and donations - will be transferred directly to the Irish Red Cross Colombia Appeal. We will publish the transfer receipt publicly so every supporter can verify where the money went.
+                  </p>
+                </div>
+              </div>
             </div>
           </SectionCard>
 
@@ -934,10 +990,11 @@ export default function ColombiaEarthquakeReliefPage() {
 
           {/* PARTNERS */}
           <SectionCard eyebrow="Made possible by" title="Community, technology and a place to come together">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <PartnerCard imgSrc={SUPERTEAM_LOGO} name="Superteam Ireland" role="Residency host" href={SUPERTEAM_URL} />
               <PartnerCard imgSrc={FUNDRAISELY_LOGO} name="FundRaisely" role="Fundraising & game platform" href="/" />
               <PartnerCard imgSrc={CASTLE_DAO_LOGO} name="CastleDAO" role="Community partner" href={CASTLE_DAO_URL} />
+              <PartnerCard imgSrc={IRC_LOGO} name="Irish Red Cross" role="Beneficiary - Colombia Appeal" href={IRC_APPEAL_URL} />
             </div>
           </SectionCard>
 
@@ -967,6 +1024,15 @@ export default function ColombiaEarthquakeReliefPage() {
           <SectionCard eyebrow="Frequently asked questions" title="About Elimination and FundRaisely" intro="New to FundRaisely? Here is what to expect from the game and a little more about the fundraising platform behind the event.">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
               <div className="space-y-3">
+                <FaqItem question="Who receives the funds raised?">
+                  <p>
+                    Funds are collected by FundRaisely during the event on behalf of Superteam Ireland. Once the event closes on {EVENT_DATE}, the full gross proceeds - every euro from ticket sales and donations - will be transferred directly to the{" "}
+                    <a href={IRC_APPEAL_URL} target="_blank" rel="noopener noreferrer" className="font-black text-[#c0392b] underline decoration-2 underline-offset-2">
+                      Irish Red Cross Colombia Earthquake Appeal
+                    </a>
+                    . The Irish Red Cross then distributes those funds through the International Red Cross and Red Crescent Movement&apos;s response on the ground in Colombia. We will publish the transfer receipt after the event so anyone can verify the payment was made.
+                  </p>
+                </FaqItem>
                 <FaqItem question="What is FundRaisely Elimination?" answer="FundRaisely Elimination is a last-person-standing fundraising game. Players join on their phones, take part in quick challenge rounds and stay in the game until they are knocked out. The final remaining player wins." />
                 <FaqItem question="How does the game work?" answer="Everyone starts in the game. Each round gives players a challenge. Lowest scoring players are eliminated, and the remaining players move forward. The game continues until one player is left standing." />
                 <FaqItem question="How many rounds are in each game?" answer="Each Elimination game uses eight rounds, selected from a wider set of possible round types. This keeps the game simple to run while helping repeat games feel different." />
@@ -990,12 +1056,13 @@ export default function ColombiaEarthquakeReliefPage() {
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ffd600]">Together for Colombia</p>
               <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">One night in Ireland can make a difference thousands of kilometres away.</h2>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/72">Play for Colombia. Donate for Colombia. Share for Colombia.</p>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-white/50">All proceeds go directly to the Irish Red Cross Colombia Appeal.</p>
               <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
                 <button type="button" onClick={() => openTickets("both")} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#ffd600] px-6 py-4 text-sm font-black text-[#10251c]">
-                  <Ticket className="h-5 w-5" /> Buy tickets
+                  <Ticket className="h-5 w-5" /> Buy tickets to Play for Colombia
                 </button>
                 <button type="button" onClick={openDonate} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black text-[#006b43]">
-                  <Heart className="h-5 w-5" /> Donate now
+                  <Heart className="h-5 w-5" /> Donate now without playing
                 </button>
               </div>
             </div>
@@ -1008,10 +1075,10 @@ export default function ColombiaEarthquakeReliefPage() {
         <div className="mx-auto max-w-3xl px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 lg:pb-4">
           <div className="pointer-events-auto grid grid-cols-2 gap-2 rounded-[1.35rem] border border-black/10 bg-white/92 p-2 shadow-[0_-8px_40px_rgba(0,0,0,0.16)] backdrop-blur-xl lg:rounded-full">
             <button type="button" onClick={() => openTickets("both")} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#006b43] px-4 text-sm font-black text-white transition active:scale-[0.98] lg:rounded-full">
-              <Ticket className="h-5 w-5" /> Buy tickets
+              <Ticket className="h-5 w-5" /> Buy tickets to Play for Colombia
             </button>
             <button type="button" onClick={openDonate} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#ffd600] px-4 text-sm font-black text-[#10251c] transition active:scale-[0.98] lg:rounded-full">
-              <Heart className="h-5 w-5" /> Donate
+              <Heart className="h-5 w-5" /> Donate without playing
             </button>
           </div>
         </div>
@@ -1287,6 +1354,11 @@ export default function ColombiaEarthquakeReliefPage() {
                     </div>
                     <p className="mt-3 text-xs text-[#8a9990]">You can donate anonymously - no name or email required.</p>
                   </div>
+                  {/* Beneficiary note in donation flow */}
+                  <div className="flex items-center gap-2 rounded-2xl bg-[#f1f8f1] px-4 py-3 text-xs leading-5 text-[#3d6b4a]">
+                    <Shield className="h-4 w-4 shrink-0 text-[#006b43]" />
+                    <span>All donations will be transferred to the <strong>Irish Red Cross Colombia Appeal</strong> after the event.</span>
+                  </div>
                   {donateError && <div className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{donateError}</div>}
                   <button type="button" onClick={proceedDonateToPayment} disabled={donateValue <= 0 || (!!donorEmail.trim() && !isValidEmail(donorEmail))}
                     className="w-full rounded-2xl bg-[#006b43] px-5 py-4 text-sm font-black text-white disabled:opacity-50">
@@ -1398,7 +1470,7 @@ export default function ColombiaEarthquakeReliefPage() {
                     </div>
                     <h3 className="mt-5 text-2xl font-black text-[#10251c]">Thank you for your donation</h3>
                     <p className="mt-2 text-4xl font-black text-[#006b43]">{fmt(donateConfirmed.amount, donateConfirmed.currency)}</p>
-                    <p className="mt-3 text-sm leading-6 text-[#526158]">Your support will help families in Colombia who have lost their homes and livelihoods.</p>
+                    <p className="mt-3 text-sm leading-6 text-[#526158]">Your donation will be transferred to the Irish Red Cross Colombia Appeal after the event closes. We&apos;ll publish the receipt so you can verify it.</p>
                   </div>
                   <button type="button" onClick={() => setIsDonateSheetOpen(false)} className="w-full rounded-2xl bg-[#006b43] px-5 py-4 text-sm font-black text-white">
                     Done
@@ -1507,11 +1579,12 @@ function FaqItem({ question, answer, children }: { question: string; answer?: st
   );
 }
 
-function SupportCard({ title }: { title: string }) {
+function SupportCard({ title, detail }: { title: string; detail?: string }) {
   return (
     <div className="rounded-2xl border border-[#e1e8e3] bg-[#f5f9f6] p-5">
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[#006b43] text-white"><HeartHandshake className="h-5 w-5" /></div>
       <h3 className="font-black text-[#10251c]">{title}</h3>
+      {detail && <p className="mt-2 text-xs leading-5 text-[#62736b]">{detail}</p>}
     </div>
   );
 }
