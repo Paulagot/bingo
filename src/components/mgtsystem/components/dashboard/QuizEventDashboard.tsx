@@ -578,7 +578,7 @@ export default function QuizEventDashboard() {
             style={{ background: '#157f85' }}
             onMouseEnter={e => (e.currentTarget.style.background = '#0e6268')}
             onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}>
-            <PlusCircle className="h-4 w-4" /> Create Fundraiser
+            <PlusCircle className="h-4 w-4" /> Create Fundraising Event
           </button>
         </div>
       </div>

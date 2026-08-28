@@ -1,3 +1,4 @@
+//src/pages/site/components/sections/Hero.tsx
 import { Link } from 'react-router-dom';
 import type { SiteImage } from '../../config/imageConfig';
 
