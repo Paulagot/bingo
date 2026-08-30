@@ -388,12 +388,16 @@ export function setupSocketHandlers(io) {
       console.log(`🔌 Socket ${socket.id} disconnecting, checking rooms`);
       for (const roomId of socket.rooms) {
         if (roomId === socket.id) continue;
-        console.log(`🔍 Processing disconnection from room ${roomId}`);
-        const room = getRoom(roomId);
-        if (!room) {
-          console.warn(`⚠️ Room ${roomId} not found during disconnection`);
-          continue;
-        }
+     const room = getRoom(roomId);
+
+// This socket room may belong to Quiz, Elimination,
+// or another game system. Ignore rooms not owned
+// by this legacy room manager.
+if (!room) {
+  continue;
+}
+
+console.log(`🔍 Processing legacy room disconnection from ${roomId}`);
         const player = room.players.get(socket.id);
         console.log(`👤 Player ${player?.name || socket.id} disconnecting from room ${roomId}`);
         room.players.delete(socket.id);

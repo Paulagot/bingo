@@ -26,12 +26,12 @@ export default function PeerStripeSuccess() {
   const [pageData, setPageData] = useState<any>(null);
 
   // Fetch club/fundraiser branding in parallel with order polling.
-  // Non-fatal if it fails — falls back to default colours.
+  // Non-fatal if it fails - falls back to default colours.
   useEffect(() => {
     if (!clubSlug || !fundraiserSlug) return;
     api.page(clubSlug, fundraiserSlug)
       .then(data => setPageData(data))
-      .catch(() => {/* non-fatal — branding just falls back to default */});
+      .catch(() => {/* non-fatal - branding just falls back to default */});
   }, [clubSlug, fundraiserSlug]);
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export default function PeerStripeSuccess() {
     return () => { cancelled = true; };
   }, [orderId]);
 
-  // Derive branding from club data — same logic as PeerSupportPage
+  // Derive branding from club data - same logic as PeerSupportPage
   const theme = useMemo(() => getTheme(pageData), [pageData]);
   const logoUrl = firstDefined(
     pageData?.club?.logoUrl,
@@ -103,7 +103,7 @@ export default function PeerStripeSuccess() {
           />
           <h2 className="mt-4 text-xl font-black text-slate-950">Confirming your payment…</h2>
           <p className="mt-2 text-sm font-semibold text-slate-500">
-            This usually takes a second — we're checking the order and activating your entries.
+            This usually takes a second - we're checking the order and activating your entries.
           </p>
         </div>
       </main>

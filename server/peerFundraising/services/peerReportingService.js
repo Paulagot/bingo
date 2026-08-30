@@ -69,7 +69,7 @@ export async function report(fid, clubId) {
       claimedTotal:   Number(donationTotals.claimed_total),
     },
     // combinedConfirmedTotal is what PeerReportsTab should use for the
-    // progress bar — orders confirmed + donations confirmed
+    // progress bar - orders confirmed + donations confirmed
     combinedConfirmedTotal:
       confirmedOrderTotal + Number(donationTotals.confirmed_total),
     participants,

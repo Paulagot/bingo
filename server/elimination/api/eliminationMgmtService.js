@@ -271,6 +271,57 @@ export async function getEliminationRoom({ clubId, roomId }) {
   };
 }
 
+
+// ─── Persist runtime admins ────────────────────────────────────────────────────
+
+/**
+ * Persist the elimination admin list into config_json.admins.
+ *
+ * Admins are added/removed after the room has been launched, so this write must
+ * NOT use updateEliminationRoom(), which intentionally only edits scheduled rooms.
+ *
+ * Only durable identity fields are stored. Runtime socket/connection state stays
+ * in memory and is never written to config_json.
+ */
+export async function persistEliminationAdmins(roomId, admins = []) {
+  if (!roomId) {
+    throw Object.assign(new Error('roomId required'), { statusCode: 400 });
+  }
+
+  const persistedAdmins = Array.isArray(admins)
+    ? admins
+        .filter((admin) => admin?.id && admin?.name)
+        .map((admin) => ({
+          id: String(admin.id),
+          name: String(admin.name).trim().slice(0, 64),
+        }))
+    : [];
+
+  const [result] = await connection.execute(
+    `UPDATE ${TABLE}
+     SET config_json = JSON_SET(
+           COALESCE(config_json, JSON_OBJECT()),
+           '$.admins',
+           CAST(? AS JSON)
+         ),
+         updated_at = UTC_TIMESTAMP()
+     WHERE room_id = ?
+       AND game_type = 'elimination'
+     LIMIT 1`,
+    [JSON.stringify(persistedAdmins), roomId]
+  );
+
+  if (!result?.affectedRows) {
+    throw Object.assign(new Error('not_found'), { statusCode: 404 });
+  }
+
+  console.log(
+    `[eliminationMgmtService] 👥 Persisted ${persistedAdmins.length} admin(s) for room ${roomId}`
+  );
+
+  return { ok: true, admins: persistedAdmins };
+}
+
 // ─── Update ───────────────────────────────────────────────────────────────────
 
 export async function updateEliminationRoom({
@@ -523,6 +574,32 @@ export async function hydrateEliminationRoom({ clubId, roomId, createRoomFromCon
   // createRoomFromConfig is injected by the route handler to avoid a
   // circular import between the DB service and the socket room manager.
   const room = createRoomFromConfig(row.room_id, row.host_id, config.hostName, config);
+
+  // IMPORTANT: createRoomFromConfig() is primarily a live-game factory and
+  // therefore creates hydrated rooms in WAITING state. That is correct when a
+  // scheduled/open room is being launched, but it is wrong when the dashboard
+  // is re-hydrating a completed Elimination solely to resume reconciliation.
+  //
+  // Restore the persisted post-game lifecycle into memory so reconciliation
+  // socket guards continue to require room.status === 'ended'. We deliberately
+  // do not change the DB status here: the DB remains `completed` while the
+  // in-memory game-room equivalent is `ended`.
+  const reconciliationStatus = row.reconciliation_status ?? 'pending';
+  const isCompletedAwaitingReconciliation =
+    row.status === 'completed' && reconciliationStatus !== 'closed';
+
+  if (room && isCompletedAwaitingReconciliation) {
+    room.status = 'ended';
+    room.pendingReconciliation = true;
+    room.reconciliationApproved = false;
+    room.closed = false;
+
+    console.log(
+      `[eliminationMgmtService] ⚖️ Room ${row.room_id} hydrated for reconciliation`,
+      { dbStatus: row.status, reconciliationStatus }
+    );
+  }
+
   const alreadyExisted = !room || room.createdAt !== config.createdAt;
 
   return {
@@ -544,21 +621,74 @@ export async function hydrateEliminationRoom({ clubId, roomId, createRoomFromCon
  * Exported so the socket handler can import it directly.
  */
 export async function markEliminationRoomAsLive(roomId) {
-  if (!roomId) return false;
+  if (!roomId) {
+    console.log('🔥 [Elimination DEBUG] markLive called with no roomId');
+    return false;
+  }
+
   try {
+    console.log(
+      '🔥 [Elimination DEBUG] markEliminationRoomAsLive called',
+      { roomId }
+    );
+
+    const [beforeRows] = await connection.execute(
+      `SELECT room_id, status, game_type
+       FROM ${TABLE}
+       WHERE room_id = ?
+       LIMIT 1`,
+      [roomId]
+    );
+
+    console.log(
+      '🔥 [Elimination DEBUG] DB state BEFORE live update',
+      beforeRows?.[0] ?? null
+    );
+
     const [result] = await connection.execute(
       `UPDATE ${TABLE}
        SET status = 'live', updated_at = UTC_TIMESTAMP()
-       WHERE room_id = ? AND game_type = 'elimination'
+       WHERE room_id = ?
+         AND game_type = 'elimination'
          AND status IN ('scheduled', 'open')
        LIMIT 1`,
       [roomId]
     );
-    const changed = result.affectedRows > 0;
-    if (changed) console.log(`[eliminationMgmtService] 🔴 Room ${roomId} → live`);
-    return changed;
+
+    console.log(
+      '🔥 [Elimination DEBUG] live UPDATE result',
+      {
+        roomId,
+        affectedRows: result.affectedRows,
+        changedRows: result.changedRows,
+      }
+    );
+
+    const [afterRows] = await connection.execute(
+      `SELECT room_id, status, game_type
+       FROM ${TABLE}
+       WHERE room_id = ?
+       LIMIT 1`,
+      [roomId]
+    );
+
+    console.log(
+      '🔥 [Elimination DEBUG] DB state AFTER live update',
+      afterRows?.[0] ?? null
+    );
+
+    return result.affectedRows > 0;
+
   } catch (err) {
-    console.error('[eliminationMgmtService] ⚠️ Failed to mark room live (non-fatal):', err.message);
+    console.error(
+      '🔥 [Elimination DEBUG] Failed to mark elimination room live',
+      {
+        roomId,
+        message: err.message,
+        stack: err.stack,
+      }
+    );
+
     return false;
   }
 }

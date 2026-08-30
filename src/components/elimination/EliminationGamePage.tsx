@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEliminationGame } from './hooks/useEliminationGame';
 import { useEliminationSocket } from './hooks/useEliminationSocket';
 import { useRoundTimer } from './hooks/useRoundTimer';
-import { EliminationLobbyPage } from './EliminationLobbyPage';
 import { EliminationWaitingRoom } from './EliminationWaitingRoom';
 import { EliminationRoundRenderer } from './EliminationRoundRenderer';
 import { EliminationRoundIntro } from './EliminationRoundIntro';
@@ -17,7 +16,14 @@ import { useWakeLock } from './hooks/useWakeLock';
 import { EliminationEliminatedView } from './EliminationEliminatedView';
 import { EliminationWinnerView } from './EliminationWinnerView';
 import { EliminationReconciliationPanel } from './reconciliation/EliminationReconciliationPanel';
-import { emitStartGame, emitSubmitAnswer, emitJoinRoom, emitHostJoin, emitStartPress, getSocket } from './services/eliminationSocket';
+import {
+  emitStartGame,
+  emitSubmitAnswer,
+  emitReconnect,
+  emitHostJoin,
+  emitStartPress,
+  getSocket,
+} from './services/eliminationSocket';
 import { roundTypeLabel } from './utils/eliminationHelpers';
 import { getRoundColour, BASE_BG } from './utils/designTokens';
 import { EliminationHostDashboard } from './host/EliminationHostDashboard';
@@ -76,6 +82,20 @@ export const EliminationGamePage: React.FC = () => {
   const [hostId, setHostId]                   = useState<string | null>(() => sessionStorage.getItem(SESSION_HOST_ID));
   const [waitingPlayers, setWaitingPlayers]   = useState<any[]>([]);
   const [introPayload, setIntroPayload]       = useState<RoundIntroPayload | null>(null);
+  const [resumeFailed, setResumeFailed]       = useState(false);
+
+  // A naked /elimination route must never expose the legacy create/join lobby.
+  // Access is valid only for an existing player session, an existing host session,
+  // or a host resume URL supplied by the authenticated event dashboard.
+  const urlRoomId = searchParams.get('roomId');
+  const urlHostId = searchParams.get('hostId');
+  const urlMode   = searchParams.get('mode');
+  const isReconciliationResume = urlMode === 'reconcile';
+  const hasHostResumeUrl = !resumeFailed && !!urlRoomId && !!urlHostId;
+
+  const hasValidPlayerSession = !!roomId && !isHost && !!localPlayerId;
+  const hasValidHostSession   = !!roomId && isHost && !!hostId;
+  const hasValidGameAccess    = hasValidPlayerSession || hasValidHostSession || hasHostResumeUrl;
 
   // ── Game state ────────────────────────────────────────────────────────────
   const {
@@ -148,26 +168,224 @@ export const EliminationGamePage: React.FC = () => {
 
   // ── Socket events ─────────────────────────────────────────────────────────
   useEliminationSocket({
-    onRoomState: useCallback((data: any) => {
-      const room: EliminationRoom = data.roomSnapshot ?? data;
-      setRoom(room);
-      setWaitingPlayers(room.players ?? []);
-      const mode = (room as any).paymentMode;
-      if (mode) sessionStorage.setItem(SESSION_PAYMENT_MODE, mode);
+onRoomState: useCallback((data: any) => {
+  const room: EliminationRoom = data.roomSnapshot ?? data;
 
-      const currentIsHost = sessionStorage.getItem(SESSION_IS_HOST) === 'true';
-      if (!currentIsHost) {
-        const currentPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID);
-        const currentName     = sessionStorage.getItem(SESSION_PLAYER_NAME);
-        if ((!currentPlayerId || currentPlayerId === '') && currentName) {
-          const match = room.players.find((p: any) => p.name === currentName);
-          if (match) {
-            setLocalPlayerId(match.playerId);
-            sessionStorage.setItem(SESSION_PLAYER_ID, match.playerId);
-          }
-        }
+  // Always restore the latest room/player list.
+  setRoom(room);
+  setWaitingPlayers(room.players ?? []);
+
+  // Reconciliation resume is authoritative. Hydration/reconnect snapshots can
+  // describe the in-memory room as waiting, but a host who opened the page with
+  // ?mode=reconcile (or already entered reconciliation in this session) must not
+  // be pushed back to the waiting room by that snapshot.
+  const shouldStayInReconciliation =
+    isReconciliationResume ||
+    sessionStorage.getItem(SESSION_RECONCILING) === 'true';
+
+  if (shouldStayInReconciliation) {
+    sessionStorage.setItem(SESSION_RECONCILING, 'true');
+    onEnterReconciliation();
+    return;
+  }
+
+  const mode = (room as any).paymentMode;
+  if (mode) {
+    sessionStorage.setItem(SESSION_PAYMENT_MODE, mode);
+  }
+
+  const currentIsHost =
+    sessionStorage.getItem(SESSION_IS_HOST) === 'true';
+
+  // ── Restore this player's identity ─────────────────────────────
+  if (!currentIsHost) {
+    const restoredPlayerId =
+      data.yourPlayerId ??
+      data.playerState?.playerId ??
+      sessionStorage.getItem(SESSION_PLAYER_ID);
+
+    if (restoredPlayerId) {
+      setLocalPlayerId(restoredPlayerId);
+      sessionStorage.setItem(
+        SESSION_PLAYER_ID,
+        restoredPlayerId,
+      );
+    }
+
+    if (data.playerState?.name) {
+      setLocalPlayerName(data.playerState.name);
+      sessionStorage.setItem(
+        SESSION_PLAYER_NAME,
+        data.playerState.name,
+      );
+    }
+  }
+
+ // ── Normal room update vs reconnect ────────────────────────────
+//
+// Player reconnect:
+//   data.playerState + data.activeRound
+//
+// Host reconnect:
+//   data.isHostReconnect === true + data.activeRound
+//
+const isReconnectSnapshot =
+  !!data.playerState ||
+  data.isHostReconnect === true;
+
+if (!isReconnectSnapshot) {
+  return;
+}
+
+console.log('🎮 [Elimination] Applying reconnect snapshot', {
+  roomStatus: room.status,
+  isHostReconnect: data.isHostReconnect === true,
+  playerId: data.playerState?.playerId ?? null,
+  eliminated: data.playerState?.eliminated ?? false,
+  hasSubmitted: data.playerState?.hasSubmittedCurrentRound ?? false,
+  activeRound: data.activeRound,
+});
+
+// Waiting room: restoring the room/player list above is enough.
+if (room.status === 'waiting') {
+  return;
+}
+
+// The game is currently running.
+if (room.status === 'active') {
+  onGameStarted();
+}
+
+const activeRound = data.activeRound;
+
+// There may be a moment between rounds where there is no active round.
+if (!activeRound) {
+  return;
+}
+
+// ── Restore an ACTIVE round ────────────────────────────────────
+//
+// Works for BOTH:
+//   • player refresh
+//   • host refresh
+//
+if (activeRound.phase === 'active') {
+  const restoredRound: RoundStartedPayload = {
+    roundId: activeRound.roundId,
+    roundNumber: activeRound.roundNumber,
+    roundType: activeRound.roundType,
+    config: activeRound.generatedConfig,
+    startedAt: activeRound.startedAt,
+    endsAt: activeRound.endsAt,
+  };
+
+  console.log('🎮 [Elimination] Restoring active round', {
+    isHost: data.isHostReconnect === true,
+    roundId: restoredRound.roundId,
+    roundNumber: restoredRound.roundNumber,
+    roundType: restoredRound.roundType,
+    endsAt: restoredRound.endsAt,
+  });
+
+  setIntroPayload(null);
+  onRoundStarted(restoredRound);
+
+  // Only players have submission state.
+  // Hosts do not have data.playerState.
+  if (data.playerState?.hasSubmittedCurrentRound) {
+    onSubmissionSent();
+  }
+
+  return;
+}
+
+// ── Restore during INTRO ───────────────────────────────────────
+//
+// We don't currently recreate the whole intro payload.
+// The normal ROUND_STARTED event will arrive when intro finishes.
+if (activeRound.phase === 'intro') {
+  console.log(
+    '🎮 [Elimination] Reconnected during round intro - waiting for ROUND_STARTED',
+    {
+      isHost: data.isHostReconnect === true,
+      roundNumber: activeRound.roundNumber,
+      roundType: activeRound.roundType,
+    }
+  );
+
+  return;
+}
+
+// ── Restore during REVEAL ─────────────────────────────────────
+if (activeRound.phase === 'reveal') {
+  const results = activeRound.results ?? [];
+
+  if (!results.length) {
+    console.warn(
+      '🎮 [Elimination] Reconnected during reveal but no results were available',
+      {
+        roundNumber: activeRound.roundNumber,
+        roundType: activeRound.roundType,
       }
-    }, [setRoom]),
+    );
+
+    return;
+  }
+
+  // Rebuild the round first so the reveal component has
+  // a valid activeRound with roundNumber / roundType / config.
+  const restoredRound: RoundStartedPayload = {
+    roundId: activeRound.roundId,
+    roundNumber: activeRound.roundNumber,
+    roundType: activeRound.roundType,
+    config: activeRound.generatedConfig,
+    startedAt: activeRound.startedAt,
+    endsAt: activeRound.endsAt,
+  };
+
+  setIntroPayload(null);
+
+  onRoundStarted(restoredRound);
+
+  // Then move into the actual reveal screen.
+  onRoundReveal(
+    results,
+    activeRound.roundNumber,
+    activeRound.roundType
+  );
+
+  console.log(
+    '🎮 [Elimination] Restored reveal screen',
+    {
+      roundNumber: activeRound.roundNumber,
+      roundType: activeRound.roundType,
+      resultCount: results.length,
+    }
+  );
+
+  return;
+}
+
+// Reveal/results recovery comes next.
+// For now log it rather than trying to reconstruct incomplete state.
+console.log(
+  '🎮 [Elimination] Reconnected during unsupported recovery phase',
+  {
+    isHost: data.isHostReconnect === true,
+    phase: activeRound.phase,
+    roundNumber: activeRound.roundNumber,
+    roundType: activeRound.roundType,
+  }
+);
+}, [
+  setRoom,
+  onEnterReconciliation,
+  isReconciliationResume,
+  onGameStarted,
+  onRoundStarted,
+  onSubmissionSent,
+    onRoundReveal,
+]),
 
     onWaitingRoomUpdate: useCallback((data: { players: any[] }) => {
       setWaitingPlayers(data.players);
@@ -278,21 +496,37 @@ useEffect(() => {
   const hasPlayerSession = initialRoomId && !initialIsHost && initialPlayerId;
 
   // Fall back to URL params when session storage is empty (resume from dashboard)
-  const urlRoomId = searchParams.get('roomId');
-  const urlHostId = searchParams.get('hostId');
-  const urlMode   = searchParams.get('mode');
   const isResumeFromDashboard = !hasHostSession && !hasPlayerSession && !!urlRoomId && !!urlHostId;
 
   if (!hasHostSession && !hasPlayerSession && !isResumeFromDashboard) return;
 
-  const resolvedRoomId = hasHostSession ? initialRoomId! : urlRoomId!;
-  const resolvedHostId = hasHostSession ? initialHostId! : urlHostId!;
-  const resolvedName   = hasHostSession ? initialName : '';
+const resolvedRoomId =
+  hasHostSession || hasPlayerSession
+    ? initialRoomId!
+    : urlRoomId!;
+
+const resolvedHostId =
+  hasHostSession
+    ? initialHostId!
+    : urlHostId!;
+
+const resolvedName =
+  hasHostSession || hasPlayerSession
+    ? initialName
+    : '';
 
   fetch(`/api/elimination/rooms/${resolvedRoomId}`)
     .then(r => r.json())
     .then(data => {
-      if (!data.success) { clearEliminationSession(); return; }
+      if (!data.success) {
+        clearEliminationSession();
+        setRoomId(null);
+        setLocalPlayerId(null);
+        setHostId(null);
+        setIsHost(false);
+        if (isResumeFromDashboard) setResumeFailed(true);
+        return;
+      }
 
       if (hasHostSession || isResumeFromDashboard) {
         setIsHost(true);
@@ -307,44 +541,45 @@ useEffect(() => {
         sessionStorage.setItem(SESSION_IS_HOST,     'true');
         sessionStorage.setItem(SESSION_PLAYER_NAME, resolvedName);
 
-        emitHostJoin(resolvedRoomId, resolvedHostId);
-
+        // Mark reconciliation BEFORE joining the socket room so the incoming
+        // host reconnect snapshot cannot reset the UI back to the waiting room.
         if (
-          urlMode === 'reconcile' ||
+          isReconciliationResume ||
           sessionStorage.getItem(SESSION_RECONCILING) === 'true'
         ) {
+          sessionStorage.setItem(SESSION_RECONCILING, 'true');
           onEnterReconciliation();
         }
-      } else if (hasPlayerSession) {
-        emitJoinRoom(initialRoomId!, initialName, initialPlayerId!);
-      }
+
+        emitHostJoin(resolvedRoomId, resolvedHostId);
+} else if (hasPlayerSession) {
+  console.log('🎮 [Elimination] Restoring player session', {
+    roomId: resolvedRoomId,
+    playerId: initialPlayerId,
+  });
+
+  // Restore the player's React state from the saved session
+  setRoomId(resolvedRoomId);
+  setLocalPlayerId(initialPlayerId!);
+  setLocalPlayerName(initialName);
+  setIsHost(false);
+
+  // Then reconnect that existing player to the new socket
+  emitReconnect(resolvedRoomId, initialPlayerId!);
+}
     })
-    .catch(() => clearEliminationSession());
+    .catch(() => {
+      clearEliminationSession();
+      setRoomId(null);
+      setLocalPlayerId(null);
+      setHostId(null);
+      setIsHost(false);
+      if (isResumeFromDashboard) setResumeFailed(true);
+    });
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
   // ── Event handlers ────────────────────────────────────────────────────────
-  const handleJoined = useCallback((
-    newRoomId: string, newPlayerId: string, name: string, host: boolean,
-  ) => {
-    setRoomId(newRoomId);
-    setLocalPlayerId(newPlayerId);
-    setLocalPlayerName(name);
-    setIsHost(host);
-    sessionStorage.setItem(SESSION_ROOM_ID, newRoomId);
-    sessionStorage.setItem(SESSION_PLAYER_NAME, name);
-    sessionStorage.setItem(SESSION_IS_HOST, String(host));
-    if (host) {
-      sessionStorage.setItem(SESSION_HOST_ID, newPlayerId);
-      sessionStorage.removeItem(SESSION_PLAYER_ID);
-      setHostId(newPlayerId);
-      emitHostJoin(newRoomId, newPlayerId);
-    } else {
-      sessionStorage.setItem(SESSION_PLAYER_ID, newPlayerId);
-      sessionStorage.removeItem(SESSION_HOST_ID);
-    }
-  }, []);
-
   const handleStart = useCallback(() => {
     if (!roomId || !localPlayerId) return;
     emitStartGame(roomId, localPlayerId);
@@ -389,7 +624,51 @@ useEffect(() => {
 
   // ── Views ─────────────────────────────────────────────────────────────────
 
-  if (!roomId) return <EliminationLobbyPage onJoined={handleJoined} />;
+  // No valid player/host identity: never expose the old free create/join lobby.
+  if (!hasValidGameAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={styles.page}>
+        <div style={styles.accessCard}>
+          <div style={styles.accessEyebrow}>FundRaisely</div>
+          <h1 style={styles.accessTitle}>ELIMINATION</h1>
+          <p style={styles.accessText}>
+            This is the live game area for FundRaisely Elimination events.
+          </p>
+          <p style={styles.accessText}>
+            If you have purchased an entry, use the game link supplied with your ticket to join.
+          </p>
+          <div style={styles.accessActions}>
+            <button
+              type="button"
+              onClick={() => navigate('/event-formats/elimination')}
+              style={styles.accessPrimaryButton}
+            >
+              Learn about Elimination
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              style={styles.accessSecondaryButton}
+            >
+              FundRaisely Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Dashboard host resume URLs are valid before roomId has been written to state.
+  if (!roomId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={styles.page}>
+        <div style={styles.connectingState}>
+          <div style={{ fontSize: '32px', marginBottom: '12px' }}>⟳</div>
+          <div>Loading your Elimination game…</div>
+        </div>
+      </div>
+    );
+  }
 
   if (state.view === 'lobby' || state.view === 'waiting') {
     return withDashboard(
@@ -648,4 +927,12 @@ const styles: Record<string, React.CSSProperties> = {
   timerBar:     { height: '100%', transition: 'background 0.3s', borderRadius: '0 2px 2px 0' },
   instructionBar: { padding: '10px 20px', fontSize: '15px', color: 'rgba(255,255,255,0.7)', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.03em', borderBottom: '1px solid rgba(255,255,255,0.05)' },
   errorToast:   { position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,59,92,0.15)', border: '1px solid rgba(255,59,92,0.5)', color: '#ff3b5c', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontFamily: "'Inter', system-ui, sans-serif", whiteSpace: 'nowrap', zIndex: 100 },
+  connectingState: { textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontFamily: "'Inter', system-ui, sans-serif" },
+  accessCard: { width: '100%', maxWidth: '520px', padding: '40px 32px', borderRadius: '18px', border: '1px solid rgba(0,229,255,0.18)', background: 'rgba(255,255,255,0.035)', boxShadow: '0 24px 80px rgba(0,0,0,0.28)', textAlign: 'center' },
+  accessEyebrow: { marginBottom: '10px', fontFamily: "'Inter', system-ui, sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'rgba(0,229,255,0.65)' },
+  accessTitle: { margin: '0 0 18px', fontSize: '56px', lineHeight: 1, letterSpacing: '-0.02em', color: '#ffffff' },
+  accessText: { margin: '0 auto 12px', maxWidth: '420px', fontFamily: "'Inter', system-ui, sans-serif", fontSize: '14px', lineHeight: 1.65, color: 'rgba(255,255,255,0.58)' },
+  accessActions: { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '28px' },
+  accessPrimaryButton: { width: '100%', padding: '14px 18px', borderRadius: '9px', border: '1px solid rgba(0,229,255,0.6)', background: 'rgba(0,229,255,0.14)', color: '#00e5ff', fontFamily: "'Inter', system-ui, sans-serif", fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
+  accessSecondaryButton: { width: '100%', padding: '13px 18px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.7)', fontFamily: "'Inter', system-ui, sans-serif", fontSize: '13px', fontWeight: 600, cursor: 'pointer' },
 };

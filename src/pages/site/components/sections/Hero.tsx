@@ -25,7 +25,7 @@ export function Hero({
   image,
   status,
   variant = 'standard',
-  priority = false, // ✅ default false — only set true on the home hero
+  priority = false, // ✅ default false - only set true on the home hero
 }: HeroProps) {
   return (
     <section className={`hero hero--${variant}`}>

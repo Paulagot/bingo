@@ -60,7 +60,7 @@ export default function PeerOrderThankYou({
       </div>
       <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950">Thank you, {supporterName}!</h1>
       <p className="mx-auto mt-3 max-w-md text-sm font-semibold text-slate-600">Thank you for supporting{participant ? ` ${participant} and` : ''} {fundraiser}.</p>
-      <p className="mx-auto mt-2 max-w-md text-sm font-semibold text-slate-500">{isPending ? 'The club will confirm your payment and activate your entries. You’ll get an email as soon as they’re ready.' : 'Your entries are confirmed — join links are below.'}</p>
+      <p className="mx-auto mt-2 max-w-md text-sm font-semibold text-slate-500">{isPending ? 'The club will confirm your payment and activate your entries. You’ll get an email as soon as they’re ready.' : 'Your entries are confirmed - join links are below.'}</p>
       <div className="mt-6 rounded-3xl bg-slate-50 p-4 text-left ring-1 ring-slate-100">
         <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Your order</p>
         <div className="space-y-2">{order.items.map((item, i) => (

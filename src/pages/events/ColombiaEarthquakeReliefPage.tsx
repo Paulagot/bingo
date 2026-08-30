@@ -19,7 +19,7 @@
 // DONATION_CLUB_PAYMENT_METHOD_ID - the club's payment method ID for donations
 // ────────────────────────────────────────────────────────────────────────────
 
-import React, { lazy, Suspense, useState, useCallback, useEffect, useMemo } from "react";
+import React, { lazy, Suspense, useState, useCallback, useEffect,  } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
@@ -60,12 +60,12 @@ import {
   isStripeMethod,
   isCryptoMethod,
   isCashMethod,
-  isInstantMethod,
+  
   hasProviderInstructionStep,
   methodDisplay,
   generateReference,
   friendlyOrderError,
-  currencySymbol,
+
   fmt,
   isValidEmail,
 } from "../../pages/peer/support/peerSupporthelpers";
@@ -584,6 +584,20 @@ export default function ColombiaEarthquakeReliefPage() {
   const progress    = totalRaised !== null && target && target > 0
     ? Math.min(100, Math.round((totalRaised / target) * 100)) : null;
 
+  // Target milestone state.
+  // The main fundraiser can continue beyond its target, while the matching fund
+  // remains capped separately at MATCH_FUND_LIMIT.
+  const targetReached =
+    totalRaised !== null &&
+    target !== null &&
+    target > 0 &&
+    totalRaised >= target;
+
+  const amountBeyondTarget =
+    targetReached && totalRaised !== null && target !== null
+      ? totalRaised - target
+      : 0;
+
   return (
     <div className="min-h-screen bg-[#f6f3ea] pb-28 text-[#10251c] lg:pb-24">
 
@@ -782,7 +796,13 @@ export default function ColombiaEarthquakeReliefPage() {
         {impactLoading ? "…" : formatCurrency(totalRaised)}
       </div>
       <p className="mt-2 text-base text-white/75">
-        raised towards {target !== null ? `${formatCurrency(target)} target` : "our relief target"}
+        {targetReached
+          ? "raised - and we're not stopping here"
+          : `raised towards ${
+              target !== null
+                ? `${formatCurrency(target)} target`
+                : "our relief target"
+            }`}
       </p>
 
       {/* Main progress bar */}
@@ -793,9 +813,62 @@ export default function ColombiaEarthquakeReliefPage() {
         />
       </div>
       <div className="mt-2 flex items-center justify-between text-xs font-bold text-white/65">
-        <span>{progress !== null ? `${progress}% funded` : "Target pending"}</span>
+        <span>
+          {progress !== null
+            ? targetReached
+              ? "Target reached 🎉"
+              : `${progress}% funded`
+            : "Target pending"}
+        </span>
         <span>{formatCurrency(target)}</span>
       </div>
+
+      {/* Target reached celebration */}
+      {targetReached && (
+        <div className="relative mt-6 overflow-hidden rounded-[1.75rem] border border-[#ffd600]/40 bg-[#ffd600]/10 p-5 sm:p-6">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#ffd600]/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 left-1/3 h-32 w-32 rounded-full bg-white/10 blur-3xl" />
+
+          <div className="relative flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#ffd600] text-2xl shadow-lg">
+              🎉
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#ffd600]">
+                We did it
+              </p>
+
+              <h3 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">
+                We reached our {formatCurrency(target)} target!
+              </h3>
+
+              <p className="mt-3 text-sm font-medium leading-7 text-white/85 sm:text-base">
+                Thanks to everyone who played, donated and shared, we&apos;ve reached
+                our fundraising goal for Colombia.
+              </p>
+
+              {amountBeyondTarget > 0 && (
+                <div className="mt-4 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
+                  <span className="font-black text-white">
+                    {formatCurrency(totalRaised)} raised
+                  </span>
+                  <span className="text-white/40">•</span>
+                  <span className="font-black text-[#ffd600]">
+                    {formatCurrency(amountBeyondTarget)} beyond our target
+                  </span>
+                </div>
+              )}
+
+              <p className="mt-4 text-sm leading-6 text-white/72">
+                And we&apos;re not stopping here. Every additional euro raised will
+                also go to the Irish Red Cross Colombia Appeal to help families
+                affected by the earthquake.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Match fund progress bar */}
       <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4">

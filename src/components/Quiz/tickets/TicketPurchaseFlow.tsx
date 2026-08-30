@@ -308,7 +308,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
-  const [paymentReference] = useState(() => `QUIZ-${nanoid(6).toUpperCase()}`);
+const [paymentReference, setPaymentReference] = useState('');
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creatingTicket, setCreatingTicket] = useState(false);
@@ -385,6 +385,16 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
       setStep('complete');
     },
   });
+
+  useEffect(() => {
+  if (!roomInfo || paymentReference) return;
+
+  const roomMeta = getGameTypeMeta(roomInfo.gameType);
+
+  setPaymentReference(
+    `${roomMeta.paymentReferencePrefix}-${nanoid(6).toUpperCase()}`
+  );
+}, [roomInfo, paymentReference]);
 
   // Notify the embed page (or any caller) once, the moment a ticket is
   // actually confirmed - regardless of which payment path produced it

@@ -1,5 +1,5 @@
 // peerPublicService.js
-// Extracted from peerCoreService.js by split_peer_core.mjs — behaviour unchanged.
+// Extracted from peerCoreService.js by split_peer_core.mjs - behaviour unchanged.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { createPeerDonationForOrder } from './peerDonationService.js';

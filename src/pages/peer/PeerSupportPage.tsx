@@ -3,16 +3,16 @@
 // Redesigned peer fundraiser support page.
 //
 // Layout (packs step):
-//   1. Sticky teal header  — "Support [Club Name]", club logo, always visible
-//   2. Club hero           — cover image (optional) with video play button (optional)
-//   3. Participant strip   — photo, name, personal message, video thumb (all optional)
+//   1. Sticky teal header  - "Support [Club Name]", club logo, always visible
+//   2. Club hero           - cover image (optional) with video play button (optional)
+//   3. Participant strip   - photo, name, personal message, video thumb (all optional)
 //                            Only rendered when participantSlug is present / data has participant
-//   4. Progress bars       — participant bar (primary) + overall (secondary), or just overall
-//   5. Cause section       — fundraiser description + fundraiser-level video (both optional)
-//   6. Pack cards          — featured hero card + compact list for the rest
-//   7. Sticky bottom bar   — total / donate CTA (unchanged)
+//   4. Progress bars       - participant bar (primary) + overall (secondary), or just overall
+//   5. Cause section       - fundraiser description + fundraiser-level video (both optional)
+//   6. Pack cards          - featured hero card + compact list for the rest
+//   7. Sticky bottom bar   - total / donate CTA (unchanged)
 //
-// All media fields are optional — the layout never breaks if any or all are missing.
+// All media fields are optional - the layout never breaks if any or all are missing.
 // Supported flow: packs -> details -> payment -> payment-instructions -> confirm
 //                                             -> crypto-fixed-fee      -> confirm
 
@@ -31,15 +31,19 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
+  Copy,
   CreditCard,
+  Facebook,
   Gift,
   Heart,
+  Linkedin,
   Loader2,
   Mail,
   Minus,
   Play,
   Plus,
   Puzzle,
+  Share2,
   ShieldCheck,
   Target,
   Trophy,
@@ -151,6 +155,7 @@ export default function PeerSupportPage() {
   const [submitting, setSubmitting] = useState(false);
   const [cryptoDonationId, setCryptoDonationId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const cancelled = searchParams.get('cancelled') === '1';
   const donationReturn = searchParams.get('donation');
@@ -324,6 +329,19 @@ export default function PeerSupportPage() {
 
   const lifecycle = data?.lifecycle || { state: 'open', canTransact: true, message: null };
 
+  const shareUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}`
+      : '';
+
+  const shareTitle = participantName
+    ? `Support ${participantName} - ${data?.fundraiser?.name || clubName}`
+    : `Support ${data?.fundraiser?.name || clubName}`;
+
+  const shareText = participantName
+    ? `Help support ${participantName} in ${data?.fundraiser?.name || clubName}. Every purchase or donation makes a difference.`
+    : `Help support ${data?.fundraiser?.name || clubName}. Every purchase or donation makes a difference.`;
+
   const personalTarget = asNumber(data?.participant?.personal_target);
   const personalRaised = asNumber(
     firstDefined(data?.participant?.raisedAmount, data?.participant?.raised_amount),
@@ -334,6 +352,39 @@ export default function PeerSupportPage() {
   const overallRaised = asNumber(
     firstDefined(data?.fundraiser?.raisedAmount, data?.fundraiser?.raised_amount),
   );
+
+  async function shareFundraiser() {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      } catch (err) {
+        if ((err as DOMException)?.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1800);
+    } catch {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1800);
+    } catch {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
 
   const setPackQuantity = (pack: any, quantity: number) => {
     if (!lifecycle.canTransact || getPackSoldOut(pack) || pack?.availability?.available === false)
@@ -685,7 +736,7 @@ export default function PeerSupportPage() {
             {/* ── LEFT / TOP: Info column ── */}
             <div className="space-y-4 min-w-0">
 
-              {/* Club hero — cover image if set, otherwise a branded fallback.
+              {/* Club hero - cover image if set, otherwise a branded fallback.
                   Same aspect ratio in all cases so the layout never shifts. */}
               <div
                 className="relative overflow-hidden rounded-2xl bg-[var(--fr-primary)]"
@@ -698,7 +749,7 @@ export default function PeerSupportPage() {
                     className="h-full w-full object-cover opacity-90"
                   />
                 ) : logoUrl ? (
-                  /* No cover image but we have a logo — centre it on the brand colour */
+                  /* No cover image but we have a logo - centre it on the brand colour */
                   <div className="flex h-full w-full items-center justify-center">
                     <img
                       src={logoUrl}
@@ -707,7 +758,7 @@ export default function PeerSupportPage() {
                     />
                   </div>
                 ) : (
-                  /* No image at all — initials on brand colour */
+                  /* No image at all - initials on brand colour */
                   <div className="flex h-full w-full items-center justify-center">
                     <span className="text-5xl font-black text-white/30 select-none">
                       {clubName.charAt(0).toUpperCase()}
@@ -715,7 +766,7 @@ export default function PeerSupportPage() {
                   </div>
                 )}
 
-                {/* Fundraiser name overlay — always shown at bottom */}
+                {/* Fundraiser name overlay - always shown at bottom */}
                 {data.fundraiser.name && (
                   <div className={`absolute inset-x-0 bottom-0 px-4 pb-3 pt-8 ${coverImageUrl ? 'bg-gradient-to-t from-black/60 to-transparent' : 'bg-gradient-to-t from-black/40 to-transparent'}`}>
                     <p className="text-sm font-black text-white drop-shadow">
@@ -730,7 +781,7 @@ export default function PeerSupportPage() {
                 <VideoEmbed url={causeVideoUrl} label="Watch the fundraiser video" />
               )}
 
-              {/* Participant card — photo, name, message, video thumbnail */}
+              {/* Participant card - photo, name, message, video thumbnail */}
               {participantName && (
                 <ParticipantCard
                   name={participantName}
@@ -825,6 +876,81 @@ export default function PeerSupportPage() {
                   )}
                 </div>
               )}
+
+              {/* Share fundraiser */}
+              <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--fr-primary)]/10 text-[var(--fr-primary)]">
+                    <Share2 className="h-5 w-5" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--fr-primary)]">
+                      Help spread the word
+                    </p>
+                    <h2 className="mt-1 text-lg font-black tracking-tight text-slate-900">
+                      Share this fundraiser
+                    </h2>
+                    <p className="mt-1 text-sm font-medium leading-6 text-slate-500">
+                      {participantName
+                        ? `Help ${participantName} reach more supporters by sharing their fundraising page.`
+                        : 'Help this fundraiser reach more supporters by sharing the page.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mobile / native share */}
+                <button
+                  type="button"
+                  onClick={() => void shareFundraiser()}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--fr-primary)] px-5 py-3.5 text-sm font-black text-white lg:hidden"
+                >
+                  <Share2 className="h-4 w-4" />
+                  {shareCopied ? 'Link copied' : 'Share fundraiser'}
+                </button>
+
+                {/* Desktop social share */}
+                <div className="mt-4 hidden flex-wrap gap-2 lg:flex">
+                  <a
+                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+                  >
+                    <span className="text-base font-black">𝕏</span>
+                    X / Twitter
+                  </a>
+
+                  <a
+                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+                  >
+                    <Linkedin className="h-4 w-4" />
+                    LinkedIn
+                  </a>
+
+                  <a
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+                  >
+                    <Facebook className="h-4 w-4" />
+                    Facebook
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => void copyShareLink()}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {shareCopied ? 'Copied' : 'Copy link'}
+                  </button>
+                </div>
+              </section>
 
               {/* On mobile, packs render here (inside left col) */}
               <div className="lg:hidden">
@@ -997,7 +1123,7 @@ export default function PeerSupportPage() {
                   </InputShell>
                 </div>
                 <p className="mt-3 text-xs leading-5 text-slate-400">
-                  You can donate anonymously — no name or email required.
+                  You can donate anonymously - no name or email required.
                 </p>
               </div>
             </div>
@@ -1296,7 +1422,7 @@ export default function PeerSupportPage() {
             <div className="mx-auto max-w-2xl rounded-3xl bg-white p-6 text-center shadow-sm ring-1 ring-amber-200">
               <div className="text-4xl">⚠️</div>
               <h2 className="mt-3 text-2xl font-black text-slate-950">
-                Payment confirmed — access is still being prepared
+                Payment confirmed - access is still being prepared
               </h2>
               <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
                 Your payment was successful, but one or more activity links could not be created
@@ -1330,7 +1456,7 @@ export default function PeerSupportPage() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pack grid — featured hero card + compact list for the rest
+// Pack grid - featured hero card + compact list for the rest
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PackGrid({
@@ -1461,7 +1587,7 @@ function FeaturedPackCard({
               />
             </div>
 
-            {/* What's included — compact, no duplicate ticks */}
+            {/* What's included - compact, no duplicate ticks */}
             {rooms.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {rooms.slice(0, 3).map((room, idx) => (
@@ -1547,7 +1673,7 @@ function CompactPackRow({
         quantity > 0 ? 'ring-2 ring-[var(--fr-primary)]' : 'ring-slate-200 hover:ring-slate-300'
       }`}
     >
-      {/* Main info area — full width tap target for details */}
+      {/* Main info area - full width tap target for details */}
       <button
         type="button"
         onClick={onOpen}
@@ -1580,7 +1706,7 @@ function CompactPackRow({
         <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
       </button>
 
-      {/* Footer row — tapping "Tap for details" opens sheet, Add/qty controls are independent */}
+      {/* Footer row - tapping "Tap for details" opens sheet, Add/qty controls are independent */}
       <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2.5">
         <button
           type="button"
@@ -1718,7 +1844,7 @@ function ParticipantCard({
           )}
         </div>
 
-        {/* Message (optional) — full width below the header */}
+        {/* Message (optional) - full width below the header */}
         {message && (
           <div className="border-t border-slate-100 px-4 py-3">
             <p className="text-sm font-medium italic leading-6 text-slate-600">
@@ -1783,7 +1909,7 @@ function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
         </svg>
       </button>
 
-      {/* Video container — stop click propagation so clicking video doesn't close */}
+      {/* Video container - stop click propagation so clicking video doesn't close */}
       <div
         className="relative w-full max-w-3xl overflow-hidden rounded-2xl bg-black"
         style={{ paddingBottom: '56.25%' }}

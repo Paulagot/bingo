@@ -1,3 +1,4 @@
+//src/components/mgtsystem/components/digitalEvents/tabs/reconciliation/EliminationReconciliationResumeTab.tsx
 import { Scale, ExternalLink, CheckCircle2 } from 'lucide-react';
 import eliminationMgmtService from '../../../../services/EliminationMgmtService';
 import { useState } from 'react';

@@ -1,6 +1,6 @@
 // peerSupport.helpers.ts
 // Pure, presentation-agnostic helpers extracted verbatim from
-// PeerSupportPage.tsx. No behaviour change — same functions, one home.
+// PeerSupportPage.tsx. No behaviour change - same functions, one home.
 
 import type { PublicPeerPaymentMethod } from '../../../services/PeerSupportService';
 
@@ -283,7 +283,7 @@ export function includedLine(room: PackRoomDetails): string {
   );
 
   return `${quantity}${label}${
-    room.roomName ? ` — ${room.roomName}` : ''
+    room.roomName ? ` - ${room.roomName}` : ''
   }`;
 }
 

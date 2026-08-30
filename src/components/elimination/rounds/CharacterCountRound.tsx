@@ -192,7 +192,7 @@ fill={PALETTE[Math.abs(c.value.charCodeAt(0) * 7 + Math.floor(c.x * 100)) % PALE
               fontWeight: 600,
               textAlign: 'center',
             }}>
-              ✓ Locked in — waiting for other players
+              ✓ Locked in - waiting for other players
             </div>
           )}
 

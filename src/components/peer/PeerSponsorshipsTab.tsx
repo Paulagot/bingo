@@ -156,7 +156,7 @@ export default function PeerSponsorshipsTab({
               className="rounded-xl border bg-white overflow-hidden"
               style={{ borderColor: brand.border }}
             >
-              {/* Collapsed summary row — always visible */}
+              {/* Collapsed summary row - always visible */}
               <button
                 type="button"
                 onClick={() => toggleExpand(c.id)}

@@ -78,8 +78,8 @@ export type SiteImage = {
   caption?: string;
   // ✅ NEW: optional fields for responsive images and layout shift prevention
   srcSet?: string;  // WebP srcset string for <picture> source
-  width?: number;   // natural image width — prevents CLS
-  height?: number;  // natural image height — prevents CLS
+  width?: number;   // natural image width - prevents CLS
+  height?: number;  // natural image height - prevents CLS
 };
 
 const photo = (id: string, w = 1400, h = 1000) =>
@@ -89,7 +89,7 @@ const placeholder = (text: string, w = 1400, h = 900) =>
   `https://placehold.co/${w}x${h}/f7f1e8/12313f?text=${encodeURIComponent(text)}`;
 
 export const images: Record<ImageKey, SiteImage> = {
-  // ✅ HOME HERO — LCP image, fully optimised
+  // ✅ HOME HERO - LCP image, fully optimised
   // Action required: generate these WebP variants with sharp (see README note below)
   //   npx tsx scripts/optimise-images.ts
   // Or manually:

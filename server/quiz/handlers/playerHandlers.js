@@ -30,7 +30,7 @@ import { canJoinAsWalkIn } from '../../mgtsystem/services/quizCapacityService.js
 import { markRoomAsLive, markRoomAsCompleted, markRoomAsCancelled } from './roomStatusManager.js';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 
-const debug = true;
+const debug = false;
 
 // --- Payment method normalization ---
 

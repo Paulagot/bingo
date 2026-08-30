@@ -2,7 +2,7 @@
 //
 // Verifies a Solana on-chain payment for a peer fundraiser order.
 //
-// Deliberately standalone — no campaign service dependencies.
+// Deliberately standalone - no campaign service dependencies.
 // Mirrors the verification logic from campaignCryptoVerificationService but
 // scoped to peer_orders and the peer payment method lookup.
 //
@@ -10,7 +10,7 @@
 // After verification succeeds the route calls confirmPeerOrder() from
 // peerOrderCompletionService, which runs the full peer fulfilment pipeline
 // (reservations → expandPeerOrder → emails → state) identically to what
-// the Stripe webhook triggers — crypto slots into the same confirmed-only
+// the Stripe webhook triggers - crypto slots into the same confirmed-only
 // accounting path, not a separate one.
 
 import { connection as db, TABLE_PREFIX } from '../../config/database.js';
@@ -27,7 +27,7 @@ const T_PAY_METHODS = `${TABLE_PREFIX}club_payment_methods`;
 //
 // Looks up the club's crypto payment method directly from club_payment_methods.
 // Peer payment methods are fundraiser-level (not room-level), so we validate
-// against club_id only — no room linked_payment_methods_json check needed.
+// against club_id only - no room linked_payment_methods_json check needed.
 
 async function getPeerCryptoPaymentMethod(clubId, clubPaymentMethodId) {
   const [rows] = await db.execute(
@@ -80,7 +80,7 @@ async function getPeerCryptoPaymentMethod(clubId, clubPaymentMethodId) {
 // Returns the same shape as verifyCampaignCryptoPayment so peerCryptoRoutes
 // can read totalFiat / fiatCurrency / web3Result identically.
 //
-// Does NOT write anything to the DB — the route handles the order status
+// Does NOT write anything to the DB - the route handles the order status
 // update and then delegates all fulfilment to confirmPeerOrder().
 
 export async function verifyPeerCryptoPayment({
@@ -141,7 +141,7 @@ export async function verifyPeerCryptoPayment({
     );
   }
 
-  // 3. Verify on-chain — total raw = entryFee + extras
+  // 3. Verify on-chain - total raw = entryFee + extras
   const totalRaw = (
     BigInt(String(entryFeeRaw)) + BigInt(String(extrasRaw))
   ).toString();
@@ -163,7 +163,7 @@ export async function verifyPeerCryptoPayment({
   }
 
   // 4. Peer orders span a single fundraiser (not necessarily a single room),
-  // so we don't write to quiz_payment_ledger here — peerTicketBridgeService
+  // so we don't write to quiz_payment_ledger here - peerTicketBridgeService
   // does that per-ticket during expandPeerOrder. Return a stub so the route
   // can log web3TransactionId without change.
   const web3Result = {

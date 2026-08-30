@@ -162,7 +162,7 @@ function buildItemsHtml(
       const itemNumber = escapeHtml(item.itemNumber);
 
       const puzzleType = item.puzzleType
-        ? ` — ${escapeHtml(item.puzzleType)}`
+        ? ` - ${escapeHtml(item.puzzleType)}`
         : '';
 
       return `
@@ -552,7 +552,7 @@ export async function sendPuzzleDropConfirmationEmail({
                   margin:0 0 22px;
                 "
               >
-                Your payment is confirmed. Your puzzle access is ready —
+                Your payment is confirmed. Your puzzle access is ready -
                 use the button below for each puzzle you bought to start
                 playing.
               </p>
@@ -596,7 +596,7 @@ export async function sendPuzzleDropConfirmationEmail({
                   <strong style="color:#1e293b;">
                     ${safeBuyerEmail}
                   </strong>.
-                  Keep this email safe — each link gives you access to
+                  Keep this email safe - each link gives you access to
                   that puzzle.
                 </p>
               </div>

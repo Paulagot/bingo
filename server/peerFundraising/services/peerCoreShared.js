@@ -1,5 +1,5 @@
 // peerCoreShared.js
-// Extracted from peerCoreService.js by split_peer_core.mjs — behaviour unchanged.
+// Extracted from peerCoreService.js by split_peer_core.mjs - behaviour unchanged.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';
@@ -27,7 +27,7 @@ export const slugify = v => String(v || '').toLowerCase().trim()
 export const fail = (message, status=400) => { throw Object.assign(new Error(message), { status }); };
 
 // Currently the public support page hardcodes 'cash_to_participant', so a
-// bare passthrough of b.paymentMethodCategory has been harmless so far —
+// bare passthrough of b.paymentMethodCategory has been harmless so far -
 // but the moment real payment method choice is added to the public page,
 // unvalidated client input goes straight into an ENUM column. Mirrors
 // campaign's normalisePaymentCategory.

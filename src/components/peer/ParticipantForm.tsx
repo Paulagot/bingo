@@ -67,7 +67,7 @@ export default function ParticipantForm({
       } else {
         await svc.addParticipant(fundraiserId, body);
       }
-      // Reset form on successful add (not on edit — drawer will close the form)
+      // Reset form on successful add (not on edit - drawer will close the form)
       if (!editing) {
         setName(''); setTarget(''); setMessage(''); setPhoto(''); setVideo('');
       }
@@ -115,7 +115,7 @@ export default function ParticipantForm({
           className={field}
           value={video}
           onChange={e => setVideo(e.target.value)}
-          placeholder="Video URL — YouTube (optional)"
+          placeholder="Video URL - YouTube (optional)"
         />
         <textarea
           className={`${field} resize-none sm:col-span-2`}

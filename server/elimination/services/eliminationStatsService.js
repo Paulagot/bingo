@@ -15,7 +15,27 @@ import { calculateStartingTotalsFromLedger } from '../../mgtsystem/services/quiz
 import { computeAdjustmentsNet } from '../../shared/adjustmentClassifier.js';
 
 const RECONCILIATION_TABLE = `${TABLE_PREFIX}quiz_reconciliation`;
+const ADJUSTMENTS_TABLE    = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
+const PAYMENT_LEDGER_TABLE = `${TABLE_PREFIX}quiz_payment_ledger`;
 const ROOMS_TABLE          = `${TABLE_PREFIX}web2_quiz_rooms`;
+
+// Elimination has exactly one reconciliation lifecycle per room. The shared
+// quiz_reconciliation table is also used by activities that may have multiple
+// periods per room, so room_id must never be treated as globally UNIQUE.
+// Always resolve the exact Elimination header id and carry that id through the
+// payment ledger and adjustment audit chain.
+async function getEliminationReconciliationHeader(roomId) {
+  const [rows] = await connection.execute(
+    `SELECT id, room_id, club_id, approved_at, created_at, updated_at
+     FROM ${RECONCILIATION_TABLE}
+     WHERE UPPER(room_id) = UPPER(?)
+     ORDER BY (approved_at IS NULL) DESC, id DESC
+     LIMIT 1`,
+    [roomId]
+  );
+
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
 
 // ─── Timeline builder ─────────────────────────────────────────────────────────
 
@@ -93,18 +113,16 @@ function buildFinalStandings(room) {
 export async function saveEliminationGameStats(room, winnerId) {
   // Only run for managed Web2 rooms with a clubId and DB record
   if (!room.clubId || !room.roomId) {
-    console.log(
-      `[EliminationStats] Skipping stats save - no clubId (roomId: ${room.roomId}, paymentMode: ${room.paymentMode})`
-    );
+    // console.log(
+    //   `[EliminationStats] Skipping stats save - no clubId (roomId: ${room.roomId}, paymentMode: ${room.paymentMode})`
+    // );
     return;
   }
 
-  console.log(`[EliminationStats] Saving game stats for room ${room.roomId}`);
+  // console.log(`[EliminationStats] Saving game stats for room ${room.roomId}`);
 
   try {
     // ── Calculate starting totals from the payment ledger ──────────────────
-    // This reads confirmed entries from quiz_payment_ledger for this room.
-    // Returns { entryFees, extras, total } - all zero if no payments were taken.
     let startingTotals = { entryFees: 0, extras: 0, total: 0 };
     try {
       startingTotals = await calculateStartingTotalsFromLedger(room.roomId);
@@ -132,53 +150,87 @@ export async function saveEliminationGameStats(room, winnerId) {
       finalStandings: buildFinalStandings(room),
     };
 
-    // ── Upsert into quiz_reconciliation ────────────────────────────────────
-    // Use INSERT ... ON DUPLICATE KEY UPDATE so re-runs are idempotent.
-    // The room_id column has a unique index (same as quiz).
-    const sql = `
-      INSERT INTO ${RECONCILIATION_TABLE}
-        (room_id, club_id,
-         starting_entry_fees, starting_extras, starting_total,
-         adjustments_net, final_total,
-         approved_by, approved_at, notes,
-         final_leaderboard, prize_awards,
-         created_at, updated_at)
-      VALUES
-        (?, ?,
-         ?, ?, ?,
-         0, ?,
-         NULL, NULL, NULL,
-         CAST(? AS JSON), NULL,
-         UTC_TIMESTAMP(), UTC_TIMESTAMP())
-      ON DUPLICATE KEY UPDATE
-        starting_entry_fees = VALUES(starting_entry_fees),
-        starting_extras     = VALUES(starting_extras),
-        starting_total      = VALUES(starting_total),
-        final_total         = VALUES(final_total),
-        final_leaderboard   = VALUES(final_leaderboard),
-        updated_at          = UTC_TIMESTAMP()
-    `;
+    // ── Create or refresh the ONE Elimination reconciliation draft ─────────
+    // Do NOT use INSERT ... ON DUPLICATE KEY UPDATE here. room_id is not a
+    // globally unique key on the shared reconciliation table.
+    const existingHeader = await getEliminationReconciliationHeader(room.roomId);
+    let reconciliationId = existingHeader?.id ?? null;
 
-    const params = [
-      room.roomId,
-      room.clubId,
-      startingTotals.entryFees,
-      startingTotals.extras,
-      startingTotals.total,
-      startingTotals.total,       // final_total starts equal to starting - host adjusts later
-      JSON.stringify(finalLeaderboard),
-    ];
+    if (existingHeader && existingHeader.approved_at) {
+      // Stats save can be retried after approval during recovery/reconnect.
+      // Never manufacture a second reconciliation header or overwrite an
+      // already-approved financial record.
+      console.warn(
+        `[EliminationStats] Reconciliation ${existingHeader.id} for room ${room.roomId} is already approved; header not rewritten.`
+      );
+    } else if (existingHeader) {
+      await connection.execute(
+        `UPDATE ${RECONCILIATION_TABLE}
+         SET club_id              = ?,
+             starting_entry_fees  = ?,
+             starting_extras      = ?,
+             starting_total       = ?,
+             adjustments_net      = 0,
+             final_total          = ?,
+             final_leaderboard    = CAST(? AS JSON),
+             updated_at           = UTC_TIMESTAMP()
+         WHERE id = ?
+         LIMIT 1`,
+        [
+          room.clubId,
+          startingTotals.entryFees,
+          startingTotals.extras,
+          startingTotals.total,
+          startingTotals.total,
+          JSON.stringify(finalLeaderboard),
+          existingHeader.id,
+        ]
+      );
+    } else {
+      const [insertResult] = await connection.execute(
+        `INSERT INTO ${RECONCILIATION_TABLE}
+          (room_id, club_id,
+           starting_entry_fees, starting_extras, starting_total,
+           adjustments_net, final_total,
+           approved_by, approved_at, notes,
+           final_leaderboard, prize_awards,
+           created_at, updated_at)
+         VALUES
+          (?, ?,
+           ?, ?, ?,
+           0, ?,
+           NULL, NULL, NULL,
+           CAST(? AS JSON), NULL,
+           UTC_TIMESTAMP(), UTC_TIMESTAMP())`,
+        [
+          room.roomId,
+          room.clubId,
+          startingTotals.entryFees,
+          startingTotals.extras,
+          startingTotals.total,
+          startingTotals.total,
+          JSON.stringify(finalLeaderboard),
+        ]
+      );
+      reconciliationId = insertResult.insertId;
+    }
 
-    await connection.execute(sql, params);
+    // If any adjustment was somehow written before the header was available,
+    // claim it now. This also repairs legacy Elimination rows with NULL links.
+    if (reconciliationId) {
+      await connection.execute(
+        `UPDATE ${ADJUSTMENTS_TABLE}
+         SET reconciliation_id = ?
+         WHERE room_id = ?
+           AND reconciliation_id IS NULL`,
+        [reconciliationId, room.roomId]
+      );
+    }
 
-    // ── Mark the DB room record as 'completed' ─────────────────────────────
-    // The in-memory room is still alive (pendingReconciliation = true),
-    // but the DB record gets updated so the management list shows it correctly.
-    // Mark room completed and move reconciliation_status to 'reconciling'
-    // so the management list clearly shows this room needs reconciliation.
+    // ── Mark the DB room record completed / reconciliation pending ──────────
     await connection.execute(
       `UPDATE ${ROOMS_TABLE}
-       SET status                = 'completed',
+       SET status                 = 'completed',
            reconciliation_status = 'reconciling',
            ended_at              = UTC_TIMESTAMP(),
            updated_at            = UTC_TIMESTAMP()
@@ -187,12 +239,13 @@ export async function saveEliminationGameStats(room, winnerId) {
       [room.roomId]
     );
 
-    console.log(
-      `[EliminationStats] ✅ Stats saved - room: ${room.roomId}`,
-      `players: ${allPlayers.length}`,
-      `winner: ${winner?.name}`,
-      `startingTotal: ${startingTotals.total}`
-    );
+    // console.log(
+    //   `[EliminationStats] ✅ Stats saved - room: ${room.roomId}`,
+    //   `reconciliationId: ${reconciliationId ?? 'none'}`,
+    //   `players: ${allPlayers.length}`,
+    //   `winner: ${winner?.name}`,
+    //   `startingTotal: ${startingTotals.total}`
+    // );
   } catch (err) {
     // Non-fatal - log and move on. The game loop must not be interrupted.
     console.error(`[EliminationStats] ❌ Failed to save stats for room ${room.roomId}:`, err.message);
@@ -209,40 +262,42 @@ export async function saveEliminationGameStats(room, winnerId) {
  * @returns {{ reconciliation, adjustments } | null}
  */
 export async function getEliminationReconciliation(roomId) {
-  const ADJUSTMENTS_TABLE = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
+  const header = await getEliminationReconciliationHeader(roomId);
+  if (!header) return null;
 
-  const [[recRows], [adjRows]] = await Promise.all([
-    connection.execute(
-      `SELECT
-         id, room_id, club_id,
-         starting_entry_fees, starting_extras, starting_total,
-         adjustments_net, final_total,
-         approved_by, approved_at, notes,
-         final_leaderboard,
-         created_at, updated_at
-       FROM ${RECONCILIATION_TABLE}
-       WHERE room_id = ?
-       LIMIT 1`,
-      [roomId]
-    ),
-    connection.execute(
-      `SELECT
-         id, room_id, club_id, ts,
-         adjustment_type, amount, currency,
-         payment_method, reason_code,
-         payer_id, note, created_by,
-         prize_award_id, prize_metadata,
-         created_at
-       FROM ${ADJUSTMENTS_TABLE}
-       WHERE room_id = ?
-       ORDER BY created_at ASC`,
-      [roomId]
-    ),
-  ]);
+  const [recRows] = await connection.execute(
+    `SELECT
+       id, room_id, club_id,
+       starting_entry_fees, starting_extras, starting_total,
+       adjustments_net, final_total,
+       approved_by, approved_at, notes,
+       final_leaderboard,
+       created_at, updated_at
+     FROM ${RECONCILIATION_TABLE}
+     WHERE id = ?
+     LIMIT 1`,
+    [header.id]
+  );
 
   if (!recRows?.length) return null;
-
   const rec = recRows[0];
+
+  // Include linked rows plus legacy NULL-link rows for this same Elimination
+  // room. Approval will claim the NULL rows to this exact reconciliation id.
+  const [adjRows] = await connection.execute(
+    `SELECT
+       id, room_id, club_id, reconciliation_id, ts,
+       adjustment_type, amount, currency,
+       payment_method, reason_code,
+       payer_id, note, created_by,
+       prize_award_id, prize_metadata,
+       created_at
+     FROM ${ADJUSTMENTS_TABLE}
+     WHERE room_id = ?
+       AND (reconciliation_id = ? OR reconciliation_id IS NULL)
+     ORDER BY created_at ASC, id ASC`,
+    [rec.room_id, rec.id]
+  );
 
   let finalLeaderboard = null;
   try {
@@ -269,21 +324,22 @@ export async function getEliminationReconciliation(roomId) {
       updatedAt:          rec.updated_at.toISOString(),
     },
     adjustments: adjRows.map((a) => ({
-      id:             a.id,
-      roomId:         a.room_id,
-      clubId:         a.club_id,
-      ts:             a.ts ? a.ts.toISOString() : null,
-      type:           a.adjustment_type,
-      amount:         parseFloat(a.amount) || 0,
-      currency:       a.currency,
-      paymentMethod:  a.payment_method,
-      reasonCode:     a.reason_code,
-      payerId:        a.payer_id,
-      note:           a.note,
-      createdBy:      a.created_by,
-      prizeAwardId:   a.prize_award_id,
-      prizeMetadata:  a.prize_metadata,
-      createdAt:      a.created_at.toISOString(),
+      id:               a.id,
+      roomId:           a.room_id,
+      clubId:           a.club_id,
+      reconciliationId: a.reconciliation_id ?? null,
+      ts:               a.ts ? a.ts.toISOString() : null,
+      type:             a.adjustment_type,
+      amount:           parseFloat(a.amount) || 0,
+      currency:         a.currency,
+      paymentMethod:    a.payment_method,
+      reasonCode:       a.reason_code,
+      payerId:          a.payer_id,
+      note:             a.note,
+      createdBy:        a.created_by,
+      prizeAwardId:     a.prize_award_id,
+      prizeMetadata:    a.prize_metadata,
+      createdAt:        a.created_at.toISOString(),
     })),
   };
 }
@@ -299,96 +355,89 @@ export async function getEliminationReconciliation(roomId) {
  * @returns {{ entryFees, extras, total }} - the fresh totals, or null if no record
  */
 export async function refreshReconciliationStartingTotal(roomId) {
-  // Check a reconciliation record exists first (case-insensitive)
-  const [existingRows] = await connection.execute(
-    `SELECT room_id FROM ${RECONCILIATION_TABLE}
-     WHERE UPPER(room_id) = UPPER(?) LIMIT 1`,
-    [roomId]
-  );
+  const header = await getEliminationReconciliationHeader(roomId);
+  if (!header) return null;
 
-  if (!Array.isArray(existingRows) || !existingRows.length) {
-    // No record yet - nothing to refresh (game stats may not have saved yet)
-    return null;
-  }
+  // Approved reconciliations are immutable. Late-payment handling should happen
+  // before approval; once closed, do not silently alter the approved totals.
+  if (header.approved_at) return null;
 
-  const dbRoomId = existingRows[0].room_id; // use exact DB casing
-
-  // Recalculate from the payment ledger
   let freshTotals = { entryFees: 0, extras: 0, total: 0 };
   try {
-    freshTotals = await calculateStartingTotalsFromLedger(dbRoomId);
+    freshTotals = await calculateStartingTotalsFromLedger(header.room_id);
   } catch (err) {
     console.warn(`[EliminationStats] refreshReconciliationStartingTotal ledger error (non-fatal):`, err.message);
   }
 
-  // Update the reconciliation record with fresh starting totals.
-  // We don't update adjustments_net or final_total here - those are set at approval.
   await connection.execute(
     `UPDATE ${RECONCILIATION_TABLE}
-     SET
-       starting_entry_fees = ?,
-       starting_extras     = ?,
-       starting_total      = ?,
-       updated_at          = UTC_TIMESTAMP()
-     WHERE room_id = ?
+     SET starting_entry_fees = ?,
+         starting_extras     = ?,
+         starting_total      = ?,
+         updated_at          = UTC_TIMESTAMP()
+     WHERE id = ?
      LIMIT 1`,
-    [freshTotals.entryFees, freshTotals.extras, freshTotals.total, dbRoomId]
+    [freshTotals.entryFees, freshTotals.extras, freshTotals.total, header.id]
   );
 
-  console.log(
-    `[EliminationStats] 🔄 Refreshed starting totals - room: ${dbRoomId}`,
-    `total: ${freshTotals.total}`
-  );
+  // console.log(
+  //   `[EliminationStats] 🔄 Refreshed starting totals - room: ${header.room_id}`,
+  //   `reconciliationId: ${header.id}`,
+  //   `total: ${freshTotals.total}`
+  // );
 
   return freshTotals;
 }
 
 export async function approveEliminationReconciliation(roomId, approvedBy, notes = null) {
-  const ADJUSTMENTS_TABLE = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
+  // ── Step 1: Resolve the exact reconciliation header ──────────────────────
+  const header = await getEliminationReconciliationHeader(roomId);
 
-  // ── Step 1: Verify the record exists (case-insensitive) ───────────────────
-  const [existingRows] = await connection.execute(
-    `SELECT room_id FROM ${RECONCILIATION_TABLE}
-     WHERE UPPER(room_id) = UPPER(?) LIMIT 1`,
-    [roomId]
-  );
-
-  if (!Array.isArray(existingRows) || !existingRows.length) {
+  if (!header) {
     const [debugRows] = await connection.execute(
-      `SELECT room_id FROM ${RECONCILIATION_TABLE} ORDER BY created_at DESC LIMIT 5`
+      `SELECT id, room_id, approved_at, created_at
+       FROM ${RECONCILIATION_TABLE}
+       ORDER BY created_at DESC
+       LIMIT 5`
     );
     console.error(
       `[EliminationStats] No reconciliation record for "${roomId}".`,
-      `Recent records:`, debugRows.map(r => r.room_id)
+      `Recent records:`, debugRows.map(r => ({ id: r.id, roomId: r.room_id }))
     );
     throw new Error(`No reconciliation record found for room ${roomId}`);
   }
 
-  const dbRoomId = existingRows[0].room_id; // exact casing as stored
+  if (header.approved_at) {
+    throw new Error(`Reconciliation ${header.id} for room ${header.room_id} is already approved`);
+  }
 
-  // ── Step 2: Recalculate starting_total from live payment ledger ───────────
-  // This picks up any payments confirmed after the game ended, so the
-  // final total correctly reflects all confirmed payments.
+  const reconciliationId = header.id;
+  const dbRoomId = header.room_id;
+
+  // ── Step 2: Recalculate starting_total from live payment ledger ──────────
   let freshTotals = { entryFees: 0, extras: 0, total: 0 };
   try {
     freshTotals = await calculateStartingTotalsFromLedger(dbRoomId);
-    console.log(
-      `[EliminationStats] Live starting totals for "${dbRoomId}":`,
-      `entry: ${freshTotals.entryFees}, extras: ${freshTotals.extras}, total: ${freshTotals.total}`
-    );
+    // console.log(
+    //   `[EliminationStats] Live starting totals for "${dbRoomId}":`,
+    //   `entry: ${freshTotals.entryFees}, extras: ${freshTotals.extras}, total: ${freshTotals.total}`
+    // );
   } catch (err) {
     console.warn(`[EliminationStats] Could not recalculate starting totals (non-fatal):`, err.message);
   }
 
   const startingTotal = freshTotals.total;
 
-  // ── Step 3: Recalculate adjustments_net from the adjustments table ────────
+  // ── Step 3: Recalculate adjustments for THIS reconciliation ──────────────
+  // Legacy Elimination adjustment rows may still have reconciliation_id NULL;
+  // include them now and claim them below during approval.
   const [adjRows] = await connection.execute(
-    `SELECT adjustment_type, reason_code, SUM(amount) AS total
+    `SELECT id, adjustment_type, reason_code, amount
      FROM ${ADJUSTMENTS_TABLE}
      WHERE room_id = ?
-     GROUP BY adjustment_type, reason_code`,
-    [dbRoomId]
+       AND (reconciliation_id = ? OR reconciliation_id IS NULL)
+     ORDER BY id ASC`,
+    [dbRoomId, reconciliationId]
   );
 
   const classified = computeAdjustmentsNet(Array.isArray(adjRows) ? adjRows : []);
@@ -396,25 +445,24 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
     console.error('[EliminationStats] Unclassified adjustments block approval:', classified.unclassified);
     throw new Error('One or more reconciliation adjustments have an invalid type or reason code.');
   }
-  const adjustmentsNet = classified.net;
 
+  const adjustmentsNet = classified.net;
   const finalTotal = startingTotal + adjustmentsNet;
 
-  // ── Step 4: Write everything to DB ──────────────────────────────────────
-  // Update the reconciliation record and close the room in one go.
-  await connection.execute(
+  // ── Step 4: Approve the exact reconciliation row ─────────────────────────
+  const [approvalResult] = await connection.execute(
     `UPDATE ${RECONCILIATION_TABLE}
-     SET
-       starting_entry_fees = ?,
-       starting_extras     = ?,
-       starting_total      = ?,
-       adjustments_net     = ?,
-       final_total         = ?,
-       approved_by         = ?,
-       approved_at         = UTC_TIMESTAMP(),
-       notes               = ?,
-       updated_at          = UTC_TIMESTAMP()
-     WHERE room_id = ?
+     SET starting_entry_fees = ?,
+         starting_extras     = ?,
+         starting_total      = ?,
+         adjustments_net     = ?,
+         final_total         = ?,
+         approved_by         = ?,
+         approved_at         = UTC_TIMESTAMP(),
+         notes               = ?,
+         updated_at          = UTC_TIMESTAMP()
+     WHERE id = ?
+       AND approved_at IS NULL
      LIMIT 1`,
     [
       freshTotals.entryFees,
@@ -424,12 +472,43 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
       finalTotal,
       approvedBy,
       notes,
+      reconciliationId,
+    ]
+  );
+
+  if (approvalResult.affectedRows !== 1) {
+    throw new Error(`Failed to approve reconciliation ${reconciliationId}; it may already be approved`);
+  }
+
+  // ── Step 5: Stamp confirmed payment ledger rows with the exact id ────────
+  const [ledgerStampResult] = await connection.execute(
+    `UPDATE ${PAYMENT_LEDGER_TABLE}
+     SET reconciliation_id  = ?,
+         reconciled_at      = UTC_TIMESTAMP(),
+         reconciled_by      = ?,
+         reconciled_by_name = ?
+     WHERE room_id = ?
+       AND status = 'confirmed'`,
+    [
+      reconciliationId,
+      approvedBy ?? null,
+      approvedBy ?? null,
       dbRoomId,
     ]
   );
 
-  // Mark the room record as closed - reconciliation_status moves to 'closed'
-  // so the management dashboard shows this room is fully reconciled.
+  // ── Step 6: Stamp/repair adjustment rows with the exact id ───────────────
+  // Elimination is one reconciliation per room, so it is safe to repair legacy
+  // NULL or incorrect links for this room to the exact approved header.
+  const [adjustmentStampResult] = await connection.execute(
+    `UPDATE ${ADJUSTMENTS_TABLE}
+     SET reconciliation_id = ?
+     WHERE room_id = ?
+       AND (reconciliation_id IS NULL OR reconciliation_id <> ?)`,
+    [reconciliationId, dbRoomId, reconciliationId]
+  );
+
+  // ── Step 7: Close reconciliation on the room record ──────────────────────
   await connection.execute(
     `UPDATE ${ROOMS_TABLE}
      SET reconciliation_status = 'closed',
@@ -439,57 +518,25 @@ export async function approveEliminationReconciliation(roomId, approvedBy, notes
     [dbRoomId]
   );
 
-  console.log(
-    `[EliminationStats] ✅ Reconciliation approved - room: ${dbRoomId}`,
-    `by: ${approvedBy}`,
-    `starting: ${startingTotal}`,
-    `net adjustments: ${adjustmentsNet}`,
-    `final: ${finalTotal}`
-  );
+  // console.log(
+  //   `[EliminationStats] ✅ Reconciliation approved - room: ${dbRoomId}`,
+  //   `reconciliationId: ${reconciliationId}`,
+  //   `by: ${approvedBy}`,
+  //   `starting: ${startingTotal}`,
+  //   `net adjustments: ${adjustmentsNet}`,
+  //   `final: ${finalTotal}`,
+  //   `ledger rows stamped: ${ledgerStampResult.affectedRows}`,
+  //   `adjustment rows repaired/stamped: ${adjustmentStampResult.affectedRows}`
+  // );
 
-  // ── Step 5: Read back the reconciliation record id ────────────────────────
-  // Then stamp all confirmed payment ledger rows with the reconciliation id
-  // and approver details - same pattern as the quiz uses.
-  try {
-    const [recIdRows] = await connection.execute(
-      `SELECT id FROM ${RECONCILIATION_TABLE} WHERE room_id = ? LIMIT 1`,
-      [dbRoomId]
-    );
-
-    const reconciliationId = recIdRows?.[0]?.id ?? null;
-
-    if (reconciliationId) {
-      const PAYMENT_LEDGER_TABLE = `${TABLE_PREFIX}quiz_payment_ledger`;
-
-      const [stampResult] = await connection.execute(
-        `UPDATE ${PAYMENT_LEDGER_TABLE}
-         SET reconciliation_id  = ?,
-             reconciled_at      = UTC_TIMESTAMP(),
-             reconciled_by      = ?,
-             reconciled_by_name = ?
-         WHERE room_id = ?
-           AND status  = 'confirmed'`,
-        [
-          reconciliationId,
-          approvedBy ?? null,   // member ID when available - display name otherwise
-          approvedBy ?? null,   // reconciled_by_name - same value for elimination hosts
-          dbRoomId,
-        ]
-      );
-
-      console.log(
-        `[EliminationStats] 🔖 Stamped ${stampResult.affectedRows} confirmed ledger row(s)`,
-        `for room ${dbRoomId} with reconciliation_id ${reconciliationId}`
-      );
-    } else {
-      console.warn(`[EliminationStats] Could not read back reconciliation id for room ${dbRoomId} - ledger not stamped`);
-    }
-  } catch (stampErr) {
-    // Non-fatal - the reconciliation record is already approved, just log
-    console.error(`[EliminationStats] Ledger stamp failed (non-fatal) for room ${dbRoomId}:`, stampErr.message);
-  }
-
-  return { ok: true, adjustmentsNet, finalTotal };
+  return {
+    ok: true,
+    reconciliationId,
+    adjustmentsNet,
+    finalTotal,
+    ledgerRowsStamped: ledgerStampResult.affectedRows,
+    adjustmentRowsStamped: adjustmentStampResult.affectedRows,
+  };
 }
 
 // ─── Save a single adjustment entry ──────────────────────────────────────────
@@ -516,17 +563,19 @@ export async function saveAdjustmentEntry({
   prizeMetadata = null,
   ts = null,
 }) {
-  const ADJUSTMENTS_TABLE = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
+  const header = await getEliminationReconciliationHeader(roomId);
+  const reconciliationId = header && !header.approved_at ? header.id : null;
 
   const [result] = await connection.execute(
     `INSERT INTO ${ADJUSTMENTS_TABLE}
-       (room_id, club_id, ts, adjustment_type, amount, currency,
+       (room_id, club_id, reconciliation_id, ts, adjustment_type, amount, currency,
         payment_method, reason_code, payer_id, note,
         created_by, prize_award_id, prize_metadata, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())`,
     [
       roomId,
       clubId ?? null,
+      reconciliationId,
       ts ? new Date(ts) : new Date(),
       adjustmentType,
       amount,
@@ -544,6 +593,70 @@ export async function saveAdjustmentEntry({
   return result.insertId;
 }
 
+// ─── Update a single adjustment entry ─────────────────────────────────────────
+
+/**
+ * Update an existing manual adjustment row in place.
+ * Financial records keep the same primary key - edits must never be implemented
+ * as delete + insert because that can duplicate rows and destroys audit identity.
+ *
+ * @returns {{ ok: boolean }}
+ */
+export async function updateAdjustmentEntry({
+  adjustmentId,
+  roomId,
+  adjustmentType,
+  amount,
+  currency = 'EUR',
+  paymentMethod = null,
+  reasonCode = null,
+  payerId = null,
+  note = null,
+  createdBy = null,
+  prizeAwardId = null,
+  prizeMetadata = null,
+  ts = null,
+}) {
+  const header = await getEliminationReconciliationHeader(roomId);
+  const reconciliationId = header && !header.approved_at ? header.id : null;
+
+  const [result] = await connection.execute(
+    `UPDATE ${ADJUSTMENTS_TABLE}
+     SET reconciliation_id = COALESCE(reconciliation_id, ?),
+         ts = ?,
+         adjustment_type = ?,
+         amount = ?,
+         currency = ?,
+         payment_method = ?,
+         reason_code = ?,
+         payer_id = ?,
+         note = ?,
+         created_by = ?,
+         prize_award_id = ?,
+         prize_metadata = ?
+     WHERE id = ? AND room_id = ?
+     LIMIT 1`,
+    [
+      reconciliationId,
+      ts ? new Date(ts) : new Date(),
+      adjustmentType,
+      amount,
+      currency,
+      paymentMethod,
+      reasonCode,
+      payerId,
+      note,
+      createdBy,
+      prizeAwardId,
+      prizeMetadata ? JSON.stringify(prizeMetadata) : null,
+      adjustmentId,
+      roomId,
+    ]
+  );
+
+  return { ok: result.affectedRows > 0 };
+}
+
 // ─── Delete an adjustment entry ───────────────────────────────────────────────
 
 /**
@@ -555,8 +668,6 @@ export async function saveAdjustmentEntry({
  * @returns {{ ok: boolean }}
  */
 export async function deleteAdjustmentEntry(adjustmentId, roomId) {
-  const ADJUSTMENTS_TABLE = `${TABLE_PREFIX}quiz_reconciliation_adjustments`;
-
   const [result] = await connection.execute(
     `DELETE FROM ${ADJUSTMENTS_TABLE} WHERE id = ? AND room_id = ? LIMIT 1`,
     [adjustmentId, roomId]

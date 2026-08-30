@@ -23,9 +23,13 @@ import {
 import {
   AlertCircle,
   CheckCircle2,
+  Copy,
+  Facebook,
   Heart,
+  Linkedin,
   Loader2,
   Play,
+  Share2,
   ShieldCheck,
   Target,
   User,
@@ -420,6 +424,19 @@ export default function PeerSponsorshipExperience({ data }: Props) {
 
   const lifecycle = data?.lifecycle || { state: 'open', canTransact: true, message: null };
 
+  const shareUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}`
+      : '';
+
+  const shareTitle = participantName
+    ? `Support ${participantName} — ${fundraiser?.name || clubName}`
+    : `Support ${fundraiser?.name || clubName}`;
+
+  const shareText = participantName
+    ? `Help support ${participantName} in ${fundraiser?.name || clubName}. Every sponsorship makes a difference.`
+    : `Help support ${fundraiser?.name || clubName}. Every sponsorship makes a difference.`;
+
   // ── Theme colours (fall back to teal to match PeerSupportPage) ────────────
 
   const primary =
@@ -452,6 +469,7 @@ export default function PeerSponsorshipExperience({ data }: Props) {
   const [paymentReference] = useState(generateReference);
   const [contributionId, setContributionId] = useState<string | null>(null);
   const [cryptoWallet, setCryptoWallet] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const amount = useMemo(() => {
     if (customAmount.trim()) return Number(customAmount);
@@ -529,6 +547,39 @@ export default function PeerSponsorshipExperience({ data }: Props) {
     setFormError(null);
     setStep('details');
     setSheetOpen(true);
+  }
+
+  async function shareFundraiser() {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      } catch (err) {
+        if ((err as DOMException)?.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1800);
+    } catch {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1800);
+    } catch {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
   }
 
   function validateDetails() {
@@ -831,6 +882,88 @@ export default function PeerSponsorshipExperience({ data }: Props) {
               )}
             </div>
           )}
+
+          {/* ── Share fundraiser ── */}
+          <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
+                style={{ background: `${primary}12`, color: primary }}
+              >
+                <Share2 className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: primary }}
+                >
+                  Help spread the word
+                </p>
+                <h2 className="mt-1 text-lg font-black tracking-tight text-slate-900">
+                  Share this fundraiser
+                </h2>
+                <p className="mt-1 text-sm font-medium leading-6 text-slate-500">
+                  {participantName
+                    ? `Help ${participantName} reach more supporters by sharing their fundraising page.`
+                    : 'Help this fundraiser reach more supporters by sharing the page.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Mobile / native share */}
+            <button
+              type="button"
+              onClick={() => void shareFundraiser()}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-black text-white lg:hidden"
+              style={{ background: primary }}
+            >
+              <Share2 className="h-4 w-4" />
+              {shareCopied ? 'Link copied' : 'Share fundraiser'}
+            </button>
+
+            {/* Desktop social share */}
+            <div className="mt-4 hidden flex-wrap gap-2 lg:flex">
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+              >
+                <span className="text-base font-black">𝕏</span>
+                X / Twitter
+              </a>
+
+              <a
+                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+              >
+                <Linkedin className="h-4 w-4" />
+                LinkedIn
+              </a>
+
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+              >
+                <Facebook className="h-4 w-4" />
+                Facebook
+              </a>
+
+              <button
+                type="button"
+                onClick={() => void copyShareLink()}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
+              >
+                <Copy className="h-4 w-4" />
+                {shareCopied ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+          </section>
 
           {/* Mobile: sponsorship CTA panel appears here in the flow */}
           <div className="lg:hidden">

@@ -202,7 +202,7 @@ export async function expandPeerOrder(orderId) {
       // Crucially, we load ALL pack items for each order item (not just the
       // ones that have existing entries) so the apportionment ratio is always
       // calculated across the full bundle. If we only passed the reserved
-      // items, the ratio would be wrong — e.g. splitting €10 between quiz and
+      // items, the ratio would be wrong - e.g. splitting €10 between quiz and
       // elimination only would give them more than their fair share, and the
       // puzzle (created below in the missing-entry loop) would independently
       // get a fee that causes the ledger total to exceed the order total.
@@ -303,7 +303,7 @@ export async function expandPeerOrder(orderId) {
       }
 
     } else {
-      // No existing entries at all — fresh path (crypto, cash without reservation)
+      // No existing entries at all - fresh path (crypto, cash without reservation)
       const [orderItems]=await conn.execute(
         `SELECT * FROM ${OI} WHERE order_id=? ORDER BY created_at`,
         [orderId],
@@ -410,7 +410,7 @@ export async function expandPeerOrder(orderId) {
             extrasCount: extras.length,
           });
 
-          // Correct ticket row — entry_fee, extras, extras_total, total_amount
+          // Correct ticket row - entry_fee, extras, extras_total, total_amount
           await connection.execute(
             `UPDATE ${T}
              SET entry_fee    = ?,
@@ -432,7 +432,7 @@ export async function expandPeerOrder(orderId) {
             [entryFee, existingTicketId],
           );
 
-          // Write extras ledger rows — skip if they already exist (idempotent retry safety)
+          // Write extras ledger rows - skip if they already exist (idempotent retry safety)
           const [existingExtrasLedger] = await connection.execute(
             `SELECT id FROM ${L}
              WHERE ticket_id   = ?
@@ -497,7 +497,7 @@ export async function expandPeerOrder(orderId) {
           });
 
         } else {
-          console.log('[ExpandPeerOrder] No existing ticket — creating fresh:', {
+          console.log('[ExpandPeerOrder] No existing ticket - creating fresh:', {
             entryId: x.entryId,
             itemType,
             fee: x.fee,

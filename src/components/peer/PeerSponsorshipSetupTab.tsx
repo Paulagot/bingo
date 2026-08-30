@@ -2,7 +2,7 @@
 //
 // Sponsorship Setup tab for sponsored-format peer fundraisers.
 // Rules:
-//   - If a room is already linked, all other rooms are hidden — only the
+//   - If a room is already linked, all other rooms are hidden - only the
 //     linked room is shown with an Unlink button (pre-publish only)
 //   - If published, the linked room is shown read-only with no unlink option
 //   - If nothing is linked, all available rooms are shown and any can be linked
@@ -214,7 +214,7 @@ export default function PeerSponsorshipSetupTab({
             Linked activity (room ID: <code className="font-mono text-xs">{linkedRoomId}</code>)
           </p>
           <p className="mt-1 text-xs">
-            This activity is not in the list of available rooms — it may be closed or archived.
+            This activity is not in the list of available rooms - it may be closed or archived.
           </p>
           {!isPublished && (
             <button
@@ -296,7 +296,7 @@ export default function PeerSponsorshipSetupTab({
           style={{ borderColor: '#fde68a', background: '#fffbeb', color: '#92400e' }}
         >
           ⚠️ No activity linked. This fundraiser is published but has no sponsorship activity
-          connected — supporters cannot contribute.
+          connected - supporters cannot contribute.
         </div>
       )}
     </div>

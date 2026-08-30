@@ -272,8 +272,17 @@ export default function ImpactTab({
   // Ticketed events now persist admins to config.admins via the check-in
   // dashboard (same shape as quiz/elimination: { id, name }), populated when
   // door staff confirm payments or are added via the Staff tab.
-  const admins: Admin[] = !isElimination ? (config?.admins || []) : [];
-  const eliminationAdminCount = eliminationData?.totalAdmins ?? 0;
+  const admins: Admin[] = Array.isArray(config?.admins)
+    ? config.admins.filter((admin: any) => admin?.id && admin?.name)
+    : [];
+
+  // New elimination rooms persist admin identities in config.admins.
+  // Older completed rooms only have finalLeaderboard.totalAdmins, so retain
+  // that count as a backwards-compatible fallback when names are unavailable.
+  const eliminationAdminCount = isElimination
+    ? (admins.length > 0 ? admins.length : (eliminationData?.totalAdmins ?? 0))
+    : 0;
+
   const volunteerCount = isElimination
     ? eliminationAdminCount + 1
     : admins.length + 1;
@@ -582,38 +591,40 @@ export default function ImpactTab({
             <p className="text-xs text-[#52636f] font-medium">Host</p>
           </div>
         </div>
-        {isElimination ? (
-          eliminationAdminCount > 0 ? (
-            <div className="px-4 py-3 flex items-center gap-3 border-b border-[#f6f1e8]">
-              <div className="w-8 h-8 rounded-full bg-[rgba(233,87,79,0.08)] flex items-center justify-center shrink-0">
-                <Users className="h-4 w-4 text-[#c8423b]" />
+        {admins.length > 0 ? (
+          admins.map(admin => (
+            <div key={admin.id} className="px-4 py-3 flex items-center gap-3 border-b border-[#f6f1e8] last:border-0 hover:bg-[#fbf8f2]">
+              <div className="w-8 h-8 rounded-full bg-[rgba(184,198,176,0.1)] flex items-center justify-center text-xs font-bold text-[#52636f] shrink-0">
+                {admin.name.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#102532]">
-                  {eliminationAdminCount} Admin{eliminationAdminCount !== 1 ? 's' : ''}
+                <p className="text-sm font-semibold text-[#102532]">{admin.name}</p>
+                <p className="text-xs text-[#52636f]">
+                  {isTicketedEvent ? 'Door staff / Volunteer' : 'Admin / Volunteer'}
                 </p>
-                <p className="text-xs text-[#52636f]">Volunteer admin{eliminationAdminCount !== 1 ? 's' : ''}</p>
               </div>
             </div>
-          ) : (
-            <div className="px-4 py-3 text-xs text-[#52636f]">No additional admins recorded.</div>
-          )
+          ))
+        ) : isElimination && eliminationAdminCount > 0 ? (
+          // Backwards compatibility for completed elimination games created
+          // before admin names were persisted to config_json.
+          <div className="px-4 py-3 flex items-center gap-3 border-b border-[#f6f1e8]">
+            <div className="w-8 h-8 rounded-full bg-[rgba(233,87,79,0.08)] flex items-center justify-center shrink-0">
+              <Users className="h-4 w-4 text-[#c8423b]" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#102532]">
+                {eliminationAdminCount} Admin{eliminationAdminCount !== 1 ? 's' : ''}
+              </p>
+              <p className="text-xs text-[#52636f]">
+                Names were not recorded for this earlier event
+              </p>
+            </div>
+          </div>
         ) : (
-          admins.length > 0
-            ? admins.map(admin => (
-                <div key={admin.id} className="px-4 py-3 flex items-center gap-3 border-b border-[#f6f1e8] last:border-0 hover:bg-[#fbf8f2]">
-                  <div className="w-8 h-8 rounded-full bg-[rgba(184,198,176,0.1)] flex items-center justify-center text-xs font-bold text-[#52636f] shrink-0">
-                    {admin.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#102532]">{admin.name}</p>
-                    <p className="text-xs text-[#52636f]">{isTicketedEvent ? 'Door staff / Volunteer' : 'Admin / Volunteer'}</p>
-                  </div>
-                </div>
-              ))
-            : <div className="px-4 py-3 text-xs text-[#52636f]">
-                {isTicketedEvent ? 'No door staff registered.' : 'No additional admins registered.'}
-              </div>
+          <div className="px-4 py-3 text-xs text-[#52636f]">
+            {isTicketedEvent ? 'No door staff registered.' : 'No additional admins registered.'}
+          </div>
         )}
         <div className="px-4 py-2.5 bg-[rgba(184,198,176,0.1)] border-t border-[rgba(184,198,176,0.3)] text-xs text-[#52636f] font-medium">
           {volunteerCount} volunteer{volunteerCount !== 1 ? 's' : ''} contributed to this event

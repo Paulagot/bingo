@@ -37,7 +37,7 @@ const DEMO_PAGE_DESCRIPTION =
   'Try FundRaisely yourself. Experience real supporter journeys for peer fundraising, ticketed events, Puzzle Drop, Elimination, sponsored fundraising and donations using our interactive test environment.';
 
 const DEMO_OG_TITLE =
-  'Try FundRaisely — Interactive Fundraising Demo';
+  'Try FundRaisely - Interactive Fundraising Demo';
 
 const DEMO_OG_DESCRIPTION =
   'See FundRaisely from the supporter side. Buy a demo ticket, support a participant, play a puzzle, sponsor a challenge or make a donation with no real card payment.';
@@ -110,7 +110,7 @@ export default function DemoPage() {
         structuredData={compactStructuredData([
           webPageJsonLd(
             DEMO_PATH,
-            'Try FundRaisely — Interactive Fundraising Demo',
+            'Try FundRaisely - Interactive Fundraising Demo',
             DEMO_PAGE_DESCRIPTION,
           ),
         ])}
