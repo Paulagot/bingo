@@ -363,7 +363,10 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
       } else {
         if (!socket) throw new Error('No socket connection');
         socket.emit('elimination_approve_reconciliation', {
-          roomId, approvedBy: hostName, notes: approveNotes || null,
+          roomId,
+          actorId: hostId,
+          approvedBy: hostName,
+          notes: approveNotes || null,
         });
         // setApproved triggered by socket event listener above
         // fetchData is called by the socket listener too (see onApproved below)
@@ -590,12 +593,13 @@ export const EliminationReconciliationPanel: React.FC<Props> = ({
             </div>
 
             <InfoBox>
-              Record any cash, refunds, fees, or other adjustments not captured above. Changes save when you click away from a field.
+              Record any cash, refunds, fees, or other adjustments not captured above. Review each adjustment and click Save Adjustment to add it to the reconciliation.
             </InfoBox>
 
             <div className="mt-4">
               <EliminationAdjustmentsLedger
                 roomId={roomId}
+                hostId={hostId}
                 socket={socket}
                 adjustments={adjustments}
                 currency={currencySymbol}

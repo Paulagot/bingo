@@ -1,5 +1,5 @@
 // peerPackService.js
-// Extracted from peerCoreService.js by split_peer_core.mjs — behaviour unchanged.
+// Extracted from peerCoreService.js by split_peer_core.mjs - behaviour unchanged.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import {
@@ -25,7 +25,7 @@ const VALID_ITEM_TYPES = new Set([
 ]);
 
 // Mirrors the same room-type mapping used in peerEntryExpansionService.js
-// (correctEntryType) and PeerPackEditor.tsx (validItemTypesForGameType) —
+// (correctEntryType) and PeerPackEditor.tsx (validItemTypesForGameType) -
 // kept as three independent copies rather than a shared import on purpose,
 // since this one runs server-side at save time (before a pack can even be
 // created), the entry-expansion one runs at purchase time (self-healing
@@ -47,12 +47,12 @@ function validItemTypesForRoomGameType(gameType) {
   return null;
 }
 
-// Previously savePack only checked name and items.length — price, quantity
+// Previously savePack only checked name and items.length - price, quantity
 // and itemType went straight into the INSERT unvalidated. Number(bad||0)
 // silently became €0, and a bogus itemType would only fail later, deep
 // inside entry expansion, with a confusing error far from the cause. Now
 // also async, so it can cross-check each item's itemType against its
-// target room's actual game_type — this is what would have caught the
+// target room's actual game_type - this is what would have caught the
 // elimination-room-saved-as-quiz_individual_ticket mismatch found in
 // testing, at save time, with a clear error, instead of silently
 // persisting bad data that only surfaced as a wrong join link days later.
@@ -228,7 +228,7 @@ export async function savePack(fid,clubId,packId,b) {
 }
 
 // ─── Hide / duplicate ──────────────────────────────────────────────────────
-// Neither existed for peer packs — a pack could be created but never
+// Neither existed for peer packs - a pack could be created but never
 // retired or cloned, unlike campaign products (hideProduct/duplicateProduct).
 
 export async function hidePack(fid, clubId, packId) {
@@ -271,7 +271,7 @@ export async function duplicatePack(fid, clubId, packId) {
 
 // ─── Templates ─────────────────────────────────────────────────────────────
 // Campaign had this (TEMPLATES + applyTemplate in campaignProductService.js);
-// peer never had any version of it — building a bundle meant starting from
+// peer never had any version of it - building a bundle meant starting from
 // a blank pack every time. Ported and extended: campaign's 'puzzle_campaign'
 // key existed in the UI prompt but was never actually implemented in
-// TEMPLATES — it's implemented here for real.
+// TEMPLATES - it's implemented here for real.

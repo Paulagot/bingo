@@ -60,17 +60,17 @@ const faqs = [
   {
     question: 'What is the audit-ready reconciliation?',
     answer:
-      'At the end of each event, the organiser reviews the payment totals, confirms what was collected and approves the reconciliation. Once approved, it is locked — it cannot be edited afterwards. This gives the committee a clear, verifiable record of what was signed off.',
+      'At the end of each event, the organiser reviews the payment totals, confirms what was collected and approves the reconciliation. Once approved, it is locked - it cannot be edited afterwards. This gives the committee a clear, verifiable record of what was signed off.',
   },
   {
     question: 'Can an approved report be changed?',
     answer:
-      'The approved reconciliation is locked and cannot be edited. Any post-event activity — late payments, write-offs, resolved disputes — is tracked separately and reflected in the financial report without altering the original signed-off record.',
+      'The approved reconciliation is locked and cannot be edited. Any post-event activity - late payments, write-offs, resolved disputes - is tracked separately and reflected in the financial report without altering the original signed-off record.',
   },
   {
     question: 'What is the difference between a financial report and an impact report?',
     answer:
-      'A financial report focuses on money — what was collected, what is outstanding, what was written off. An impact report adds the story around the fundraiser: participation, prizes, sponsors, winners, volunteers and outcomes. FundRaisely supports both.',
+      'A financial report focuses on money - what was collected, what is outstanding, what was written off. An impact report adds the story around the fundraiser: participation, prizes, sponsors, winners, volunteers and outcomes. FundRaisely supports both.',
   },
   {
     question: 'Can reports be downloaded?',
@@ -80,7 +80,7 @@ const faqs = [
   {
     question: 'Do reports cover mixed payment methods?',
     answer:
-      'Yes. Reports reflect all the payment methods used across an event — Stripe, cash, instant payments, bank transfer, card tap and crypto — so the committee sees the full picture rather than just the online payments.',
+      'Yes. Reports reflect all the payment methods used across an event - Stripe, cash, instant payments, bank transfer, card tap and crypto - so the committee sees the full picture rather than just the online payments.',
   },
   {
     question: 'Does this replace accounting software?',
@@ -101,7 +101,7 @@ const paymentItems = [
   },
   {
     title: 'Revolut and Monzo-style instant payments',
-    text: 'FundRaisely gives each supporter a unique payment reference. Entries stay pending until the organiser confirms the money arrived — so no tickets are issued before payment is received.',
+    text: 'FundRaisely gives each supporter a unique payment reference. Entries stay pending until the organiser confirms the money arrived - so no tickets are issued before payment is received.',
   },
   {
     title: 'Cash and card tap on the night',
@@ -132,7 +132,7 @@ const paymentStatusItems = [
   },
   {
     title: 'Confirmed',
-    text: 'Payment has been verified — either automatically for Stripe and crypto, or manually by the organiser for cash and instant payments.',
+    text: 'Payment has been verified - either automatically for Stripe and crypto, or manually by the organiser for cash and instant payments.',
   },
   {
     title: 'Late',
@@ -151,7 +151,7 @@ const paymentStatusItems = [
 const reportItems = [
   {
     title: 'Audit-ready reconciliation',
-    text: 'After the event, the organiser reviews totals, confirms what was collected and approves the reconciliation. Once approved it is locked — a clear verifiable record that cannot be edited afterwards.',
+    text: 'After the event, the organiser reviews totals, confirms what was collected and approves the reconciliation. Once approved it is locked - a clear verifiable record that cannot be edited afterwards.',
   },
   {
     title: 'Locked reports after approval',
@@ -159,16 +159,16 @@ const reportItems = [
   },
   {
     title: 'Financial report with adjustments',
-    text: 'A financial report starts from the approved totals and then reflects any post-event activity — late payments, resolved disputes, write-offs — so the latest known position is always clear.',
+    text: 'A financial report starts from the approved totals and then reflects any post-event activity - late payments, resolved disputes, write-offs - so the latest known position is always clear.',
   },
   {
     title: 'Mixed payment method reporting',
-    text: 'Reports cover every payment method used across the event — Stripe, cash, instant payments, bank transfer, card tap and crypto — not just the online payments.',
+    text: 'Reports cover every payment method used across the event - Stripe, cash, instant payments, bank transfer, card tap and crypto - not just the online payments.',
   },
   {
     question: 'Impact reports',
     title: 'Impact reports',
-    text: 'Beyond the money — record participation, prizes, sponsors, volunteers, winners and outcomes. Show what happened because people took part.',
+    text: 'Beyond the money - record participation, prizes, sponsors, volunteers, winners and outcomes. Show what happened because people took part.',
   },
   {
     title: 'Downloadable for committees',
@@ -179,7 +179,7 @@ const reportItems = [
 const processSteps = [
   {
     title: 'Set up your payment methods',
-    text: 'Connect the payment methods your organisation wants to use — Stripe, instant payments, crypto wallet, cash or card tap. Each method is linked directly to the organisation, not to FundRaisely.',
+    text: 'Connect the payment methods your organisation wants to use - Stripe, instant payments, crypto wallet, cash or card tap. Each method is linked directly to the organisation, not to FundRaisely.',
   },
   {
     title: 'Choose methods per event',
@@ -250,7 +250,7 @@ export default function FinancialRecordsPage() {
       <Hero
         eyebrow="Payment tracking and reports"
         title={h1}
-        description="FundRaisely keeps payment records and financial reports connected — from the first ticket sale to the final committee update. Cash, card, instant payments and crypto all tracked in one place. Audit-ready reconciliation that locks when approved. Reports that cover the money and the story behind it."
+        description="FundRaisely keeps payment records and financial reports connected - from the first ticket sale to the final committee update. Cash, card, instant payments and crypto all tracked in one place. Audit-ready reconciliation that locks when approved. Reports that cover the money and the story behind it."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore features', to: '/features' }}
         image={images.paymentsHeroScreenshot}
@@ -275,7 +275,7 @@ export default function FinancialRecordsPage() {
             <p className="eyebrow">Solution</p>
             <h2>One place where payments are tracked and reports are ready when the event ends</h2>
             <p>
-              FundRaisely tracks every payment method in the same dashboard — card, Stripe, cash, instant payments, bank transfer and crypto. Each payment has a status. Each status can be confirmed, disputed, resolved or written off. When the event is over, the reconciliation is already built. Approve it, lock it and download the report for the committee.
+              FundRaisely tracks every payment method in the same dashboard - card, Stripe, cash, instant payments, bank transfer and crypto. Each payment has a status. Each status can be confirmed, disputed, resolved or written off. When the event is over, the reconciliation is already built. Approve it, lock it and download the report for the committee.
             </p>
             <p>
               Funds go directly to your organisation. FundRaisely does not hold money or take a percentage. It keeps the records.
@@ -286,7 +286,7 @@ export default function FinancialRecordsPage() {
 
       <FeatureGrid
         eyebrow="Payment methods"
-        title="The ways clubs actually collect money — all tracked in one place"
+        title="The ways clubs actually collect money - all tracked in one place"
         text="FundRaisely is built for real fundraising payments, not just card checkout. Every method your organisation uses can be tracked, confirmed and included in the final report."
         items={paymentItems}
       />
@@ -310,17 +310,17 @@ export default function FinancialRecordsPage() {
       <FeatureGrid
         eyebrow="Payment statuses"
         title="Six payment states that cover everything that happens in a real fundraiser"
-        text="Most payment tools show paid or unpaid. FundRaisely tracks the full lifecycle of a payment — because in grassroots fundraising, the space between expected and confirmed is where most of the work happens."
+        text="Most payment tools show paid or unpaid. FundRaisely tracks the full lifecycle of a payment - because in grassroots fundraising, the space between expected and confirmed is where most of the work happens."
         items={paymentStatusItems}
       />
 
       <SplitSection
         eyebrow="Reconciliation and reports"
         title="Approve the reconciliation. Lock the record. Download the report."
-        text="After the event, the organiser reviews what was collected, resolves anything outstanding and approves the reconciliation. Once approved it locks — the committee gets a clean record that nobody can quietly edit afterwards. Late payments and post-event changes are tracked separately so the approved record stays intact."
+        text="After the event, the organiser reviews what was collected, resolves anything outstanding and approves the reconciliation. Once approved it locks - the committee gets a clean record that nobody can quietly edit afterwards. Late payments and post-event changes are tracked separately so the approved record stays intact."
         bullets={[
           'Review total income and outstanding amounts after the event',
-          'Approve and lock the reconciliation — cannot be edited after approval',
+          'Approve and lock the reconciliation - cannot be edited after approval',
           'Track late payments, disputes and write-offs separately',
           'Financial report reflects the latest known position',
           'Impact report covers participation, prizes, sponsors and outcomes',
@@ -333,16 +333,16 @@ export default function FinancialRecordsPage() {
       <FeatureGrid
         eyebrow="Reports"
         title="What the committee actually needs after the fundraiser"
-        text="The approved reconciliation is only part of what a committee needs. FundRaisely generates the financial report, tracks post-event changes and produces an impact summary — so the treasurer has the numbers and the organiser has the story."
+        text="The approved reconciliation is only part of what a committee needs. FundRaisely generates the financial report, tracks post-event changes and produces an impact summary - so the treasurer has the numbers and the organiser has the story."
         items={reportItems}
       />
 
       <SplitSection
         eyebrow="Your money stays with you"
         title="FundRaisely keeps the records. Your organisation keeps the money."
-        text="Every payment method in FundRaisely connects directly to the organisation — Stripe to your Stripe account, instant payments to your own account details, crypto to your own wallet. FundRaisely does not hold funds, does not take a transaction percentage and does not sit between the supporter and the organisation. The approved reconciliation shows exactly that."
+        text="Every payment method in FundRaisely connects directly to the organisation - Stripe to your Stripe account, instant payments to your own account details, crypto to your own wallet. FundRaisely does not hold funds, does not take a transaction percentage and does not sit between the supporter and the organisation. The approved reconciliation shows exactly that."
         bullets={[
-          'Stripe connects to your own account — not a FundRaisely merchant account',
+          'Stripe connects to your own account - not a FundRaisely merchant account',
           'Instant payments go to your own Revolut or bank details',
           'Crypto goes directly to your own Solana wallet',
           'Cash and card tap stay with whoever collected them on the night',
@@ -356,7 +356,7 @@ export default function FinancialRecordsPage() {
       <ProcessSteps
         eyebrow="How it works"
         title="From first ticket sale to committee report"
-        text="Payment tracking and reporting in FundRaisely follow the natural event lifecycle — set up before, track during, reconcile after, report to the committee."
+        text="Payment tracking and reporting in FundRaisely follow the natural event lifecycle - set up before, track during, reconcile after, report to the committee."
         steps={processSteps}
       />
 
@@ -369,7 +369,7 @@ export default function FinancialRecordsPage() {
 
       <CTASection
         title="Ready for cleaner payment records and committee-ready reports?"
-        text="Book a demo to see how FundRaisely tracks payments across every method your organisation uses, generates audit-ready reconciliation and produces downloadable reports — all with funds going directly to you."
+        text="Book a demo to see how FundRaisely tracks payments across every method your organisation uses, generates audit-ready reconciliation and produces downloadable reports - all with funds going directly to you."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore all features', to: '/features' }}
       />

@@ -1,3 +1,4 @@
+//src/components/elimination/EliminationWaitingRoom.tsx
 import React, { useState } from 'react';
 import type { EliminationPlayer } from './types/elimination';
 import { QRCodeSVG } from 'qrcode.react';

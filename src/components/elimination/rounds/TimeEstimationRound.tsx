@@ -166,7 +166,7 @@ const handleStart = useCallback(() => {
           fontSize: 'clamp(13px, 2vmin, 15px)',
           fontWeight: 600,
         }}>
-          ✓ Locked in — waiting for other players
+          ✓ Locked in - waiting for other players
         </div>
       )}
 

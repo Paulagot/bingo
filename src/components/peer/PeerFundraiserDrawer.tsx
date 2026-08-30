@@ -275,7 +275,7 @@ function EditFundraiserForm({ f, onSaved, onCancel }: EditFormProps) {
       setAllMethods(available.availableMethods);
       setSelectedIds(linked.linkedMethodIds);
     }).catch(() => {
-      // non-fatal — show empty list
+      // non-fatal - show empty list
     }).finally(() => setMethodsLoading(false));
   }, [f.id]);
 
@@ -564,7 +564,7 @@ export default function PeerFundraiserDrawer({
         const pm = await svc.paymentMethods(id);
         if (!pm.linkedMethodIds?.length) {
           if (!confirm(
-            "No payment methods are linked yet — supporters won't be able to pay online. Publish anyway?",
+            "No payment methods are linked yet - supporters won't be able to pay online. Publish anyway?",
           )) {
             setPublishing(false);
             return;

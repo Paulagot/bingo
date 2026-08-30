@@ -77,7 +77,7 @@ export default function NotificationsTicker({ items, className }: NotificationsT
           <span className="text-sm font-semibold text-gray-900">Notifications</span>
         </div>
 
-        {/* marquee lane — group wrapper enables pause-on-hover */}
+        {/* marquee lane - group wrapper enables pause-on-hover */}
         <div className="relative flex-1 overflow-hidden group">
           <div className="ticker flex w-max items-center gap-12">
             {srcItems.map((item, idx) => (

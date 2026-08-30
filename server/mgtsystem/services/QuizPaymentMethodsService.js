@@ -111,7 +111,7 @@ class QuizPaymentMethodsService {
    * Does NOT require authentication
    */
   async getAvailablePaymentMethodsForRoom({ roomId, context = 'onnight' }) {
-    console.log('[QuizPaymentMethodsService] Getting available payment methods for roomId:', roomId);
+    // console.log('[QuizPaymentMethodsService] Getting available payment methods for roomId:', roomId);
     
     const [quizRows] = await database.connection.execute(
       `SELECT 
@@ -131,8 +131,8 @@ class QuizPaymentMethodsService {
     const room = quizRows[0];
     const clubId = room.club_id;
     
-    console.log('[QuizPaymentMethodsService] Found room, club_id:', clubId);
-    console.log('[QuizPaymentMethodsService] linked_payment_methods_json:', room.linked_payment_methods_json);
+    // console.log('[QuizPaymentMethodsService] Found room, club_id:', clubId);
+    // console.log('[QuizPaymentMethodsService] linked_payment_methods_json:', room.linked_payment_methods_json);
     
     let linkedMethodIds = [];
     if (room.linked_payment_methods_json) {
@@ -143,10 +143,10 @@ class QuizPaymentMethodsService {
         : (linked.onnight_method_ids ?? linked.payment_method_ids ?? []);
     }
 
-    console.log('[QuizPaymentMethodsService] Linked method IDs (context=' + context + '):', linkedMethodIds);
+    // console.log('[QuizPaymentMethodsService] Linked method IDs (context=' + context + '):', linkedMethodIds);
 
     if (linkedMethodIds.length === 0) {
-      console.log('[QuizPaymentMethodsService] No linked payment methods');
+      // console.log('[QuizPaymentMethodsService] No linked payment methods');
       return {
         ok: false,
         paymentMethods: [],
@@ -176,10 +176,10 @@ class QuizPaymentMethodsService {
       [clubId, ...linkedMethodIds]
     );
 
-    console.log('[QuizPaymentMethodsService] Found payment methods:', methods?.length || 0);
+    // console.log('[QuizPaymentMethodsService] Found payment methods:', methods?.length || 0);
 
     if (!methods || methods.length === 0) {
-      console.log('[QuizPaymentMethodsService] No enabled payment methods found');
+      // console.log('[QuizPaymentMethodsService] No enabled payment methods found');
       return {
         ok: false,
         paymentMethods: [],
@@ -201,7 +201,7 @@ class QuizPaymentMethodsService {
       isOfficialClubAccount: method.is_official_club_account === 1,
     }));
 
-    console.log('[QuizPaymentMethodsService] Returning transformed methods:', transformedMethods.length);
+    // console.log('[QuizPaymentMethodsService] Returning transformed methods:', transformedMethods.length);
 
     return {
       ok: true,

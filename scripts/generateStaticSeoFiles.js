@@ -12,7 +12,7 @@ const publicPages = [
   { path: '/about', priority: 0.6, changefreq: 'monthly' },
   { path: '/contact', priority: 0.6, changefreq: 'monthly' },
 
-  // Features — only pages with real content and active routes
+  // Features - only pages with real content and active routes
   { path: '/features', priority: 0.9, changefreq: 'monthly' },
   { path: '/features/event-manager', priority: 0.8, changefreq: 'monthly' },
   { path: '/features/ticketing', priority: 0.9, changefreq: 'monthly' },
@@ -22,7 +22,7 @@ const publicPages = [
   { path: '/features/crypto-donations', priority: 0.8, changefreq: 'monthly' },
   { path: '/features/impact-reports', priority: 0.7, changefreq: 'monthly' },
 
-  // Coming soon — include at lower priority so they're crawlable
+  // Coming soon - include at lower priority so they're crawlable
   // but don't waste crawl budget on pages with no real content yet.
   // Uncomment when pages have real content:
   // { path: '/features/dashboard', priority: 0.7, changefreq: 'monthly' },
@@ -30,7 +30,7 @@ const publicPages = [
   // { path: '/features/crm', priority: 0.6, changefreq: 'monthly' },
   // { path: '/features/ai-prize-finder', priority: 0.6, changefreq: 'monthly' },
 
-  // Event formats — only active pages
+  // Event formats - only active pages
   { path: '/event-formats', priority: 0.9, changefreq: 'monthly' },
   { path: '/event-formats/quiz', priority: 0.9, changefreq: 'monthly' },
   { path: '/event-formats/elimination', priority: 0.8, changefreq: 'monthly' },

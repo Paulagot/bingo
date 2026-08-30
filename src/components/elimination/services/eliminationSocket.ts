@@ -1,6 +1,73 @@
 import { io, Socket } from 'socket.io-client';
  
 let socket: Socket | null = null;
+let lastHostJoinKey: string | null = null;
+
+const announceHostOnce = (
+  s: Socket,
+  roomId: string,
+  hostId: string,
+): void => {
+  // Only ever announce over a real connected socket.
+  if (!s.connected || !s.id) {
+    return;
+  }
+
+  const key = `${s.id}:${roomId}:${hostId}`;
+
+  if (lastHostJoinKey === key) {
+    // console.log('🎮 [Elimination] Skipping duplicate host join', {
+    //   roomId,
+    //   hostId,
+    //   socketId: s.id,
+    // });
+    return;
+  }
+
+  lastHostJoinKey = key;
+
+  // console.log('🎮 [Elimination] Announcing host', {
+  //   roomId,
+  //   hostId,
+  //   socketId: s.id,
+  // });
+
+  s.emit('host_join_elimination_room', { roomId, hostId });
+};
+
+let lastPlayerReconnectKey: string | null = null;
+
+const announcePlayerReconnectOnce = (
+  s: Socket,
+  roomId: string,
+  playerId: string,
+): void => {
+  if (!s.connected || !s.id) return;
+
+  const key = `${s.id}:${roomId}:${playerId}`;
+
+  if (lastPlayerReconnectKey === key) {
+    // console.log('🎮 [Elimination] Skipping duplicate player reconnect', {
+    //   roomId,
+    //   playerId,
+    //   socketId: s.id,
+    // });
+    return;
+  }
+
+  lastPlayerReconnectKey = key;
+
+  // console.log('🎮 [Elimination] Reconnecting player', {
+  //   roomId,
+  //   playerId,
+  //   socketId: s.id,
+  // });
+
+  s.emit('reconnect_elimination_player', {
+    roomId,
+    playerId,
+  });
+};
  
 export const getSocket = (): Socket => {
   // Return existing socket if it exists at all - even if temporarily disconnected.
@@ -13,7 +80,7 @@ export const getSocket = (): Socket => {
     ? window.location.origin
     : import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
  
-  console.log('🎮 [Elimination] Creating new socket connection to:', serverUrl);
+  // console.log('🎮 [Elimination] Creating new socket connection to:', serverUrl);
  
   socket = io(serverUrl, {
     path: '/socket.io',
@@ -26,27 +93,33 @@ export const getSocket = (): Socket => {
  
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible' && socket && !socket.connected) {
-      console.log('🎮 [Elimination] Page visible again - reconnecting socket');
+      // console.log('🎮 [Elimination] Page visible again - reconnecting socket');
       socket.connect();
     }
   };
   document.addEventListener('visibilitychange', handleVisibilityChange);
  
-  socket.on('connect', () => {
-    console.log('🎮 [Elimination] Socket connected:', socket?.id);
-    const roomId   = sessionStorage.getItem('elim_room_id');
-    const playerId = sessionStorage.getItem('elim_player_id');
-    const hostId   = sessionStorage.getItem('elim_host_id');
-    const isHost   = sessionStorage.getItem('elim_is_host') === 'true';
- 
-    if (roomId && isHost && hostId) {
-      console.log('🎮 [Elimination] Re-announcing host after reconnect');
-      socket?.emit('host_join_elimination_room', { roomId, hostId });
-    } else if (roomId && playerId) {
-      console.log('🎮 [Elimination] Re-announcing player after reconnect');
-      socket?.emit('reconnect_elimination_player', { roomId, playerId });
-    }
-  });
+socket.on('connect', () => {
+  // console.log('🎮 [Elimination] Socket connected:', socket?.id);
+
+  const roomId   = sessionStorage.getItem('elim_room_id');
+  const playerId = sessionStorage.getItem('elim_player_id');
+  const hostId   = sessionStorage.getItem('elim_host_id');
+  const isHost   = sessionStorage.getItem('elim_is_host') === 'true';
+
+  if (roomId && isHost && hostId && socket) {
+    // console.log('🎮 [Elimination] Re-announcing host after reconnect');
+    announceHostOnce(socket, roomId, hostId);
+} else if (roomId && playerId && socket) {
+  // console.log('🎮 [Elimination] Re-announcing player after reconnect');
+
+  announcePlayerReconnectOnce(
+    socket,
+    roomId,
+    playerId,
+  );
+}
+});
  
   socket.on('disconnect', (reason) =>
     console.warn('🎮 [Elimination] Socket disconnected:', reason)
@@ -64,6 +137,8 @@ export const disconnectSocket = (): void => {
     socket.disconnect();
     socket = null;
   }
+lastPlayerReconnectKey = null;
+  lastHostJoinKey = null;
 };
  
 // ─── Emitters ─────────────────────────────────────────────────────────────────
@@ -133,10 +208,10 @@ export const emitJoinRoom = (
   }
  
   // Socket exists but is mid-reconnect - wait for it rather than buffering
-  console.log('🎮 [Elimination] Socket reconnecting - queuing join emit');
+  // console.log('🎮 [Elimination] Socket reconnecting - queuing join emit');
   const onConnect = () => {
     clearTimeout(timeout);
-    console.log('🎮 [Elimination] Socket reconnected - emitting join now');
+    // console.log('🎮 [Elimination] Socket reconnected - emitting join now');
     s.emit('join_elimination_room', payload);
   };
  
@@ -152,7 +227,16 @@ export const emitJoinRoom = (
 // ── Rest of emitters ──────────────────────────────────────────────────────────
  
 export const emitStartGame = (roomId: string, hostId: string): void => {
-  getSocket().emit('start_elimination_game', { roomId, hostId });
+  const s = getSocket();
+
+  // console.log('🔥 START GAME EMIT', {
+  //   roomId,
+  //   hostId,
+  //   socketId: s.id,
+  //   connected: s.connected,
+  // });
+
+  s.emit('start_elimination_game', { roomId, hostId });
 };
  
 export const emitSubmitAnswer = (
@@ -167,12 +251,44 @@ export const emitLeaveRoom = (roomId: string, playerId: string): void => {
   getSocket().emit('leave_elimination_room', { roomId, playerId });
 };
  
-export const emitReconnect = (roomId: string, playerId: string): void => {
-  getSocket().emit('reconnect_elimination_player', { roomId, playerId });
+export const emitReconnect = (
+  roomId: string,
+  playerId: string,
+): void => {
+  const s = getSocket();
+
+  if (s.connected) {
+    announcePlayerReconnectOnce(s, roomId, playerId);
+    return;
+  }
+
+  // Don't buffer it. The socket connect handler will restore
+  // the player once the connection exists.
+  // console.log('🎮 [Elimination] Player reconnect waiting for socket', {
+  //   roomId,
+  //   playerId,
+  // });
 };
  
 export const emitHostJoin = (roomId: string, hostId: string): void => {
-  getSocket().emit('host_join_elimination_room', { roomId, hostId });
+  const s = getSocket();
+
+  // If already connected, announce now.
+  if (s.connected) {
+    announceHostOnce(s, roomId, hostId);
+    return;
+  }
+
+  // Do NOT emit while disconnected.
+  // Socket.IO would buffer it, and the main `connect` handler below
+  // will already announce the host once the connection succeeds.
+  // console.log(
+  //   '🎮 [Elimination] Host join waiting for socket connection',
+  //   {
+  //     roomId,
+  //     hostId,
+  //   }
+  // );
 };
  
 export const emitStartPress = (

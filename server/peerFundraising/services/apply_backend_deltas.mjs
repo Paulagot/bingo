@@ -2,10 +2,10 @@ const CANON_B64 = "YXN5bmMgZnVuY3Rpb24gcHVibGljUGFja0F2YWlsYWJpbGl0eSh7IHBhY2ssI
 // apply_backend_deltas.mjs
 // ---------------------------------------------------------------------------
 // Applies the peer-fundraising backend deltas, fail-safe and all-or-nothing:
-//   • peerPublicService.js  — replaces publicPackAvailability + publicPayload
+//   • peerPublicService.js  - replaces publicPackAvailability + publicPayload
 //       with the tested versions (dual fundraiser/participant totals, capacity
 //       fetched once per room, cover/video already ride through settings).
-//   • peerParticipantService.js — adds the video_url column to INSERT + UPDATE.
+//   • peerParticipantService.js - adds the video_url column to INSERT + UPDATE.
 //
 // Nothing is written unless BOTH files pass every check (anchors found exactly
 // once, `node --check` clean). On any problem it prints why and exits without
@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CANON = Buffer.from(CANON_B64, 'base64').toString('utf8');
 
-const die = (msg) => { console.error('\n✗ aborted — no files changed\n  ' + msg + '\n'); process.exit(1); };
+const die = (msg) => { console.error('\n✗ aborted - no files changed\n  ' + msg + '\n'); process.exit(1); };
 const countOf = (hay, needle) => hay.split(needle).length - 1;
 
 const publicPath = join(HERE, 'peerPublicService.js');
@@ -63,7 +63,7 @@ const edits = [
 ];
 for (const e of edits) {
   const n = countOf(part, e.find);
-  if (n !== 1) die(`peerParticipantService.js: expected exactly one occurrence of:\n    ${JSON.stringify(e.find)}\n  but found ${n}. The service text differs from what was expected — paste createParticipant/updateParticipant to me and I'll adjust the keys. (Nothing was written.)`);
+  if (n !== 1) die(`peerParticipantService.js: expected exactly one occurrence of:\n    ${JSON.stringify(e.find)}\n  but found ${n}. The service text differs from what was expected - paste createParticipant/updateParticipant to me and I'll adjust the keys. (Nothing was written.)`);
   part = part.replace(e.find, e.repl);
 }
 
@@ -77,13 +77,13 @@ for (const [label, f] of [['peerPublicService.js', tPub], ['peerParticipantServi
   catch (err) { die(`${label} failed node --check:\n${err.stderr?.toString() || err.message}`); }
 }
 
-// ── 4. all checks passed — back up and write ────────────────────────────────
+// ── 4. all checks passed - back up and write ────────────────────────────────
 copyFileSync(publicPath, publicPath + '.delta.bak');
 copyFileSync(partPath, partPath + '.delta.bak');
 writeFileSync(publicPath, newPub);
 writeFileSync(partPath, part);
 
-console.log('✓ backend deltas applied — all checks passed');
+console.log('✓ backend deltas applied - all checks passed');
 console.log('  peerPublicService.js      : publicPackAvailability + publicPayload replaced');
 console.log('  peerParticipantService.js : video_url added to INSERT + UPDATE');
 console.log('  backups: *.delta.bak (delete once the app runs clean)');

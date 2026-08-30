@@ -47,7 +47,7 @@ export default function ParticipantList({ participants, base, onEdit, onRemove }
   if (participants.length === 0) {
     return (
       <p className="text-sm py-4 text-center" style={{ color: brand.slate }}>
-        No participants yet — add one above.
+        No participants yet - add one above.
       </p>
     );
   }
@@ -255,7 +255,7 @@ export default function ParticipantList({ participants, base, onEdit, onRemove }
           const url = `${base}/${p.participant_slug}`;
           return (
             <div key={p.id} className="qr-cell">
-              {/* size=264 ≈ 70mm at 96dpi — large enough to scan easily */}
+              {/* size=264 ≈ 70mm at 96dpi - large enough to scan easily */}
               <QRCodeCanvas value={url} size={264} />
               <p className="qr-name">{p.participant_name}</p>
               <p className="qr-url">{url}</p>

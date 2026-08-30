@@ -54,7 +54,7 @@ router.post('/peer-fundraisers/:id/orders/:orderId/confirm',authenticateToken,as
 router.post('/peer-fundraisers/:id/orders/:orderId/reject',authenticateToken,async(req,res)=>{try{send(res,await rejectPeerOrder(req.params.orderId,req.params.id,req.club_id,req.body?.reason));}catch(e){fail(res,e);}});
 router.post('/peer-fundraisers/:id/orders/:orderId/retry-fulfilment',authenticateToken,async(req,res)=>{try{send(res,await retryPeerOrderFulfilment(req.params.orderId,req.params.id,req.club_id));}catch(e){fail(res,e);}});
 
-// ─── Public support routes — specific paths MUST come before wildcards ────────
+// ─── Public support routes - specific paths MUST come before wildcards ────────
 
 router.get('/peer-support/fundraiser/:id/payment-methods',limiter,async(req,res)=>{try{send(res,await getPublicMethods(req.params.id));}catch(e){fail(res,e);}});
 router.get('/peer-support/orders/:orderId/summary',limiter,async(req,res)=>{try{send(res,await svc.getPublicOrderSummary(req.params.orderId));}catch(e){fail(res,e);}});
@@ -64,7 +64,7 @@ router.get('/peer-support/fundraiser/:fundraiserId/impact', limiter, async (req,
     send(res, await getPublicFundraiserImpact(req.params.fundraiserId));
   } catch(e) { fail(res, e); }
 });
-// Crypto donation confirm — uses /donations/:donationId/... so must be before
+// Crypto donation confirm - uses /donations/:donationId/... so must be before
 // the /:fundraiserId/donations/... wildcard routes below.
 router.post('/peer-support/donations/:donationId/crypto-confirm',cryptoLimiter,async(req,res)=>{
   try{
@@ -82,7 +82,7 @@ router.post('/peer-support/donations/:donationId/crypto-confirm',cryptoLimiter,a
   }catch(e){fail(res,e);}
 });
 
-// ─── Public wildcard routes — these must stay LAST in this block ─────────────
+// ─── Public wildcard routes - these must stay LAST in this block ─────────────
 // Any new specific /peer-support/... routes must go ABOVE these lines.
 
 router.get('/peer-support/:clubSlug/:fundraiserSlug',limiter,async(req,res)=>{try{send(res,await svc.publicPayload(req.params.clubSlug,req.params.fundraiserSlug));}catch(e){fail(res,e);}});
@@ -92,7 +92,7 @@ router.post('/peer-support/orders/:orderId/claim',limiter,async(req,res)=>{try{s
 router.post('/peer-support/:fundraiserId/donations/manual',limiter,async(req,res)=>{try{res.status(201).json({ok:true,...await donations.createPublicPeerManualDonation({fundraiserId:req.params.fundraiserId,...req.body})});}catch(e){fail(res,e);}});
 router.post('/peer-support/:fundraiserId/donations/stripe-checkout',limiter,async(req,res)=>{try{res.status(201).json({ok:true,...await donations.createPublicPeerStripeDonation({fundraiserId:req.params.fundraiserId,...req.body})});}catch(e){fail(res,e);}});
 
-// Crypto checkout — /:fundraiserId/donations/crypto-checkout. Placed here
+// Crypto checkout - /:fundraiserId/donations/crypto-checkout. Placed here
 // (after the GET wildcards, alongside the other /:fundraiserId/donations/...
 // routes) because POST /:fundraiserId/... is a different verb from
 // GET /:clubSlug/:fundraiserSlug so there is no conflict.

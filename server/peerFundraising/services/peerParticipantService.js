@@ -1,5 +1,5 @@
 // peerParticipantService.js
-// Extracted from peerCoreService.js by split_peer_core.mjs — behaviour unchanged.
+// Extracted from peerCoreService.js by split_peer_core.mjs - behaviour unchanged.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import {
@@ -77,7 +77,7 @@ export async function createParticipant(fid,clubId,b) {
   return { participantId, participantSlug };
 }
 
-// Previously missing entirely — PeerService.ts (frontend) already had an
+// Previously missing entirely - PeerService.ts (frontend) already had an
 // updateParticipant() method calling PATCH .../participants/:participantId,
 // but no route or service function existed to handle it, so it 404'd.
 export async function updateParticipant(fid,clubId,participantId,b) {

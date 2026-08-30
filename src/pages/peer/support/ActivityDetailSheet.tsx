@@ -2,7 +2,7 @@
 // Replaces the thin PackDetailsSheet. For each activity in the pack it finally
 // renders the event_description story that was already in the payload, a
 // "what's included" block, date/time (suppressed for puzzle drops, whose
-// scheduled_at is meaningless — shown as "Play anytime"), and the prize table.
+// scheduled_at is meaningless - shown as "Play anytime"), and the prize table.
 
 import { CalendarDays, Clock3, Gift, Puzzle, Sparkles, Trophy, Users, X } from 'lucide-react';
 import {
@@ -97,7 +97,7 @@ export default function ActivityDetailSheet({ pack, currency, onClose }: Props) 
                   <div className="min-w-0 flex-1">
                     <p className="break-words text-base font-black text-slate-950">
                       {itemTypeLabel(item?.item_type, game)}
-                      {roomName ? ` — ${roomName}` : ''}
+                      {roomName ? ` - ${roomName}` : ''}
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 ring-1 ring-slate-200">

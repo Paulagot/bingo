@@ -124,7 +124,7 @@ export interface PackAvailability {
 }
 
 // ── room config (config_json on each item, parsed) ───────────────────────────
-// Loosely typed on purpose — shapes differ by game type. Helpers read the
+// Loosely typed on purpose - shapes differ by game type. Helpers read the
 // bits they need (quiz extras, puzzle items, prizes).
 export interface Prize {
   place: number | string;

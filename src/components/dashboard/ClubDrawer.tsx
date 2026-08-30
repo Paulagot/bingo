@@ -140,7 +140,7 @@ export default function ClubDrawer({ open, onClose }: Props) {
               onClick={openIncome}
             />
 
-            {/* Branding section — always visible */}
+            {/* Branding section - always visible */}
             <p
               className="px-3 pt-4 pb-1 text-xs font-bold uppercase tracking-widest"
               style={{ color: brand.slate }}
@@ -153,7 +153,7 @@ export default function ClubDrawer({ open, onClose }: Props) {
               onClick={openBranding}
             />
 
-            {/* Money In — only if feature enabled */}
+            {/* Money In - only if feature enabled */}
             {featureAccess.quizPayments && (
               <>
                 <p

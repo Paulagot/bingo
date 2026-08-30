@@ -6,8 +6,8 @@
 // payment ledger/tickets only after the order itself is confirmed.
 //
 // Crypto donation path added:
-//   createPublicPeerCryptoDonation — creates a pending row, returns walletAddress
-//   confirmPublicPeerCryptoDonation — calls confirmPeerDonationAutomatic (same
+//   createPublicPeerCryptoDonation - creates a pending row, returns walletAddress
+//   confirmPublicPeerCryptoDonation - calls confirmPeerDonationAutomatic (same
 //   function the Stripe webhook uses), so crypto hits the same confirmed-only path.
 
 import Stripe from 'stripe';
@@ -306,14 +306,14 @@ function validatePublicDonor(body, paymentCategory = null) {
     fail('valid_donor_email_required');
   }
 
-  // Stripe has a €0.50 minimum charge — enforce it only for card/stripe paths.
+  // Stripe has a €0.50 minimum charge - enforce it only for card/stripe paths.
   // Crypto and manual payments have no platform minimum.
   const isStripe = ['stripe', 'card'].includes(String(paymentCategory || '').toLowerCase());
   const minAmount = isStripe ? 0.50 : 0.01;
 
   if (!Number.isFinite(amount) || amount < minAmount || amount > 10000) {
     fail(isStripe
-      ? 'invalid_donation_amount — minimum donation is €0.50'
+      ? 'invalid_donation_amount - minimum donation is €0.50'
       : 'invalid_donation_amount',
     );
   }
@@ -492,13 +492,13 @@ export async function createPublicPeerStripeDonation({
 // ─── Crypto donation ──────────────────────────────────────────────────────────
 //
 // Two-step flow:
-//   1. createPublicPeerCryptoDonation — create pending row, return walletAddress
-//   2. confirmPublicPeerCryptoDonation — after on-chain verify, confirm the row
+//   1. createPublicPeerCryptoDonation - create pending row, return walletAddress
+//   2. confirmPublicPeerCryptoDonation - after on-chain verify, confirm the row
 //
 // The confirm step is called by peerCryptoDonationRoutes AFTER
 // verifyAndRecordSolanaDonation has already done the on-chain check and
 // written the crypto_* columns. This function just flips status to confirmed
-// via confirmPeerDonationAutomatic — the same function the Stripe webhook uses.
+// via confirmPeerDonationAutomatic - the same function the Stripe webhook uses.
 
 export async function createPublicPeerCryptoDonation({
   fundraiserId,
@@ -560,7 +560,7 @@ export async function createPublicPeerCryptoDonation({
 export async function confirmPublicPeerCryptoDonation({ donationId, txHash }) {
   // verifyAndRecordSolanaDonation already calls confirmDonation internally,
   // so the row may already be 'confirmed' by the time we get here.
-  // That's fine — just update the peer-specific external_transaction_id
+  // That's fine - just update the peer-specific external_transaction_id
   // via COALESCE without requiring status = 'pending'.
   await connection.execute(
     `UPDATE ${D}

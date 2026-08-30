@@ -4,7 +4,7 @@
 //
 // Peer-level equivalent of /api/quiz/crypto-quote.
 // Uses the fundraiser's currency instead of a room's config_json, so it works
-// for any pack structure — including multi-room bundles and donation-only packs
+// for any pack structure - including multi-room bundles and donation-only packs
 // that have no single anchor room.
 //
 // Query params:
@@ -12,7 +12,7 @@
 //   amount - fiat total in fundraiser currency e.g. '16.00'
 //
 // Response: identical shape to /api/quiz/crypto-quote so useCryptoQuote on the
-// frontend works without modification — it only needs to hit a different URL.
+// frontend works without modification - it only needs to hit a different URL.
 //
 // Mount in the public block in server/index.js:
 //   import peerCryptoQuoteRouter from './peer/api/peerCryptoQuoteRouter.js';
@@ -62,7 +62,7 @@ router.get(
         });
       }
 
-      // Load fundraiser for its currency — no room needed
+      // Load fundraiser for its currency - no room needed
       const [rows] = await connection.execute(
         `SELECT id, currency FROM ${T_FUNDRAISERS} WHERE id = ? LIMIT 1`,
         [fundraiserId],

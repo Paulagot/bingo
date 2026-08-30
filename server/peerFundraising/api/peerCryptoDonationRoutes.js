@@ -91,9 +91,9 @@ router.post(
 //     tokenCode, tokenMint?, rawAmount, displayAmount }
 //
 // Flow:
-//   1. verifyAndRecordSolanaDonation — on-chain check (reused from standard
+//   1. verifyAndRecordSolanaDonation - on-chain check (reused from standard
 //      donation button crypto path, no changes needed there)
-//   2. confirmPublicPeerCryptoDonation — calls confirmPeerDonationAutomatic,
+//   2. confirmPublicPeerCryptoDonation - calls confirmPeerDonationAutomatic,
 //      same function the Stripe webhook calls
 
 router.post(
@@ -128,7 +128,7 @@ router.post(
         });
       }
 
-      // 1. Verify on-chain — reuses the same service as the standard
+      // 1. Verify on-chain - reuses the same service as the standard
       // donation button crypto path. verifyAndRecordSolanaDonation loads
       // the donation by donationId, checks it's pending + crypto,
       // looks up the club wallet, verifies the tx, and calls confirmDonation.

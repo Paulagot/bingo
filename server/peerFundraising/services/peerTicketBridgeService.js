@@ -715,8 +715,8 @@ export async function createTicketForPeerEntry(entryId, context) {
 
 // ─── Block / unblock ──────────────────────────────────────────────────────
 // Campaign has these (blockTicketForEntry/unblockTicketForEntry); peer had
-// no equivalent, which meant a confirmed order — one that already has real
-// quiz_tickets rows and a join link out in the world — could never be
+// no equivalent, which meant a confirmed order - one that already has real
+// quiz_tickets rows and a join link out in the world - could never be
 // undone. rejectPeerOrder can now call blockTicketForPeerEntry when
 // reversing an order that was already confirmed.
 

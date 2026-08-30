@@ -59,7 +59,7 @@ const MODULE_OF = {
   publicPayload: 'public', createOrder: 'public', claimOrder: 'public',
   getPublicOrderSummary: 'public',
 
-  // dead, unexported, uncalled — dropped
+  // dead, unexported, uncalled - dropped
   findRoomByGameType: 'DROP', findPuzzleRoom: 'DROP',
 };
 
@@ -130,7 +130,7 @@ for (const m of original.matchAll(DECL)) {
   const name = m[1] || m[2];
   decls.push({ name, start: m.index });
 }
-if (!decls.length) die('No top-level declarations found — is this the right file?');
+if (!decls.length) die('No top-level declarations found - is this the right file?');
 
 // span of each decl = from its start to the next decl start (last runs to EOF)
 for (let i = 0; i < decls.length; i++) {
@@ -158,7 +158,7 @@ function build(mod) {
     body = body.replace(/^const (id|parseJson|slugify|fail) =/gm, 'export const $1 =');
     body = body.replace(/^async function (assertFundraiser|uniqueSlug)\b/gm, 'export async function $1');
   }
-  const banner = `// ${FILES[mod]}\n// Extracted from peerCoreService.js by split_peer_core.mjs — behaviour unchanged.\n\n`;
+  const banner = `// ${FILES[mod]}\n// Extracted from peerCoreService.js by split_peer_core.mjs - behaviour unchanged.\n\n`;
   return banner + HEADERS[mod] + '\n' + body.replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }
 
@@ -196,8 +196,8 @@ for (const m of BARREL_ORDER) for (const n of exportNames(outputs[FILES[m]])) ba
 
 const missing = [...originalExports].filter(n => !barrelExports.has(n));
 const extra = [...barrelExports].filter(n => !originalExports.has(n));
-if (missing.length) die(`Export surface shrank — missing from barrel: ${missing.join(', ')}`);
-if (extra.length) die(`Export surface grew — unexpected new exports: ${extra.join(', ')}`);
+if (missing.length) die(`Export surface shrank - missing from barrel: ${missing.join(', ')}`);
+if (extra.length) die(`Export surface grew - unexpected new exports: ${extra.join(', ')}`);
 
 // every name imported from ./peerCoreShared.js must actually be exported there
 const sharedExports = exportNames(outputs['peerCoreShared.js']);
@@ -215,7 +215,7 @@ const unresolved = [...importedFromShared].filter(n => !sharedExports.has(n));
 if (unresolved.length) die(`These are imported from peerCoreShared.js but not exported there: ${unresolved.join(', ')}`);
 
 // ── done ──
-console.log('✓ split complete — all checks passed\n');
+console.log('✓ split complete - all checks passed\n');
 console.log(`  original exports : ${originalExports.size}`);
 console.log(`  barrel  exports  : ${barrelExports.size} (identical set)`);
 console.log(`  shared  exports  : ${sharedExports.size} (internal, not re-exported)\n`);

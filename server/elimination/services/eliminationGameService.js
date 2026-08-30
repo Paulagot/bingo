@@ -201,19 +201,41 @@ export const startGame = async (roomId, emit) => {
     const eliminatedThisRound = applyEliminations(roomId, roundNumber, rankedResults);
     recordRoundEliminations(roomId, roundId, eliminatedThisRound);
 
-    const resultPayload = rankedResults.map((r) => ({
-      ...r,
-      survived: !eliminatedThisRound.includes(r.playerId),
-    }));
+const resultPayload = rankedResults.map((r) => ({
+  ...r,
+  survived: !eliminatedThisRound.includes(r.playerId),
+}));
 
-    // ── REVEAL ───────────────────────────────────────────────────────────────
-    emit(SERVER_EVENTS.ROUND_REVEAL, {
-      roundId,
-      roundNumber,
-      roundType,
-      results: resultPayload,
-      revealDurationMs: TIMING.REVEAL_DURATION_MS,
-    });
+// ── Persist reveal/reconnect state ──────────────────────────────────────
+// A host/player may refresh while the reveal screen is showing.
+// Store the exact reveal payload on the round so reconnect can rebuild it.
+const currentRoom = getRoom(roomId);
+
+if (currentRoom?.rounds?.[roundId]) {
+  const currentRound = currentRoom.rounds[roundId];
+
+  currentRound.results = resultPayload;
+  currentRound.eliminatedPlayerIds = eliminatedThisRound;
+
+  // Explicitly mark the current phase so reconnect knows
+  // which screen should be restored.
+  currentRound.phase = 'reveal';
+
+  currentRound.revealDurationMs =
+    TIMING.REVEAL_DURATION_MS;
+
+  currentRound.revealStartedAt =
+    new Date().toISOString();
+}
+
+// ── REVEAL ───────────────────────────────────────────────────────────────
+emit(SERVER_EVENTS.ROUND_REVEAL, {
+  roundId,
+  roundNumber,
+  roundType,
+  results: resultPayload,
+  revealDurationMs: TIMING.REVEAL_DURATION_MS,
+});
 
     await delay(TIMING.REVEAL_DURATION_MS);
 

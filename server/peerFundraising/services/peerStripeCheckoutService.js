@@ -84,7 +84,7 @@ export async function createPeerStripeSession({ orderId, origin }) {
       price_data: {
         currency: o.currency.toLowerCase(),
         product_data: {
-          name: `${o.club_name} — ${o.public_slug}`,
+          name: `${o.club_name} - ${o.public_slug}`,
           description: `Peer-to-peer order ${orderId.slice(0, 8)}`,
         },
         unit_amount: orderCents,

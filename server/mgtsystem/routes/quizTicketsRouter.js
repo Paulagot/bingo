@@ -157,11 +157,11 @@ router.get('/room/:roomId/info', async (req, res) => {
 
     const { config, clubId, status } = roomData;
 
-    const { getQuizRoom } = await import('../../quiz/quizRoomManager.js');
-    const memRoom = getQuizRoom(roomId);
-    const currentPlayersInRoom = memRoom ? Object.keys(memRoom.players || {}).length : 0;
-    const capacity = await getRoomCapacityStatus(roomId, currentPlayersInRoom);
-    const capacityMessage = getCapacityMessage(capacity);
+ const capacity =
+  await getRoomCapacityStatus(roomId);
+
+const capacityMessage =
+  getCapacityMessage(capacity);
 
     // ── Event details for ticketed_event rooms ────────────────────────────
     let eventDetails = null;
@@ -235,14 +235,43 @@ router.get('/room/:roomId/info', async (req, res) => {
       clubName:           roomData.clubName,
       ticketTypes,        // available types only; undefined for non-ticketed-event rooms
       eventDetails,
-      capacity: {
-        maxCapacity:            capacity.maxCapacity,
-        availableForTickets:    capacity.availableForTickets,
-        totalTickets:           capacity.totalTickets,
-        ticketSalesOpen:        capacity.ticketSalesOpen,
-        ticketSalesCloseReason: capacity.ticketSalesCloseReason,
-        message:                capacityMessage,
-      },
+ capacity: {
+  maxCapacity:
+    capacity.maxCapacity,
+
+  totalUsed:
+    capacity.totalUsed,
+
+  currentPlayersInRoom:
+    capacity.currentPlayersInRoom,
+
+  walkInPlayers:
+    capacity.walkInPlayers,
+
+  availableTotal:
+    capacity.availableTotal,
+
+  availableForTickets:
+    capacity.availableForTickets,
+
+  availableForWalkIns:
+    capacity.availableForWalkIns,
+
+  totalTickets:
+    capacity.totalTickets,
+
+  redeemedTickets:
+    capacity.redeemedTickets,
+
+  ticketSalesOpen:
+    capacity.ticketSalesOpen,
+
+  ticketSalesCloseReason:
+    capacity.ticketSalesCloseReason,
+
+  message:
+    capacityMessage,
+},
     });
   } catch (err) {
     console.error('[Tickets API] ❌ Error fetching room info:', err);
@@ -546,7 +575,7 @@ router.get('/room/:roomId', async (req, res) => {
     if (roomData.clubId !== clubId) return res.status(403).json({ error: 'Forbidden' });
 
     const tickets  = await getRoomTickets(roomId);
-    const capacity = await getRoomCapacityStatus(roomId, 0);
+  const capacity = await getRoomCapacityStatus(roomId);
 
     const formatted = tickets.map(t => {
       const extras = typeof t.extras === 'string' ? JSON.parse(t.extras) : t.extras || [];

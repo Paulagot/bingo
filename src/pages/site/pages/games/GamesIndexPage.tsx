@@ -6,15 +6,15 @@ export default function GamesIndexPage() {
     <IndexPageTemplate
       path="/event-formats"
       seoTitle="Ready-to-Run Fundraising Event Formats | FundRaisely"
-      seoDescription="Explore FundRaisely fundraising event formats — quiz nights, elimination games, weekly puzzle challenges, puzzle drops, sponsored events and ticketed events for clubs, charities, schools and community groups."
+      seoDescription="Explore FundRaisely fundraising event formats - quiz nights, elimination games, weekly puzzle challenges, puzzle drops, sponsored events and ticketed events for clubs, charities, schools and community groups."
       eyebrow="Event Formats"
       h1="Ready-to-run fundraising formats for clubs, charities and community groups"
-      intro="FundRaisely gives organisations something practical to run, not just somewhere to collect money. Every format includes ticketing, payment tracking and reports. The digital games come with built-in content — no questions to write, no scoring to manage. Pick a format, set a price, press start."
+      intro="FundRaisely gives organisations something practical to run, not just somewhere to collect money. Every format includes ticketing, payment tracking and reports. The digital games come with built-in content - no questions to write, no scoring to manage. Pick a format, set a price, press start."
       imageKey="communityQuizNight"
       cards={[
         {
           title: 'Quiz fundraisers',
-          text: 'A full digital quiz night with built-in questions, team or individual play, host controls, ticketing, payment tracking and committee-ready reports. Nothing to prepare — the game runs itself.',
+          text: 'A full digital quiz night with built-in questions, team or individual play, host controls, ticketing, payment tracking and committee-ready reports. Nothing to prepare - the game runs itself.',
           to: '/event-formats/quiz',
         },
         {
@@ -62,12 +62,12 @@ export default function GamesIndexPage() {
         {
           question: 'What is a Puzzle Drop?',
           answer:
-            'A Puzzle Drop is a standalone one-off puzzle sold as a single fundraiser. Supporters pay once to access one puzzle and appear on the leaderboard. It is designed to be sold quickly in person — at a club night, on the doorstep or via a QR code — without requiring any event setup or ongoing subscription.',
+            'A Puzzle Drop is a standalone one-off puzzle sold as a single fundraiser. Supporters pay once to access one puzzle and appear on the leaderboard. It is designed to be sold quickly in person - at a club night, on the doorstep or via a QR code - without requiring any event setup or ongoing subscription.',
         },
         {
           question: 'How do sponsored events work?',
           answer:
-            'Sponsored events are set up as an activity type first — with a title, fundraising goal, activity type such as walk or cycle, and a sponsorship window. They are then linked in the peer fundraising dashboard, which creates individual participant pages, personal targets and sponsorship tracking. The organiser sets up each participant page and distributes the link for the participant to share with their own network.',
+            'Sponsored events are set up as an activity type first - with a title, fundraising goal, activity type such as walk or cycle, and a sponsorship window. They are then linked in the peer fundraising dashboard, which creates individual participant pages, personal targets and sponsorship tracking. The organiser sets up each participant page and distributes the link for the participant to share with their own network.',
         },
         {
           question: 'What are ticketed events?',
@@ -92,7 +92,7 @@ export default function GamesIndexPage() {
         {
           question: 'Can these formats work alongside peer fundraising?',
           answer:
-            'Yes. Sponsored events connect directly to peer fundraising. Activity packs — which can include quiz entries, elimination game entries, puzzle drops and event tickets — can be sold door to door through individual member and player seller links.',
+            'Yes. Sponsored events connect directly to peer fundraising. Activity packs - which can include quiz entries, elimination game entries, puzzle drops and event tickets - can be sold door to door through individual member and player seller links.',
         },
       ]}
       relatedLinks={[
