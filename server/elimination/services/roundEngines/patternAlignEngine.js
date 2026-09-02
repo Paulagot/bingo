@@ -1,3 +1,4 @@
+//server/elimination/services/roundEngines/patternAlignEngine.js
 import {
   randomBetween,
   randomFrom,
@@ -28,7 +29,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
-  const tCurved = Math.sqrt(t);
+  const tCurved = t;
 
   const shapeType = randomFrom(SHAPE_TYPES);
 
@@ -37,25 +38,25 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const targetRotation = Math.round(randomBetween(0, 355));
 
   // ── Player start offset: further away at high difficulty ──────────────────
-  const maxOffset = lerp(0.12, 0.28, t);
+  const maxOffset = lerp(0.12, 0.20, t);
   const playerStartX = clampNorm(targetX + randomBetween(-maxOffset, maxOffset));
   const playerStartY = clampNorm(targetY + randomBetween(-maxOffset, maxOffset));
 
   // ── Rotation offset: wider at high difficulty ─────────────────────────────
-  const minRotOffset = Math.round(lerp(20, 60, t));
-  const maxRotOffset = Math.round(lerp(80, 160, t));
+  const minRotOffset = Math.round(lerp(20, 40, t));
+  const maxRotOffset = Math.round(lerp(80, 110, t));
   const playerStartRotation = Math.round(
     (targetRotation + randomBetween(minRotOffset, maxRotOffset)) % 360
   );
 
   // ── Shape size: bigger range, shrinks at high difficulty ──────────────────
   const shapeSize = randomBetween(
-    lerp(0.24, 0.16, t),
-    lerp(0.38, 0.24, t),
+    lerp(0.24, 0.19, t),
+    lerp(0.38, 0.29, t),
   );
 
-  // ── Target visible duration: 3000ms (easy) → 1200ms (hard), sqrt-curved ───
-  const targetVisibleMs = Math.round(lerp(3000, 1200, tCurved));
+  // ── Target visible duration stays generous enough to memorise both position and rotation ───
+  const targetVisibleMs = Math.round(lerp(4000, 3000, tCurved));
 
   return {
     roundType: ROUND_TYPE.PATTERN_ALIGN,

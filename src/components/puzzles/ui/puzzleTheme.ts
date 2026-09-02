@@ -1,3 +1,5 @@
+//src/components/puzzles/ui/puzzleTheme.ts
+
 import type { CSSProperties } from 'react';
 
 export interface PuzzleBrandTheme {

@@ -1,3 +1,4 @@
+//server/elimination/services/eliminationGameService.js
 import {
   getRoom,
   startRoom,
@@ -191,8 +192,8 @@ export const startGame = async (roomId, emit) => {
       endsAt: activeState.endsAt,
     });
 
-    await delay(activeState.generatedConfig.durationMs);
-    await delay(1500);
+   await delay(activeState.generatedConfig.durationMs);
+await delay(TIMING.LATE_SUBMISSION_GRACE_MS + 100);
 
     // ── SCORING ──────────────────────────────────────────────────────────────
     const rankedResults = closeAndScoreRound(roomId, roundId);

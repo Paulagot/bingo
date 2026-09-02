@@ -1,3 +1,4 @@
+//src/components/elimination/utils/eliminationHelpers.ts
 /**
  * Convert a normalised coordinate (0–1) to a pixel position within a container.
  */

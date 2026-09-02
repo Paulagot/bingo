@@ -1,5 +1,6 @@
+//server/elimination/services/eliminationValidationService.js
 import { getRoom, getPlayer, getActiveRound } from './eliminationRoomManager.js';
-import { ROOM_STATUS, ROUND_PHASE, GAME_RULES } from '../utils/eliminationConstants.js';
+import { ROOM_STATUS, ROUND_PHASE, GAME_RULES, TIMING } from '../utils/eliminationConstants.js';
 import { validateSubmission as engineValidate } from './eliminationScoringService.js';
 
 /**
@@ -61,9 +62,10 @@ export const validateRoundSubmission = (roomId, playerId, submission) => {
     return { valid: false, error: 'Round is not accepting submissions' };
 
   const now = Date.now();
-  const LATE_SUBMISSION_GRACE_MS = 2000; // allow submissions up to 2s after timer
-  if (now > activeRound.endsAt + LATE_SUBMISSION_GRACE_MS)
-    return { valid: false, error: 'Round has already ended' };
+
+
+if (now > activeRound.endsAt + TIMING.LATE_SUBMISSION_GRACE_MS)
+  return { valid: false, error: 'Round has already ended' };
 
   if (submission.roundType !== activeRound.roundType)
     return { valid: false, error: 'Submission round type does not match active round' };

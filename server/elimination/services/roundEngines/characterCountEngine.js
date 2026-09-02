@@ -1,4 +1,4 @@
-import { randomBetween, clamp, errorToScore, calcSpeedBonus } from '../../utils/eliminationHelpers.js';
+import { randomBetween, clamp, errorToScore, calcSpeedBonus, lerp } from '../../utils/eliminationHelpers.js';
 import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
 
 // ─── Character sets ───────────────────────────────────────────────────────────
@@ -41,9 +41,8 @@ const getSimilarChars = (target) => {
  * At low difficulty: random chars from charset.
  * At high difficulty: prefer visually similar chars, pad with random if needed.
  */
-const pickDistractors = (target, charset, count, difficulty) => {
-  const maxDifficulty = 8;
-  const similarBias = Math.min(1, difficulty / maxDifficulty); // 0 → 1
+const pickDistractors = (target, charset, count, t) => {
+  const similarBias = Math.min(1, Math.max(0, t));
 
   const similar = getSimilarChars(target);
   const distractors = [];
@@ -83,27 +82,27 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const targetChar = charset[Math.floor(Math.random() * charset.length)];
 
   // Distractor count: 2 random easy, 3 random medium, 4-5 similar hard
-  const distractorCount = Math.round(2 + t * 3); // 2→5
-  const distractors = pickDistractors(targetChar, charset, distractorCount, difficulty);
+  const distractorCount = Math.round(2 + t * 2); // 2→4
+  const distractors = pickDistractors(targetChar, charset, distractorCount, t);
   const allChars = [targetChar, ...distractors];
 
   // Total characters: 10–15 easy, 15–22 medium, 20–25 hard
-  const minTotal = Math.round(10 + t * 10); // 10→20
-  const maxTotal = Math.round(15 + t * 10); // 15→25
+  const minTotal = Math.round(10 + t * 8); // 10→18
+  const maxTotal = Math.round(15 + t * 7); // 15→22
   const total = Math.floor(randomBetween(minTotal, maxTotal));
 
   // Target count: 25-40% of total
   const targetCount = Math.round(total * randomBetween(0.25, 0.40));
 
   // Font size: easy 0.08–0.095, medium 0.065–0.08, hard 0.055–0.07
-  const minFontSize = Math.max(0.055, 0.08  - t * 0.025); // 0.08→0.055
-  const maxFontSize = Math.max(0.07,  0.095 - t * 0.025); // 0.095→0.07
+  const minFontSize = Math.max(0.065, 0.08  - t * 0.015); // 0.08→0.065
+  const maxFontSize = Math.max(0.08,  0.095 - t * 0.015); // 0.095→0.08
 
   // Rotation: ±10° easy, ±20° medium, ±30° hard
-  const maxRotation = Math.round(10 + t * 20); // 10°→30°
+  const maxRotation = Math.round(10 + t * 10); // 10°→20°
 
   // Spacing: 0.11 easy, 0.09 medium, 0.07 hard
-  const minDist = Math.max(0.07, 0.11 - t * 0.04); // 0.11→0.07
+  const minDist = Math.max(0.08, 0.11 - t * 0.03); // 0.11→0.08
 
   // Generate positions
   const characters = [];
@@ -142,9 +141,12 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
 
   const actualCount = characters.filter(c => c.value === targetChar).length;
 
-  // Display time: easy 4000–5000ms, medium 3000–4000ms, hard 2000–3000ms
-  const minDisplay = Math.round(4000 - t * 2000); // 4000→2000ms
-  const maxDisplay = Math.round(5000 - t * 2000); // 5000→3000ms
+  // Display time stays generous because this round already gets harder through
+  // character count, similar distractors, spacing and rotation. Players need time
+  // to actually scan the board rather than lose to a disappearing preview.
+  // Round 1: 5.2–6.2s  →  Round 8: 4.8–5.8s.
+  const minDisplay = Math.round(lerp(5200, 4800, t));
+  const maxDisplay = Math.round(lerp(6200, 5800, t));
   const displayDurationMs = Math.round(randomBetween(minDisplay, maxDisplay));
 
   return {
