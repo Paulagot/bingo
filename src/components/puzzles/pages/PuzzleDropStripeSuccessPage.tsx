@@ -206,7 +206,7 @@ export default function PuzzleDropStripeSuccessPage() {
               </h2>
 
               <p className="mb-6 text-sm text-[#6E6A63]">
-                Stripe says your payment went through — we're just
+                Stripe says your payment went through - we're just
                 finishing setting up your puzzles. This page will update
                 automatically in a few seconds.
               </p>
@@ -273,7 +273,7 @@ export default function PuzzleDropStripeSuccessPage() {
               </div>
 
               <p className="mt-6 text-xs text-[#8A847B]">
-                Keep your confirmation email safe — each puzzle link
+                Keep your confirmation email safe - each puzzle link
                 gives you access to that puzzle.
               </p>
             </>

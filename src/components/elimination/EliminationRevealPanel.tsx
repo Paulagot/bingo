@@ -1,3 +1,4 @@
+//src/components/elimination/EliminationRevealPanel.tsx
 import { useEffect, useState } from 'react';
 import type {
   RoundResult,
@@ -989,7 +990,7 @@ const PatternAlignRevealCanvas: React.FC<{
   config: any;
   colour: string;
 }> = ({ reveal, config, colour }) => {
-  const r = (config?.shapeSize ?? 0.18) * 50;
+  const r = (config?.shapeSize ?? 0.18) * 55;
   const shapeType = config?.shapeType ?? 'circle';
 
   const ngon = (n: number, cx: number, cy: number, rot: number) =>

@@ -1,3 +1,4 @@
+//server/elimination/services/roundEngines/movingTargetTapEngine.js
 import {
   randomBetween,
   errorToScore,
@@ -61,15 +62,19 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
-  const tCurved = Math.sqrt(t);
+  const tCurved = t;
 
-  const pathType =
-    t < 0.35
-      ? 'linear'
-      : PATH_TYPES[Math.floor(randomBetween(0, PATH_TYPES.length))] ?? 'linear';
+  let pathType = 'linear';
+  if (t >= 0.72) {
+    pathType = PATH_TYPES[Math.floor(randomBetween(0, PATH_TYPES.length))] ?? 'linear';
+  } else if (t >= 0.30) {
+    // Middle rounds are still mostly linear, with an occasional curved path.
+    const roll = Math.random();
+    pathType = roll < 0.60 ? 'linear' : roll < 0.80 ? 'arc' : 'bounce';
+  }
 
-  const targetRadius = lerp(0.09, 0.045, tCurved);
-  const speedUnitsPerSec = lerp(0.22, 0.52, tCurved);
+  const targetRadius = lerp(0.09, 0.060, tCurved);
+  const speedUnitsPerSec = lerp(0.22, 0.38, tCurved);
   const angle = randomBetween(0, Math.PI * 2);
 
   return {
@@ -86,7 +91,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
     },
     targetRadius,
     phaseOffset: randomBetween(-0.18, 0.18),
-    arcAmplitude: pathType === 'linear' ? 0 : lerp(0.04, 0.09, tCurved),
+    arcAmplitude: pathType === 'linear' ? 0 : lerp(0.04, 0.065, tCurved),
   };
 };
 

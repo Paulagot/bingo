@@ -160,7 +160,7 @@ export const QuickCountRound: React.FC<Props> = ({
               fontWeight: 600,
               textAlign: 'center',
             }}>
-              ✓ Locked in — waiting for other players
+              ✓ Locked in - waiting for other players
             </div>
           )}
 

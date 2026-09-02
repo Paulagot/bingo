@@ -1,6 +1,6 @@
 // youtube.ts
 // Pure helpers for turning a user-entered YouTube URL (or bare ID) into the
-// pieces the embed needs. No React, no side effects — trivially testable.
+// pieces the embed needs. No React, no side effects - trivially testable.
 
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 

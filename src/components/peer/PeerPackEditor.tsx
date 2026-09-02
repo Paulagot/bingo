@@ -478,7 +478,7 @@ export default function PeerPackEditor({
                             key={option.optionId}
                             value={option.optionId}
                           >
-                            {option.label} —{' '}
+                            {option.label} -{' '}
                             {fmt(
                               Number(
                                 option.configuredPrice || 0,

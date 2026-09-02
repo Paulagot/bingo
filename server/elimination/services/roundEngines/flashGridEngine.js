@@ -3,26 +3,28 @@ import {
   randomFrom,
   errorToScore,
   calcSpeedBonus,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import { ROUND_TYPE, ROUND_DURATION, GAME_RULES } from '../../utils/eliminationConstants.js';
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
 
-  // Grid: 4x4 at round 1, 6x6 at round 8
-  const gridSize = Math.min(6, 4 + Math.floor((difficulty - 1) * 2));
+  // Grid grows gradually: 4x4 early, 5x5 mid-game, 6x6 late.
+  const gridSize = t < 0.34 ? 4 : t < 0.72 ? 5 : 6;
 
-  // Flash duration: fixed at 2000ms - difficulty comes from grid and cell count only
-  const flashDurationMs = 2000;
+  // Keep enough preview time for the player to encode the pattern. Difficulty
+  // should come primarily from grid size and number of highlighted cells.
+  // Round 1: 3.2s  →  Round 8: 2.8s.
+  const flashDurationMs = Math.round(lerp(3200, 2800, t));
 
-  // Cell count: scales with grid size so the density feels consistent
-  // Round 1 (4x4): 4-5 cells   Round 5 (5x5): 6-7 cells   Round 8 (6x6): 8-10 cells
-  const minCells = 3 + Math.floor((difficulty - 1) * 5);
-  const maxCells = Math.min(
-    Math.floor(gridSize * gridSize * 0.5), // never more than 50% of grid
-    5 + Math.floor((difficulty - 1) * 5),
-  );
+  // Human-friendly memory load: roughly 3-4 cells early and 6-8 late.
+  const minCells = Math.round(lerp(3, 6, t));
+  const maxCells = Math.round(lerp(4, 8, t));
   const cellCount = Math.floor(randomBetween(minCells, maxCells + 1));
 
   // Fisher-Yates shuffle to pick which cells flash

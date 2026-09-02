@@ -21,7 +21,7 @@ interface UseCryptoQuoteParams {
   fiatAmount:     number;
   tokenCode:      SolanaTokenCode | null;
   enabled:        boolean;
-  // Optional override — when provided, roomId is not sent as a query param.
+  // Optional override - when provided, roomId is not sent as a query param.
   // Used by peer fundraiser pages which resolve currency from the fundraiser,
   // not from a room. The peer quote endpoint is:
   //   GET /api/peer-support/fundraiser/:fundraiserId/crypto-quote?token=SOL&amount=16
@@ -76,7 +76,7 @@ export function useCryptoQuote({
 
     try {
       // When quoteEndpoint is provided (e.g. peer fundraiser), roomId is not
-      // sent — the endpoint resolves currency from its own record instead.
+      // sent - the endpoint resolves currency from its own record instead.
       const url = quoteEndpoint
         ? `${quoteEndpoint}?token=${encodeURIComponent(tokenCode)}&amount=${encodeURIComponent(fiatAmount)}`
         : `/api/quiz/crypto-quote?roomId=${encodeURIComponent(roomId)}&token=${encodeURIComponent(tokenCode)}&amount=${encodeURIComponent(fiatAmount)}`;

@@ -1,5 +1,5 @@
 // PrizeList.tsx
-// Renders a room's prize table — the {place, value, sponsor, description} array
+// Renders a room's prize table - the {place, value, sponsor, description} array
 // already present on the payload. Markup matches the current PackDetailsSheet
 // prize block so it's a straight drop-in, just reusable. Renders nothing when
 // there are no prizes.

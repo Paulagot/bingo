@@ -147,8 +147,8 @@ router.post('/start-round', async (req, res) => {
       });
 
       // Wait for round duration + 1.5s grace for late submissions
-      await delay(activeState.generatedConfig.durationMs);
-      await delay(1500);
+   await delay(activeState.generatedConfig.durationMs);
+await delay(TIMING.LATE_SUBMISSION_GRACE_MS + 100);
 
       // ── SCORING ────────────────────────────────────────────────────────────
       const rankedResults = closeAndScoreRound(roomId, roundId);

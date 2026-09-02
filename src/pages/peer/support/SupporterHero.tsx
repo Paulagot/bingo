@@ -2,7 +2,7 @@
 // The story hero, borrowed from the sponsorship flow's look (gradient banner +
 // overlapping avatar) and fixed to show BOTH stories: when a participant is
 // present, their photo/name/message sit ABOVE an "About this cause" divider and
-// the cause story — never one instead of the other. Optional cover image and
+// the cause story - never one instead of the other. Optional cover image and
 // optional click-to-play videos at each level. Built standalone (explicit
 // props, no page coupling) so it can later replace the sponsorship flow's hero.
 

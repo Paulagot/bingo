@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // initialized starts false so DashboardShell shows a spinner rather than
   // immediately redirecting while getProfile() is still in flight.
-  // It is set to true exactly once — after initialize() resolves or rejects.
+  // It is set to true exactly once - after initialize() resolves or rejects.
   initialized: false,
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         .catch(() => get().logout())
         .finally(() => set({ initialized: true }));
     } else {
-      // No token — nothing to hydrate, ready immediately.
+      // No token - nothing to hydrate, ready immediately.
       set({ initialized: true });
     }
   },
@@ -158,7 +158,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       // Fetch all scopes in parallel after successful login.
-      // Non-fatal — login succeeds even if entitlements fetch fails.
+      // Non-fatal - login succeeds even if entitlements fetch fails.
       try {
         const entitlementsMap = await fetchAllEntitlements();
         set({
@@ -199,7 +199,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       successMessage: null,
       entitlements: null,
       showNoCreditWarning: false,
-      // Keep initialized: true — the store is still ready, just logged out.
+      // Keep initialized: true - the store is still ready, just logged out.
       // DashboardShell will see initialized=true + isAuthenticated=false
       // and redirect to / immediately, which is the correct behaviour.
       initialized: true,

@@ -34,8 +34,9 @@ export const generateRoundConfig = ({ difficulty = 1, lastShape = null, totalRou
 
  
 
-  const minSize = lerp(0.28, 0.13, t);
-  const maxSize = lerp(0.55, 0.28, t);
+  // Keep late-round shapes challenging but still comfortably visible on a phone.
+  const minSize = lerp(0.28, 0.18, t);
+  const maxSize = lerp(0.55, 0.32, t);
   const baseSize = randomBetween(minSize, maxSize);
 
   let width, height;

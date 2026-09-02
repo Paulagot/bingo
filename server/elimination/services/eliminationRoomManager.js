@@ -1,3 +1,4 @@
+//server/elimination/services/eliminationRoomManager.js
 import {
   generateRoomId,
   generatePlayerId,

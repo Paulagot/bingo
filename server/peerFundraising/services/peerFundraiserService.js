@@ -1,5 +1,5 @@
 // peerFundraiserService.js
-// Extracted from peerCoreService.js by split_peer_core.mjs — behaviour unchanged.
+// Extracted from peerCoreService.js by split_peer_core.mjs - behaviour unchanged.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { updateMethods as updatePeerPaymentMethods } from './peerPaymentMethodsService.js';
@@ -12,7 +12,7 @@ export async function listFundraisers(clubId) {
   const [rows] = await connection.execute(
     // FIX: confirmed_total now sums both peer_orders AND donations.
     // Subqueries are used instead of LEFT JOINs on both tables to avoid
-    // row multiplication — joining peer_orders and donations simultaneously
+    // row multiplication - joining peer_orders and donations simultaneously
     // alongside peer_participants and peer_packs inflates all four counts.
     `SELECT f.*,
       COUNT(DISTINCT p.id) AS participant_count,
@@ -66,7 +66,7 @@ export async function getFundraiser(fid,clubId) {
 
   // FIX: compute confirmed_total (orders + donations) so the drawer header
   // TargetProgress bar has a real value. assertFundraiser() is a bare
-  // SELECT * — no confirmed_total column exists on the table itself.
+  // SELECT * - no confirmed_total column exists on the table itself.
   const [[totalsRow]] = await connection.execute(
     `SELECT
        COALESCE((

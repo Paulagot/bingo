@@ -359,7 +359,7 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
           <div>
             <h3 className={`text-sm font-semibold ${theme.heading}`}>
               {isElimination
-                ? (isOpen ? 'Game is open — rejoin as host' : 'Launch Elimination Game')
+                ? (isOpen ? 'Game is open - rejoin as host' : 'Launch Elimination Game')
                 : 'Open Host Dashboard'}
             </h3>
             <p className="mt-0.5 text-xs text-[#52636f]">
@@ -432,7 +432,7 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
         )}
       </div>
 
-      {/* ── Join link / QR card — shown for elimination once room is open ── */}
+      {/* ── Join link / QR card - shown for elimination once room is open ── */}
       {isElimination && isOpen && joinUrl && (
         <div className={`rounded-xl border p-5 ${theme.joinBg}`}>
           <div className="flex items-start gap-3 mb-4">
@@ -493,7 +493,7 @@ export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Pro
         </div>
       )}
 
-      {/* ── Scheduled tip — only for elimination before launch ── */}
+      {/* ── Scheduled tip - only for elimination before launch ── */}
       {isElimination && room.status === 'scheduled' && !tooEarly && (
         <div className="rounded-xl border border-[#dce1df] bg-[#fbf8f2] p-4">
           <p className="text-xs text-[#52636f]">

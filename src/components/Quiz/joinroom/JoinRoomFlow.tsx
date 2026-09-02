@@ -38,7 +38,7 @@ const Web3PaymentStep = lazy(() =>
   import('./Web3PaymentStep').then((m) => ({ default: m.Web3PaymentStep }))
 );
 
-const DEBUG = true; // Set to false to disable debug logs
+const DEBUG = false; // Set to false to disable debug logs
 
 const joinDebug = (...args: any[]) => {
   if (DEBUG) console.log('[JoinRoomFlow]', ...args);

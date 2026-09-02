@@ -1,7 +1,7 @@
 // SelectionSummary.tsx
 // The running selection: cart lines + total + Continue + a "just donate" entry.
-// One component, two placements — the desktop sticky rail and (optionally) the
-// mobile surface — so the two never drift. Shows a friendly empty state so the
+// One component, two placements - the desktop sticky rail and (optionally) the
+// mobile surface - so the two never drift. Shows a friendly empty state so the
 // donate action is always reachable even with an empty cart.
 
 import { ArrowRight, Heart } from 'lucide-react';
@@ -65,7 +65,7 @@ export default function SelectionSummary({
         </>
       ) : (
         <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-          No packs selected yet — choose one, or make a straight donation.
+          No packs selected yet - choose one, or make a straight donation.
         </p>
       )}
 

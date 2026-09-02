@@ -6,7 +6,7 @@
 //   - Sort by date (newest/oldest) or amount (high/low)
 //   - Expand / collapse each order card
 //   - Scrollable list (inherits drawer scroll)
-//   - Confirm / reject / retry fulfilment / undo — same logic as original drawer
+//   - Confirm / reject / retry fulfilment / undo - same logic as original drawer
 
 import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Search, SortAsc } from 'lucide-react';
@@ -193,7 +193,7 @@ export default function PeerOrdersTab({ fundraiserId, orders, onChanged }: Props
               className="rounded-xl border bg-white overflow-hidden"
               style={{ borderColor: brand.border }}
             >
-              {/* Collapsed summary row — always visible */}
+              {/* Collapsed summary row - always visible */}
               <button
                 type="button"
                 onClick={() => toggleExpand(o.id)}

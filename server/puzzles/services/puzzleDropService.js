@@ -853,10 +853,17 @@ await confirmLedgerPayment({
 
 export async function getPublicDropMeta({ dropRoomId }) {
   const room = await getDropRoomConfig(dropRoomId);
-  if (!room) return null;
-  if (room.status !== 'open' && room.status !== 'completed') return null;
 
-  const [rows] = await database.connection.execute(
+  if (!room) {
+    return null;
+  }
+
+  if (room.status !== 'open' && room.status !== 'completed') {
+    return null;
+  }
+
+  // Club identity + branding
+  const [clubRows] = await database.connection.execute(
     `SELECT
        name AS club_name,
        brand_logo_url AS club_logo_url,
@@ -868,14 +875,51 @@ export async function getPublicDropMeta({ dropRoomId }) {
      LIMIT 1`,
     [room.clubId]
   );
-  const club = rows?.[0] || {};
+
+  const club = clubRows?.[0] || {};
+
+  // Public event copy.
+  //
+  // The Puzzle Drop room is linked to its event through:
+  // fundraisely_event_integrations.external_ref = roomId
+  //
+  // This is optional so older/unlinked Drops still work.
+  const [eventRows] = await database.connection.execute(
+    `SELECT
+       e.title,
+       e.summary,
+       e.description
+     FROM fundraisely_event_integrations ei
+     JOIN fundraisely_events e
+       ON e.id = ei.event_id
+      AND e.club_id = ei.club_id
+     WHERE ei.club_id = ?
+       AND ei.integration_type = 'puzzle_drop'
+       AND ei.external_ref = ?
+     ORDER BY ei.created_at DESC
+     LIMIT 1`,
+    [room.clubId, room.roomId]
+  );
+
+  const event = eventRows?.[0] || {};
 
   return {
     id: room.roomId,
-    title: room.config?.dropTitle || 'Puzzle Drop',
+
+    // Prefer the event title, but keep the room title as a fallback.
+    title: event.title || room.config?.dropTitle || 'Puzzle Drop',
+
+    // These now come from fundraisely_events.
+    summary: event.summary ?? null,
+    description: event.description ?? null,
+
     status: room.status,
+
+    // Currency stays sourced from the Puzzle Drop room.
     currency: room.config?.currency || 'EUR',
     currencySymbol: room.config?.currencySymbol || '€',
+
+    // Club branding stays fully dynamic.
     clubName: club.club_name ?? null,
     clubLogoUrl: club.club_logo_url ?? null,
     clubPrimaryColor: club.club_primary_color ?? null,

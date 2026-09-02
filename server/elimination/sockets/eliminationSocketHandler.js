@@ -30,6 +30,7 @@ import {
 import { normalizePaymentMethod } from '../../utils/paymentMethods.js';
 import {
    saveAdjustmentEntry,
+   updateAdjustmentEntry,
    deleteAdjustmentEntry,
    approveEliminationReconciliation,
  } from '../services/eliminationStatsService.js';
@@ -137,7 +138,7 @@ const writeLedgerEntry = async (room, player) => {
     confirmedBy: isConfirmed
   ? (player.paymentMethod === 'stripe'  ? 'stripe_webhook'
    : player.paymentMethod === 'crypto'  ? 'onchain_verified'
-   : room.hostId)                        // cash/card/manual — host confirmed it
+   : room.hostId)                        // cash/card/manual - host confirmed it
   : null,
 
 confirmedByName: isConfirmed
@@ -172,19 +173,35 @@ export const registerEliminationSockets = (io) => {
       .slice(0, 32);
   };
 
-  const rateCheck = (socket, event) => {
-    if (!checkSocketRate(socket.id, event)) {
-      socket.emit(SERVER_EVENTS.ERROR, { message: 'Too many requests. Slow down.' });
-      return false;
-    }
-    return true;
-  };
+const rateCheck = (socket, event) => {
+  const allowed = checkSocketRate(socket.id, event);
+
+  if (!allowed) {
+    console.warn('🚨 [Elimination RateLimit] BLOCKED', {
+      socketId: socket.id,
+      event,
+    });
+
+    socket.emit(SERVER_EVENTS.ERROR, {
+      message: 'Too many requests. Slow down.'
+    });
+
+    return false;
+  }
+
+  return true;
+};
 
   io.on('connection', (socket) => {
 
     // ── RECONCILIATION: ADD / UPDATE ADJUSTMENT ENTRY ─────────────────────────────
+    // A new adjustment has no adjustmentId and is inserted once when the user
+    // explicitly clicks Save. Existing adjustments carry adjustmentId and are
+    // updated in place - never delete + reinsert financial records on edit.
     socket.on('elimination_update_reconciliation_ledger', async ({
+      adjustmentId = null,
       roomId,
+      actorId = null,
       adjustmentType,
       amount,
       currency,
@@ -195,25 +212,54 @@ export const registerEliminationSockets = (io) => {
       prizeAwardId,
       prizeMetadata,
       ts,
-    }) => {
-      if (!rateCheck(socket, 'elimination_update_reconciliation_ledger')) return;
+    }, callback) => {
+      if (!rateCheck(socket, 'elimination_update_reconciliation_ledger')) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'rate_limited' });
+        return;
+      }
+
+      const reply = (payload) => {
+        socket.emit('elimination_reconciliation_ledger_updated', payload);
+        if (typeof callback === 'function') callback(payload);
+      };
+
       try {
         const room = getRoom(roomId);
-        if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
+        if (!room) return reply({ ok: false, error: 'Room not found', roomId });
 
-        const isHost  = room.hostSocketId === socket.id;
-        const isAdmin = (room.admins ?? []).some((a) => a.socketId === socket.id);
+        // Reconciliation can be resumed from the management dashboard in a new
+        // browser/socket lifecycle. Authorise the persisted host/admin identity,
+        // then re-bind that verified actor to the current socket.
+        const isHostById = !!actorId && room.hostId === actorId;
+        const adminById  = actorId
+          ? (room.admins ?? []).find((a) => a.id === actorId)
+          : null;
+
+        const isHostBySocket = room.hostSocketId === socket.id;
+        const adminBySocket  = (room.admins ?? []).find((a) => a.socketId === socket.id);
+
+        const isHost  = isHostById || isHostBySocket;
+        const isAdmin = !!adminById || !!adminBySocket;
+
         if (!isHost && !isAdmin) {
-          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Unauthorized' });
+          return reply({ ok: false, error: 'Unauthorized', roomId });
+        }
+
+        if (isHostById) {
+          room.hostSocketId = socket.id;
+          socket.join(roomId);
+        } else if (adminById) {
+          adminById.socketId = socket.id;
+          adminById.connected = true;
+          socket.join(roomId);
         }
 
         if (room.status !== 'ended' || room.reconciliationApproved) {
-          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Reconciliation not active' });
+          return reply({ ok: false, error: 'Reconciliation not active', roomId });
         }
 
-        const insertId = await saveAdjustmentEntry({
+        const payload = {
           roomId,
-          clubId:        room.clubId ?? null,
           adjustmentType,
           amount,
           currency:      currency ?? room.currency ?? 'EUR',
@@ -224,56 +270,112 @@ export const registerEliminationSockets = (io) => {
           prizeAwardId:  prizeAwardId ?? null,
           prizeMetadata: prizeMetadata ?? null,
           ts:            ts ?? null,
+        };
+
+        if (adjustmentId != null) {
+          const result = await updateAdjustmentEntry({ adjustmentId, ...payload });
+          if (!result.ok) {
+            return reply({ ok: false, error: 'Adjustment not found', roomId, adjustmentId });
+          }
+
+          reply({ ok: true, updated: adjustmentId, roomId });
+          if (DEBUG) console.log(
+            `[Elimination] Reconciliation adjustment updated - room: ${roomId} id: ${adjustmentId}`
+          );
+          return;
+        }
+
+        const insertId = await saveAdjustmentEntry({
+          ...payload,
+          clubId: room.clubId ?? null,
         });
 
-        socket.emit('elimination_reconciliation_ledger_updated', { ok: true, insertId, roomId });
+        reply({ ok: true, insertId, roomId });
 
         if (DEBUG) console.log(
-          `[Elimination] Reconciliation ledger entry added - room: ${roomId} type: ${adjustmentType} amount: ${amount}`
+          `[Elimination] Reconciliation adjustment added - room: ${roomId} id: ${insertId} type: ${adjustmentType} amount: ${amount}`
         );
       } catch (err) {
         console.error('[Elimination] elimination_update_reconciliation_ledger error:', err);
-        socket.emit(SERVER_EVENTS.ERROR, { message: 'Failed to save adjustment' });
+        reply({ ok: false, error: 'Failed to save adjustment', roomId });
       }
     });
 
     // ── RECONCILIATION: DELETE ADJUSTMENT ENTRY ───────────────────────────────────
-    socket.on('elimination_delete_reconciliation_ledger_item', async ({ roomId, adjustmentId }) => {
-      if (!rateCheck(socket, 'elimination_delete_reconciliation_ledger_item')) return;
+    socket.on('elimination_delete_reconciliation_ledger_item', async ({ roomId, adjustmentId, actorId = null }, callback) => {
+      if (!rateCheck(socket, 'elimination_delete_reconciliation_ledger_item')) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'rate_limited' });
+        return;
+      }
+
+      const reply = (payload) => {
+        socket.emit('elimination_reconciliation_ledger_updated', payload);
+        if (typeof callback === 'function') callback(payload);
+      };
+
       try {
         const room = getRoom(roomId);
-        if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
+        if (!room) return reply({ ok: false, error: 'Room not found', roomId });
 
-        const isHost  = room.hostSocketId === socket.id;
-        const isAdmin = (room.admins ?? []).some((a) => a.socketId === socket.id);
+        // Reconciliation can be resumed from the management dashboard in a new
+        // browser/socket lifecycle. Authorise the persisted host/admin identity,
+        // then re-bind that verified actor to the current socket.
+        const isHostById = !!actorId && room.hostId === actorId;
+        const adminById  = actorId
+          ? (room.admins ?? []).find((a) => a.id === actorId)
+          : null;
+
+        const isHostBySocket = room.hostSocketId === socket.id;
+        const adminBySocket  = (room.admins ?? []).find((a) => a.socketId === socket.id);
+
+        const isHost  = isHostById || isHostBySocket;
+        const isAdmin = !!adminById || !!adminBySocket;
+
         if (!isHost && !isAdmin) {
-          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Unauthorized' });
+          return reply({ ok: false, error: 'Unauthorized', roomId });
+        }
+
+        if (isHostById) {
+          room.hostSocketId = socket.id;
+          socket.join(roomId);
+        } else if (adminById) {
+          adminById.socketId = socket.id;
+          adminById.connected = true;
+          socket.join(roomId);
         }
 
         if (room.reconciliationApproved) {
-          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Reconciliation already approved - cannot edit' });
+          return reply({ ok: false, error: 'Reconciliation already approved - cannot edit', roomId });
         }
 
         const result = await deleteAdjustmentEntry(adjustmentId, roomId);
-        socket.emit('elimination_reconciliation_ledger_updated', { ok: result.ok, deleted: adjustmentId, roomId });
+        reply({ ok: result.ok, deleted: result.ok ? adjustmentId : null, roomId });
 
         if (DEBUG) console.log(`[Elimination] Reconciliation ledger entry deleted - room: ${roomId} id: ${adjustmentId}`);
       } catch (err) {
         console.error('[Elimination] elimination_delete_reconciliation_ledger_item error:', err);
-        socket.emit(SERVER_EVENTS.ERROR, { message: 'Failed to delete adjustment' });
+        reply({ ok: false, error: 'Failed to delete adjustment', roomId });
       }
     });
 
     // ── RECONCILIATION: APPROVE ───────────────────────────────────────────────────
-    socket.on('elimination_approve_reconciliation', async ({ roomId, approvedBy, notes }) => {
+    socket.on('elimination_approve_reconciliation', async ({ roomId, actorId = null, approvedBy, notes }) => {
       if (!rateCheck(socket, 'elimination_approve_reconciliation')) return;
       try {
         const room = getRoom(roomId);
         if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
 
-        const isHost = room.hostSocketId === socket.id;
+        const isHostById     = !!actorId && room.hostId === actorId;
+        const isHostBySocket = room.hostSocketId === socket.id;
+        const isHost         = isHostById || isHostBySocket;
+
         if (!isHost) {
           return socket.emit(SERVER_EVENTS.ERROR, { message: 'Only the host can approve reconciliation' });
+        }
+
+        if (isHostById) {
+          room.hostSocketId = socket.id;
+          socket.join(roomId);
         }
 
         if (room.reconciliationApproved) {
@@ -308,15 +410,33 @@ export const registerEliminationSockets = (io) => {
     });
 
     // ── RECONCILIATION: FETCH STATE ───────────────────────────────────────────────
-    socket.on('elimination_get_reconciliation', async ({ roomId }) => {
+    socket.on('elimination_get_reconciliation', async ({ roomId, actorId = null }) => {
       try {
         const room = getRoom(roomId);
         if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
 
-        const isHost  = room.hostSocketId === socket.id;
-        const isAdmin = (room.admins ?? []).some((a) => a.socketId === socket.id);
+        const isHostById = !!actorId && room.hostId === actorId;
+        const adminById  = actorId
+          ? (room.admins ?? []).find((a) => a.id === actorId)
+          : null;
+
+        const isHostBySocket = room.hostSocketId === socket.id;
+        const adminBySocket  = (room.admins ?? []).find((a) => a.socketId === socket.id);
+
+        const isHost  = isHostById || isHostBySocket;
+        const isAdmin = !!adminById || !!adminBySocket;
+
         if (!isHost && !isAdmin) {
           return socket.emit(SERVER_EVENTS.ERROR, { message: 'Unauthorized' });
+        }
+
+        if (isHostById) {
+          room.hostSocketId = socket.id;
+          socket.join(roomId);
+        } else if (adminById) {
+          adminById.socketId = socket.id;
+          adminById.connected = true;
+          socket.join(roomId);
         }
 
         const { getEliminationReconciliation } = await import('../services/eliminationStatsService.js');
@@ -329,25 +449,141 @@ export const registerEliminationSockets = (io) => {
       }
     });
 
-    // ── HOST JOIN ──────────────────────────────────────────────────────────────
-    socket.on('host_join_elimination_room', ({ roomId, hostId }) => {
-      if (!rateCheck(socket, 'host_join_elimination_room')) return;
-      try {
-        if (DEBUG) console.log('🎮 [Elimination] host_join_elimination_room:', { roomId, hostId });
-        const room = getRoom(roomId);
-        if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
-        if (room.hostId !== hostId) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Invalid host credentials' });
+// ── HOST JOIN / RECONNECT ─────────────────────────────────────────────────
+socket.on('host_join_elimination_room', ({ roomId, hostId }) => {
+  if (!rateCheck(socket, 'host_join_elimination_room')) return;
 
-        room.hostSocketId = socket.id;
-        socket.join(roomId);
-        if (DEBUG) console.log('🎮 [Elimination] Host joined socket room:', { roomId, hostId, socketId: socket.id });
+  try {
+    if (DEBUG) {
+      console.log(
+        '🎮 [Elimination] host_join_elimination_room:',
+        { roomId, hostId }
+      );
+    }
 
-        socket.emit(SERVER_EVENTS.ROOM_STATE, getRoomSnapshot(roomId));
-        socket.emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
-      } catch (err) {
-        socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
+    const room = getRoom(roomId);
+
+    if (!room) {
+      return socket.emit(SERVER_EVENTS.ERROR, {
+        message: 'Room not found',
+      });
+    }
+
+    if (room.hostId !== hostId) {
+      return socket.emit(SERVER_EVENTS.ERROR, {
+        message: 'Invalid host credentials',
+      });
+    }
+
+    // Re-map the host to their new socket after refresh/reconnect.
+    room.hostSocketId = socket.id;
+
+    socket.join(roomId);
+
+    if (DEBUG) {
+      console.log(
+        '🎮 [Elimination] Host joined socket room:',
+        {
+          roomId,
+          hostId,
+          socketId: socket.id,
+          roomStatus: room.status,
+          activeRoundIndex: room.activeRoundIndex,
+        }
+      );
+    }
+
+    // ── Work out which round is currently active ──────────────────────────
+    let activeRound = null;
+
+    if (
+      Number.isInteger(room.activeRoundIndex) &&
+      room.activeRoundIndex >= 0 &&
+      Array.isArray(room.roundSequence)
+    ) {
+      const activeRoundId =
+        room.roundSequence[room.activeRoundIndex];
+
+      if (activeRoundId && room.rounds?.[activeRoundId]) {
+        activeRound = room.rounds[activeRoundId];
       }
+    }
+
+    // ── Send a proper host reconnect snapshot ─────────────────────────────
+    socket.emit(SERVER_EVENTS.ROOM_STATE, {
+      roomSnapshot: getRoomSnapshot(roomId),
+
+      // Lets the frontend distinguish this from an ordinary room update.
+      isHostReconnect: true,
+
+ activeRound: activeRound
+  ? {
+      roundId: activeRound.roundId,
+      roundNumber: activeRound.roundNumber,
+      roundType: activeRound.roundType,
+      phase: activeRound.phase,
+
+      generatedConfig:
+        activeRound.generatedConfig ?? null,
+
+      startedAt:
+        activeRound.startedAt ?? null,
+
+      endsAt:
+        activeRound.endsAt ?? null,
+
+      // Reveal recovery
+      results:
+        activeRound.results ?? null,
+
+      eliminatedPlayerIds:
+        activeRound.eliminatedPlayerIds ?? [],
+
+      revealDurationMs:
+        activeRound.revealDurationMs ?? null,
+
+      revealStartedAt:
+        activeRound.revealStartedAt ?? null,
+    }
+  : null,
     });
+
+    socket.emit(
+      SERVER_EVENTS.WAITING_ROOM_UPDATE,
+      {
+        players: getAllPlayers(roomId),
+      }
+    );
+
+    if (DEBUG) {
+      console.log(
+        '🎮 [Elimination] Host reconnect snapshot sent:',
+        {
+          roomId,
+          roomStatus: room.status,
+          activeRound: activeRound
+            ? {
+                roundId: activeRound.roundId,
+                roundNumber: activeRound.roundNumber,
+                roundType: activeRound.roundType,
+                phase: activeRound.phase,
+              }
+            : null,
+        }
+      );
+    }
+
+  } catch (err) {
+    console.error(
+      '[Elimination] host_join_elimination_room error:',
+      err
+    );
+
+    socket.emit(SERVER_EVENTS.ERROR, {
+      message: err.message,
+    });
+  }
+});
 
     // ── ADMIN JOIN ────────────────────────────────────────────────────────────────
     socket.on('admin_join_elimination_room', ({ roomId, adminId, name }) => {
@@ -737,17 +973,40 @@ if (room.paymentMode === 'web2' && room.clubId) {
         const { valid, error } = validateStart(roomId, hostId);
         if (!valid) return socket.emit(SERVER_EVENTS.ERROR, { message: error });
 
-        startGame(roomId, (event, payload) => emitToRoom(roomId, event, payload))
-          .then(() => {
-            // Game loop started cleanly - write 'live' to DB
-            markEliminationRoomAsLive(roomId).catch((err) =>
-              console.warn('[Elimination] Failed to mark room live (non-fatal):', err.message)
-            );
-          })
-          .catch((err) => {
-            console.error(`[Elimination] Game loop error in room ${roomId}:`, err);
-            emitToRoom(roomId, SERVER_EVENTS.ERROR, { message: 'Game encountered an error.' });
-          });
+  const gamePromise = startGame(
+  roomId,
+  (event, payload) => emitToRoom(roomId, event, payload)
+);
+
+// START_GAME has passed validation and the game loop has been launched.
+// Mark the persistent room live now - do not wait for the full game
+// promise to resolve, because that happens when the game finishes.
+markEliminationRoomAsLive(roomId)
+  .then((changed) => {
+    if (DEBUG) {
+      console.log(
+        `[Elimination] 🔴 Room ${roomId} marked live at game start`,
+        { changed }
+      );
+    }
+  })
+  .catch((err) => {
+    console.warn(
+      '[Elimination] Failed to mark room live (non-fatal):',
+      err.message
+    );
+  });
+
+gamePromise.catch((err) => {
+  console.error(
+    `[Elimination] Game loop error in room ${roomId}:`,
+    err
+  );
+
+  emitToRoom(roomId, SERVER_EVENTS.ERROR, {
+    message: 'Game encountered an error.',
+  });
+});
 
       } catch (err) {
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
@@ -792,7 +1051,10 @@ if (room.paymentMode === 'web2' && room.clubId) {
         const result = reconnectPlayer(roomId, playerId, socket.id);
         if (!result.success) return socket.emit(SERVER_EVENTS.ERROR, { message: result.error });
         socket.join(roomId);
-        socket.emit(SERVER_EVENTS.ROOM_STATE, result.snapshot);
+        socket.emit(SERVER_EVENTS.ROOM_STATE, {
+  ...result.snapshot,
+  yourPlayerId: playerId,
+});
       } catch (err) {
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
       }
@@ -909,12 +1171,24 @@ if (room.paymentMode === 'web2' && room.clubId) {
         } catch (refreshErr) {
           console.warn('[host_add_player] could not refresh maxPlayers from DB:', refreshErr.message);
         }
+        const normalisedPaymentMethod =
+  playerData.paymentMethod
+    ? normalizePaymentMethod(playerData.paymentMethod)
+    : null;
+
+if (DEBUG) {
+  console.log('[host_add_player] payment method:', {
+    received: playerData.paymentMethod,
+    normalised: normalisedPaymentMethod,
+    clubPaymentMethodId: playerData.clubPaymentMethodId ?? null,
+  });
+}
 
         const { player } = addPlayer(roomId, {
           name:                sanitiseName(playerData.name),
           socketId:            null,
           paid:                playerData.paid ?? false,
-          paymentMethod:       playerData.paymentMethod ?? null,
+         paymentMethod: normalisedPaymentMethod,
           paymentReference:    playerData.paymentReference ?? null,
           payAtDoor:           playerData.payAtDoor ?? true,
           entryFee:            playerData.entryFee ?? room.entryFee ?? 0,

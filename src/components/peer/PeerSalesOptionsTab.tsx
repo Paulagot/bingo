@@ -46,7 +46,7 @@ export default function PeerSalesOptionsTab({
   isPublished,
   onChanged,
 }: Props) {
-  // Local ordered list — we only touch display_order here, nothing else
+  // Local ordered list - we only touch display_order here, nothing else
   const activePacks = packs.filter(p => p.is_active !== 0 && p.is_active !== false);
   const [ordered, setOrdered] = useState<PeerPack[]>(
     [...activePacks].sort((a, b) => a.display_order - b.display_order),
@@ -97,7 +97,7 @@ export default function PeerSalesOptionsTab({
     setOrderSaving(true);
     setOrderError(null);
     try {
-      // Fire PATCH calls sequentially — each pack gets its new display_order
+      // Fire PATCH calls sequentially - each pack gets its new display_order
       for (let i = 0; i < ordered.length; i++) {
         const p = ordered[i];
         if (!p) continue;
@@ -230,12 +230,12 @@ export default function PeerSalesOptionsTab({
         >
           <p className="text-sm font-semibold" style={{ color: brand.slate }}>
             No sales options yet
-            {!isPublished && ' — create the first option supporters can buy.'}
+            {!isPublished && ' - create the first option supporters can buy.'}
           </p>
         </div>
       )}
 
-      {/* Pack cards — draggable grid */}
+      {/* Pack cards - draggable grid */}
       <div className="grid gap-4 md:grid-cols-2">
         {ordered.map((p, index) => {
           const badge = badgeLabel(p);

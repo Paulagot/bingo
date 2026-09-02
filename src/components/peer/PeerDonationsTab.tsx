@@ -4,7 +4,7 @@
 // Features:
 //   - Search by donor name, participant name
 //   - Expand / collapse each donation card
-//   - Inline confirm / reject (no window.prompt — same pattern as PeerOrdersTab)
+//   - Inline confirm / reject (no window.prompt - same pattern as PeerOrdersTab)
 //   - Only shown for door_to_door fundraisers (drawer handles the guard)
 
 import { useState, useMemo } from 'react';

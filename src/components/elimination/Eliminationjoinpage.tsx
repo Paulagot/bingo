@@ -53,6 +53,8 @@ const prePlayerName = searchParams.get('name');       // ← ADD
   const [isWeb2FeeRoom, setIsWeb2FeeRoom]   = useState(false);
   const [web3PaymentDone, setWeb3PaymentDone] = useState(false);
   const [roomFull, setRoomFull] = useState(false);
+  const [ticketSalesClosedReason, setTicketSalesClosedReason] =
+  useState<string | null>(null);
 
   // Ticket redemption state
   const [ticketLoading, setTicketLoading]   = useState(!!ticketToken);
@@ -115,11 +117,7 @@ useEffect(() => {
 
 useEffect(() => {
   if (!prePlayerId || ticketToken || !resolvedRoomId) return;
- 
-  let cancelled = false;
 
-  
-  const socket = getSocket();
  
   // Store the name immediately so the room_state handler can use nameRef
   const knownName = prePlayerName ?? '';
@@ -144,7 +142,7 @@ useEffect(() => {
     undefined,       // paymentOverrides - not needed, player already exists
   );
  
-  return () => { cancelled = true; };
+
  
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [prePlayerId]); // Only fire once on mount
@@ -178,9 +176,16 @@ if (!isWeb3) {
       if (res.ok) {
         const data = await res.json();
         const cap = data.capacity;
-        if (cap && cap.totalTickets + inMemoryCount >= cap.maxCapacity) {
-          setRoomFull(true);
-        }
+    if (cap && cap.ticketSalesOpen === false) {
+  setTicketSalesClosedReason(
+    cap.ticketSalesCloseReason || 'Ticket sales are closed'
+  );
+} else if (
+  cap &&
+  cap.totalTickets + inMemoryCount >= cap.maxCapacity
+) {
+  setRoomFull(true);
+}
       }
     }
   } catch {
@@ -219,9 +224,16 @@ if (!isWeb3) {
       if (res.ok) {
         const data = await res.json();
         const cap = data.capacity;
-        if (cap && cap.totalTickets + inMemoryCount >= cap.maxCapacity) {
-          setRoomFull(true);
-        }
+     if (cap && cap.ticketSalesOpen === false) {
+  setTicketSalesClosedReason(
+    cap.ticketSalesCloseReason || 'Ticket sales are closed'
+  );
+} else if (
+  cap &&
+  cap.totalTickets + inMemoryCount >= cap.maxCapacity
+) {
+  setRoomFull(true);
+}
       }
     }
   } catch {
@@ -372,6 +384,45 @@ if (prePlayerId && reconnectLoading && !ticketToken) {
       </div>
     );
   }
+
+  // ── Ticket sales closed ────────────────────────────────────────────────────
+if (ticketSalesClosedReason) {
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-6"
+      style={styles.page}
+    >
+      <div style={styles.eyebrow}>FundRaisely</div>
+
+      <h1 style={styles.title}>GAME STARTED</h1>
+
+      <p
+        style={{
+          ...styles.subtitle,
+          marginTop: '12px',
+          fontSize: '15px',
+        }}
+      >
+        {ticketSalesClosedReason}
+      </p>
+
+      <button
+        onClick={() => navigate('/')}
+        style={{
+          ...styles.joinBtn,
+          marginTop: '24px',
+          width: 'auto',
+          padding: '12px 28px',
+        }}
+      >
+        Go Back
+      </button>
+
+      <div style={styles.ring1} />
+      <div style={styles.ring2} />
+    </div>
+  );
+}
 
   // ── Room full - show before any payment flow ──────────────────────────────────
 if (roomFull) {

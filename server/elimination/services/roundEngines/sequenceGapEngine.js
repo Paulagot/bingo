@@ -30,7 +30,12 @@ const generateSequence = (patternType, t) => {
     // Wider and more similar step values at high difficulty (harder to distinguish the pattern)
     const start = Math.floor(randomBetween(1, Math.round(lerp(15, 40, t))));
     const stepA = Math.floor(randomBetween(2, Math.round(lerp(6, 12, t))));
-    const stepB = Math.floor(randomBetween(2, Math.round(lerp(6, 12, t))));
+    let stepB = Math.floor(randomBetween(2, Math.round(lerp(6, 12, t))));
+    let attempts = 0;
+    while (Math.abs(stepA - stepB) < 2 && attempts < 20) {
+      stepB = Math.floor(randomBetween(2, Math.round(lerp(6, 12, t))));
+      attempts++;
+    }
     seq = [start];
     for (let i = 1; i < len; i++) {
       seq.push(seq[i - 1] + (i % 2 === 1 ? stepA : stepB));
@@ -58,7 +63,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
   const maxDifficulty   = 1 + (safeTotalRounds - 1) * 0.15;
   const t               = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
-  const tCurved         = Math.sqrt(t); // softer curve for timing mechanics
+  const tCurved         = t;
 
   const patternType = PATTERN_TYPES[Math.floor(Math.random() * PATTERN_TYPES.length)];
   const sequence    = generateSequence(patternType, t);
@@ -77,8 +82,8 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const actualValue     = sequence[missingIndex];
   const displaySequence = sequence.map((v, i) => (i === missingIndex ? null : v));
 
-  // ── Display duration: 4500ms (easy) → 3000ms (hard), sqrt-curved ─────────
-  const displayDurationMs = Math.round(lerp(4500, 3000, tCurved));
+  // ── Display duration stays long enough to inspect and solve the sequence ─────────
+  const displayDurationMs = Math.round(lerp(5500, 4500, tCurved));
 
   return {
     roundType: ROUND_TYPE.SEQUENCE_GAP,

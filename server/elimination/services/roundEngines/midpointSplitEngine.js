@@ -27,7 +27,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const margin = 0.12;
 
   // ── Separation: closer at high difficulty (harder to eyeball the midpoint) ─
-  const minSep = lerp(0.35, 0.20, t);
+  const minSep = lerp(0.35, 0.25, t);
   const maxSep = 0.75;
 
   let ax, ay, bx, by;
@@ -70,14 +70,14 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
 
   // ── Anchor size: smaller at high difficulty (harder to judge position) ─────
   const anchorSize = randomBetween(
-    lerp(0.040, 0.018, t),
-    lerp(0.055, 0.028, t),
+    lerp(0.040, 0.025, t),
+    lerp(0.055, 0.035, t),
   );
 
   // ── Line thickness: thinner at high difficulty ────────────────────────────
   const lineThickness = randomBetween(
-    lerp(1.6, 0.6, t),
-    lerp(2.2, 1.0, t),
+    lerp(1.6, 0.9, t),
+    lerp(2.2, 1.3, t),
   );
 
   return {

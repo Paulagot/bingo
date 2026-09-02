@@ -1,5 +1,5 @@
-import { randomBetween, clamp, errorToScore, calcSpeedBonus } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import { randomBetween, clamp, errorToScore, calcSpeedBonus, lerp } from '../../utils/eliminationHelpers.js';
+import { ROUND_TYPE, ROUND_DURATION, GAME_RULES } from '../../utils/eliminationConstants.js';
 
 // High-contrast, accessible colours
 const COLOURS = [
@@ -11,46 +11,53 @@ const COLOURS = [
 
 const SHAPE_TYPES = ['circle', 'square'];
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
-  // Total shapes scales with difficulty
-  const totalShapes = Math.floor(randomBetween(8 + difficulty * 3, 14 + difficulty * 4));
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
 
-  // Pick target colour
+  // Counting one colour should get harder through a moderate increase in visual
+  // load, not by removing the board before the player can scan it.
+  const minShapes = Math.round(lerp(11, 17, t));
+  const maxShapes = Math.round(lerp(17, 23, t));
+  const totalShapes = Math.floor(randomBetween(minShapes, maxShapes + 1));
+
   const targetColour = COLOURS[Math.floor(Math.random() * COLOURS.length)];
 
-  // Target count: 25–45% of total (not too few, not a majority)
+  // Target count: 25–45% of total (not too few, not a majority).
   const targetFraction = randomBetween(0.25, 0.45);
-  const actualCount = Math.round(totalShapes * targetFraction);
+  const requestedTargetCount = Math.round(totalShapes * targetFraction);
 
-  // Generate shapes with minimum spacing to avoid overlap
   const shapes = [];
-  const minDist = 0.10;
+  const minDist = lerp(0.11, 0.085, t);
   let attempts = 0;
 
-  for (let i = 0; i < totalShapes && attempts < 500; attempts++) {
+  for (let i = 0; i < totalShapes && attempts < 600; attempts++) {
     const x = randomBetween(0.05, 0.95);
     const y = randomBetween(0.05, 0.95);
     if (shapes.some(s => Math.hypot(s.x - x, s.y - y) < minDist)) continue;
 
-    const isTarget = shapes.filter(s => s.colour === targetColour.id).length < actualCount;
+    const isTarget = shapes.filter(s => s.colour === targetColour.id).length < requestedTargetCount;
     const colour = isTarget
       ? targetColour
       : COLOURS.filter(c => c.id !== targetColour.id)[Math.floor(Math.random() * 3)];
 
     const shapeType = SHAPE_TYPES[Math.floor(Math.random() * 2)];
-    const size = randomBetween(0.04, 0.07);
+    const size = randomBetween(lerp(0.05, 0.045, t), lerp(0.075, 0.065, t));
 
     shapes.push({ x, y, colour: colour.id, hex: colour.hex, shapeType, size });
     i++;
   }
 
-  // Shuffle so target shapes aren't all first
   for (let i = shapes.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shapes[i], shapes[j]] = [shapes[j], shapes[i]];
   }
 
-  const displayDurationMs = Math.round(Math.max(1500, randomBetween(2500 - difficulty * 200, 3500 - difficulty * 200)));
+  // Round 1: 5.0–6.0s  →  Round 8: 4.4–5.4s.
+  const minDisplay = Math.round(lerp(5000, 4400, t));
+  const maxDisplay = Math.round(lerp(6000, 5400, t));
+  const displayDurationMs = Math.round(randomBetween(minDisplay, maxDisplay));
 
   return {
     roundType: ROUND_TYPE.COLOUR_COUNT,

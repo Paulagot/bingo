@@ -126,15 +126,15 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const template = templatePool[Math.floor(randomBetween(0, templatePool.length))] ?? 'curve';
 
   // Preview time: more time at low difficulty to memorise the path
-  const previewDurationMs = Math.round(lerp(4500, 2000, t));
+  const previewDurationMs = Math.round(lerp(5200, 4000, t));
 
   // Lane width: wider at low difficulty = more forgiving trace
-  const laneWidth = lerp(0.13, 0.07, t);
+  const laneWidth = lerp(0.13, 0.085, t);
 
   // Path scale: larger at low difficulty so the path is easier to see and trace.
   // Round 1 fills ~72% of the arena. Round 8 fills ~52% - still substantial
   // but combined with narrower lane, less preview time and harder shapes.
-  const scale = lerp(0.72, 0.52, t);
+  const scale = lerp(0.72, 0.58, t);
 
   // Origin margin: keep origin closer to centre at high scale so the large
   // path doesn't get clipped by the arena edges.

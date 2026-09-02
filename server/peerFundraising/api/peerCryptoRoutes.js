@@ -18,7 +18,7 @@
 //     → entries with join_url returned to frontend
 //
 // Crypto slots into the same confirmed-only accounting path as Stripe.
-// Nothing here bypasses the fulfilment pipeline — confirmPeerOrder is the
+// Nothing here bypasses the fulfilment pipeline - confirmPeerOrder is the
 // single source of truth for what "confirmed" means, same as the webhook.
 //
 // Mount in the public block (before auth middleware) in server/index.js:
@@ -154,7 +154,7 @@ router.post(
       // ── Confirm order + run full peer fulfilment ──────────────────────────
       // confirmPeerOrder is the same function the Stripe webhook calls.
       // It handles: status update, reservations, expandPeerOrder (entries +
-      // join_url), ticket emails, and fulfilment state — in one place.
+      // join_url), ticket emails, and fulfilment state - in one place.
       // Passing externalTransactionId lets the ledger record the tx hash
       // the same way a Stripe payment intent ID is recorded.
       await confirmPeerOrder({
@@ -185,7 +185,7 @@ router.post(
         ledgerAmount:      verification.totalFiat,
         ledgerCurrency:    verification.fiatCurrency,
         web3TransactionId: verification.web3Result?.id ?? null,
-        // ticketId / joinToken are null — entries carry join_url instead.
+        // ticketId / joinToken are null - entries carry join_url instead.
         // PeerSupportPage reads entries via getPublicOrderSummary after this.
         ticketId:          null,
         joinToken:         null,

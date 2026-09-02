@@ -1,3 +1,4 @@
+//server/elimination/utils/eliminationConstants.js
 // ─── Room Status ────────────────────────────────────────────────────────────
 export const ROOM_STATUS = {
   WAITING: 'waiting',
@@ -90,7 +91,10 @@ export const TIMING = {
   REVEAL_DURATION_MS: 10000,
   RESULTS_DURATION_MS: 8000,
   DEFAULT_ROUND_DURATION_MS: 15000,
+   LATE_SUBMISSION_GRACE_MS: 2000,
 };
+
+
 
 // ─── Round Durations by type (ms) ────────────────────────────────────────────
 export const ROUND_DURATION = {
