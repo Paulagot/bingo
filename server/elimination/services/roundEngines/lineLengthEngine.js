@@ -20,13 +20,13 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
-  const tCurved = Math.sqrt(t);
+  const tCurved = t;
 
   // ── Target length: bias toward shorter at high difficulty ─────────────────
   // Short lines are harder to memorise and reproduce accurately
   const targetLength = randomBetween(
-    lerp(0.30, 0.20, t),
-    lerp(0.70, 0.45, t),
+    lerp(0.30, 0.24, t),
+    lerp(0.70, 0.50, t),
   );
 
   const orientation = ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)];
@@ -41,8 +41,8 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   );
   const playerStartY = randomBetween(0.55, 0.75);
 
-  // ── Reference duration: 3200ms (easy) → 900ms (hard), sqrt-curved ────────
-  const referenceDurationMs = Math.round(lerp(3200, 900, tCurved));
+  // ── Reference duration remains readable even at maximum difficulty ────────
+  const referenceDurationMs = Math.round(lerp(3500, 2500, tCurved));
 
   return {
     roundType: ROUND_TYPE.LINE_LENGTH,

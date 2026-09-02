@@ -18,14 +18,14 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
-  const tCurved = Math.sqrt(t); // softer curve for timing mechanics
+  const tCurved = t;
 
   const targetAngle = Math.round(randomBetween(5, 175));
 
   // ── Initial offset: further from target at high difficulty ────────────────
   // Easy: at least 20° away. Hard: at least 60° away - more rotation needed,
   // more chance of overshooting
-  const minOffset = Math.round(lerp(20, 60, t));
+  const minOffset = Math.round(lerp(20, 45, t));
   let initialAngle = Math.round(randomBetween(5, 175));
   let attempts = 0;
   while (Math.abs(initialAngle - targetAngle) < minOffset && attempts < 200) {
@@ -37,8 +37,8 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const anchorY = randomBetween(0.40, 0.60);
 
   // ── Guide visibility: shorter at high difficulty (less time to memorise) ──
-  // Uses tCurved so it doesn't drop too aggressively in early rounds
-  const guideVisibleMs = Math.round(lerp(2500, 800, tCurved));
+  // Uses the normalised round difficulty directly for a gradual progression
+  const guideVisibleMs = Math.round(lerp(3200, 2200, tCurved));
 
   // ── Line length: longer range, shorter at high difficulty ─────────────────
   const lineLength = randomBetween(

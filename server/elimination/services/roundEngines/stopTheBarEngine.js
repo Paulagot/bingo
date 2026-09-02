@@ -27,13 +27,13 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   // Soften the curve with sqrt so early rounds feel the improvement quickly
   // but late rounds don't spike to an unplayable speed.
   // Round 1: t=0, tCurved=0  →  Round 4: t=0.43, tCurved=0.66  →  Round 8: t=1, tCurved=1
-  const tCurved = Math.sqrt(t);
+  const tCurved = t;
 
   // Speed: approachable early, challenging but fair at the end.
   // Round 1: 0.85–1.1 widths/sec  →  Round 4: ~1.3–1.6  →  Round 8: 1.6–2.1 widths/sec
-  const baseSpeed = lerp(0.8, 1.8, tCurved);
+  const baseSpeed = lerp(0.8, 1.6, tCurved);
   const speedWidthsPerSec = clamp(
-    baseSpeed + randomBetween(0.05, 0.3),
+    baseSpeed + randomBetween(0.05, 0.25),
     MIN_SPEED,
     MAX_SPEED,
   );
@@ -46,13 +46,13 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
 
   // Target position: early rounds keep target comfortably central,
   // later rounds allow it near edges where timing is harder to judge
-  const edgeMargin = lerp(0.25, 0.08, tCurved);
+  const edgeMargin = lerp(0.25, 0.12, tCurved);
   const targetPosition = randomBetween(edgeMargin, 1 - edgeMargin);
 
   // Target width: wide early, narrower late - also uses softened curve
   // Round 1: 8%–14% of bar  →  Round 8: 3%–7% of bar
   const targetWidth = clamp(
-    randomBetween(lerp(0.08, 0.03, tCurved), lerp(0.14, 0.07, tCurved)),
+    randomBetween(lerp(0.08, 0.05, tCurved), lerp(0.14, 0.08, tCurved)),
     0.025,
     0.14,
   );

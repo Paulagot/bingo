@@ -394,7 +394,7 @@ export default function PricingPage() {
       connectedDevices: '20',
       ctaLabel: 'Create free account',
       ctaTo: '/signup',
-      setupNote: 'Self-guided setup - no onboarding support included.',
+      setupNote: 'Self-guided setup - no dedicated onboarding support included.',
     },
     {
       name: 'Growth',

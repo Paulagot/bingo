@@ -18,18 +18,18 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
-  const tCurved = Math.sqrt(t);
+  const tCurved = t;
 
   // ── Dot count: 5–15 (easy) → 20–30 (hard) ────────────────────────────────
-  const minCount = Math.round(lerp(5, 15, t));
-  const maxCount = Math.round(lerp(15, 25, t));
+  const minCount = Math.round(lerp(6, 14, t));
+  const maxCount = Math.round(lerp(12, 21, t));
   const dotCount = Math.floor(randomBetween(minCount, maxCount));
 
   // ── Dot spacing: looser (easy) → tighter (hard) ───────────────────────────
   // Tightly packed dots are harder to count accurately
   const minDist = randomBetween(
-    lerp(0.08, 0.04, t),
-    lerp(0.12, 0.06, t),
+    lerp(0.08, 0.05, t),
+    lerp(0.12, 0.07, t),
   );
 
   const dots = [];
@@ -45,12 +45,16 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
 
   // ── Dot radius: smaller at high difficulty ────────────────────────────────
   const dotRadius = randomBetween(
-    lerp(0.022, 0.010, t),
-    lerp(0.032, 0.016, t),
+    lerp(0.022, 0.014, t),
+    lerp(0.032, 0.020, t),
   );
 
-  // ── Display duration: 3200ms (easy) → 1400ms (hard), sqrt-curved ─────────
-  const displayDurationMs = Math.round(lerp(3200, 2000, tCurved));
+  // ── Display duration ─────────────────────────────────────────────────────
+  // Counting 14–21 scattered dots is not realistically achievable in 2.5s.
+  // Keep the preview long enough to count while still making later rounds harder
+  // through dot quantity, spacing and size.
+  // Round 1: 5.0s  →  Round 8: 4.4s.
+  const displayDurationMs = Math.round(lerp(5000, 4400, tCurved));
 
   return {
     roundType: ROUND_TYPE.QUICK_COUNT,

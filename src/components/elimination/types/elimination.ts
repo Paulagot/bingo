@@ -1,3 +1,4 @@
+//src/components/elimination/types/elimination.ts
 // ─── Round Types ──────────────────────────────────────────────────────────────
 export type RoundType = 'true_centre' | 'midpoint_split' | 'stop_the_bar' | 'draw_angle' | 'flash_grid' | 'quick_count' | 'flash_maths' | 'line_length' | 'balance_point' | 'pattern_align' | 'sequence_gap' | 'colour_count' | 'time_estimation' | 'character_count'   | 'reaction_tap'
   | 'moving_target_tap'
@@ -299,7 +300,7 @@ export interface SequenceGapReveal { roundType: 'sequence_gap'; sequence: (numbe
 export interface ColourCountReveal { roundType: 'colour_count'; shapes: any[]; targetColour: string; targetHex: string; targetLabel: string; actualCount: number; playerAnswer: number; difference: number; errorDistance: number; score: number; }
 export interface TimeEstimationReveal { roundType: 'time_estimation'; targetTimeMs: number; playerTimeMs: number; difference: number; errorDistance: number; score: number; }
 export interface CharacterCountReveal { roundType: 'character_count'; characters: any[]; targetCharacter: string; actualCount: number; playerAnswer: number; difference: number; errorDistance: number; score: number; }
-export interface PatternAlignReveal { roundType: 'pattern_align'; targetX: number; targetY: number; targetRotation: number; playerX: number; playerY: number; playerRotation: number; positionError: number; rotationDiff: number; errorDistance: number; score: number; }
+export interface PatternAlignReveal { roundType: 'pattern_align'; shapeType: string;  shapeSize: number; targetX: number; targetY: number; targetRotation: number; playerX: number; playerY: number; playerRotation: number; positionError: number; rotationDiff: number; errorDistance: number; score: number; }
 export interface ReactionTapReveal {
   roundType: 'reaction_tap';
   targetPosition: { x: number; y: number };

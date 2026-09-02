@@ -28,7 +28,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
   const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
   const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
-  const tCurved = Math.sqrt(t);
+  const tCurved = t;
 
   // Higher difficulty = shorter, less predictable delay window
   const preTargetDelayMs = Math.round(randomBetween(
@@ -37,7 +37,7 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
   ));
 
   // Higher difficulty = smaller target (harder to tap precisely)
-  const targetRadius = lerp(0.1, 0.05, tCurved);
+  const targetRadius = lerp(0.1, 0.065, tCurved);
 
   const targetPosition = {
     x: randomBetween(0.18, 0.82),

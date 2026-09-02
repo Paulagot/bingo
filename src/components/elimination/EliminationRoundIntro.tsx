@@ -52,7 +52,7 @@ const ROUND_TYPE_META: Record<RoundType, { label: string; glyph: string; descrip
   balance_point: {
     label: 'Balance Point',
     glyph: '⚖',
-    description: 'Tap where the weighted beam would perfectly balance',
+    description: 'Move the fulcrum to where you think the weighted beam would balance',
   },
   pattern_align: {
     label: 'Pattern Align',
@@ -72,12 +72,12 @@ const ROUND_TYPE_META: Record<RoundType, { label: string; glyph: string; descrip
   time_estimation: {
     label: 'Time Estimation',
     glyph: '⏱',
-    description: 'No clock shown - tap when you think the target time has passed',
+    description: 'You will be given a time to count. Tap to start and then tap when you think the target time has passed',
   },
   character_count: {
     label: 'Character Count',
     glyph: 'A?',
-    description: 'Letters flash on screen - count how many match the target character',
+    description: 'Characters flash on screen - count how many match the target character',
   },
   reaction_tap: {
   label: 'Reaction Tap',

@@ -1,3 +1,4 @@
+//src/components/elimination/rounds/PatternAlignRound.tsx
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { PatternAlignConfig, PatternAlignSubmission } from '../types/elimination';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';

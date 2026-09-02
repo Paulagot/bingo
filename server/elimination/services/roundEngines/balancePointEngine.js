@@ -17,15 +17,15 @@ export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
 
   // ── Weight count: 3 (easy) → 6 (hard) ────────────────────────────────────
   // More weights = harder to estimate the weighted average mentally
-  const weightCount = Math.round(lerp(3, 6, t));
+  const weightCount = Math.round(lerp(3, 5, t));
 
   // ── Weight range: 1–4 (easy) → 1–9 (hard) ────────────────────────────────
   // Wider weight spread means more extreme, harder-to-eyeball imbalances
-  const maxWeight = Math.round(lerp(4, 9, t));
+  const maxWeight = Math.round(lerp(4, 7, t));
 
   // ── Minimum spacing shrinks with difficulty ───────────────────────────────
   // Closer weights are harder to distinguish visually
-  const minSpacing = lerp(0.20, 0.12, t);
+  const minSpacing = lerp(0.20, 0.14, t);
 
   // ── Generate positions with minimum spacing ───────────────────────────────
   const weights = [];
