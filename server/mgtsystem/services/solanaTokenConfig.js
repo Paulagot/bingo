@@ -142,7 +142,7 @@ export const SOLANA_TOKENS = {
 };
 
 export const SOLANA_TOKEN_LIST = [
-  'SOL', 'USDG', 'JUP', 'JTO', 'PYTH',
+  'SOL', 'USDC', 'USDG', 'JUP', 'JTO', 'PYTH',
   'KMNO', 'WIF', 'BONK', 'MEW', 'TRUMP', ,
 ];
 

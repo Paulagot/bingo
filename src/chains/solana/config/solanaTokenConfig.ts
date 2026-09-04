@@ -257,6 +257,7 @@ USDC: {
 export const SOLANA_TOKEN_LIST: SolanaTokenCode[] = [
   'SOL',
   'USDG',
+  'USDC',
   'JUP',
   'JTO',
   'PYTH',
