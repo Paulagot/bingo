@@ -29,6 +29,16 @@ export interface PublicChallenge {
   club_primary_color?:          string | null;
   club_background_color?:       string | null;
   club_text_on_primary_color?:  string | null;
+   /** Linked public event copy. */
+  summary?: string | null;
+ 
+
+  /** Linked event fundraising information. Values are in currency units, not cents. */
+  goal_amount?: number | string | null;
+  raised_amount?: number | string | null;
+  event_id?: string | null;
+
+
 }
 
 export interface ScheduleRow {

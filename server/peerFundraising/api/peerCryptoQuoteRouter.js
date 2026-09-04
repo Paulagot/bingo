@@ -28,7 +28,7 @@ const router = express.Router();
 const QUOTE_TTL_MS = 2 * 60 * 1000;
 
 const SUPPORTED_TOKENS = new Set([
-  'SOL', 'USDG', 'JUP', 'BONK', 'WIF', 'JTO', 'KMNO', 'TRUMP', 'MEW', 'PYTH',
+  'SOL', 'USDG','USDC', 'JUP', 'BONK', 'WIF', 'JTO', 'KMNO', 'TRUMP', 'MEW', 'PYTH',
 ]);
 
 const T_FUNDRAISERS = `${TABLE_PREFIX}peer_fundraisers`;

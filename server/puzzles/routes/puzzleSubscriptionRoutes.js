@@ -180,24 +180,141 @@ router.get('/challenge/:challengeId', async (req, res) => {
   try {
     const [[challenge]] = await database.connection.execute(
       `SELECT
-         c.id, c.club_id, c.title, c.description, c.total_weeks,
-         c.starts_at, c.weekly_price, c.currency, c.is_free, c.status,
+         c.id,
+         c.club_id,
+         c.room_id,
+         c.title,
+         c.description AS challenge_description,
+         c.total_weeks,
+         c.starts_at,
+         c.weekly_price,
+         c.currency,
+         c.is_free,
+         c.status,
          cl.name AS club_name,
          cl.brand_logo_url AS club_logo_url,
          cl.brand_primary_color AS club_primary_color,
          cl.brand_background_color AS club_background_color,
          cl.brand_text_on_primary_color AS club_text_on_primary_color
        FROM fundraisely_puzzle_challenges c
-       JOIN fundraisely_clubs cl ON cl.id = c.club_id
-       WHERE c.id = ? AND c.status != 'cancelled'
+       JOIN fundraisely_clubs cl
+         ON cl.id = c.club_id
+       WHERE c.id = ?
+         AND c.status != 'cancelled'
        LIMIT 1`,
       [req.params.challengeId]
     );
-    if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
-    res.json(challenge);
+
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    // Linked event is optional so older/unlinked subscriptions still work.
+    // Puzzle subscriptions are linked to events by room_id via
+    // fundraisely_event_integrations.external_ref.
+    const [eventRows] = challenge.room_id
+      ? await database.connection.execute(
+          `SELECT
+             e.id,
+             e.title,
+             e.summary,
+             e.description,
+             e.goal_amount,
+             e.actual_amount
+           FROM fundraisely_event_integrations ei
+           JOIN fundraisely_events e
+             ON e.id = ei.event_id
+            AND e.club_id = ei.club_id
+           WHERE ei.club_id = ?
+             AND ei.integration_type = 'puzzle_sub'
+             AND ei.external_ref = ?
+           ORDER BY ei.created_at DESC
+           LIMIT 1`,
+          [challenge.club_id, challenge.room_id]
+        )
+      : [[]];
+
+    const event = eventRows?.[0] || {};
+
+    // Initial subscription payments and renewals are already written to
+    // quiz_payment_ledger as confirmed rows against the subscription room.
+    let ledgerRaised = 0;
+
+    if (challenge.room_id) {
+      const [[raisedRow]] = await database.connection.execute(
+        `SELECT
+           COALESCE(SUM(amount), 0) AS raised_amount
+         FROM fundraisely_quiz_payment_ledger
+         WHERE room_id = ?
+           AND status = 'confirmed'`,
+        [challenge.room_id]
+      );
+
+      ledgerRaised = Number(raisedRow?.raised_amount || 0);
+    }
+
+    // Keep actual_amount as a fallback for legacy/manual totals.
+    const eventActual = Number(event.actual_amount || 0);
+
+    const raisedAmount = Math.max(
+      ledgerRaised,
+      eventActual
+    );
+
+    res.json({
+      id: challenge.id,
+      club_id: challenge.club_id,
+
+      // Prefer linked event public copy.
+      // Fall back to the challenge's own values for older subscriptions.
+      title:
+        event.title ||
+        challenge.title,
+
+      summary:
+        event.summary ??
+        null,
+
+      description:
+        event.description ??
+        challenge.challenge_description ??
+        null,
+
+      total_weeks: challenge.total_weeks,
+      starts_at: challenge.starts_at,
+      weekly_price: challenge.weekly_price,
+      currency: challenge.currency,
+      is_free: challenge.is_free,
+      status: challenge.status,
+
+      club_name: challenge.club_name,
+      club_logo_url: challenge.club_logo_url,
+      club_primary_color: challenge.club_primary_color,
+      club_background_color: challenge.club_background_color,
+      club_text_on_primary_color:
+        challenge.club_text_on_primary_color,
+
+      event_id:
+        event.id ??
+        null,
+
+      goal_amount:
+        event.goal_amount != null
+          ? Number(event.goal_amount)
+          : null,
+
+      raised_amount:
+        raisedAmount,
+    });
   } catch (err) {
-    console.error('[puzzle-subscriptions] challenge lookup error:', err);
-    res.status(500).json({ error: 'Failed to load challenge.' });
+    console.error(
+      '[puzzle-subscriptions] challenge lookup error:',
+      err
+    );
+
+    res.status(500).json({
+      error: 'Failed to load challenge.',
+    });
   }
 });
 
