@@ -14,7 +14,7 @@ import {
 
 const router = express.Router();
 const CLUBS_TABLE = `${TABLE_PREFIX}clubs`;
-const SUPPORTED_TOKENS = new Set(['SOL','USDG','JUP','BONK','WIF','JTO','KMNO','TRUMP','MEW','PYTH']);
+const SUPPORTED_TOKENS = new Set(['SOL','USDG','USDC','JUP','BONK','WIF','JTO','KMNO','TRUMP','MEW','PYTH']);
 
 const writeLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,

@@ -29,7 +29,7 @@ const QUOTE_TTL_MS = 2 * 60 * 1000;
 // and quiz rooms could diverge on which tokens they support over time,
 // and importing a shared list would silently couple them.
 const SUPPORTED_TOKENS = new Set([
-  'SOL', 'USDG', 'JUP', 'BONK', 'WIF', 'JTO', 'KMNO', 'TRUMP', 'MEW', 'PYTH',
+  'SOL', 'USDG', 'USDC', 'JUP', 'BONK', 'WIF', 'JTO', 'KMNO', 'TRUMP', 'MEW', 'PYTH',
 ]);
 
 router.post('/:clubId/crypto/quote', async (req, res) => {

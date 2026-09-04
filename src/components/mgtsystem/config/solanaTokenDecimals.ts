@@ -11,6 +11,7 @@
 export const SOLANA_TOKEN_DECIMALS = {
   SOL: 9,
   USDG: 6,
+  USDC:  6,
   JUP: 6,
   BONK: 5,
   WIF: 6,
