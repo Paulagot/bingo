@@ -36,7 +36,7 @@ const QUOTE_TTL_MS = 2 * 60 * 1000;
 
 // Accepted token codes - must match solanaTokenConfig on frontend
 const SUPPORTED_TOKENS = new Set([
-  'SOL', 'USDG', 'JUP', 'BONK', 'WIF', 'JTO', 'KMNO', 'TRUMP', 'MEW', 'PYTH',
+  'SOL', 'USDG', 'JUP', 'USDC', 'BONK', 'WIF', 'JTO', 'KMNO', 'TRUMP', 'MEW', 'PYTH',
 ]);
 
 router.get('/', async (req, res) => {

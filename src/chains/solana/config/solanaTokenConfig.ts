@@ -18,6 +18,7 @@
 export type SolanaTokenCode =
   | 'SOL'
   | 'USDG'
+  | 'USDC'
   | 'JUP'
   | 'BONK'
   | 'WIF'
@@ -93,6 +94,19 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
       'https://static.tgbwidget.com/currency_images%2F1dffe878-2164-4a11-902c-04ec7df9cca9.png',
     coingeckoId: 'solana',
   },
+
+USDC: {
+  code: 'USDC',
+  name: 'USD Coin',
+  decimals: 6,
+  mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  coingeckoId: 'usd-coin',
+  logoUrl: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+  isNative: false,
+  tgbCode: 'USDC',        // The Giving Block code — USDC is directly supported
+  tgbMinDonation: 1,      // match whatever your other stablecoins use (likely 1 or 5)
+  minEntryFee: 1,         // match your other stablecoins
+},
 
   // USDC: {
   //   code: 'USDC',
