@@ -1211,7 +1211,7 @@ export default function PuzzleDropLandingPage() {
           <PuzzleDropHeroArtwork />
         </div>
 
-        {/* ── ORGANISER STORY — deliberately high on the page ──────────────── */}
+        {/* ── ORGANISER STORY - deliberately high on the page ──────────────── */}
         {info.description ? (
           <section className="mt-6 rounded-[30px] border border-[#E8E0D3] bg-white p-6 shadow-sm sm:p-8">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#E36B2C]">
@@ -1337,7 +1337,7 @@ export default function PuzzleDropLandingPage() {
         </div>
       </div>
 
-      {/* ── STICKY BUY BAR — same interaction model as peer support ────────── */}
+      {/* ── STICKY BUY BAR - same interaction model as peer support ────────── */}
       <div className="fixed inset-x-0 bottom-0 z-[9998] border-t border-[#DDD6CA] bg-white/95 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3 shadow-[0_-8px_30px_rgba(7,26,68,0.10)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -1691,7 +1691,7 @@ function PurchasePanel({
         <span className="text-xl font-black text-[#071A44]">
           {selectedTier
             ? currencyFmt(selectedTotal, info.currencySymbol)
-            : '—'}
+            : '-'}
         </span>
       </div>
 
@@ -1710,7 +1710,7 @@ function PurchasePanel({
             <p className="text-2xl font-black text-[var(--puzzle-primary)]">
               {selectedTier
                 ? currencyFmt(Number(selectedTier.price), info.currencySymbol)
-                : '—'}
+                : '-'}
             </p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-[#8A847B]">
               {info.currency}

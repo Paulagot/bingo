@@ -6,8 +6,8 @@
  * Club tokens have no role field or role !== 'supporter'.
  * Supporter tokens have role === 'supporter'.
  *
- * Either way, req.user.id is set so puzzle routes work
- * for both clubs (testing) and players (production).
+ * Either way, req.user.id and req.club_id are always set so
+ * downstream routes (puzzle save/submit) can rely on them.
  */
 
 import jwt from 'jsonwebtoken';
@@ -37,9 +37,15 @@ export const authenticateAny = (req, res, next) => {
     // Puzzle routes use req.user.id as the playerId
     req.user         = { id: decoded.supporterId };
   } else {
-    // Club user token - existing behaviour unchanged
-    req.user    = decoded;
-    req.club_id = decoded.club_id ?? req.user?.club_id;
+    // Club user token
+    // JWT payloads use camelCase (userId, clubId) but downstream routes
+    // expect req.user.id and req.club_id. Normalise both so save/submit
+    // don't 401 on a perfectly valid token.
+    req.user = {
+      ...decoded,
+      id: decoded.userId ?? decoded.id ?? decoded.club_id,
+    };
+    req.club_id = decoded.clubId ?? decoded.club_id;
   }
 
   next();

@@ -1,6 +1,8 @@
 //src/services/PeerService.ts
 import BaseService from '../components/mgtsystem/services/BaseService';
 
+export type ParticipantStatus = 'pending' | 'approved' | 'rejected';
+
 export type PeerFundraiserStatus =
   | 'draft'
   | 'published'
@@ -263,6 +265,9 @@ export interface PeerParticipant {
   video_url: string | null;
   is_active: boolean | number;
   notes: string | null;
+   status: ParticipantStatus;           // ← ADD
+  reviewed_by: string | null;          // ← ADD
+  reviewed_at: string | null;
   order_count?: number;
   confirmed_total?: number;
   claimed_total?: number;
@@ -285,6 +290,8 @@ export interface CreatePeerParticipantPayload {
 export interface UpdatePeerParticipantPayload
   extends Partial<CreatePeerParticipantPayload> {
   isActive?: boolean;
+  status?: ParticipantStatus;          // ← ADD
+  reviewedBy?: string;                 // ← ADD
 }
 
 export interface PeerPackItem {
@@ -579,6 +586,21 @@ class PeerService extends BaseService {
   createStripeCheckout(peerFundraiserId: string, orderId: string) {
     return this.request<StripeCheckoutResponse>(`/peer-support/orders/${encodeURIComponent(orderId)}/stripe-checkout`, { method: 'POST', body: JSON.stringify({ peerFundraiserId }) });
   }
+
+approveParticipant(fundraiserId: string, participantId: string) {
+  return this.request<{ participant: PeerParticipant }>(
+    `/peer-fundraisers/${encodeURIComponent(fundraiserId)}/participants/${encodeURIComponent(participantId)}`,
+    { method: 'PATCH', body: JSON.stringify({ isActive: true, status: 'approved' }) }
+  );
+}
+ 
+rejectParticipant(fundraiserId: string, participantId: string) {
+  return this.request<{ participant: PeerParticipant }>(
+    `/peer-fundraisers/${encodeURIComponent(fundraiserId)}/participants/${encodeURIComponent(participantId)}`,
+    { method: 'PATCH', body: JSON.stringify({ isActive: false, status: 'rejected' }) }
+  );
+}
+
 }
 
 export default new PeerService();

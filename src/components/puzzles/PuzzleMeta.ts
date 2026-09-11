@@ -1,3 +1,4 @@
+//src/components/puzzles/PuzzleMeta.ts
 import type { PuzzleDifficulty, PuzzleType } from './puzzleTypes';
 
 type Instructions = string | string[];

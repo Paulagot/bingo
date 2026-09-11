@@ -1,5 +1,6 @@
 // peerParticipantService.js
 // Extracted from peerCoreService.js by split_peer_core.mjs - behaviour unchanged.
+// Updated: added status + reviewed_by + reviewed_at support for self-signup workflow.
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import {
@@ -7,11 +8,11 @@ import {
   id, parseJson, slugify, fail, assertFundraiser, uniqueSlug,
 } from './peerCoreShared.js';
 
-export async function listParticipants(fid,clubId) {
-  const fundraiser=await assertFundraiser(fid,clubId);
+export async function listParticipants(fid, clubId) {
+  const fundraiser = await assertFundraiser(fid, clubId);
 
-  if(fundraiser.format_type==='sponsored'){
-    const [rows]=await connection.execute(
+  if (fundraiser.format_type === 'sponsored') {
+    const [rows] = await connection.execute(
       `SELECT
          p.*,
          SUM(c.status='confirmed') AS confirmed_count,
@@ -24,18 +25,18 @@ export async function listParticipants(fid,clubId) {
          ),0) AS claimed_total
        FROM ${P} p
        LEFT JOIN ${TABLE_PREFIX}sponsored_contributions c
-         ON c.participant_id=p.id
-        AND c.peer_fundraiser_id=p.peer_fundraiser_id
-       WHERE p.peer_fundraiser_id=?
-         AND p.club_id=?
+         ON c.participant_id = p.id
+        AND c.peer_fundraiser_id = p.peer_fundraiser_id
+       WHERE p.peer_fundraiser_id = ?
+         AND p.club_id = ?
        GROUP BY p.id
-       ORDER BY confirmed_total DESC,p.participant_name`,
-      [fid,clubId]
+       ORDER BY confirmed_total DESC, p.participant_name`,
+      [fid, clubId]
     );
-    return {participants:rows};
+    return { participants: rows };
   }
 
-  const [rows]=await connection.execute(
+  const [rows] = await connection.execute(
     `SELECT
        p.*,
        SUM(o.payment_status='confirmed') AS confirmed_count,
@@ -50,97 +51,151 @@ export async function listParticipants(fid,clubId) {
        ),0) AS claimed_total
      FROM ${P} p
      LEFT JOIN ${O} o
-       ON o.participant_id=p.id
-      AND o.peer_fundraiser_id=p.peer_fundraiser_id
-     WHERE p.peer_fundraiser_id=?
-       AND p.club_id=?
+       ON o.participant_id = p.id
+      AND o.peer_fundraiser_id = p.peer_fundraiser_id
+     WHERE p.peer_fundraiser_id = ?
+       AND p.club_id = ?
      GROUP BY p.id
-     ORDER BY confirmed_total DESC,p.participant_name`,
-    [fid,clubId]
+     ORDER BY confirmed_total DESC, p.participant_name`,
+    [fid, clubId]
   );
-  return {participants:rows};
+  return { participants: rows };
 }
 
-export async function createParticipant(fid,clubId,b) {
-  await assertFundraiser(fid,clubId);
+export async function createParticipant(fid, clubId, b) {
+  await assertFundraiser(fid, clubId);
   if (!b?.participantName?.trim()) fail('participant_name_required');
-  const participantId=id();
-  const participantSlug=await uniqueSlug(P,'peer_fundraiser_id',fid,'participant_slug',b.participantSlug||b.participantName);
+
+  const participantId   = id();
+  const participantSlug = await uniqueSlug(
+    P, 'peer_fundraiser_id', fid,
+    'participant_slug', b.participantSlug || b.participantName
+  );
+
+  // Organiser-created participants are approved + active immediately
   await connection.execute(
     `INSERT INTO ${P}
-      (id,peer_fundraiser_id,club_id,participant_name,participant_slug,email,phone,personal_target,
-       personal_message,profile_image_url,video_url,notes)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [participantId,fid,clubId,b.participantName.trim(),participantSlug,b.email?.trim().toLowerCase()||null,
-     b.phone?.trim()||null,b.personalTarget??null,b.personalMessage?.trim()||null,
-     b.profileImageUrl||null,b.videoUrl?.trim()||null,b.notes?.trim()||null]);
-  return { participantId, participantSlug };
-}
-
-// Previously missing entirely - PeerService.ts (frontend) already had an
-// updateParticipant() method calling PATCH .../participants/:participantId,
-// but no route or service function existed to handle it, so it 404'd.
-export async function updateParticipant(fid,clubId,participantId,b) {
-  await assertFundraiser(fid,clubId);
-  const [rows]=await connection.execute(
-    `SELECT * FROM ${P} WHERE id=? AND peer_fundraiser_id=? AND club_id=? LIMIT 1`,
-    [participantId,fid,clubId]
-  );
-  const current=rows[0];
-  if (!current) fail('participant_not_found',404);
-
-  if (b.participantName!==undefined && !b.participantName?.trim()) fail('participant_name_required');
-
-  const participantSlug=b.participantSlug!==undefined
-    ? await uniqueSlug(P,'peer_fundraiser_id',fid,'participant_slug',b.participantSlug||b.participantName||current.participant_name,participantId)
-    : current.participant_slug;
-
-  await connection.execute(
-    `UPDATE ${P} SET participant_name=?,participant_slug=?,email=?,phone=?,personal_target=?,
-       personal_message=?,profile_image_url=?,video_url=?,is_active=?,notes=?
-     WHERE id=? AND peer_fundraiser_id=? AND club_id=?`,
+      (id, peer_fundraiser_id, club_id,
+       participant_name, participant_slug,
+       email, phone,
+       personal_target, personal_message,
+       profile_image_url, video_url,
+       notes, is_active, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'approved')`,
     [
-      b.participantName!==undefined?b.participantName.trim():current.participant_name,
+      participantId, fid, clubId,
+      b.participantName.trim(),
       participantSlug,
-      b.email!==undefined?(b.email?.trim().toLowerCase()||null):current.email,
-      b.phone!==undefined?(b.phone?.trim()||null):current.phone,
-      b.personalTarget!==undefined?b.personalTarget:current.personal_target,
-      b.personalMessage!==undefined?(b.personalMessage?.trim()||null):current.personal_message,
-      b.profileImageUrl!==undefined?(b.profileImageUrl||null):current.profile_image_url,
-      b.videoUrl!==undefined?(b.videoUrl?.trim()||null):current.video_url,
-      b.isActive!==undefined?(b.isActive?1:0):current.is_active,
-      b.notes!==undefined?(b.notes?.trim()||null):current.notes,
-      participantId,fid,clubId,
+      b.email?.trim().toLowerCase()  || null,
+      b.phone?.trim()                || null,
+      b.personalTarget               ?? null,
+      b.personalMessage?.trim()      || null,
+      b.profileImageUrl              || null,
+      b.videoUrl?.trim()             || null,
+      b.notes?.trim()                || null,
     ]
   );
 
-  const [updated]=await connection.execute(`SELECT * FROM ${P} WHERE id=? LIMIT 1`,[participantId]);
+  return { participantId, participantSlug };
+}
+
+export async function updateParticipant(fid, clubId, participantId, b) {
+  await assertFundraiser(fid, clubId);
+
+  const [rows] = await connection.execute(
+    `SELECT * FROM ${P} WHERE id = ? AND peer_fundraiser_id = ? AND club_id = ? LIMIT 1`,
+    [participantId, fid, clubId]
+  );
+  const current = rows[0];
+  if (!current) fail('participant_not_found', 404);
+
+  if (b.participantName !== undefined && !b.participantName?.trim()) {
+    fail('participant_name_required');
+  }
+
+  const participantSlug = b.participantSlug !== undefined
+    ? await uniqueSlug(
+        P, 'peer_fundraiser_id', fid,
+        'participant_slug',
+        b.participantSlug || b.participantName || current.participant_name,
+        participantId
+      )
+    : current.participant_slug;
+
+  // Derive reviewed_at:
+  // - If reviewedBy is explicitly passed (approve/reject action), stamp now
+  // - Otherwise keep whatever is already stored
+  const reviewedAt = b.reviewedBy !== undefined
+    ? new Date()
+    : current.reviewed_at;
+
+  await connection.execute(
+    `UPDATE ${P}
+        SET participant_name  = ?,
+            participant_slug  = ?,
+            email             = ?,
+            phone             = ?,
+            personal_target   = ?,
+            personal_message  = ?,
+            profile_image_url = ?,
+            video_url         = ?,
+            is_active         = ?,
+            notes             = ?,
+            status            = ?,
+            reviewed_by       = ?,
+            reviewed_at       = ?
+      WHERE id = ? AND peer_fundraiser_id = ? AND club_id = ?`,
+    [
+      b.participantName  !== undefined ? b.participantName.trim()               : current.participant_name,
+      participantSlug,
+      b.email            !== undefined ? (b.email?.trim().toLowerCase() || null) : current.email,
+      b.phone            !== undefined ? (b.phone?.trim() || null)               : current.phone,
+      b.personalTarget   !== undefined ? b.personalTarget                        : current.personal_target,
+      b.personalMessage  !== undefined ? (b.personalMessage?.trim() || null)     : current.personal_message,
+      b.profileImageUrl  !== undefined ? (b.profileImageUrl || null)             : current.profile_image_url,
+      b.videoUrl         !== undefined ? (b.videoUrl?.trim() || null)            : current.video_url,
+      b.isActive         !== undefined ? (b.isActive ? 1 : 0)                   : current.is_active,
+      b.notes            !== undefined ? (b.notes?.trim() || null)               : current.notes,
+      b.status           !== undefined ? b.status                                : current.status,
+      b.reviewedBy       !== undefined ? b.reviewedBy                            : current.reviewed_by,
+      reviewedAt,
+      participantId, fid, clubId,
+    ]
+  );
+
+  const [updated] = await connection.execute(
+    `SELECT * FROM ${P} WHERE id = ? LIMIT 1`,
+    [participantId]
+  );
   return { participant: updated[0] };
 }
 
-// Mirrors campaign's deleteSeller: soft-delete (deactivate) if the
-// participant has any non-cancelled orders, hard-delete otherwise.
-export async function deleteParticipant(fid,clubId,participantId) {
-  await assertFundraiser(fid,clubId);
-  const [orderRows]=await connection.execute(
-    `SELECT COUNT(*) cnt FROM ${O} WHERE participant_id=? AND payment_status NOT IN ('cancelled','refunded')`,
+// Soft-delete (deactivate) if the participant has any non-cancelled orders,
+// hard-delete otherwise.
+export async function deleteParticipant(fid, clubId, participantId) {
+  await assertFundraiser(fid, clubId);
+
+  const [orderRows] = await connection.execute(
+    `SELECT COUNT(*) cnt FROM ${O}
+      WHERE participant_id = ?
+        AND payment_status NOT IN ('cancelled','refunded')`,
     [participantId]
   );
-  const hasOrders=(orderRows[0]?.cnt||0)>0;
+  const hasOrders = (orderRows[0]?.cnt || 0) > 0;
 
   if (hasOrders) {
-    const [result]=await connection.execute(
-      `UPDATE ${P} SET is_active=0 WHERE id=? AND peer_fundraiser_id=? AND club_id=?`,
-      [participantId,fid,clubId]
+    const [result] = await connection.execute(
+      `UPDATE ${P} SET is_active = 0 WHERE id = ? AND peer_fundraiser_id = ? AND club_id = ?`,
+      [participantId, fid, clubId]
     );
-    if (!result.affectedRows) fail('participant_not_found',404);
-    return { deleted:false, deactivated:true };
+    if (!result.affectedRows) fail('participant_not_found', 404);
+    return { deleted: false, deactivated: true };
   }
 
-  const [result]=await connection.execute(
-    `DELETE FROM ${P} WHERE id=? AND peer_fundraiser_id=? AND club_id=?`,
-    [participantId,fid,clubId]
+  const [result] = await connection.execute(
+    `DELETE FROM ${P} WHERE id = ? AND peer_fundraiser_id = ? AND club_id = ?`,
+    [participantId, fid, clubId]
   );
-  if (!result.affectedRows) fail('participant_not_found',404);
-  return { deleted:true, deactivated:false };
+  if (!result.affectedRows) fail('participant_not_found', 404);
+  return { deleted: true, deactivated: false };
 }
