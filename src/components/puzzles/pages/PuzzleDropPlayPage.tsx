@@ -406,7 +406,7 @@ export default function PuzzleDropPlayPage() {
 
             <p className="mt-4 text-sm leading-relaxed text-[#6E6A63]">
               The organiser hasn't confirmed your payment yet. This same
-              link will unlock your puzzle automatically once they do —
+              link will unlock your puzzle automatically once they do -
               there is no need to request a new one.
             </p>
           </div>
@@ -531,7 +531,7 @@ export default function PuzzleDropPlayPage() {
           </section>
         ) : null}
 
-        {/* ── SUBMISSION ERROR — keep puzzle visible ──────────────────────── */}
+        {/* ── SUBMISSION ERROR - keep puzzle visible ──────────────────────── */}
         {pageError && puzzleInstance ? (
           <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
             <p className="text-sm font-medium text-rose-700">
@@ -594,7 +594,7 @@ export default function PuzzleDropPlayPage() {
         {saveConfirmed ? (
           <div className="mb-4 rounded-2xl border border-[#D8E8D8] bg-[#EEF8EF] px-4 py-3">
             <p className="text-sm font-medium text-[#2E6A46]">
-              ✓ Progress saved — keep this puzzle link and come back
+              ✓ Progress saved - keep this puzzle link and come back
               whenever you're ready.
             </p>
           </div>

@@ -103,7 +103,7 @@ USDC: {
   coingeckoId: 'usd-coin',
   logoUrl: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
   isNative: false,
-  tgbCode: 'USDC',        // The Giving Block code — USDC is directly supported
+  tgbCode: 'USDC',        // The Giving Block code - USDC is directly supported
   tgbMinDonation: 1,      // match whatever your other stablecoins use (likely 1 or 5)
   minEntryFee: 1,         // match your other stablecoins
 },

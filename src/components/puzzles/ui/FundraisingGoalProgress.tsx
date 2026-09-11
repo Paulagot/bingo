@@ -96,7 +96,7 @@ export default function FundraisingGoalProgress({
 
           <div className="mt-1 flex min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
             <h2 className="break-words font-serif text-2xl leading-tight text-[#071A44] sm:text-3xl">
-              {reached ? 'Goal reached — and we’re still going' : title}
+              {reached ? 'Goal reached - and we’re still going' : title}
             </h2>
 
             <span className="shrink-0 text-sm font-black text-[var(--puzzle-primary)]">
@@ -122,7 +122,7 @@ export default function FundraisingGoalProgress({
 
           <p className="mt-2 break-words text-xs leading-5 text-[#6E6A63] sm:text-sm">
             {reached && overBy > 0
-              ? `${money(overBy, currency, currencySymbol)} beyond the target — every additional contribution still helps.`
+              ? `${money(overBy, currency, currencySymbol)} beyond the target - every additional contribution still helps.`
               : `Every puzzle subscription helps ${clubName || 'the organiser'} move closer to the target.`}
           </p>
         </div>

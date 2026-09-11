@@ -114,6 +114,7 @@ import donationCryptoQuoteRouter from './donations/api/donationCryptoQuoteRouter
 import donationCryptoRouter from './donations/api/donationCryptoRouter.js';
 
 import puzzleRouter from './puzzles/routes/puzzleRoutes.js';
+import puzzleDevRouter from './puzzles/routes/puzzleDevRoutes.js';
 import challengeRouter from './puzzles/routes/challengeRoutes.js';
 import supporterAuthRouter from './supporters/routes/supporterAuthRoutes.js';
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
@@ -972,6 +973,11 @@ app.use(
   '/api/elimination/dev',
   eliminationDevRoutes,
 );
+
+if (process.env.NODE_ENV !== 'production') {
+  const puzzleDevRoutes = (await import('./puzzles/routes/puzzleDevRoutes.js')).default;
+  app.use('/api/puzzles/dev', puzzleDevRoutes);
+}
 
 app.use(
   '/api/puzzles',

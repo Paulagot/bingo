@@ -190,7 +190,7 @@ export const scoreRound = (
      * Older engines return only their precision-style score, so their speed
      * bonus is added here.
      *
-     * DO NOT change this distinction casually — it preserves existing scoring
+     * DO NOT change this distinction casually - it preserves existing scoring
      * behaviour across all round types.
      */
     let precisionScore;

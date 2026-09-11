@@ -7,7 +7,7 @@
 // - Hero identifies the exact puzzle clearly.
 // - Top three get a proper podium treatment.
 // - Remaining players use a compact mobile-friendly ranking list.
-// - Existing Drop leaderboard API only — no backend change required.
+// - Existing Drop leaderboard API only - no backend change required.
 
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -125,7 +125,7 @@ export default function PuzzleDropItemLeaderboardPage() {
 
     const url = window.location.href;
     const shareData = {
-      title: `${puzzleName} leaderboard — ${board.challenge.title}`,
+      title: `${puzzleName} leaderboard - ${board.challenge.title}`,
       text: `See who's leading ${puzzleName}. Think you can beat the top score?`,
       url,
     };
