@@ -57,17 +57,87 @@ export default function PuzzleTypePreview({
 
   const largeEmoji = scale === 'hero' ? 'text-3xl' : scale === 'compact' ? 'text-sm' : 'text-xl';
 
-  if (puzzleType === 'memoryPairs' || puzzleType === 'matchPairs') {
-    const icons = ['★', '♥', '♥', '★'];
+    if (puzzleType === 'matchPairs') {
+    const left = ['★', '♥'];
+    const right = ['♥', '★'];
+
     return (
       <div className={`${wrapperClass} ${className}`}>
-        <div className={`grid w-full max-w-[210px] grid-cols-2 gap-2 ${cardPad}`}>
-          {icons.map((icon, index) => (
+        <div className={`relative w-full max-w-[230px] ${cardPad}`}>
+          <svg
+            viewBox="0 0 220 120"
+            className="absolute inset-0 h-full w-full"
+            aria-hidden="true"
+          >
+            <path
+              d="M72 35 C108 35, 112 35, 148 85"
+              fill="none"
+              stroke="#D9CDD0"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            <path
+              d="M72 85 C108 85, 112 85, 148 35"
+              fill="none"
+              stroke="#D9CDD0"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+          </svg>
+
+          <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="space-y-3">
+              {left.map((item, index) => (
+                <div
+                  key={index}
+                  className={`grid h-12 place-items-center rounded-[16px] border border-[#D7C6F1] bg-[#F5EFFF] font-black text-[#7B57C4] ${tileTextClass}`}
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <div className="w-6" />
+
+            <div className="space-y-3">
+              {right.map((item, index) => (
+                <div
+                  key={index}
+                  className={`grid h-12 place-items-center rounded-[16px] border border-[#FFD6E3] bg-[#FFF2F7] font-black text-[#C25A8A] ${tileTextClass}`}
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (puzzleType === 'memoryPairs') {
+    const cards = [
+      { label: '?', state: 'hidden' },
+      { label: '?', state: 'hidden' },
+      { label: '★', state: 'revealed' },
+      { label: '★', state: 'matched' },
+    ] as const;
+
+    return (
+      <div className={`${wrapperClass} ${className}`}>
+        <div className={`grid w-full max-w-[210px] grid-cols-2 gap-3 ${cardPad}`}>
+          {cards.map((card, index) => (
             <div
               key={index}
-              className={`grid aspect-square place-items-center rounded-[20px] border border-[#D7C6F1] bg-[#F5EFFF] font-black text-[#7B57C4] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${largeEmoji}`}
+              className={`grid aspect-[1.05/1] place-items-center rounded-[18px] border font-black shadow-sm ${
+                card.state === 'hidden'
+                  ? 'border-[#D8D1C4] bg-[#F3EFE8] text-[#B7AEA2]'
+                  : card.state === 'revealed'
+                    ? 'border-[#D7C6F1] bg-[#F5EFFF] text-[#7B57C4]'
+                    : 'border-[#A8CDBA] bg-[#EFF8F1] text-[#2E6A46]'
+              } ${largeEmoji}`}
             >
-              {icon}
+              {card.label}
             </div>
           ))}
         </div>
@@ -156,24 +226,38 @@ export default function PuzzleTypePreview({
       ['Z', 'O', 'R', 'D'],
       ['Z', 'G', 'A', 'M'],
     ];
+
     return (
       <div className={`${wrapperClass} ${className}`}>
-        <div className={`grid w-full max-w-[210px] grid-cols-4 gap-1.5 ${cardPad}`}>
-          {grid.flat().map((letter, index) => {
-            const highlight = [1, 5, 9, 13].includes(index);
-            return (
-              <div
-                key={index}
-                className={`grid aspect-square place-items-center rounded-md border font-black ${tileTextClass} ${
-                  highlight
-                    ? 'border-[#A8CDBA] bg-[#EFF8F1] text-[#286048]'
-                    : 'border-[#D8D1C4] bg-white text-[#071A44]'
-                }`}
-              >
-                {letter}
-              </div>
-            );
-          })}
+        <div className={`w-full max-w-[210px] ${cardPad}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#8B8379]">
+              Find the word
+            </span>
+            <span className="rounded-full bg-[#EFF8F1] px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#2E6A46]">
+              PLAY
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-1.5">
+            {grid.flatMap((row, rowIndex) =>
+              row.map((letter, colIndex) => {
+                const isHighlight = rowIndex === 0; // highlights PLAY
+                return (
+                  <div
+                    key={`${rowIndex}-${colIndex}`}
+                    className={`grid aspect-square place-items-center rounded-md border font-black ${tileTextClass} ${
+                      isHighlight
+                        ? 'border-[#A8CDBA] bg-[#EFF8F1] text-[#286048]'
+                        : 'border-[#D8D1C4] bg-white text-[#071A44]'
+                    }`}
+                  >
+                    {letter}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     );
@@ -194,55 +278,95 @@ export default function PuzzleTypePreview({
     );
   }
 
-  if (puzzleType === 'numberPath') {
+   if (puzzleType === 'numberPath') {
     const values = ['1', '2', '3', '8', '7', '4', '9', '6', '5'];
+
     return (
       <div className={`${wrapperClass} ${className}`}>
-        <div className={`relative w-full max-w-[210px] ${cardPad}`}>
-          <svg viewBox="0 0 180 180" className="absolute inset-0 h-full w-full px-5 py-5" aria-hidden="true">
+        <div className={`relative w-full max-w-[220px] ${cardPad}`}>
+          <svg
+            viewBox="0 0 210 210"
+            className="absolute inset-0 h-full w-full px-4 py-4"
+            aria-hidden="true"
+          >
             <path
-              d="M32 32 L90 32 L148 32 L148 90 L90 90 L90 148 L148 148"
+              d="M38 38 L105 38 L172 38 L172 105 L105 105 L105 172 L172 172"
               fill="none"
-              stroke="#DDAA67"
-              strokeWidth="8"
+              stroke="#E2B06E"
+              strokeWidth="10"
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity="0.8"
+              opacity="0.9"
             />
           </svg>
-          <div className="grid grid-cols-3 overflow-hidden rounded-2xl border-2 border-[#8FA7CF] bg-white shadow-sm">
-            {values.map((value, index) => (
-              <div key={index} className={`grid aspect-square place-items-center border border-[#D7E0F0] font-black text-[#355C92] ${tileTextClass}`}>
-                {value}
-              </div>
-            ))}
+
+          <div className="relative grid grid-cols-3 overflow-hidden rounded-[22px] border-2 border-[#8FA7CF] bg-white shadow-sm">
+            {values.map((value, index) => {
+              const isOnPath = [0, 1, 2, 5, 4, 7, 8].includes(index);
+
+              return (
+                <div
+                  key={index}
+                  className={`grid aspect-square place-items-center border font-black ${tileTextClass} ${
+                    isOnPath
+                      ? 'border-[#D7E0F0] bg-[#FFF9EF] text-[#355C92]'
+                      : 'border-[#D7E0F0] bg-white text-[#355C92]'
+                  }`}
+                >
+                  {value}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
     );
   }
 
-  if (puzzleType === 'nonogram') {
-    const topClues = ['1', '2', '1'];
-    const sideClues = ['1', '1 1', '2'];
-    const filled = new Set([1, 3, 4, 8]);
+   if (puzzleType === 'nonogram') {
+    const topClues = ['1', '3', '1', '1', '1'];
+    const sideClues = ['1', '3', '1 1', '3', '1'];
+
+    const filled = new Set([
+      '0-2',
+      '1-1', '1-2', '1-3',
+      '2-0', '2-2',
+      '3-1', '3-2', '3-3',
+      '4-2',
+    ]);
+
     return (
       <div className={`${wrapperClass} ${className}`}>
-        <div className={`w-full max-w-[220px] ${cardPad}`}>
-          <div className="grid grid-cols-[34px_repeat(3,minmax(0,1fr))] gap-1.5">
+        <div className={`w-full max-w-[230px] ${cardPad}`}>
+          <div className="mb-2 text-[9px] font-black uppercase tracking-[0.14em] text-[#8B8379]">
+            Fill the picture
+          </div>
+
+          <div className="grid grid-cols-[30px_repeat(5,minmax(0,1fr))] gap-1">
             <div />
             {topClues.map((clue, index) => (
-              <div key={index} className="text-center text-[9px] font-black text-[#8B8379]">{clue}</div>
+              <div
+                key={index}
+                className="grid place-items-center text-[8px] font-black text-[#8B8379]"
+              >
+                {clue}
+              </div>
             ))}
+
             {sideClues.map((clue, row) => (
-              <div key={`row-${row}`} className="contents">
-                <div className="grid place-items-center text-[9px] font-black text-[#8B8379]">{clue}</div>
-                {[0, 1, 2].map(col => {
-                  const idx = row * 3 + col;
+              <div key={row} className="contents">
+                <div className="grid place-items-center text-[8px] font-black text-[#8B8379]">
+                  {clue}
+                </div>
+
+                {[0, 1, 2, 3, 4].map(col => {
+                  const isFilled = filled.has(`${row}-${col}`);
                   return (
                     <div
                       key={`${row}-${col}`}
-                      className={`grid aspect-square place-items-center rounded-md border border-[#D3DEEE] ${filled.has(idx) ? 'bg-[#355C92]' : 'bg-white'}`}
+                      className={`grid aspect-square place-items-center rounded-[4px] border border-[#D7E0F0] ${
+                        isFilled ? 'bg-[#355C92]' : 'bg-white'
+                      }`}
                     />
                   );
                 })}
