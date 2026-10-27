@@ -59,6 +59,12 @@ const PEER_FUNDRAISER_URL =
 const TICKETED_EVENT_URL =
   `${STAGING_BASE_URL}/tickets/buy/8C57E75119A94777`;
 
+const QUIZ_VIDEO_URL =
+  `https://youtu.be/l_ohlX3un-U?si=BxM1jUTXE2QPmLDh`;
+
+  const SCAN_EVENT_URL =
+  `${STAGING_BASE_URL}/ticketed-event/checkin/8C57E75119A94777?hostId=c644ae94-5a43-4038-8b02-d824a4073bbe`;
+
 const PUZZLE_DROP_URL =
   `${STAGING_BASE_URL}/puzzle-drop/3192F6C5B1A94594`;
 
@@ -161,14 +167,14 @@ export default function DemoPage() {
 
               <div className="hero__actions">
 
-                <button
+                {/* <button
                   type="button"
                   onClick={() => openDemo(PEER_FUNDRAISER_URL)}
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-4 text-base font-black text-slate-950 transition hover:bg-white/90"
                 >
                   Start the interactive demo
                   <ArrowRight className="h-5 w-5" />
-                </button>
+                </button> */}
 
                 <span className="flex items-center text-sm font-bold text-white/70">
                   No signup · No real card payment
@@ -254,7 +260,7 @@ export default function DemoPage() {
                 A FundRaisely participant can share their own fundraising
                 page with friends, family and their wider community.
                 Depending on the fundraiser, supporters can buy activities
-                and tickets, make a donation, or sponsor the participant
+                and tickets or make a donation on the participants activity pack page, or sponsor the participant on a challenge page
                 directly.
               </p>
 
@@ -271,7 +277,7 @@ export default function DemoPage() {
                 </div>
 
                 <p className="mt-6 text-xs font-black uppercase tracking-[0.16em] text-[#157f85]">
-                  Participant fundraising page
+                  Participant Activity Pack Page
                 </p>
 
                 <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
@@ -279,7 +285,7 @@ export default function DemoPage() {
                 </h3>
 
                 <p className="mt-4 text-base font-medium leading-7 text-slate-600">
-                  Open a real participant&apos;s fundraising page and
+                  Open a demo participant&apos;s activity pack page and
                   choose how you want to support them. Buy an activity,
                   purchase an event ticket or simply make a donation.
                 </p>
@@ -504,13 +510,13 @@ export default function DemoPage() {
 
             <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 
-              <DemoExperienceCard
+              {/* <DemoExperienceCard
                 icon={Ticket}
-                title="Buy an event ticket"
-                text="Choose and purchase a ticket using the Stripe test card."
-                url={TICKETED_EVENT_URL}
+                title="Scan an event ticket"
+                text="Follow the checkin journey from a QR code or link to the ticket confirmation. Grab a demo ticket above, open this link, go to scanner and scan the ticket to see the checkin flow."
+                url={SCAN_EVENT_URL}
                 ready
-              />
+              /> */}
 
               <DemoExperienceCard
                 icon={Puzzle}
@@ -520,13 +526,21 @@ export default function DemoPage() {
                 ready={Boolean(PUZZLE_DROP_URL)}
               />
 
-              <DemoExperienceCard
+                  <DemoExperienceCard
+                icon={Puzzle}
+                title="Watch how the quiz is set up and played"
+                text="In this video, we'll walk you through the process of setting up and playing a quiz. You'll see how to easy it is to setup and configure, how to add the fundraising extras, how engage participants and how players interact."
+                url={QUIZ_VIDEO_URL}
+                ready={Boolean(QUIZ_VIDEO_URL)}
+              />
+
+              {/* <DemoExperienceCard
                 icon={Heart}
                 title="Sponsor a participant"
                 text="Choose an amount, leave a message and experience the sponsorship journey from the supporter's side."
                 url={SPONSORED_EVENT_URL}
                 ready={Boolean(SPONSORED_EVENT_URL)}
-              />
+              /> */}
 
               <DemoExperienceCard
                 icon={Trophy}
@@ -536,13 +550,13 @@ export default function DemoPage() {
                 ready={Boolean(ELIMINATION_URL)}
               />
 
-              <DemoExperienceCard
+              {/* <DemoExperienceCard
                 icon={Users}
-                title="Support a participant"
+                title="Participant Activity Fundraising"
                 text="Open a participant fundraising page and buy an activity, purchase a ticket or make a donation."
                 url={PEER_FUNDRAISER_URL}
                 ready
-              />
+              /> */}
 
             </div>
 
