@@ -1,513 +1,260 @@
 // src/pages/peer/PeerSignupPage.tsx
-//
-// Route: /fundraise/:clubSlug/:fundraiserSlug/join
-// Public — no auth required.
-
+// Public peer fundraiser page request — no auth required.
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Camera, Video, ChevronDown, ChevronUp } from 'lucide-react';
-
-// ── Types ────────────────────────────────────────────────────────────────────
+import {
+  Camera, Video, ChevronDown, ChevronUp, Heart, Share2,
+  CheckCircle2, UserRound, ArrowRight,
+} from 'lucide-react';
 
 interface PublicFundraiser {
-  id:             string;
-  name:           string;
-  description:    string | null;
-  club_name:      string;
-  club_logo_url:  string | null;
+  id: string;
+  name: string;
+  description: string | null;
+  club_name: string;
+  club_logo_url: string | null;
+  cover_image_url: string | null;
   primary_colour: string | null;
-  currency:       string;
-  end_date?:      string | null;
-  status:         string;
+  currency: string;
+  end_date?: string | null;
+  status: string;
 }
-
 type Stage = 'form' | 'submitting' | 'success' | 'closed' | 'error';
+const field = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-const field =
-  'w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 ' +
-  'focus:border-transparent transition border-gray-200 bg-white hover:border-gray-300';
-
-// ── Before you begin ──────────────────────────────────────────────────────────
-
-function BeforeYouBegin({ accent, currency }: { accent: string; currency: string }) {
-  // Open by default so people see the guidance before starting
+function MediaHelp({ accent }: { accent: string }) {
   const [open, setOpen] = useState(true);
-
   return (
-    <div
-      className="rounded-xl border mb-6 overflow-hidden"
-      style={{ borderColor: '#e5e7eb' }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left"
-        style={{ background: `${accent}10` }}
-      >
-        <div>
-          <p className="text-sm font-bold" style={{ color: accent }}>
-            Before you begin
-          </p>
-          <p className="text-xs mt-0.5 text-gray-500">
-            Optional extras that make your fundraising page stand out
-          </p>
-        </div>
-        {open
-          ? <ChevronUp   className="h-4 w-4 flex-shrink-0 text-gray-400" />
-          : <ChevronDown className="h-4 w-4 flex-shrink-0 text-gray-400" />
-        }
+    <div className="overflow-hidden rounded-xl border border-gray-200">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(v => !v)}
+        className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-gray-50">
+        <span className="flex items-center gap-3">
+          <span className="rounded-lg p-2" style={{ backgroundColor: `${accent}14`, color: accent }}><Camera size={19} /></span>
+          <span>
+            <span className="block text-sm font-semibold text-gray-900">Before you begin</span>
+            <span className="block text-xs text-gray-500">Get your optional photo and video links ready before applying</span>
+          </span>
+        </span>
+        {open ? <ChevronUp size={18} className="shrink-0 text-gray-400" /> : <ChevronDown size={18} className="shrink-0 text-gray-400" />}
       </button>
-
       {open && (
-        <div className="px-4 pb-4 pt-3 space-y-4 border-t border-gray-100">
-          <p className="text-xs text-gray-500 leading-relaxed">
-            The form below only takes a minute. If you'd like your personal fundraising
-            page to really stand out, you can optionally add a <strong>profile photo</strong> and
-            a <strong>video message</strong> for your supporters. These are completely optional —
-            you'll just need a public URL for each, so it's worth getting them ready before you start.
-          </p>
-
-          {/* Photo card */}
-          <div className="rounded-lg border border-gray-100 p-3 flex gap-3">
-            <div
-              className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: `${accent}15` }}
-            >
-              <Camera className="h-4 w-4" style={{ color: accent }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">
-                Profile photo <span className="font-normal text-gray-400">(optional)</span>
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                A photo of you that will appear on your personal fundraising page.
-                Upload it somewhere public and copy the link — good free options are{' '}
-                <a href="https://imgur.com" target="_blank" rel="noopener noreferrer"
-                  className="underline" style={{ color: accent }}>Imgur</a>
-                {' '}or Google Drive (set sharing to "Anyone with the link").
-              </p>
-            </div>
+        <div className="space-y-4 border-t border-gray-100 px-4 pb-4 pt-3 text-xs leading-relaxed text-gray-600">
+          <p>You don't need a photo or video to apply. If you'd like to add them, please prepare public links before you submit.</p>
+          <div className="flex gap-3">
+            <Camera className="mt-0.5 shrink-0" size={18} style={{ color: accent }} />
+            <p><strong className="text-gray-800">Profile photo:</strong> Upload a photo to <a href="https://imgur.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: accent }}>Imgur</a> or Google Drive (set sharing to “Anyone with the link”), then paste the public image link below. Note: Google Drive sharing links may not display directly as images on all sites.</p>
           </div>
-
-          {/* Video card */}
-          <div className="rounded-lg border border-gray-100 p-3 flex gap-3">
-            <div
-              className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: `${accent}15` }}
-            >
-              <Video className="h-4 w-4" style={{ color: accent }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">
-                Video message <span className="font-normal text-gray-400">(optional)</span>
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                Record a short video telling your supporters why you're taking part and
-                what this fundraiser means to you. Upload it to{' '}
-                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer"
-                  className="underline" style={{ color: accent }}>YouTube</a>
-                {' '}— set it to <strong>Unlisted</strong> so only people with the link
-                can see it — then paste the YouTube URL in the form below.
-              </p>
-            </div>
+          <div className="flex gap-3">
+            <Video className="mt-0.5 shrink-0" size={18} style={{ color: accent }} />
+            <p><strong className="text-gray-800">Personal video:</strong> Upload a short message to <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: accent }}>YouTube</a> and set the video to <strong>Unlisted</strong>. Paste its URL below.</p>
           </div>
-
-          <p className="text-[11px] text-gray-400">
-            Don't have these ready? No problem — skip those fields and submit the form.
-            You can always ask the organiser to add them later.
-          </p>
+          <p className="rounded-lg bg-gray-50 p-3">Not ready? Leave both fields blank. You can ask the organiser to add these later.</p>
         </div>
       )}
     </div>
   );
 }
-
-// ── Main page ────────────────────────────────────────────────────────────────
 
 export default function PeerSignupPage() {
-  const { clubSlug, fundraiserSlug } = useParams<{
-    clubSlug: string;
-    fundraiserSlug: string;
-  }>();
-
+  const { clubSlug, fundraiserSlug } = useParams<{ clubSlug: string; fundraiserSlug: string }>();
   const [fundraiser, setFundraiser] = useState<PublicFundraiser | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [stage,      setStage]      = useState<Stage>('form');
-
-  // Form fields — track photo/video so success screen knows what was skipped
-  const [name,    setName]    = useState('');
-  const [email,   setEmail]   = useState('');
-  const [phone,   setPhone]   = useState('');
-  const [target,  setTarget]  = useState('');
+  const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState<Stage>('form');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [target, setTarget] = useState('');
   const [message, setMessage] = useState('');
-  const [photo,   setPhoto]   = useState('');
-  const [video,   setVideo]   = useState('');
+  const [photo, setPhoto] = useState('');
+  const [video, setVideo] = useState('');
   const [consent, setConsent] = useState(false);
-  const [errors,  setErrors]  = useState<Record<string, string>>({});
-
-  // Capture what was submitted so success screen can check
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [submittedPhoto, setSubmittedPhoto] = useState('');
   const [submittedVideo, setSubmittedVideo] = useState('');
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
 
-  // ── Load fundraiser ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!clubSlug || !fundraiserSlug) return;
-    fetch(`/api/public/fundraisers/${clubSlug}/${fundraiserSlug}`)
-      .then(r => r.json())
-      .then((data: { fundraiser?: PublicFundraiser; error?: string }) => {
-        if (data.fundraiser) {
-          setFundraiser(data.fundraiser);
-          if (data.fundraiser.status !== 'published') setStage('closed');
-        } else {
-          setStage('error');
-        }
+    if (!clubSlug || !fundraiserSlug) { setStage('error'); setLoading(false); return; }
+    let active = true;
+    fetch(`/api/public/fundraisers/${encodeURIComponent(clubSlug)}/${encodeURIComponent(fundraiserSlug)}`)
+      .then(async r => { if (!r.ok) throw new Error('Request failed'); return r.json(); })
+      .then((data: { fundraiser?: PublicFundraiser }) => {
+        if (!active) return;
+        if (!data.fundraiser) { setStage('error'); return; }
+        setFundraiser(data.fundraiser);
+        setHeroImageIndex(0);
+        if (data.fundraiser.status !== 'published') setStage('closed');
       })
-      .catch(() => setStage('error'))
-      .finally(() => setLoading(false));
+      .catch(() => { if (active) setStage('error'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [clubSlug, fundraiserSlug]);
 
-  const accent = fundraiser?.primary_colour ?? '#157f85';
-
-  // ── Validate ─────────────────────────────────────────────────────────────
-  const validate = (): boolean => {
-    const e: Record<string, string> = {};
-    if (!name.trim())  e.name    = 'Your name is required.';
-    if (!email.trim()) e.email   = 'Your email address is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-                       e.email   = 'Please enter a valid email address.';
-    if (!consent)      e.consent = 'Please agree to the privacy policy to continue.';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  // ── Submit ────────────────────────────────────────────────────────────────
-  const submit = async () => {
-    if (!validate() || !fundraiser) return;
-    setStage('submitting');
-    // Capture before clearing
-    setSubmittedPhoto(photo.trim());
-    setSubmittedVideo(video.trim());
-    try {
-      const res = await fetch(
-        `/api/public/fundraisers/${fundraiser.id}/signup`,
-        {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            participantName:  name.trim(),
-            email:            email.toLowerCase().trim(),
-            phone:            phone.trim()   || null,
-            personalTarget:   target ? Number(target) : null,
-            personalMessage:  message.trim() || null,
-            profileImageUrl:  photo.trim()   || null,
-            videoUrl:         video.trim()   || null,
-            consentGiven:     true,
-          }),
-        }
-      );
-      if (res.status === 409) {
-        setStage('form');
-        setErrors({ submit: `This email address has already been used to apply for this fundraiser. If you think this is a mistake, contact ${fundraiser.club_name} directly.` });
-        return;
-      }
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error ?? 'Submission failed');
-      }
-      setStage('success');
-    } catch {
-      setStage('form');
-      setErrors({ submit: 'Something went wrong — please try again.' });
-    }
-  };
-
-  // ── Shell ─────────────────────────────────────────────────────────────────
-  const shell = (children: React.ReactNode) => (
-    <div className="min-h-screen bg-gray-50">
-      <div className="h-1.5 w-full" style={{ background: accent }} />
-      <div className="mx-auto max-w-lg px-4 py-10">
-        {fundraiser && (
-          <div className="mb-6 flex items-center gap-3">
-            {fundraiser.club_logo_url ? (
-              <img
-                src={fundraiser.club_logo_url}
-                alt={fundraiser.club_name}
-                className="h-10 w-10 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                style={{ background: accent }}
-              >
-                {fundraiser.club_name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="text-sm font-semibold text-gray-600">{fundraiser.club_name}</span>
-          </div>
-        )}
-        {fundraiser && (
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 leading-snug">{fundraiser.name}</h1>
-            {fundraiser.description && (
-              <p className="mt-2 text-sm text-gray-600 leading-relaxed">{fundraiser.description}</p>
-            )}
-          </div>
-        )}
-        <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6">
-          {children}
-        </div>
-        <p className="mt-6 text-center text-xs text-gray-400">Powered by Fundraisely</p>
-      </div>
-    </div>
+  const accent = fundraiser?.primary_colour || '#137f85';
+  const heroImages = [fundraiser?.cover_image_url, fundraiser?.club_logo_url].filter(
+    (value): value is string => Boolean(value?.trim())
   );
+  const heroImage = heroImages[heroImageIndex];
+  const isLogoFallback = heroImageIndex > 0 || (!fundraiser?.cover_image_url && Boolean(fundraiser?.club_logo_url));
+  const currency = fundraiser?.currency || 'EUR';
+  const symbol = ({ EUR: '€', GBP: '£', USD: '$' } as Record<string, string>)[currency] || currency;
 
-  // ── Loading ───────────────────────────────────────────────────────────────
-  if (loading) return shell(
-    <div className="flex justify-center py-8">
-      <div className="h-8 w-8 rounded-full border-4 border-gray-200 animate-spin"
-        style={{ borderTopColor: accent }} />
-    </div>
-  );
-
-  // ── Error ─────────────────────────────────────────────────────────────────
-  if (stage === 'error') return shell(
-    <div className="text-center py-10">
-      <p className="text-lg font-bold text-gray-800">Fundraiser not found</p>
-      <p className="mt-1 text-sm text-gray-500">Check the link and try again.</p>
-    </div>
-  );
-
-  // ── Closed ────────────────────────────────────────────────────────────────
-  if (stage === 'closed') return shell(
-    <div className="text-center py-10">
-      <p className="text-lg font-bold text-gray-800">
-        This fundraiser isn't accepting participants right now.
-      </p>
-      {fundraiser?.club_name && (
-        <p className="mt-1 text-sm text-gray-500">
-          Contact {fundraiser.club_name} for more information.
-        </p>
-      )}
-    </div>
-  );
-
-  // ── Success ───────────────────────────────────────────────────────────────
-  if (stage === 'success') {
-    const missingPhoto = !submittedPhoto;
-    const missingVideo = !submittedVideo;
-    const showTips     = missingPhoto || missingVideo;
-
-    return shell(
-      <div className="py-4">
-        {/* Confirmation */}
-        <div className="text-center mb-6">
-          <div
-            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
-            style={{ background: `${accent}18` }}
-          >
-            <svg className="h-7 w-7" style={{ color: accent }} fill="none"
-              viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900">Application submitted!</h2>
-          <p className="mt-2 text-sm text-gray-600 max-w-xs mx-auto">
-            We'll notify you when{' '}
-            <span className="font-semibold">{fundraiser?.club_name}</span>{' '}
-            approves your application.
-          </p>
-        </div>
-
-        {/* Only show photo/video tips if they were skipped */}
-        {showTips && (
-          <div className="border-t border-gray-100 pt-5 space-y-3">
-            <p className="text-sm font-bold text-gray-800">Want to make your page stand out?</p>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Once approved, your fundraising page can include{' '}
-              {missingPhoto && missingVideo
-                ? 'a profile photo and a personal video message'
-                : missingPhoto
-                ? 'a profile photo'
-                : 'a personal video message'
-              }{' '}
-              for your supporters. Get{' '}
-              {missingPhoto && missingVideo ? 'these' : 'it'}{' '}
-              ready and share the URL{missingPhoto && missingVideo ? 's' : ''} with{' '}
-              <span className="font-semibold">{fundraiser?.club_name}</span> so they
-              can add {missingPhoto && missingVideo ? 'them' : 'it'} to your page.
-            </p>
-
-            {missingPhoto && (
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 flex gap-3">
-                <div
-                  className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${accent}15` }}
-                >
-                  <Camera className="h-4 w-4" style={{ color: accent }} />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-800">Profile photo</p>
-                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                    Upload a photo of yourself to{' '}
-                    <a href="https://imgur.com" target="_blank" rel="noopener noreferrer"
-                      className="underline" style={{ color: accent }}>Imgur</a>
-                    {' '}or Google Drive (set to "Anyone with the link"), then share
-                    the URL with your organiser.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {missingVideo && (
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 flex gap-3">
-                <div
-                  className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${accent}15` }}
-                >
-                  <Video className="h-4 w-4" style={{ color: accent }} />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-800">Video message</p>
-                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                    Record a short video about why you're taking part. Upload to{' '}
-                    <a href="https://youtube.com" target="_blank" rel="noopener noreferrer"
-                      className="underline" style={{ color: accent }}>YouTube</a>
-                    {' '}as <strong>Unlisted</strong>, then share the link with your organiser.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
+  function validate() {
+    const next: Record<string, string> = {};
+    if (!name.trim()) next.name = 'Please enter your name.';
+    if (!email.trim()) next.email = 'Please enter your email address.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) next.email = 'Please enter a valid email address.';
+    if (target && (!Number.isFinite(Number(target)) || Number(target) <= 0)) next.target = 'Enter a target greater than zero, or leave this blank.';
+    if (!consent) next.consent = 'Please agree to the privacy policy.';
+    setErrors(next);
+    return Object.keys(next).length === 0;
   }
 
-  // ── Main form ─────────────────────────────────────────────────────────────
-  return shell(
-    <>
-      <BeforeYouBegin accent={accent} currency={fundraiser?.currency ?? 'EUR'} />
+  async function submit() {
+    if (!fundraiser || stage !== 'form' || !validate()) return;
+    setStage('submitting');
+    setErrors({});
+    try {
+      const res = await fetch(`/api/public/fundraisers/${fundraiser.id}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantName: name.trim(), email: email.trim().toLowerCase(),
+          phone: phone.trim() || null, personalTarget: target ? Number(target) : null,
+          personalMessage: message.trim() || null, profileImageUrl: photo.trim() || null,
+          videoUrl: video.trim() || null, consentGiven: true,
+        }),
+      });
+      if (res.status === 409) {
+        setErrors({ submit: `This email has already been used to request a page for this fundraiser. Please contact ${fundraiser.club_name} if you need help.` });
+        setStage('form');
+        return;
+      }
+      if (!res.ok) throw new Error('Request failed');
+      setSubmittedPhoto(photo.trim());
+      setSubmittedVideo(video.trim());
+      setStage('success');
+    } catch {
+      setErrors({ submit: 'Something went wrong. Please try again.' });
+      setStage('form');
+    }
+  }
 
-      <p className="text-sm text-gray-500 mb-5">
-        Fill in your details and {fundraiser?.club_name} will review your application.
-      </p>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-
-        <div className="sm:col-span-2">
-          <input
-            className={`${field} ${errors.name ? 'border-red-400' : ''}`}
-            value={name}
-            onChange={e => { setName(e.target.value); setErrors(v => ({ ...v, name: '' })); }}
-            placeholder="Your full name *"
-            autoFocus
-          />
-          {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
-        </div>
-
-        <div>
-          <input
-            className={`${field} ${errors.email ? 'border-red-400' : ''}`}
-            type="email"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setErrors(v => ({ ...v, email: '' })); }}
-            placeholder="Email address *"
-          />
-          {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
-        </div>
-
-        <input
-          className={field}
-          type="tel"
-          value={phone}
-          onChange={e => setPhone(e.target.value)}
-          placeholder="Phone (optional)"
-        />
-
-        <input
-          className={field}
-          type="number"
-          min="0"
-          step="1"
-          value={target}
-          onChange={e => setTarget(e.target.value)}
-          placeholder={`Fundraising target in ${fundraiser?.currency ?? 'EUR'} (optional)`}
-        />
-
-        <div>
-          <input
-            className={field}
-            value={photo}
-            onChange={e => setPhoto(e.target.value)}
-            placeholder="Profile photo URL (optional)"
-          />
-          <p className="mt-1 text-[11px] text-gray-400">
-            Public link from Imgur or Google Drive — see tips above
-          </p>
-        </div>
-
-        <div>
-          <input
-            className={field}
-            value={video}
-            onChange={e => setVideo(e.target.value)}
-            placeholder="YouTube video URL (optional)"
-          />
-          <p className="mt-1 text-[11px] text-gray-400">
-            Upload to YouTube as Unlisted — see tips above
-          </p>
-        </div>
-
-        <textarea
-          className={`${field} resize-none sm:col-span-2`}
-          rows={3}
-          value={message}
-          onChange={e => setMessage(e.target.value)}
-          placeholder="Tell supporters why you're taking part (optional)"
-        />
-      </div>
-
-      {/* GDPR consent */}
-      <div className="mt-4">
-        <label className="flex items-start gap-2.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={e => { setConsent(e.target.checked); setErrors(v => ({ ...v, consent: '' })); }}
-            className="mt-0.5 h-4 w-4 rounded border-gray-300 flex-shrink-0"
-            style={{ accentColor: accent }}
-          />
-          <span className="text-xs text-gray-600 leading-relaxed">
-            I agree to {fundraiser?.club_name} storing and using my details to manage
-            my participation in this fundraiser, in accordance with{' '}
-            <a
-              href="/legal/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-              style={{ color: accent }}
-            >
-              Fundraisely's Privacy Policy
-            </a>. *
+  const shell = (children: React.ReactNode) => (
+    <main className="min-h-screen bg-[#f6f8f8] text-gray-900">
+      <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
+      <div className="mx-auto max-w-2xl px-4 pb-12 pt-5 sm:pt-8">
+        <header className="mb-5 flex items-center gap-3">
+          {fundraiser?.club_logo_url ? (
+            <img src={fundraiser.club_logo_url} alt="" className="h-11 w-11 rounded-full border border-gray-200 bg-white object-cover" />
+          ) : (
+            <span className="flex h-11 w-11 items-center justify-center rounded-full text-lg font-bold text-white" style={{ backgroundColor: accent }}>
+              {fundraiser?.club_name?.charAt(0).toUpperCase() || <Heart size={20} />}
+            </span>
+          )}
+          <span className="min-w-0">
+            <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Fundraising for</span>
+            <span className="block truncate text-sm font-bold text-gray-900">{fundraiser?.club_name || 'Community fundraising'}</span>
           </span>
-        </label>
-        {errors.consent && <p className="mt-1 text-xs text-red-600">{errors.consent}</p>}
+        </header>
+        {fundraiser && stage !== 'error' && (
+          <section className="mb-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+            <div className="relative h-44 overflow-hidden sm:h-56" style={{ background: `linear-gradient(120deg, ${accent}, #0d3d47)` }}>
+              {heroImage ? (
+                <img
+                  key={heroImage}
+                  src={heroImage}
+                  alt={isLogoFallback ? `${fundraiser.club_name} logo` : `${fundraiser.name} fundraiser`}
+                  className={`h-full w-full ${isLogoFallback ? 'object-contain p-8' : 'object-cover'}`}
+                  onError={() => setHeroImageIndex(index => index + 1)}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-white">
+                  <span className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-white/30 text-5xl font-bold">
+                    {fundraiser.club_name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="p-5 sm:p-7">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: accent }}>Your chance to make a difference</p>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Become a fundraiser!</h1>
+              <p className="mt-3 text-base leading-relaxed text-gray-700">
+                I'd like to raise funds for <strong>{fundraiser.name}</strong>, supporting <strong>{fundraiser.club_name}</strong>.
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">Get your own personal fundraising page, set a target and share your story with friends and family.</p>
+              {fundraiser.description && <p className="mt-3 border-l-2 pl-3 text-sm leading-relaxed text-gray-600" style={{ borderColor: accent }}>{fundraiser.description}</p>}
+            </div>
+          </section>
+        )}
+        {children}
+        <p className="mt-7 text-center text-xs text-gray-400">Powered by Fundraisely</p>
       </div>
+    </main>
+  );
 
-      {errors.submit && (
-        <p className="mt-3 text-xs font-semibold text-red-600">{errors.submit}</p>
+  if (loading) return shell(<div className="flex justify-center rounded-2xl bg-white py-14"><div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200" style={{ borderTopColor: accent }}/></div>);
+  if (stage === 'error') return shell(<div className="rounded-2xl bg-white p-10 text-center"><h2 className="text-lg font-bold">Fundraiser not found</h2><p className="mt-2 text-sm text-gray-500">Please check the link and try again.</p></div>);
+  if (stage === 'closed') return shell(<div className="rounded-2xl bg-white p-10 text-center"><h2 className="text-lg font-bold">This fundraiser isn't accepting applications right now</h2><p className="mt-2 text-sm text-gray-500">Contact {fundraiser?.club_name} for more information.</p></div>);
+  if (stage === 'success') return shell(
+    <section className="rounded-2xl bg-white px-5 py-10 text-center shadow-sm sm:px-10">
+      <CheckCircle2 className="mx-auto" size={56} style={{ color: accent }} />
+      <h2 className="mt-4 text-2xl font-bold">Your request has been sent!</h2>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-gray-600">
+        Thanks for offering to fundraise for <strong>{fundraiser?.name}</strong>. <strong>{fundraiser?.club_name}</strong> will review your request before your personal fundraising page goes live.
+      </p>
+      {(!submittedPhoto || !submittedVideo) && (
+        <div className="mx-auto mt-6 max-w-md rounded-xl bg-gray-50 p-4 text-left text-sm text-gray-600">
+          <strong className="block text-gray-900">One more idea for your page</strong>
+          <p className="mt-1">{!submittedPhoto && !submittedVideo ? 'A profile photo or personal video' : !submittedPhoto ? 'A profile photo' : 'A personal video'} can help bring your fundraising story to life. You can share a link with the organiser later if you wish.</p>
+        </div>
       )}
+    </section>
+  );
 
-      <button
-        onClick={submit}
-        disabled={stage === 'submitting' || !name.trim() || !email.trim() || !consent}
-        className="mt-5 w-full rounded-lg py-3 text-sm font-bold text-white disabled:opacity-50 transition"
-        style={{ background: accent }}
-      >
-        {stage === 'submitting' ? 'Submitting…' : 'Apply to take part'}
-      </button>
-    </>
+  return shell(
+    <div className="space-y-5">
+      <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+        <MediaHelp accent={accent}/>
+      </section>
+
+      <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+        <h2 className="text-lg font-bold text-gray-900">How it works</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {[
+            { icon: UserRound, label: '1. Apply', desc: 'Tell us about yourself.' },
+            { icon: CheckCircle2, label: '2. Get approved', desc: 'The organiser reviews your request.' },
+            { icon: Share2, label: '3. Share your page', desc: 'Invite friends and family to support you.' },
+          ].map(step => <div className="flex gap-3 sm:block" key={step.label}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ color: accent, backgroundColor: `${accent}14` }}><step.icon size={19} /></span>
+            <span className="sm:mt-2 sm:block"><strong className="block text-sm">{step.label}</strong><span className="block text-xs leading-relaxed text-gray-500">{step.desc}</span></span>
+          </div>)}
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+        <h2 className="text-xl font-bold">Request your fundraising page</h2>
+        <p className="mt-1 text-sm text-gray-600">Complete the form below to ask {fundraiser?.club_name} for your own page.</p>
+        <form className="mt-6 space-y-5" onSubmit={e => { e.preventDefault(); void submit(); }} noValidate>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2"><label htmlFor="peer-name" className="mb-1.5 block text-sm font-semibold">Your full name <span className="text-red-600">*</span></label><input id="peer-name" autoComplete="name" className={field} value={name} onChange={e => setName(e.target.value)} placeholder="Your full name" aria-invalid={!!errors.name}/>{errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}</div>
+            <div><label htmlFor="peer-email" className="mb-1.5 block text-sm font-semibold">Email address <span className="text-red-600">*</span></label><input id="peer-email" type="email" autoComplete="email" className={field} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" aria-invalid={!!errors.email}/>{errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}</div>
+            <div><label htmlFor="peer-phone" className="mb-1.5 block text-sm font-semibold">Phone <span className="font-normal text-gray-400">(optional)</span></label><input id="peer-phone" type="tel" autoComplete="tel" className={field} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Your phone number"/></div>
+            <div className="sm:col-span-2"><label htmlFor="peer-target" className="mb-1.5 block text-sm font-semibold">Your fundraising target <span className="font-normal text-gray-400">(optional)</span></label><div className="relative"><span className="absolute left-3 top-3 text-sm font-medium text-gray-500">{symbol}</span><input id="peer-target" type="number" min="1" step="1" className={`${field} pl-10`} value={target} onChange={e => setTarget(e.target.value)} placeholder="500"/></div>{errors.target && <p className="mt-1 text-xs text-red-600">{errors.target}</p>}<p className="mt-1 text-xs text-gray-500">How much would you like to raise? It's fine to leave this blank.</p></div>
+            <div className="sm:col-span-2"><label htmlFor="peer-message" className="mb-1.5 block text-sm font-semibold">Your fundraising story <span className="font-normal text-gray-400">(optional)</span></label><textarea id="peer-message" rows={4} className={`${field} resize-y`} value={message} onChange={e => setMessage(e.target.value)} placeholder="I'm taking part because…"/><p className="mt-1 text-xs text-gray-500">This message can appear on your personal fundraising page.</p></div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div><label htmlFor="peer-photo" className="mb-1.5 block text-sm font-semibold">Profile photo link <span className="font-normal text-gray-400">(optional)</span></label><input id="peer-photo" type="url" className={field} value={photo} onChange={e => setPhoto(e.target.value)} placeholder="https://…"/><p className="mt-1 text-xs text-gray-500">Public image link; see guidance above.</p></div>
+            <div><label htmlFor="peer-video" className="mb-1.5 block text-sm font-semibold">YouTube video link <span className="font-normal text-gray-400">(optional)</span></label><input id="peer-video" type="url" className={field} value={video} onChange={e => setVideo(e.target.value)} placeholder="https://youtube.com/…"/><p className="mt-1 text-xs text-gray-500">An unlisted YouTube video is fine.</p></div>
+          </div>
+
+          <div><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" style={{ accentColor: accent }}/><span className="text-xs leading-relaxed text-gray-600">I agree to {fundraiser?.club_name} storing and using my details to manage this fundraising request, in accordance with <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: accent }}>Fundraisely's Privacy Policy</a>. <span className="text-red-600">*</span></span></label>{errors.consent && <p className="mt-1 text-xs text-red-600">{errors.consent}</p>}</div>
+          {errors.submit && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{errors.submit}</p>}
+          <button type="submit" disabled={stage === 'submitting'} className="flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60" style={{ backgroundColor: accent }}>{stage === 'submitting' ? 'Sending your request…' : 'Request my fundraising page'}{stage !== 'submitting' && <ArrowRight size={18}/>}</button>
+          <p className="text-center text-xs text-gray-500">Your page won't go live until the organiser approves your request.</p>
+        </form>
+      </section>
+    </div>
   );
 }

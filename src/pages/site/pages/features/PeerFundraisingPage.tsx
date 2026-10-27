@@ -237,6 +237,7 @@ const relatedLinks = [
 ];
 
 export default function PeerFundraisingPage() {
+   
   return (
     <>
       <SEO
@@ -255,7 +256,7 @@ export default function PeerFundraisingPage() {
         description="FundRaisely peer fundraising turns your members, players, parents and participants into the distribution network for your fundraiser. Sell activity packs door to door through individual seller links, or run sponsored events where each participant collects personal sponsorship with their own page, target and story. The organisation sets it up. The people who already care about your cause do the reaching out."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore features', to: '/features' }}
-        image={images.communityHero}
+        image={images.peerRequest}
         status="Activity pack selling and sponsored events"
         variant="standard"
       />
@@ -328,8 +329,8 @@ export default function PeerFundraisingPage() {
           'Shareable via WhatsApp, email, social or QR code',
           'Organiser confirms payments and tracks all activity centrally',
         ]}
-        image={images.communityHero}
-        reverse
+        image={images.peerpacksponsor}
+     
       />
 
       <FeatureGrid

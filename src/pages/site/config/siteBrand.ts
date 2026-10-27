@@ -12,5 +12,5 @@ export const siteBrand = {
 export const socialLinks = [
   { label: 'X / Twitter', href: 'https://twitter.com/fundraisely' },
   { label: 'LinkedIn', href: 'https://www.linkedin.com/company/fundraisely' },
-  { label: 'Instagram', href: 'https://www.instagram.com/fundraisely' },
+ 
 ];
