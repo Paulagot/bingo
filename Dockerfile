@@ -1,5 +1,5 @@
 # Use Node.js 22 with full build tools
-FROM node:22-bullseye AS builder
+FROM node:22-bookworm AS builder
 
 WORKDIR /app
 
@@ -55,7 +55,7 @@ ENV VITE_DONATION_CLUB_ID=$VITE_DONATION_CLUB_ID
 RUN npm run build
 
 # Production stage
-FROM node:22-bullseye-slim
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 

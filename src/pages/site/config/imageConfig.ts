@@ -59,6 +59,8 @@ export type ImageKey =
   | "schoolHero"
   | "charitiesHero"
   | "communityHero"
+  | "peerRequest"
+  | "peerpacksponsor"
   | "hostControlsScreenshot"
   | "eliminationHero"
   | "eliminationHostScreenshot"
@@ -460,5 +462,14 @@ export const images: Record<ImageKey, SiteImage> = {
   puzzels: {
     src: "/images/screenshots/puzzle.png",
     alt: "FundRaisely digital puzzel events.",
+  },
+
+    peerpacksponsor: {
+    src: "/images/screenshots/peerpacksponsor.png",
+    alt: "FundRaisely digital peer pack sponsored events.",
+  },
+    peerRequest: {
+    src: "/images/screenshots/peerrequest.png",
+    alt: "FundRaisely digital peer request form.",
   },
 };

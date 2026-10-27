@@ -79,7 +79,7 @@ const Web3Provider = lazy(() =>
 );
 
 // -----------------------------------------------------------------------------
-// EVENT CLOSED FLAG — set to false to re-open tickets
+// EVENT CLOSED FLAG - set to false to re-open tickets
 // -----------------------------------------------------------------------------
 
 const EVENT_CLOSED = true;
@@ -623,7 +623,7 @@ export default function ColombiaEarthquakeReliefPage() {
             <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#ffd600]/30 bg-[#ffd600]/10 px-4 py-3 sm:mt-6">
               <span className="text-lg">🎮</span>
               <div>
-                <p className="text-sm font-black text-[#ffd600]">The games are over — the giving continues</p>
+                <p className="text-sm font-black text-[#ffd600]">The games are over - the giving continues</p>
                 <p className="mt-0.5 text-xs font-medium leading-5 text-white/75">
                   The event at Slane Castle took place on {EVENT_DATE}. Ticket sales are now closed, but you can still donate directly to the Irish Red Cross Colombia Appeal.
                 </p>
@@ -672,7 +672,7 @@ export default function ColombiaEarthquakeReliefPage() {
               <span className="mt-0.5 text-lg">🤝</span>
               <p className="text-sm font-semibold leading-7 text-white">
                 <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> matched the first{" "}
-                <span className="font-black text-[#ffd600]">€1,000 raised</span> — doubling the impact of every euro.
+                <span className="font-black text-[#ffd600]">€1,000 raised</span> - doubling the impact of every euro.
               </p>
             </div>
             <div className="mt-6 grid grid-cols-3 gap-2">
@@ -698,7 +698,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 <span className="mt-0.5 text-lg">🤝</span>
                 <p className="text-sm font-semibold leading-7 text-white">
                   <span className="font-black text-[#ffd600]">Alejandro Gutierrez</span> matched the first{" "}
-                  <span className="font-black text-[#ffd600]">€1,000 raised</span> — doubling the impact of every euro.
+                  <span className="font-black text-[#ffd600]">€1,000 raised</span> - doubling the impact of every euro.
                 </p>
               </div>
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -766,7 +766,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 <div className="mt-5 rounded-2xl border border-[#d7e2db] bg-[#f5f9f6] p-5">
                   <p className="text-lg font-black leading-8 text-[#10251c]">A parent waiting for news. A child whose home is gone. A family sleeping somewhere unfamiliar tonight.</p>
                 </div>
-                <p className="mt-5 text-base leading-8 text-[#526158]">Alejandro Gutierrez, founder of Superteam Ireland, is Colombian. This fundraiser was about turning one evening in Ireland into practical support for people who needed help. The games are over — the work of recovery continues.</p>
+                <p className="mt-5 text-base leading-8 text-[#526158]">Alejandro Gutierrez, founder of Superteam Ireland, is Colombian. This fundraiser was about turning one evening in Ireland into practical support for people who needed help. The games are over - the work of recovery continues.</p>
               </div>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -803,7 +803,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 </div>
                 <p className="mt-2 text-base text-white/75">
                   {targetReached
-                    ? "raised — target reached, and then some"
+                    ? "raised - target reached, and then some"
                     : `raised towards ${target !== null ? `${formatCurrency(target)} target` : "our relief target"}`}
                 </p>
 
@@ -873,7 +873,7 @@ export default function ColombiaEarthquakeReliefPage() {
                     />
                   </div>
                   <p className="mt-2 text-[11px] leading-5 text-white/55">
-                    {MATCH_FUND_SPONSOR} matched every euro raised up to €{MATCH_FUND_LIMIT.toLocaleString()} — thank you.
+                    {MATCH_FUND_SPONSOR} matched every euro raised up to €{MATCH_FUND_LIMIT.toLocaleString()} - thank you.
                   </p>
                 </div>
               </div>
@@ -887,7 +887,7 @@ export default function ColombiaEarthquakeReliefPage() {
             </div>
           </section>
 
-          {/* DONATE — always visible, especially when event is closed */}
+          {/* DONATE - always visible, especially when event is closed */}
           <section className="rounded-[2rem] border border-[#e4dbd0] bg-white p-6 shadow-sm sm:p-8">
             <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
@@ -930,7 +930,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 <img src={IRC_LOGO} alt="Irish Red Cross" className="h-12 w-auto object-contain" />
               </div>
               <div className="min-w-0">
-                <p className="text-base font-black text-[#10251c]">Irish Red Cross — Colombia Appeal</p>
+                <p className="text-base font-black text-[#10251c]">Irish Red Cross - Colombia Appeal</p>
                 <p className="mt-1 text-sm leading-6 text-[#526158]">
                   Funds are collected by FundRaisely on behalf of Superteam Ireland. After the event closes, the full gross proceeds will be transferred directly to the Irish Red Cross Colombia Appeal.
                 </p>
@@ -954,7 +954,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 <div>
                   <p className="font-black text-[#10251c]">Our transparency commitment</p>
                   <p className="mt-2 text-sm leading-7 text-[#526158]">
-                    All funds are collected by FundRaisely on behalf of Superteam Ireland during the event. After the event closes on {EVENT_DATE}, the <strong>full gross proceeds</strong> — every euro from ticket sales and donations — will be transferred directly to the Irish Red Cross Colombia Appeal. We will publish the transfer receipt publicly so every supporter can verify where the money went.
+                    All funds are collected by FundRaisely on behalf of Superteam Ireland during the event. After the event closes on {EVENT_DATE}, the <strong>full gross proceeds</strong> - every euro from ticket sales and donations - will be transferred directly to the Irish Red Cross Colombia Appeal. We will publish the transfer receipt publicly so every supporter can verify where the money went.
                   </p>
                 </div>
               </div>
@@ -969,7 +969,7 @@ export default function ColombiaEarthquakeReliefPage() {
               </div>
               <div className="grid gap-3">
                 <EventInfo icon={<CalendarDays className="h-5 w-5" />} label="When" value={`${EVENT_DATE} • ${EVENT_TIME}`} />
-                <EventInfo icon={<Trophy className="h-5 w-5" />} label="Games" value="Two live Elimination games — both played" />
+                <EventInfo icon={<Trophy className="h-5 w-5" />} label="Games" value="Two live Elimination games - both played" />
                 <EventInfo icon={<Users className="h-5 w-5" />} label="Hosted during" value="Castle DAO 2-week Founder Residency" />
                 <EventInfo icon={<Smartphone className="h-5 w-5" />} label="How it worked" value="Players joined on their phones and played FundRaisely Elimination live" />
               </div>
@@ -992,7 +992,7 @@ export default function ColombiaEarthquakeReliefPage() {
               <PartnerCard imgSrc={SUPERTEAM_LOGO} name="Superteam Ireland" role="Residency host" href={SUPERTEAM_URL} />
               <PartnerCard imgSrc={FUNDRAISELY_LOGO} name="FundRaisely" role="Fundraising & game platform" href="/" />
               <PartnerCard imgSrc={CASTLE_DAO_LOGO} name="CastleDAO" role="Community partner" href={CASTLE_DAO_URL} />
-              <PartnerCard imgSrc={IRC_LOGO} name="Irish Red Cross" role="Beneficiary — Colombia Appeal" href={IRC_APPEAL_URL} />
+              <PartnerCard imgSrc={IRC_LOGO} name="Irish Red Cross" role="Beneficiary - Colombia Appeal" href={IRC_APPEAL_URL} />
             </div>
           </SectionCard>
 
@@ -1028,7 +1028,7 @@ export default function ColombiaEarthquakeReliefPage() {
               <div className="space-y-3">
                 <FaqItem question="Who receives the funds raised?">
                   <p>
-                    Funds are collected by FundRaisely during the event on behalf of Superteam Ireland. Once the event closes on {EVENT_DATE}, the full gross proceeds — every euro from ticket sales and donations — will be transferred directly to the{" "}
+                    Funds are collected by FundRaisely during the event on behalf of Superteam Ireland. Once the event closes on {EVENT_DATE}, the full gross proceeds - every euro from ticket sales and donations - will be transferred directly to the{" "}
                     <a href={IRC_APPEAL_URL} target="_blank" rel="noopener noreferrer" className="font-black text-[#c0392b] underline decoration-2 underline-offset-2">
                       Irish Red Cross Colombia Earthquake Appeal
                     </a>
@@ -1060,7 +1060,7 @@ export default function ColombiaEarthquakeReliefPage() {
                 <>
                   <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">Thank you. Now help us push further.</h2>
                   <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/72">
-                    The games are over. The fundraiser raised real money for real families. Donations are still open — every euro goes to the Irish Red Cross Colombia Appeal.
+                    The games are over. The fundraiser raised real money for real families. Donations are still open - every euro goes to the Irish Red Cross Colombia Appeal.
                   </p>
                   <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-white/50">All proceeds go directly to the Irish Red Cross Colombia Appeal.</p>
                   <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
@@ -1165,11 +1165,11 @@ export default function ColombiaEarthquakeReliefPage() {
                     <div className="flex items-start gap-3">
                       <Trophy className="mt-0.5 h-5 w-5 shrink-0 text-[#806c00]" />
                       <div>
-                        <p className="font-black text-[#3f3500]">{pack.name} — {PACK_MAP[selectedPack].label}</p>
+                        <p className="font-black text-[#3f3500]">{pack.name} - {PACK_MAP[selectedPack].label}</p>
                         <p className="mt-1 text-sm leading-6 text-[#6e611c]">
                           {selectedPack === "both"
                             ? "Enter both Elimination games in one transaction. Two chances to win a Solana Seeker."
-                            : `Enter ${pack.name} — a separate live Elimination competition. Prize: Solana Seeker.`}
+                            : `Enter ${pack.name} - a separate live Elimination competition. Prize: Solana Seeker.`}
                         </p>
                       </div>
                     </div>
@@ -1189,7 +1189,7 @@ export default function ColombiaEarthquakeReliefPage() {
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email for your entry links" className="w-full rounded-2xl border border-[#e6e0d6] bg-white px-4 py-3 text-base font-semibold outline-none focus:border-[#006b43]" />
                   </div>
                   <div className="rounded-2xl bg-[#f5f9f6] p-4 text-sm text-[#526158]">
-                    <strong className="text-[#10251c]">{pack.name}</strong> — {PACK_MAP[selectedPack].label}
+                    <strong className="text-[#10251c]">{pack.name}</strong> - {PACK_MAP[selectedPack].label}
                   </div>
                   {checkoutError && <div className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700 ring-1 ring-red-100">{checkoutError}</div>}
                   <div className="flex gap-3">
@@ -1295,7 +1295,7 @@ export default function ColombiaEarthquakeReliefPage() {
 
               {checkoutStep === "confirm" && orderSummary && (
                 <div>
-                  {/* PeerOrderThankYou removed — import it back if needed */}
+                  {/* PeerOrderThankYou removed - import it back if needed */}
                   <div className="space-y-5 text-center">
                     <div className="rounded-3xl bg-[#f0f8f4] p-8">
                       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#006b43] text-white">
@@ -1377,7 +1377,7 @@ export default function ColombiaEarthquakeReliefPage() {
                       <input value={donorName} onChange={e => setDonorName(e.target.value)} placeholder="Screen name or leave blank to donate anonymously" className="w-full rounded-2xl border border-[#e6e0d6] bg-[#f8f6ef] px-4 py-3 text-sm font-semibold outline-none focus:border-[#006b43]" />
                       <input type="email" value={donorEmail} onChange={e => setDonorEmail(e.target.value)} placeholder="Email for confirmation (optional)" className="w-full rounded-2xl border border-[#e6e0d6] bg-[#f8f6ef] px-4 py-3 text-sm font-semibold outline-none focus:border-[#006b43]" />
                     </div>
-                    <p className="mt-3 text-xs text-[#8a9990]">You can donate anonymously — no name or email required.</p>
+                    <p className="mt-3 text-xs text-[#8a9990]">You can donate anonymously - no name or email required.</p>
                   </div>
                   <div className="flex items-center gap-2 rounded-2xl bg-[#f1f8f1] px-4 py-3 text-xs leading-5 text-[#3d6b4a]">
                     <Shield className="h-4 w-4 shrink-0 text-[#006b43]" />

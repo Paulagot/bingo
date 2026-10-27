@@ -66,7 +66,7 @@ function getMethodLabel(m: string): string {
 }
 
 function formatLabel(value: string | null | undefined) {
-  return value ? value.replace(/_/g, ' ') : '—';
+  return value ? value.replace(/_/g, ' ') : '-';
 }
 
 function makeNewDraft(currency: string, createdBy: string): DraftEntry {

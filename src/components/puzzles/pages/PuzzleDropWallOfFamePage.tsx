@@ -7,7 +7,7 @@
 // - Same club-branded Puzzle Drop family as PuzzleDropLandingPage.
 // - Competition / bragging-rights first.
 // - Mobile-first cards; polished multi-column layout on larger screens.
-// - Uses the existing Drop leaderboard APIs — no backend changes required.
+// - Uses the existing Drop leaderboard APIs - no backend changes required.
 
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -119,7 +119,7 @@ export default function PuzzleDropWallOfFamePage() {
 
     const url = window.location.href;
     const shareData = {
-      title: `${summary.challenge.title} — Wall of Fame`,
+      title: `${summary.challenge.title} - Wall of Fame`,
       text: `See who's leading the Puzzle Drop for ${summary.challenge.clubName ?? 'the organiser'}. Think you can beat them?`,
       url,
     };

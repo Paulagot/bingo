@@ -21,11 +21,7 @@ const socialLinks = [
     href: "https://x.com/Fundraisely",
     shortLabel: "𝕏",
   },
-  {
-    label: "Instagram",
-    href: "https://www.instagram.com/fund.raisely/",
-    shortLabel: "IG",
-  },
+
   {
     label: "Facebook",
     href: "https://www.facebook.com/profile.php?id=61580826725459",

@@ -1,17 +1,17 @@
 // src/components/peer/PeerSponsorshipExperience.tsx
 //
-// Peer-first sponsorship supporter experience — redesigned to match the
+// Peer-first sponsorship supporter experience - redesigned to match the
 // PeerSupportPage layout system:
-//   1. Sticky teal header  — "Support [Club Name]" + logo
-//   2. Club hero           — cover image, or logo on brand colour, or initial
-//   3. Participant card    — photo, name, message, video thumbnail → lightbox
-//   4. Progress bars       — participant (primary) + overall (secondary)
-//   5. Cause section       — description + fundraiser video
+//   1. Sticky teal header  - "Support [Club Name]" + logo
+//   2. Club hero           - cover image, or logo on brand colour, or initial
+//   3. Participant card    - photo, name, message, video thumbnail → lightbox
+//   4. Progress bars       - participant (primary) + overall (secondary)
+//   5. Cause section       - description + fundraiser video
 //   6. Desktop: two-column layout (info left, sponsorship CTA panel right)
-//   7. Sticky bottom bar   — "Sponsor [name]" CTA
-//   8. Sponsorship sheet   — slides up on tap (unchanged logic)
+//   7. Sticky bottom bar   - "Sponsor [name]" CTA
+//   8. Sponsorship sheet   - slides up on tap (unchanged logic)
 //
-// All media fields are optional — layout never breaks if any are missing.
+// All media fields are optional - layout never breaks if any are missing.
 
 import {
   lazy,
@@ -112,7 +112,7 @@ function getVimeoId(url: string): string | null {
   return null;
 }
 
-// ── VideoEmbed — inline iframe for YouTube/Vimeo, link fallback otherwise ────
+// ── VideoEmbed - inline iframe for YouTube/Vimeo, link fallback otherwise ────
 
 function VideoEmbed({ url, label }: { url: string; label?: string }) {
   if (!url) return null;
@@ -154,7 +154,7 @@ function VideoEmbed({ url, label }: { url: string; label?: string }) {
   );
 }
 
-// ── VideoLightbox — full-screen overlay that autoplays ────────────────────────
+// ── VideoLightbox - full-screen overlay that autoplays ────────────────────────
 
 function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
   const ytId = getYouTubeId(url);
@@ -211,7 +211,7 @@ function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
   );
 }
 
-// ── YouTubeThumbnail — static image for video preview buttons ─────────────────
+// ── YouTubeThumbnail - static image for video preview buttons ─────────────────
 
 function YouTubeThumbnail({ url }: { url: string }) {
   const ytId = getYouTubeId(url);
@@ -306,7 +306,7 @@ function ParticipantCard({
   );
 }
 
-// ── Sponsorship CTA panel — shown in right column on desktop ──────────────────
+// ── Sponsorship CTA panel - shown in right column on desktop ──────────────────
 
 function SponsorshipPanel({
   participantName,
@@ -430,7 +430,7 @@ export default function PeerSponsorshipExperience({ data }: Props) {
       : '';
 
   const shareTitle = participantName
-    ? `Support ${participantName} — ${fundraiser?.name || clubName}`
+    ? `Support ${participantName} - ${fundraiser?.name || clubName}`
     : `Support ${fundraiser?.name || clubName}`;
 
   const shareText = participantName
@@ -633,7 +633,7 @@ export default function PeerSponsorshipExperience({ data }: Props) {
           appOrigin: window.location.origin,
           returnPath: window.location.pathname,
           activityLabel: participantName
-            ? `${participantName} — ${activity.activityLabel}`
+            ? `${participantName} - ${activity.activityLabel}`
             : activity.activityLabel,
         } as any);
         window.location.href = result.redirectUrl;

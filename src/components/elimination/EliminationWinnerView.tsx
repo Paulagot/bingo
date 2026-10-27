@@ -427,7 +427,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
           Shown to everyone at the end of the game.
 
           Currency comes from prizeCurrency supplied
-          by the parent — there is NO EUR fallback.
+          by the parent - there is NO EUR fallback.
       ───────────────────────────────────────────── */}
 
       {!isWeb3Room && (

@@ -1,3 +1,4 @@
+//server/peerFundraising/api/peerRoutes.js
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import authenticateToken from '../../middleware/auth.js';
@@ -11,6 +12,10 @@ import {
 import { getAvailableMethodsForClub, getPublicMethods } from '../services/peerPaymentMethodsService.js';
 import { verifyAndRecordSolanaDonation } from '../../donations/services/cryptoSolanaDonationVerificationService.js';
 import { getPublicFundraiserImpact } from '../services/peerImpactService.js';
+  import {
+    getPublicFundraiser,
+    publicSignup,
+  } from '../services/peerPublicSignupService.js';
 
 const router=Router();
 const limiter=rateLimit({windowMs:10*60*1000,max:60,standardHeaders:true,legacyHeaders:false});
@@ -104,5 +109,29 @@ router.post('/peer-support/:fundraiserId/donations/crypto-checkout',cryptoLimite
     res.status(201).json({ok:true,...await donations.createPublicPeerCryptoDonation({fundraiserId,participantId,clubPaymentMethodId,donorName,donorEmail,amount})});
   }catch(e){fail(res,e);}
 });
+
+  // Public - no auth
+  router.get(
+    '/public/fundraisers/:clubSlug/:fundraiserSlug',
+    async (req, res, next) => {
+      try {
+        const data = await getPublicFundraiser(
+          req.params.clubSlug,
+          req.params.fundraiserSlug
+        );
+        res.json(data);
+      } catch (err) { next(err); }
+    }
+  );
+
+  router.post(
+    '/public/fundraisers/:fundraiserId/signup',
+    async (req, res, next) => {
+      try {
+        const data = await publicSignup(req.params.fundraiserId, req.body);
+        res.status(data.duplicate ? 200 : 201).json(data);
+      } catch (err) { next(err); }
+    }
+  );
 
 export default router;

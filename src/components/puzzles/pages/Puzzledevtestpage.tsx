@@ -2,136 +2,17 @@ import { useState, useCallback } from 'react';
 import PuzzleShell from '../PuzzleShell';
 import type { PuzzleType, PuzzleDifficulty, PuzzleScoreResult } from '../puzzleTypes';
 import { useAuthStore } from '../../../features/auth';
-
-
+import { getPuzzleMeta } from '../PuzzleMeta';
+import PuzzlePageShell from '../ui/PuzzlePageShell';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const PUZZLE_TYPES: PuzzleType[] = ['anagram', 'sequenceOrdering', 'matchPairs', 'wordSearch', 'slidingTile', 'sudoku',  'patternCompletion', 'wordLadder', 'cryptogram', 'numberPath', 'towersOfHanoi', 'nonogram', 'memoryPairs'];
+const PUZZLE_TYPES: PuzzleType[] = [
+  'anagram', 'sequenceOrdering', 'matchPairs', 'wordSearch', 'slidingTile',
+  'sudoku', 'patternCompletion', 'wordLadder', 'cryptogram', 'numberPath',
+  'towersOfHanoi', 'nonogram', 'memoryPairs',
+];
 const DIFFICULTIES: PuzzleDifficulty[] = ['easy', 'medium', 'hard'];
-
-// =============================================================================
-// COMPLETE PUZZLE_META - replace the existing PUZZLE_META object in
-// src/pages/PuzzleDevTestPage.tsx with this entire block
-// =============================================================================
-
-const PUZZLE_META: Record<string, { title: string; instructions: string }> = {
-
-  anagram: {
-    title: 'Anagram',
-    instructions:
-      'The letters of a word have been scrambled. Rearrange them to spell the correct word. ' +
-      'Use the category hint if you get stuck. Type your answer in the box and hit Submit.',
-  },
-
-  sequenceOrdering: {
-    title: 'Sequence Ordering',
-    instructions:
-      'The items below are in the wrong order. Drag and drop them into the correct sequence - ' +
-      'for example chronological order, size order, or logical steps. ' +
-      'When you are happy with the order hit Submit.',
-  },
-
-  matchPairs: {
-    title: 'Match the Pairs',
-    instructions:
-      'Each item on the left belongs with exactly one item on the right. ' +
-      'Click an item on the left to select it, then click its match on the right. ' +
-      'A correct pair will lock in place. Match all pairs to complete the puzzle.',
-  },
-
-  wordSearch: {
-    title: 'Word Search',
-    instructions:
-      'Find all the hidden words listed below inside the letter grid. ' +
-      'Words can run left to right, right to left, top to bottom, bottom to top, or diagonally. ' +
-      'Click and drag across the letters to select a word.',
-  },
-
-  slidingTile: {
-    title: 'Sliding Tile Puzzle',
-    instructions:
-      'Slide the numbered tiles into order - 1 to 15 reading left to right, top to bottom - ' +
-      'with the blank space in the bottom-right corner. ' +
-      'Only tiles directly next to the blank space can move. Click a tile to slide it.',
-  },
-
-  sudoku: {
-    title: 'Sudoku',
-    instructions:
-      'Fill every row, every column, and every 3×3 box with the digits 1 to 9. ' +
-      'Each digit can only appear once in each row, column, and box. ' +
-      'The darker-coloured cells are fixed - only the light cells can be changed. ' +
-      'Tap a cell to select it, then tap a number on the pad below to fill it in.',
-  },
-
-  patternCompletion: {
-    title: 'Pattern Completion',
-    instructions:
-      'Study the 3×3 grid of shapes carefully - there is a pattern in the colours and shapes across the rows and columns. ' +
-      'The bottom-right cell is missing. ' +
-      'Choose the option below that correctly completes the pattern and hit Submit.',
-  },
-
-  wordLadder: {
-    title: 'Word Ladder',
-    instructions:
-      'Transform the top word into the bottom word, one step at a time. ' +
-      'Each step must be a valid word that differs from the word above it by exactly one letter - ' +
-      'you can change, add, or remove a single letter. ' +
-      'Fill in the rungs of the ladder and hit Submit when done.',
-  },
-
-  cryptogram: {
-    title: 'Cryptogram',
-    instructions:
-      'A secret phrase has been encoded - every letter has been swapped for a different letter. ' +
-      'The same encoded letter always represents the same real letter throughout. ' +
-      'Use logic and common words to crack the code. ' +
-      'Click a letter in the phrase to select it, then type your guess. ' +
-      'Green letters are free hints. Decode the full phrase and hit Submit.',
-  },
-
-  numberPath: {
-    title: 'Number Path',
-    instructions:
-      'Each number on the grid appears exactly twice. Your goal is to connect each matching pair ' +
-      'with a continuous path, AND fill every single cell on the grid. ' +
-      'Paths cannot cross each other or share cells. ' +
-      'Click and drag from a number to draw its path. All cells must be covered to win.',
-  },
-
-  towersOfHanoi: {
-    title: 'Towers of Hanoi',
-    instructions:
-      'Move the entire stack of disks from peg A to peg C. ' +
-      'There are two rules: you can only move one disk at a time (always the top disk on a peg), ' +
-      'and you can never place a larger disk on top of a smaller one. ' +
-      'Use peg B as a temporary space. ' +
-      'Click a peg to pick up its top disk, then click the destination peg to place it. ' +
-      'The fewer moves you use the better - can you match the minimum?',
-  },
-
-  nonogram: {
-    title: 'Nonogram',
-    instructions:
-      'Fill in the grid to reveal a hidden pixel-art picture. ' +
-      'The numbers along each row and column tell you how many consecutive filled cells there are in that line - ' +
-      'for example "3" means exactly 3 filled cells in a row, and "2 1" means a group of 2, a gap, then a group of 1. ' +
-      'Left-click a cell to fill it. Right-click to mark a cell as definitely empty (shown as ✕). ' +
-      'Use logic to work out which cells must be filled. Hit Submit when the grid is complete.',
-  },
-
-  memoryPairs: {
-    title: 'Memory Pairs',
-    instructions:
-      'All the cards are face down. Flip two cards at a time to try to find a matching pair. ' +
-      'If they match they stay face up - if not, they flip back over. ' +
-      'Remember where you have seen each symbol and use it to find the pairs faster. ' +
-      'Find all matching pairs to complete the puzzle.',
-  },
-
-};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -147,10 +28,8 @@ interface LogEntry {
 export default function PuzzleDevTestPage() {
   const { club, entitlements, isAuthenticated } = useAuthStore();
 
-  // Token lives only in localStorage under 'auth_token'
   const tokenFromStore = isAuthenticated ? localStorage.getItem('auth_token') : null;
 
-  // Check all common property names - UUID clubs use club_id
   const clubId = (club as any)?.club_id
     ?? (club as any)?.id
     ?? (club as any)?.clubId
@@ -162,9 +41,11 @@ export default function PuzzleDevTestPage() {
   const [selectedType, setSelectedType]   = useState<PuzzleType>('anagram');
   const [difficulty, setDifficulty]       = useState<PuzzleDifficulty>('medium');
   const [isStale, setIsStale]             = useState(false);
+  const [devMode, setDevMode]             = useState(true);
+  const [showLog, setShowLog]             = useState(false);
 
   // Puzzle state
-  const [instanceId, setInstanceId]       = useState<number | null>(null);
+  const [instanceId, setInstanceId]       = useState<string | null>(null);
   const [puzzleData, setPuzzleData]       = useState<Record<string, unknown> | null>(null);
   const [savedState, setSavedState]       = useState<Record<string, unknown> | null>(null);
   const [scoreResult, setScoreResult]     = useState<PuzzleScoreResult | null>(null);
@@ -175,6 +56,11 @@ export default function PuzzleDevTestPage() {
 
   const token = tokenFromStore || manualToken;
 
+  // Use the same getPuzzleMeta that production PuzzlePage uses - this
+  // ensures the title, instructions (including difficulty-specific lines,
+  // scoring rules, and save/resume text) are identical to what players see.
+  const { title, instructions } = getPuzzleMeta(selectedType, difficulty);
+
   const addLog = useCallback((entry: Omit<LogEntry, 'time'>) => {
     setLog(prev => [{ ...entry, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 49)]);
   }, []);
@@ -184,7 +70,7 @@ export default function PuzzleDevTestPage() {
     'Authorization': `Bearer ${token}`,
   };
 
-  // ── Step 1: Load puzzle from real backend ──────────────────────────────────
+  // ── Step 1: Load puzzle ────────────────────────────────────────────────────
 
   const handleLoadPuzzle = async () => {
     if (!token) {
@@ -200,30 +86,62 @@ export default function PuzzleDevTestPage() {
     setIsStale(false);
     setShellKey(k => k + 1);
 
-    const url = `/api/puzzles/${challengeId}/${weekNumber}?puzzleType=${selectedType}&difficulty=${difficulty}`;
-    addLog({ type: 'request', message: `GET ${url}` });
+    if (devMode) {
+      const url = '/api/puzzles/dev/generate';
+      const payload = { puzzleType: selectedType, difficulty };
+      addLog({ type: 'request', message: `POST ${url}`, detail: JSON.stringify(payload) });
 
-    try {
-      const res  = await fetch(url, { headers: authHeaders });
-      const body = await res.json();
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json();
 
-      addLog({
-        type:    res.ok ? 'response' : 'error',
-        message: `${res.status} ${res.statusText}`,
-        detail:  JSON.stringify(body, null, 2),
-      });
+        addLog({
+          type:    res.ok ? 'response' : 'error',
+          message: `${res.status} ${res.statusText}`,
+          detail:  JSON.stringify(body, null, 2),
+        });
 
-      if (res.ok) {
-        setInstanceId(body.puzzle.id);
-        setPuzzleData(body.puzzle.puzzleData);
-        setSavedState(body.progress ?? null);
-        addLog({ type: 'success', message: `Puzzle loaded - instanceId: ${body.puzzle.id}, type: ${body.puzzle.puzzleType}` });
-        if (body.progress) addLog({ type: 'info', message: 'Saved progress found - resuming' });
+        if (res.ok) {
+          setInstanceId(body.puzzle.id);
+          setPuzzleData(body.puzzle.puzzleData);
+          setSavedState(body.progress ?? null);
+          addLog({ type: 'success', message: `Puzzle loaded (dev) - instanceId: ${body.puzzle.id}, type: ${body.puzzle.puzzleType}` });
+        }
+      } catch (err: any) {
+        addLog({ type: 'error', message: `Fetch failed: ${err.message}` });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err: any) {
-      addLog({ type: 'error', message: `Fetch failed: ${err.message}` });
-    } finally {
-      setIsLoading(false);
+    } else {
+      const url = `/api/puzzles/${challengeId}/${weekNumber}?puzzleType=${selectedType}&difficulty=${difficulty}`;
+      addLog({ type: 'request', message: `GET ${url}` });
+
+      try {
+        const res  = await fetch(url, { headers: authHeaders });
+        const body = await res.json();
+
+        addLog({
+          type:    res.ok ? 'response' : 'error',
+          message: `${res.status} ${res.statusText}`,
+          detail:  JSON.stringify(body, null, 2),
+        });
+
+        if (res.ok) {
+          setInstanceId(body.puzzle.id);
+          setPuzzleData(body.puzzle.puzzleData);
+          setSavedState(body.progress ?? null);
+          addLog({ type: 'success', message: `Puzzle loaded - instanceId: ${body.puzzle.id}, type: ${body.puzzle.puzzleType}` });
+          if (body.progress) addLog({ type: 'info', message: 'Saved progress found - resuming' });
+        }
+      } catch (err: any) {
+        addLog({ type: 'error', message: `Fetch failed: ${err.message}` });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -236,11 +154,11 @@ export default function PuzzleDevTestPage() {
       return;
     }
 
-    const url = `/api/puzzles/${instanceId}/save`;
-    addLog({ type: 'request', message: `POST ${url}`, detail: JSON.stringify({ progressData: state }) });
+    const basePath = devMode ? `/api/puzzles/dev/${instanceId}/save` : `/api/puzzles/${instanceId}/save`;
+    addLog({ type: 'request', message: `POST ${basePath}`, detail: JSON.stringify({ progressData: state }) });
 
     try {
-      const res  = await fetch(url, {
+      const res  = await fetch(basePath, {
         method:  'POST',
         headers: authHeaders,
         body:    JSON.stringify({ progressData: state }),
@@ -265,12 +183,12 @@ export default function PuzzleDevTestPage() {
       return;
     }
 
-    const url  = `/api/puzzles/${instanceId}/submit`;
-    const body = { puzzleType: selectedType, answer, timeTakenSeconds: timeTaken };
-    addLog({ type: 'request', message: `POST ${url}`, detail: JSON.stringify(body, null, 2) });
+    const basePath = devMode ? `/api/puzzles/dev/${instanceId}/submit` : `/api/puzzles/${instanceId}/submit`;
+    const payload = { puzzleType: selectedType, answer, timeTakenSeconds: timeTaken };
+    addLog({ type: 'request', message: `POST ${basePath}`, detail: JSON.stringify(payload, null, 2) });
 
     try {
-      const res      = await fetch(url, { method: 'POST', headers: authHeaders, body: JSON.stringify(body) });
+      const res      = await fetch(basePath, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
       const resBody  = await res.json();
 
       addLog({
@@ -312,40 +230,68 @@ export default function PuzzleDevTestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 py-8 px-4">
+    <PuzzlePageShell
+      clubName="Dev Testing"
+      rightHeaderContent={
+        <div className="flex items-center gap-2">
+          {devMode && (
+            <span className="rounded-full border border-violet-300 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+              DEV MODE
+            </span>
+          )}
+          {puzzleData && (
+            <span className="rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+              {selectedType} · {difficulty}
+            </span>
+          )}
+        </div>
+      }
+    >
+      {/* ── Dev controls ─────────────────────────────────────────────────── */}
+      <div className="mb-6 rounded-[28px] border border-[#E8E0D3] bg-white px-5 py-5 shadow-sm sm:px-6 space-y-4">
 
-      {/* Banner */}
-      <div className="max-w-3xl mx-auto mb-4 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-amber-600 text-lg">🛠️</span>
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Puzzle API Test Page</p>
-            <p className="text-xs text-amber-600">
-              {tokenFromStore
-                ? `🟢 Logged in${clubId ? ` · Club ID: ${clubId}` : ' · Club ID not found'}`
-                : '🟡 Not logged in - go to /login first, or paste a token below'}
-            </p>
-            {entitlements && (
-              <p className="text-xs text-amber-500 mt-0.5">
-                Credits: {(entitlements as any).game_credits_remaining ?? 'n/a'} · Plan: {(entitlements as any).plan_name ?? 'n/a'}
+        {/* Top row: mode toggle + auth status */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="text-amber-600 text-lg">🛠️</span>
+            <div>
+              <p className="text-sm font-semibold text-[#071A44]">Puzzle Test Controls</p>
+              <p className="text-xs text-[#6E6A63]">
+                {tokenFromStore
+                  ? `Logged in${clubId ? ` · Club ${(clubId as string).slice(0, 8)}…` : ''}`
+                  : 'Not logged in - go to /login first, or paste a token below'}
               </p>
-            )}
+              {entitlements && (
+                <p className="text-xs text-[#6E6A63] mt-0.5">
+                  Credits: {(entitlements as any).game_credits_remaining ?? 'n/a'} · Plan: {(entitlements as any).plan_name ?? 'n/a'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-[#6E6A63]">
+              {devMode ? 'Dev' : 'Normal'}
+            </span>
+            <button
+              onClick={() => setDevMode(d => !d)}
+              className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                devMode ? 'bg-violet-600' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                  devMode ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         </div>
-        {puzzleData && (
-          <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded-full border border-emerald-300">
-            Instance #{instanceId}
-          </span>
-        )}
-      </div>
 
-      {/* Config panel */}
-      <div className="max-w-3xl mx-auto mb-6 bg-white rounded-xl border border-gray-200 px-5 py-5 space-y-4">
-
-        {/* Token - only show if not auto-detected */}
+        {/* Token - only if not auto-detected */}
         {!tokenFromStore && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+            <label className="text-xs font-semibold text-[#6E6A63] uppercase tracking-widest">
               Auth Token <span className="text-red-400">*</span>
             </label>
             <input
@@ -353,50 +299,49 @@ export default function PuzzleDevTestPage() {
               value={manualToken}
               onChange={e => setManualToken(e.target.value)}
               placeholder="Paste your Bearer token here..."
-              className="w-full text-xs font-mono px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 bg-gray-50"
+              className="w-full text-xs font-mono px-3 py-2 border border-[#E8E0D3] rounded-xl focus:outline-none focus:border-[#E36B2C] bg-[#FBF8F3]"
             />
-            <p className="text-xs text-gray-400">
-              Get this from DevTools → Application → Local Storage, or your network requests.
-            </p>
           </div>
         )}
 
-        {/* Challenge + Week */}
-        <div className="flex gap-4">
-          <div className="flex flex-col gap-1 flex-1">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Challenge ID</label>
-            <input
-              type="text"
-              value={challengeId}
-              onChange={e => setChallengeId(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
-            />
+        {/* Challenge + Week - only in normal mode */}
+        {!devMode && (
+          <div className="flex gap-4">
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-xs font-semibold text-[#6E6A63] uppercase tracking-widest">Challenge ID</label>
+              <input
+                type="text"
+                value={challengeId}
+                onChange={e => setChallengeId(e.target.value)}
+                className="px-3 py-2 text-sm border border-[#E8E0D3] rounded-xl focus:outline-none focus:border-[#E36B2C]"
+              />
+            </div>
+            <div className="flex flex-col gap-1 w-24">
+              <label className="text-xs font-semibold text-[#6E6A63] uppercase tracking-widest">Week</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={weekNumber}
+                onChange={e => setWeekNumber(e.target.value)}
+                className="px-3 py-2 text-sm border border-[#E8E0D3] rounded-xl focus:outline-none focus:border-[#E36B2C]"
+              />
+            </div>
           </div>
-          <div className="flex flex-col gap-1 w-24">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Week</label>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={weekNumber}
-              onChange={e => setWeekNumber(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-        </div>
+        )}
 
         {/* Puzzle type */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Puzzle Type</label>
+          <label className="text-xs font-semibold text-[#6E6A63] uppercase tracking-widest">Puzzle Type</label>
           <div className="flex gap-2 flex-wrap">
             {PUZZLE_TYPES.map(type => (
               <button
                 key={type}
                 onClick={() => { setSelectedType(type); setIsStale(true); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
                   selectedType === type
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                    ? 'bg-[#071A44] text-white border-[#071A44]'
+                    : 'bg-white text-[#6E6A63] border-[#E8E0D3] hover:border-[#071A44]'
                 }`}
               >
                 {type}
@@ -407,16 +352,16 @@ export default function PuzzleDevTestPage() {
 
         {/* Difficulty */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Difficulty</label>
+          <label className="text-xs font-semibold text-[#6E6A63] uppercase tracking-widest">Difficulty</label>
           <div className="flex gap-2">
             {DIFFICULTIES.map(d => (
               <button
                 key={d}
                 onClick={() => { setDifficulty(d); setIsStale(true); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all capitalize ${
                   difficulty === d
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                    ? 'bg-[#071A44] text-white border-[#071A44]'
+                    : 'bg-white text-[#6E6A63] border-[#E8E0D3] hover:border-[#071A44]'
                 }`}
               >
                 {d}
@@ -429,73 +374,110 @@ export default function PuzzleDevTestPage() {
         <button
           onClick={handleLoadPuzzle}
           disabled={isLoading || !token}
-          className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${
+          className={`w-full py-3 rounded-full font-semibold text-sm transition-all ${
             isLoading || !token
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ? 'bg-[#E8E0D3] text-[#6E6A63] cursor-not-allowed'
               : isStale
-              ? 'bg-amber-500 text-white hover:bg-amber-600 active:scale-[0.99]'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.99]'
+              ? 'bg-[#E36B2C] text-white hover:bg-[#D05A1B] active:scale-[0.99]'
+              : 'bg-[#071A44] text-white hover:bg-[#0A2460] active:scale-[0.99]'
           }`}
         >
-          {isLoading ? 'Loading from server...' : isStale ? '⚠️ Settings changed - Reload Puzzle' : puzzleData ? '↺ Reload Puzzle' : '▶ Load Puzzle from Server'}
+          {isLoading
+            ? 'Loading...'
+            : isStale
+            ? 'Settings changed - Reload Puzzle'
+            : puzzleData
+            ? 'Reload Puzzle'
+            : devMode
+            ? 'Generate Puzzle'
+            : 'Load Puzzle from Server'}
         </button>
       </div>
 
-      {/* Puzzle shell - only shown once loaded */}
+      {/* ── Puzzle area - identical to production PuzzlePage ──────────────── */}
       {puzzleData && (
-        <PuzzleShell
-          key={shellKey}
-          puzzleType={selectedType}
-          title={PUZZLE_META[selectedType].title}
-          instructions={PUZZLE_META[selectedType].instructions}
-          difficulty={difficulty}
-          puzzleData={puzzleData}
-          onSubmit={handleSubmit}
-          onSaveProgress={handleSaveProgress}
-          savedState={savedState}
-          isLoading={isLoading}
-          scoreResult={scoreResult}
-        />
+        <div className="mx-auto max-w-5xl">
+          <div className="overflow-hidden rounded-[32px] border border-[#E8E0D3] bg-white p-3 shadow-sm sm:p-4">
+            <div className="rounded-[24px] bg-[#FBF8F3] p-2 sm:p-4">
+              <PuzzleShell
+                key={shellKey}
+                puzzleType={selectedType}
+                title={title}
+                instructions={instructions}
+                difficulty={difficulty}
+                puzzleData={puzzleData}
+                onSubmit={handleSubmit}
+                onSaveProgress={handleSaveProgress}
+                savedState={savedState}
+                isLoading={isLoading}
+                scoreResult={scoreResult}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {!puzzleData && !isLoading && (
-        <div className="max-w-3xl mx-auto text-center py-12 text-gray-400 text-sm">
-          Configure the options above and click <strong>Load Puzzle from Server</strong> to begin.
+        <div className="mx-auto flex min-h-[30vh] max-w-xl items-center justify-center">
+          <div className="w-full rounded-[36px] border border-[#E8E0D3] bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[26px] bg-[#F8F6F1] text-4xl shadow-sm">
+              🧩
+            </div>
+            <h2 className="font-serif text-2xl text-[#071A44] mb-2">
+              {devMode ? 'Ready to test' : 'Load a puzzle'}
+            </h2>
+            <p className="text-sm text-[#6E6A63]">
+              {devMode
+                ? 'Pick a puzzle type and difficulty above, then hit Generate Puzzle.'
+                : 'Enter a challenge ID and week number above, then hit Load.'}
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Dev log */}
-      <div className="max-w-3xl mx-auto mt-6 bg-gray-900 rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">API Log</p>
-          <button
-            onClick={() => setLog([])}
-            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-          >
-            Clear
-          </button>
-        </div>
-        <div className="px-4 py-3 space-y-1 max-h-80 overflow-y-auto">
-          {log.length === 0 && (
-            <p className="text-xs text-gray-600 italic">API calls will appear here...</p>
-          )}
-          {log.map((entry, i) => (
-            <div key={i}>
-              <p className={`text-xs font-mono ${logColour[entry.type]}`}>
-                <span className="text-gray-600 mr-2">{entry.time}</span>
-                <span className="mr-2">{logPrefix[entry.type]}</span>
-                {entry.message}
-              </p>
-              {entry.detail && (
-                <pre className="text-xs font-mono text-gray-500 ml-8 whitespace-pre-wrap break-all">
-                  {entry.detail}
-                </pre>
-              )}
-            </div>
-          ))}
-        </div>
+      {/* ── Dev log (collapsible) ────────────────────────────────────────── */}
+      <div className="mt-6 rounded-[28px] border border-[#E8E0D3] bg-gray-900 overflow-hidden shadow-sm">
+        <button
+          onClick={() => setShowLog(l => !l)}
+          className="w-full flex items-center justify-between px-5 py-3 border-b border-gray-800"
+        >
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+            API Log {log.length > 0 && `(${log.length})`}
+          </p>
+          <div className="flex items-center gap-3">
+            {log.length > 0 && (
+              <span
+                onClick={e => { e.stopPropagation(); setLog([]); }}
+                className="text-xs text-gray-600 hover:text-gray-400 transition-colors cursor-pointer"
+              >
+                Clear
+              </span>
+            )}
+            <span className="text-xs text-gray-600">{showLog ? '▲' : '▼'}</span>
+          </div>
+        </button>
+        {showLog && (
+          <div className="px-4 py-3 space-y-1 max-h-80 overflow-y-auto">
+            {log.length === 0 && (
+              <p className="text-xs text-gray-600 italic">API calls will appear here...</p>
+            )}
+            {log.map((entry, i) => (
+              <div key={i}>
+                <p className={`text-xs font-mono ${logColour[entry.type]}`}>
+                  <span className="text-gray-600 mr-2">{entry.time}</span>
+                  <span className="mr-2">{logPrefix[entry.type]}</span>
+                  {entry.message}
+                </p>
+                {entry.detail && (
+                  <pre className="text-xs font-mono text-gray-500 ml-8 whitespace-pre-wrap break-all">
+                    {entry.detail}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-    </div>
+    </PuzzlePageShell>
   );
 }

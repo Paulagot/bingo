@@ -5,9 +5,6 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import { Game } from './pages/Game';
 
-
-
-
 import ConfirmPasswordReset from './components/auth/ConfirmPasswordReset';
 import RequestPasswordReset from './components/auth/RequestPasswordReset';
 import AuthPage from './components/auth/AuthPage';
@@ -179,6 +176,7 @@ const PuzzleDropPage = lazy(() => import('./pages/site/pages/games/PuzzleDropPag
 const SponsoredEventsPage = lazy(() => import('./pages/site/pages/games/SponsoredEventsPage'));
 const PeerFundraisingPage = lazy(() => import('./pages/site/pages/features/PeerFundraisingPage'));
 const DonationsWidgetPage = lazy(() => import('./pages/site/pages/features/DonationsWidgetPage'));
+const PeerSignupPage = lazy(() => import('./pages/peer/PublicSignupPage'));
 
 const PlayerOverallLeaderboardPage = lazy(() => import('./components/puzzles/pages/PlayerOverallLeaderboardPage'));
 
@@ -401,6 +399,14 @@ export default function App() {
         <Route path="/reset-password" element={<ConfirmPasswordReset />} />
         <Route path="/forgot-password" element={<RequestPasswordReset />} />
 
+  <Route
+    path="/fundraise/:clubSlug/:fundraiserSlug/join"
+    element={
+      <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+        <PeerSignupPage />
+      </Suspense>
+    }
+  />
 
         {/* Peer-to-Peer public supporter routes */}
         <Route
