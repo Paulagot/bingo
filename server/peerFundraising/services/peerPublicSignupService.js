@@ -19,9 +19,12 @@ export async function getPublicFundraiser(clubSlug, fundraiserSlug) {
        f.currency,
        f.end_date,
        f.status,
-       c.name                   AS club_name,
-       c.brand_logo_url         AS club_logo_url,
-       c.brand_primary_color    AS primary_colour
+       c.name AS club_name,
+       c.brand_logo_url AS club_logo_url,
+       c.brand_primary_color AS primary_colour,
+       JSON_UNQUOTE(
+         JSON_EXTRACT(f.settings_json, '$.coverImageUrl')
+       ) AS cover_image_url
      FROM ${F} f
      JOIN ${C} c ON c.id = f.club_id
      WHERE c.slug = ?
@@ -35,15 +38,16 @@ export async function getPublicFundraiser(clubSlug, fundraiserSlug) {
 
   return {
     fundraiser: {
-      id:             fundraiser.id,
-      name:           fundraiser.name,
-      description:    fundraiser.description,
-      currency:       fundraiser.currency,
-      end_date:       fundraiser.end_date,
-      status:         fundraiser.status,
-      club_name:      fundraiser.club_name,
-      club_logo_url:  fundraiser.club_logo_url  ?? null,
+      id: fundraiser.id,
+      name: fundraiser.name,
+      description: fundraiser.description,
+      currency: fundraiser.currency,
+      end_date: fundraiser.end_date,
+      status: fundraiser.status,
+      club_name: fundraiser.club_name,
+      club_logo_url: fundraiser.club_logo_url ?? null,
       primary_colour: fundraiser.primary_colour ?? null,
+      cover_image_url: fundraiser.cover_image_url ?? null,
     },
   };
 }

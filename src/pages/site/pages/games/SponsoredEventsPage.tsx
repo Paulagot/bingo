@@ -210,7 +210,7 @@ export default function SponsoredEventsPage() {
         description="Set up a sponsored walk, run, cycle, readathon or any sponsored activity in FundRaisely. Then link it to peer fundraising to create individual participant pages, set personal targets, add videos, track sponsorships and generate a committee-ready report when it is over."
         primaryCta={{ label: 'Book a demo', to: '/contact' }}
         secondaryCta={{ label: 'Explore peer fundraising', to: '/features/peer-fundraising' }}
-        image={images.communityHero}
+        image={images.peerpacksponsor}
         status="Walks, runs, cycles, swims, readathons and more"
         variant="standard"
       />

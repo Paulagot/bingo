@@ -521,7 +521,7 @@ export default function DemoPage() {
               <DemoExperienceCard
                 icon={Puzzle}
                 title="Play a Puzzle Drop"
-                text="Buy a puzzle, receive your access and play the actual challenge."
+                text="Buy a puzzle with the demo credit card, receive your access and play the actual challenge."
                 url={PUZZLE_DROP_URL}
                 ready={Boolean(PUZZLE_DROP_URL)}
               />
